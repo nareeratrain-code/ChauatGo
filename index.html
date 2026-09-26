@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>ChauatGo - ปัดหมุดเส้นทาง</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#00b14f;--primary-dark:#008f3f;--accent:#ff9500;--red:#ee4d2d;
+  --bg:#f8f9fa;--c:#ffffff;--t:#1f1e1a;--m:#6b6a63;--b:#e9ecef;
+  --shadow:0 4px 12px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:#e9ecef;font-family:'Noto Sans Thai',sans-serif;color:var(--t);height:100%}
+#app{max-width:480px;margin:0 auto;background:var(--bg);min-height:100vh;position:relative;overflow:hidden}
+
+.header{background:var(--primary);padding:16px;color:#fff;position:sticky;top:0;z-index:50;border-radius:0 0 20px 20px}
+.header-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.logo{font-size:22px;font-weight:800;letter-spacing:-0.5px;display:flex;align-items:center;gap:6px}
+.logo span{color:var(--accent)}
+.icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;border:none;color:#fff}
+.search-box{background:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;color:var(--m);font-size:14px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+
+.loc-bar{background:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--b);font-size:13px}
+.loc-bar .dot{width:10px;height:10px;border-radius:50%;background:var(--primary);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,177,79,0.4)}70%{box-shadow:0 0 0 6px rgba(0,177,79,0)}100%{box-shadow:0 0 0 0 rgba(0,177,79,0)}}
+
+.svc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px}
+.svc{background:var(--c);border-radius:16px;padding:14px 8px;text-align:center;cursor:pointer;border:1px solid var(--b);transition:0.2s;box-shadow:var(--shadow)}
+.svc:active{transform:scale(0.95)}
+.svc .ic{font-size:28px;margin-bottom:6px;display:block}
+.svc .lb{font-size:11px;font-weight:600;color:var(--t)}
+.svc.hot{background:linear-gradient(135deg,#fff5f5,#ffe0e0);border-color:#ffc9c9}
+
+.section{margin:20px 0}
+.section-title{font-size:16px;font-weight:700;padding:0 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.section-title .more{font-size:12px;color:var(--primary);font-weight:500;cursor:pointer}
+
+.local-card{background:var(--c);border-radius:14px;padding:12px;margin:0 16px 10px;display:flex;gap:12px;cursor:pointer;border:1px solid var(--b);transition:0.2s;box-shadow:0 2px 4px rgba(0,0,0,0.02)}
+.local-card:active{transform:scale(0.98)}
+.local-card .img{width:50px;height:50px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.local-card .info{flex:1;min-width:0}
+.local-card h4{font-size:13px;font-weight:600;margin-bottom:4px}
+.local-card .meta{font-size:11px;color:var(--m);margin-bottom:4px}
+.local-card .promo{display:inline-block;background:#e8f5e9;color:var(--primary);padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
+.local-card .distance{font-size:12px;font-weight:700;color:var(--red);margin-left:auto;flex-shrink:0}
+
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:480px;width:100%;background:var(--c);border-top:1px solid var(--b);display:flex;justify-content:space-around;padding:8px 0 12px;z-index:100;box-shadow:0 -4px 12px rgba(0,0,0,0.05)}
+.bnav button{flex:1;border:none;background:none;font-size:10px;color:var(--m);padding:4px 2px;cursor:pointer}
+.bnav button.on{color:var(--primary)}
+.bnav button .ic{font-size:22px;display:block;margin-bottom:2px}
+
+.page{display:none;height:100vh;overflow-y:auto}
+.page.active{display:block;animation:fadeIn 0.3s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ===== TRAVEL PAGE (ใหม่) ===== */
+#travelPage{position:relative;overflow:hidden}
+#travelMap{width:100%;height:100vh;position:absolute;top:0;left:0;z-index:1}
+
+/* Route Input Panel */
+.route-panel{position:absolute;top:60px;left:12px;right:12px;z-index:500;background:#fff;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.15)}
+.route-input-row{display:flex;align-items:center;gap:10px;padding:8px 0}
+.route-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;border:3px solid}
+.route-dot.from{border-color:var(--primary);background:#e8f5e9}
+.route-dot.to{border-color:var(--red);background:#ffebee}
+.route-input{flex:1;border:none;outline:none;font:inherit;font-size:13px;background:transparent}
+.route-input::placeholder{color:var(--m)}
+.route-divider{width:2px;height:20px;background:var(--b);margin-left:6px}
+
+/* Vehicle Selection Bottom Sheet */
+.vehicle-sheet{position:absolute;bottom:0;left:0;right:0;z-index:500;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);max-height:65vh;overflow-y:auto;transform:translateY(100%);transition:transform 0.3s ease}
+.vehicle-sheet.show{transform:translateY(0)}
+.sheet-handle{width:40px;height:4px;background:var(--b);border-radius:2px;margin:12px auto}
+.sheet-header{padding:0 16px 12px;border-bottom:1px solid var(--b)}
+.sheet-header h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.sheet-header .route-info{font-size:12px;color:var(--m)}
+
+.vehicle-option{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--b);cursor:pointer;transition:0.2s}
+.vehicle-option:active{background:#f5f5f5}
+.vehicle-option.selected{background:#e8f5e9;border-left:4px solid var(--primary)}
+.vehicle-icon{width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-size:40px;flex-shrink:0}
+.vehicle-info{flex:1}
+.vehicle-info .name{font-size:15px;font-weight:700;margin-bottom:4px}
+.vehicle-info .details{font-size:12px;color:var(--m);margin-bottom:4px}
+.vehicle-info .capacity{font-size:11px;color:var(--m)}
+.vehicle-price{text-align:right;flex-shrink:0}
+.vehicle-price .amount{font-size:18px;font-weight:700;color:var(--t)}
+.vehicle-price .surge{font-size:10px;color:var(--red);display:flex;align-items:center;gap:2px}
+
+/* Call Button */
+.call-btn-container{padding:16px;background:#fff;border-top:1px solid var(--b)}
+.payment-methods{display:flex;gap:12px;margin-bottom:12px;font-size:13px}
+.payment-methods span{color:var(--m);cursor:pointer}
+.payment-methods span.active{color:var(--primary);font-weight:600}
+.call-btn{background:var(--primary);color:#fff;width:100%;height:52px;border-radius:14px;border:none;font-size:16px;font-weight:700;cursor:pointer;transition:0.2s}
+.call-btn:active{transform:scale(0.98)}
+
+/* Map Controls */
+.map-controls{position:absolute;right:12px;z-index:400;display:flex;flex-direction:column;gap:8px}
+.map-controls.top{top:220px}
+.map-controls.bottom{bottom:100px}
+.map-btn{width:44px;height:44px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 8px rgba(0,0,0,0.2);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.map-btn.primary{background:var(--primary);color:#fff}
+
+/* Instruction Banner */
+.instruction-banner{position:absolute;top:170px;left:12px;right:12px;z-index:400;background:rgba(0,177,79,0.95);color:#fff;padding:10px 14px;border-radius:12px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.instruction-banner.hidden{display:none}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(2px)}
+.modal{background:var(--c);border-radius:20px;padding:24px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto;animation:slideUp 0.3s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal h3{margin-bottom:12px;font-size:18px}
+.modal .close{position:absolute;top:16px;right:16px;background:var(--bg);border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;color:var(--m)}
+
+button.pri{background:var(--primary);color:#fff;width:100%;height:46px;font-size:15px;border-radius:12px;border:none;font-weight:600}
+button.sec{background:var(--c);color:var(--t);border:1px solid var(--b);width:100%;height:42px;border-radius:10px;font-weight:600}
+
+.leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 4px 12px rgba(0,0,0,0.15)!important}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ============ HOME PAGE ============ -->
+<div id="homePage" class="page active">
+<div class="header">
+<div class="header-top">
+<div class="logo">📍 Chauat<span>Go</span></div>
+<div style="margin-left:auto;display:flex;gap:8px">
+<button class="icon-btn">🔔</button>
+<button class="icon-btn">👤</button>
+</div>
+</div>
+<div class="search-box" onclick="showPage('database')">
+<span>🔍</span>
+<span>ค้นหา 400+ สถานที่ในชะอวด...</span>
+</div>
+</div>
+
+<div class="loc-bar">
+<span class="dot"></span>
+<strong id="userLocationText">📍 กำลังหาตำแหน่งของคุณ...</strong>
+</div>
+
+<div class="svc-grid">
+<div class="svc hot" onclick="showPage('travel')"><span class="ic">🚗</span><span class="lb">เดินทาง</span></div>
+<div class="svc" onclick="showPage('nearby')"><span class="ic">📍</span><span class="lb">ใกล้ฉัน</span></div>
+<div class="svc" onclick="showPage('database')"><span class="ic">📚</span><span class="lb">ฐานข้อมูล</span></div>
+<div class="svc" onclick="showPage('map')"><span class="ic">🗺️</span><span class="lb">แผนที่</span></div>
+</div>
+
+<div class="section">
+<div class="section-title">🚗 เดินทางในชะอวด <span class="more" onclick="showPage('travel')">ปัดหมุดเลย ›</span></div>
+<div class="local-card" onclick="showPage('travel')">
+<div class="img" style="background:#e8f5e9">🚗</div>
+<div class="info">
+<h4>ปัดหมุดเส้นทาง</h4>
+<div class="meta">คลิก 2 จุดบนแผนที่ → คำนวณราคาทันที</div>
+<span class="promo">เริ่มต้น ฿15</span>
+</div>
+</div>
+<div class="local-card" onclick="showPage('travel')">
+<div class="img" style="background:#fff3e0">🛵</div>
+<div class="info">
+<h4>มอเตอร์ไซค์รับจ้าง</h4>
+<div class="meta">เร็วสุดในอำเภอชะอวด</div>
+<span class="promo">เริ่มต้น ฿15</span>
+</div>
+</div>
+</div>
+
+<div style="text-align:center;padding:20px;color:var(--m);font-size:11px">
+ChauatGo v4.2 - Route Booking<br>© 2024 ChauatGo Co., Ltd.
+</div>
+</div>
+
+<!-- ============ TRAVEL PAGE (ใหม่!) ============ -->
+<div id="travelPage" class="page">
+<!-- แผนที่เต็มจอ -->
+<div id="travelMap"></div>
+
+<!-- คำแนะนำ -->
+<div class="instruction-banner" id="instructionBanner">
+<span>👆</span>
+<span id="instructionText">คลิกจุดเริ่มต้นบนแผนที่</span>
+</div>
+
+<!-- ปุ่มควบคุมแผนที่ -->
+<div class="map-controls top">
+<button class="map-btn" onclick="locateMe()" title="ตำแหน่งฉัน">📍</button>
+<button class="map-btn" onclick="clearRoute()" title="ล้างเส้นทาง">🗑️</button>
+</div>
+<div class="map-controls bottom">
+<button class="map-btn primary" onclick="showVehicleSheet()" id="showVehicleBtn" style="display:none" title="ดูตัวเลือก">🚗</button>
+</div>
+
+<!-- Route Input Panel -->
+<div class="route-panel" id="routePanel">
+<div class="route-input-row">
+<div class="route-dot from"></div>
+<input type="text" class="route-input" id="routeFrom" placeholder="จุดเริ่มต้น (คลิกบนแผนที่)" readonly>
+</div>
+<div class="route-divider" style="margin-left:6px;height:10px"></div>
+<div class="route-input-row">
+<div class="route-dot to"></div>
+<input type="text" class="route-input" id="routeTo" placeholder="จุดหมาย (คลิกบนแผนที่)" readonly>
+</div>
+</div>
+
+<!-- Vehicle Selection Sheet -->
+<div class="vehicle-sheet" id="vehicleSheet">
+<div class="sheet-handle"></div>
+<div class="sheet-header">
+<h3>เลือกประเภทรถ</h3>
+<div class="route-info" id="routeSummary">ระยะทาง: - กม. • เวลา: - นาที</div>
+</div>
+
+<div id="vehicleOptions">
+<!-- จะถูกเติมด้วย JavaScript -->
+</div>
+
+<div class="call-btn-container">
+<div class="payment-methods">
+<span class="active">💵 เงินสด</span>
+<span>💳 ChauatPay</span>
+<span>📱 พร้อมเพย์</span>
+</div>
+<button class="call-btn" id="callBtn" onclick="callVehicle()">เรียกรถ</button>
+</div>
+</div>
+</div>
+
+<!-- ============ NEARBY PAGE ============ -->
+<div id="nearbyPage" class="page">
+<div class="header" style="position:relative">
+<div class="header-top">
+<button onclick="showPage('home')" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">←</button>
+<div class="logo" style="flex:1">📍 สถานที่ใกล้ฉัน</div>
+</div>
+</div>
+<div style="padding:16px;text-align:center;color:var(--m)">ฟีเจอร์ใกล้ฉัน - กำลังพัฒนา</div>
+</div>
+
+<!-- ============ DATABASE PAGE ============ -->
+<div id="databasePage" class="page">
+<div class="header" style="position:relative">
+<div class="header-top">
+<button onclick="showPage('home')" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">←</button>
+<div class="logo" style="flex:1">📚 ฐานข้อมูลชะอวด</div>
+</div>
+</div>
+<div style="padding:12px 16px">
+<input type="text" placeholder="🔍 ค้นชื่อสถานที่..." style="width:100%;height:44px;padding:0 16px;border:1px solid var(--b);border-radius:12px;background:var(--c);font:inherit">
+</div>
+<div style="padding:16px;text-align:center;color:var(--m)">ฐานข้อมูล 400 สถานที่</div>
+</div>
+
+<!-- ============ MAP PAGE ============ -->
+<div id="mapPage" class="page">
+<div class="header" style="position:relative">
+<div class="header-top">
+<button onclick="showPage('home')" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">←</button>
+<div class="logo" style="flex:1">🗺️ แผนที่ครอบคลุม</div>
+</div>
+</div>
+<div style="padding:16px;text-align:center;color:var(--m)">แผนที่อำเภอชะอวด</div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div id="modalContainer"></div>
+
+<!-- ============ BOTTOM NAV ============ -->
+<div class="bnav">
+<button class="on" onclick="showPage('home')"><span class="ic">🏠</span>หน้าแรก</button>
+<button onclick="showPage('travel')"><span class="ic">🚗</span>เดินทาง</button>
+<button onclick="showPage('nearby')"><span class="ic">📍</span>ใกล้ฉัน</button>
+<button onclick="showPage('database')"><span class="ic">📚</span>ฐานข้อมูล</button>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================================================
+// 🗄️ ฐานข้อมูลสถานที่ (ย่อ)
+// ============================================================
+const CHAUAT_BOUNDS = { north: 8.54, south: 8.38, east: 99.96, west: 99.80 };
+const TAMBON_CENTERS = {
+  'ชะอวด': [8.461, 99.885], 'ไม้เสียบ': [8.472, 99.875], 'วังอ่าง': [8.455, 99.895],
+  'เคร็ง': [8.445, 99.865], 'บ้านตูล': [8.445, 99.855], 'เขาพระทอง': [8.485, 99.905],
+  'ขอนหาด': [8.435, 99.845], 'นางหลง': [8.425, 99.835], 'เกาะขันธ์': [8.435, 99.875],
+  'ท่าประจะ': [8.456, 99.876], 'ท่าเสม็ด': [8.455, 99.875], 'ควนหนองหงส์': [8.455, 99.865]
+};
+
+function getCoords(tambonStr) {
+  let center = TAMBON_CENTERS['ชะอวด'];
+  for (let key in TAMBON_CENTERS) {
+    if (tambonStr.includes(key)) { center = TAMBON_CENTERS[key]; break; }
+  }
+  const lat = center[0] + (Math.random() - 0.5) * 0.03;
+  const lng = center[1] + (Math.random() - 0.5) * 0.03;
+  return [
+    Math.max(CHAUAT_BOUNDS.south, Math.min(CHAUAT_BOUNDS.north, lat)),
+    Math.max(CHAUAT_BOUNDS.west, Math.min(CHAUAT_BOUNDS.east, lng))
+  ];
+}
+
+const rawDB = [
+  {n:"สถานีรถไฟชะอวด", c:"คมนาคม", t:"ชะอวด", i:"🚂"},
+  {n:"ที่ว่าการอำเภอชะอวด", c:"ราชการ", t:"ชะอวด", i:"🏛️"},
+  {n:"โรงพยาบาลชะอวด", c:"ราชการ", t:"ชะอวด", i:"🏥"},
+  {n:"โรงเรียนชะอวดวิทยาคาร", c:"การศึกษา", t:"ชะอวด", i:"🏫"},
+  {n:"เซเว่นอีเลฟเว่น ตลาดชะอวด", c:"ร้านค้า", t:"ชะอวด", i:"🏪"},
+  {n:"ตลาดสดเทศบาลตำบลชะอวด", c:"ตลาด", t:"ชะอวด", i:"🥬"},
+  {n:"วัดเขาพระทอง", c:"ศาสนสถาน", t:"เขาพระทอง", i:"🛕"},
+  {n:"ล่องแพบ้านวังหอน", c:"ท่องเที่ยว", t:"วังอ่าง", i:"🚣"},
+];
+
+const DB = rawDB.map((item, index) => {
+  const coords = getCoords(item.t);
+  return {
+    id: index + 1, name: item.n, cat: item.c, sub: `ต.${item.t}`,
+    rating: (4.0 + Math.random() * 0.9).toFixed(1), img: item.i,
+    lat: coords[0], lng: coords[1], addr: `อำเภอชะอวด, จ.นครศรีธรรมราช`
+  };
+});
+
+// ============================================================
+// 🗺️ ระบบแผนที่และเส้นทาง (Travel Page)
+// ============================================================
+let travelMap;
+let routePoints = []; // [from, to]
+let routeMarkers = [];
+let routeLine = null;
+let userMarker = null;
+let selectedVehicle = null;
+let routeDistance = 0; // กิโลเมตร
+let routeDuration = 0; // นาที
+
+// ตัวเลือกประเภทรถ (แบบ Grab)
+const VEHICLE_TYPES = [
+  { id: 'bike_saver', name: 'Saver Bike', icon: '🛵', capacity: 1, pricePerKm: 15, basePrice: 15, speed: 35, desc: 'ประหยัดสุด' },
+  { id: 'bike_standard', name: 'Standard Bike', icon: '🏍️', capacity: 1, pricePerKm: 20, basePrice: 20, speed: 40, desc: 'มาตรฐาน' },
+  { id: 'car_standard', name: 'Standard Car', icon: '🚗', capacity: 4, pricePerKm: 25, basePrice: 50, speed: 45, desc: 'Car or taxi' },
+  { id: 'car_suv', name: 'SUV / Van', icon: '🚙', capacity: 6, pricePerKm: 35, basePrice: 80, speed: 45, desc: 'ใหญ่พิเศษ' },
+];
+
+function initTravelMap() {
+  travelMap = L.map('travelMap', {
+    zoomControl: false,
+    minZoom: 12,
+    maxZoom: 18,
+    attributionControl: false
+  });
+  
+  travelMap.setMaxBounds(L.latLngBounds(
+    [CHAUAT_BOUNDS.south, CHAUAT_BOUNDS.west],
+    [CHAUAT_BOUNDS.north, CHAUAT_BOUNDS.east]
+  ));
+  travelMap.setView([8.4611, 99.8853], 14);
+  
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© ChauatGo',
+    maxZoom: 19
+  }).addTo(travelMap);
+  
+  L.control.zoom({ position: 'topright' }).addTo(travelMap);
+  
+  // ขอบเขตอำเภอ
+  L.rectangle(L.latLngBounds(
+    [CHAUAT_BOUNDS.south, CHAUAT_BOUNDS.west],
+    [CHAUAT_BOUNDS.north, CHAUAT_BOUNDS.east]
+  ), {
+    color: '#00b14f', weight: 2, fillOpacity: 0.03, dashArray: '5, 10'
+  }).addTo(travelMap).bindPopup('📍 ขอบเขตอำเภอชะอวด');
+  
+  // เพิ่มหมุดสถานที่จากฐานข้อมูล
+  DB.forEach(place => {
+    const colorMap = {
+      'คมนาคม': '#2563eb', 'ราชการ': '#dc2626', 'การศึกษา': '#7c3aed',
+      'ร้านค้า': '#f59e0b', 'ตลาด': '#10b981', 'ท่องเที่ยว': '#00b14f', 'ศาสนสถาน': '#8b5cf6'
+    };
+    const color = colorMap[place.cat] || '#6b7280';
+    const icon = L.divIcon({
+      html: `<div style="background:${color};color:#fff;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.3)">${place.img}</div>`,
+      className: '', iconSize: [28, 28], iconAnchor: [14, 14]
+    });
+    const marker = L.marker([place.lat, place.lng], { icon }).addTo(travelMap);
+    marker.bindPopup(`
+      <div style="min-width:150px">
+        <strong style="font-size:14px">${place.img} ${place.name}</strong>
+        <br><span style="color:#666;font-size:11px">${place.cat} • ${place.sub}</span>
+        <br><button onclick="setAsDestination(${place.lat}, ${place.lng}, '${place.name.replace(/'/g, "\\'")}')" style="margin-top:6px;background:#00b14f;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;width:100%;font-size:12px">🏁 ใช้เป็นจุดหมาย</button>
+      </div>
+    `);
+  });
+  
+  // คลิกบนแผนที่เพื่อวางจุด
+  travelMap.on('click', onMapClick);
+  
+  // หาตำแหน่งผู้ใช้
+  locateMe();
+}
+
+function onMapClick(e) {
+  const { lat, lng } = e.latlng;
+  
+  if (routePoints.length === 0) {
+    // จุดเริ่มต้น
+    routePoints.push([lat, lng]);
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        html: '<div style="background:#00b14f;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">📍</div>',
+        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+      })
+    }).addTo(travelMap);
+    marker.bindPopup('จุดเริ่มต้น').openPopup();
+    routeMarkers.push(marker);
+    
+    document.getElementById('routeFrom').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('instructionText').textContent = 'คลิกจุดหมายบนแผนที่';
+    
+  } else if (routePoints.length === 1) {
+    // จุดหมาย
+    routePoints.push([lat, lng]);
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        html: '<div style="background:#ee4d2d;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏁</div>',
+        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+      })
+    }).addTo(travelMap);
+    marker.bindPopup('จุดหมาย').openPopup();
+    routeMarkers.push(marker);
+    
+    document.getElementById('routeTo').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    document.getElementById('instructionText').textContent = '✅ เส้นทางพร้อม! กดปุ่ม 🚗 เพื่อดูตัวเลือก';
+    document.getElementById('instructionBanner').style.background = 'rgba(0,177,79,0.95)';
+    
+    // วาดเส้นทาง
+    drawRoute();
+    
+    // แสดงปุ่มดูตัวเลือก
+    document.getElementById('showVehicleBtn').style.display = 'flex';
+    
+    // เปิด Vehicle Sheet อัตโนมัติ
+    setTimeout(() => showVehicleSheet(), 500);
+  }
+}
+
+function drawRoute() {
+  if (routePoints.length < 2) return;
+  
+  // ลบเส้นทางเก่า
+  if (routeLine) travelMap.removeLayer(routeLine);
+  
+  // วาดเส้นทางใหม่ (เส้นประ)
+  routeLine = L.polyline(routePoints, {
+    color: '#00b14f',
+    weight: 5,
+    opacity: 0.8,
+    dashArray: '10, 10'
+  }).addTo(travelMap);
+  
+  // Zoom ให้เห็นทั้งเส้นทาง
+  travelMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+  
+  // คำนวณระยะทางและเวลา
+  calculateRoute();
+}
+
+function calculateRoute() {
+  if (routePoints.length < 2) return;
+  
+  const [from, to] = routePoints;
+  routeDistance = calculateDistance(from[0], from[1], to[0], to[1]);
+  
+  // คำนวณเวลาโดยประมาณ (ความเร็วเฉลี่ย 40 กม./ชม.)
+  routeDuration = Math.round((routeDistance / 40) * 60);
+  if (routeDuration < 5) routeDuration = 5;
+  
+  // อัพเดท UI
+  document.getElementById('routeSummary').textContent = 
+    `ระยะทาง: ${routeDistance.toFixed(2)} กม. • เวลาโดยประมาณ: ${routeDuration} นาที`;
+  
+  // แสดงตัวเลือกยานพาหนะ
+  renderVehicleOptions();
+}
+
+function renderVehicleOptions() {
+  const container = document.getElementById('vehicleOptions');
+  
+  container.innerHTML = VEHICLE_TYPES.map((v, idx) => {
+    const price = Math.round(v.basePrice + (routeDistance * v.pricePerKm));
+    const duration = Math.round((routeDistance / v.speed) * 60);
+    const isSelected = idx === 2; // Default: Standard Car
+    
+    return `
+      <div class="vehicle-option ${isSelected ? 'selected' : ''}" onclick="selectVehicle(${idx})" id="vehicle-${idx}">
+        <div class="vehicle-icon">${v.icon}</div>
+        <div class="vehicle-info">
+          <div class="name">${v.name}</div>
+          <div class="details">อีก ${duration} นาที • ${v.desc}</div>
+          <div class="capacity">👤 ${v.capacity} ที่นั่ง</div>
+        </div>
+        <div class="vehicle-price">
+          <div class="amount">฿${price}</div>
+          <div class="surge">〰️ ราคาผันแปร</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  // เลือก Standard Car เป็นค่าเริ่มต้น
+  selectedVehicle = VEHICLE_TYPES[2];
+  updateCallButton();
+}
+
+function selectVehicle(idx) {
+  // ลบ selection เก่า
+  document.querySelectorAll('.vehicle-option').forEach(el => el.classList.remove('selected'));
+  
+  // เพิ่ม selection ใหม่
+  document.getElementById(`vehicle-${idx}`).classList.add('selected');
+  selectedVehicle = VEHICLE_TYPES[idx];
+  
+  updateCallButton();
+}
+
+function updateCallButton() {
+  if (!selectedVehicle) return;
+  const price = Math.round(selectedVehicle.basePrice + (routeDistance * selectedVehicle.pricePerKm));
+  document.getElementById('callBtn').textContent = `เรียกรถ ${selectedVehicle.name} • ฿${price}`;
+}
+
+function showVehicleSheet() {
+  if (routePoints.length < 2) {
+    alert('กรุณาวางจุดเริ่มต้นและจุดหมายบนแผนที่ก่อน');
+    return;
+  }
+  document.getElementById('vehicleSheet').classList.add('show');
+}
+
+function callVehicle() {
+  if (!selectedVehicle) return;
+  
+  const price = Math.round(selectedVehicle.basePrice + (routeDistance * selectedVehicle.pricePerKm));
+  const duration = Math.round((routeDistance / selectedVehicle.speed) * 60);
+  
+  showModal(`
+    <div style="text-align:center">
+      <div style="font-size:64px;margin-bottom:12px">${selectedVehicle.icon}</div>
+      <h3>ยืนยันการจอง</h3>
+      <p style="color:var(--m);font-size:13px;margin-bottom:16px">
+        ${selectedVehicle.name} • ${routeDistance.toFixed(2)} กม. • ${duration} นาที
+      </p>
+      
+      <div style="background:var(--bg);padding:16px;border-radius:12px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
+          <span>ค่าโดยสาร</span>
+          <span>฿${price}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px">
+          <span>ค่าธรรมเนียม</span>
+          <span>฿10</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;border-top:1px solid var(--b);padding-top:8px">
+          <span>รวมทั้งหมด</span>
+          <span style="color:var(--primary)">฿${price + 10}</span>
+        </div>
+      </div>
+      
+      <div style="background:#e8f5e9;padding:12px;border-radius:10px;margin-bottom:16px;font-size:13px">
+        <strong>📍 จุดเริ่มต้น:</strong> ${document.getElementById('routeFrom').value}<br>
+        <strong>🏁 จุดหมาย:</strong> ${document.getElementById('routeTo').value}
+      </div>
+      
+      <div style="display:flex;gap:8px">
+        <button class="sec" onclick="closeModal()">ยกเลิก</button>
+        <button class="pri" onclick="confirmBooking()">✅ ยืนยัน</button>
+      </div>
+    </div>
+  `);
+}
+
+function confirmBooking() {
+  const price = Math.round(selectedVehicle.basePrice + (routeDistance * selectedVehicle.pricePerKm));
+  
+  closeModal();
+  showModal(`
+    <div style="text-align:center">
+      <div style="font-size:64px;margin-bottom:12px">✅</div>
+      <h3>เรียกรถสำเร็จ!</h3>
+      <p style="color:var(--m);font-size:13px;margin-bottom:16px">
+        คนขับกำลังมาหาคุณ<br>
+        จะถึงในอีกประมาณ ${Math.round(routeDuration / 2)} นาที
+      </p>
+      
+      <div style="background:var(--bg);padding:16px;border-radius:12px;margin-bottom:16px">
+        <div style="font-size:40px;margin-bottom:8px">${selectedVehicle.icon}</div>
+        <div style="font-size:16px;font-weight:700">${selectedVehicle.name}</div>
+        <div style="font-size:13px;color:var(--m)">฿${price + 10} • ${routeDistance.toFixed(2)} กม.</div>
+      </div>
+      
+      <button class="pri" onclick="closeModal()">ตกลง</button>
+    </div>
+  `);
+}
+
+function clearRoute() {
+  routePoints = [];
+  routeDistance = 0;
+  routeDuration = 0;
+  selectedVehicle = null;
+  
+  routeMarkers.forEach(m => travelMap.removeLayer(m));
+  routeMarkers = [];
+  
+  if (routeLine) travelMap.removeLayer(routeLine);
+  routeLine = null;
+  
+  document.getElementById('routeFrom').value = '';
+  document.getElementById('routeTo').value = '';
+  document.getElementById('instructionText').textContent = 'คลิกจุดเริ่มต้นบนแผนที่';
+  document.getElementById('instructionBanner').style.background = 'rgba(0,177,79,0.95)';
+  document.getElementById('showVehicleBtn').style.display = 'none';
+  document.getElementById('vehicleSheet').classList.remove('show');
+  document.getElementById('vehicleOptions').innerHTML = '';
+  document.getElementById('routeSummary').textContent = 'ระยะทาง: - กม. • เวลา: - นาที';
+}
+
+function setAsDestination(lat, lng, name) {
+  if (routePoints.length === 0) {
+    // ตั้งเป็นจุดเริ่มต้น
+    routePoints.push([lat, lng]);
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        html: '<div style="background:#00b14f;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">📍</div>',
+        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+      })
+    }).addTo(travelMap);
+    routeMarkers.push(marker);
+    document.getElementById('routeFrom').value = name;
+    document.getElementById('instructionText').textContent = 'คลิกจุดหมายบนแผนที่';
+    travelMap.setView([lat, lng], 15);
+  } else if (routePoints.length === 1) {
+    // ตั้งเป็นจุดหมาย
+    routePoints.push([lat, lng]);
+    const marker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        html: '<div style="background:#ee4d2d;color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">🏁</div>',
+        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
+      })
+    }).addTo(travelMap);
+    routeMarkers.push(marker);
+    document.getElementById('routeTo').value = name;
+    drawRoute();
+    document.getElementById('showVehicleBtn').style.display = 'flex';
+    setTimeout(() => showVehicleSheet(), 500);
+  }
+}
+
+function locateMe() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        if (userMarker) travelMap.removeLayer(userMarker);
+        userMarker = L.marker([latitude, longitude], {
+          icon: L.divIcon({
+            html: '<div style="background:#2563eb;color:#fff;width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>',
+            className: '', iconSize: [20, 20], iconAnchor: [10, 10]
+          })
+        }).addTo(travelMap);
+        
+        travelMap.setView([latitude, longitude], 15);
+        document.getElementById('userLocationText').textContent = `📍 ตำแหน่งของคุณ`;
+      },
+      (error) => {
+        console.log('GPS Error:', error.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+}
+
+// ============================================================
+// Haversine Formula
+// ============================================================
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// ============================================================
+// Navigation & Modal
+// ============================================================
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId + 'Page').classList.add('active');
+  document.querySelectorAll('.bnav button').forEach(b => b.classList.remove('on'));
+  
+  const navMap = {'home':0, 'travel':1, 'nearby':2, 'database':3};
+  if(navMap[pageId] !== undefined) document.querySelectorAll('.bnav button')[navMap[pageId]].classList.add('on');
+
+  window.scrollTo(0, 0);
+
+  if (pageId === 'travel' && !travelMap) {
+    setTimeout(() => initTravelMap(), 100);
+  }
+}
+
+function showModal(content) {
+  document.getElementById('modalContainer').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+      <div class="modal">${content}</div>
+    </div>
+  `;
+}
+
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+
+// ============================================================
+// GPS จริงสำหรับหน้าแรก - หาสถานที่ใกล้ที่สุดจากฐานข้อมูล
+// ============================================================
+function findNearestPlace(lat, lng) {
+  let nearest = null, minDist = Infinity;
+  DB.forEach(place => {
+    const d = calculateDistance(lat, lng, place.lat, place.lng);
+    if (d < minDist) { minDist = d; nearest = place; }
+  });
+  return nearest;
+}
+
+function locateHomeUser() {
+  const textEl = document.getElementById('userLocationText');
+  const dotEl = document.querySelector('.loc-bar .dot');
+  if (!navigator.geolocation) {
+    textEl.textContent = '📍 อุปกรณ์นี้ไม่รองรับ GPS';
+    return;
+  }
+
+  textEl.textContent = '📍 กำลังค้นหาตำแหน่ง GPS ที่แม่นยำ...';
+
+  // การอ่านค่าครั้งแรกจาก getCurrentPosition มักมาจาก Wi-Fi/เสาสัญญาณ
+  // ไม่ใช่ชิป GPS จริง ทำให้คลาดเคลื่อนได้หลายกิโลเมตรในพื้นที่ต่างจังหวัด
+  // จึงใช้ watchPosition รอค่าที่แม่นยำกว่า (accuracy ต่ำกว่า = ดีกว่า) แทน
+  const ACCURACY_GOOD_ENOUGH = 50; // เมตร - ถือว่าเป็นตำแหน่ง GPS จริงที่ใช้ได้
+  const MAX_WAIT_MS = 15000; // รอสูงสุด 15 วินาที เพื่อให้ GPS จับสัญญาณ
+
+  let bestPosition = null;
+  let watchId = null;
+  let settled = false;
+
+  function applyPosition(pos) {
+    const { latitude, longitude, accuracy } = pos.coords;
+    const nearest = findNearestPlace(latitude, longitude);
+    const accText = accuracy ? ` (ความแม่นยำ ±${Math.round(accuracy)} ม.)` : '';
+    if (nearest) {
+      const distKm = calculateDistance(latitude, longitude, nearest.lat, nearest.lng);
+      const distText = distKm < 1 ? `${Math.round(distKm * 1000)} ม.` : `${distKm.toFixed(1)} กม.`;
+      textEl.textContent = `📍 คุณอยู่ใกล้${nearest.name} (${distText}), อ.ชะอวด${accText}`;
+    } else {
+      textEl.textContent = `📍 ตำแหน่งของคุณพร้อมแล้ว${accText}`;
+    }
+    if (dotEl) dotEl.style.background = 'var(--primary)';
+  }
+
+  function finish() {
+    if (settled) return;
+    settled = true;
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    if (bestPosition) {
+      applyPosition(bestPosition);
+    } else {
+      textEl.textContent = '📍 ไม่สามารถระบุตำแหน่ง GPS ได้ ลองใหม่อีกครั้ง';
+      if (dotEl) dotEl.style.background = 'var(--m)';
+    }
+  }
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      // เก็บค่าที่แม่นยำที่สุดที่เคยได้รับไว้เสมอ
+      if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+        bestPosition = pos;
+      }
+      // ถ้าได้ค่าที่แม่นยำระดับ GPS จริงแล้ว ใช้ได้เลยไม่ต้องรอ
+      if (pos.coords.accuracy <= ACCURACY_GOOD_ENOUGH) {
+        finish();
+      }
+    },
+    (error) => {
+      if (settled) return;
+      // ถ้ามีค่าที่พอใช้ได้อยู่แล้วก่อนเกิด error ก็ใช้ค่านั้นไปก่อน
+      if (bestPosition) { finish(); return; }
+      settled = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (error.code === error.PERMISSION_DENIED) {
+        textEl.textContent = '📍 กรุณาอนุญาตการเข้าถึงตำแหน่งเพื่อดูสถานที่ใกล้คุณ';
+      } else {
+        textEl.textContent = '📍 ไม่สามารถระบุตำแหน่งได้ ลองใหม่อีกครั้ง';
+      }
+      if (dotEl) dotEl.style.background = 'var(--m)';
+    },
+    { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 }
+  );
+
+  // เผื่อไว้: ถ้าครบเวลาแล้วยังไม่ได้ค่าที่แม่นยำพอ ให้ใช้ค่าที่ดีที่สุดที่มีอยู่
+  setTimeout(finish, MAX_WAIT_MS);
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  // เชื่อมต่อ GPS จริงทันทีที่เปิดแอป
+  locateHomeUser();
+
+  // ซ่อน Vehicle Sheet เมื่อคลิกนอก
+  document.addEventListener('click', (e) => {
+    const sheet = document.getElementById('vehicleSheet');
+    if (sheet.classList.contains('show') && !sheet.contains(e.target) && !e.target.closest('#showVehicleBtn')) {
+      // ไม่ปิดอัตโนมัติ เพื่อให้ผู้ใช้เลือกประเภทรถได้สะดวก
+    }
+  });
+});
+</script>
+</body>
+</html>
