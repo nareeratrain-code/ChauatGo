@@ -1,868 +1,976 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ChauatGo - ชะอวดที่เดียว</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;800&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Noto Sans Thai',sans-serif;-webkit-tap-highlight-color:transparent}
-body{background:#f0f2f5;color:#1a1a2e}
-#app{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;position:relative;overflow-x:hidden;padding-bottom:70px}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chauat Go - แอปนำทางและสั่งอาหารอำเภอชะอวด</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', 'Prompt', sans-serif; }
+        body { background: #f5f5f5; max-width: 480px; margin: 0 auto; min-height: 100vh; overflow-x: hidden; }
 
-/* ===== MODE SELECTOR ===== */
-#selectorPage{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:#fff}
-.logo-big{font-size:42px;font-weight:900;margin-bottom:8px;text-align:center}
-.logo-big span{color:#ffd700}
-.tagline{font-size:15px;opacity:0.95;margin-bottom:32px;text-align:center}
-.mode-card{background:#fff;border-radius:20px;padding:20px;margin-bottom:16px;width:100%;display:flex;align-items:center;gap:16px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.15);border:3px solid transparent;transition:0.2s}
-.mode-card:active{transform:scale(0.97)}
-.mode-card.cust:hover{border-color:#00b14f}
-.mode-card.rider:hover{border-color:#ff6b00}
-.mode-icon{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
-.cust .mode-icon{background:linear-gradient(135deg,#00b14f,#008f3f);color:#fff}
-.rider .mode-icon{background:linear-gradient(135deg,#ff6b00,#e55a00);color:#fff}
-.mode-info{flex:1;text-align:left}
-.mode-info h3{font-size:17px;font-weight:800;color:#1a1a2e;margin-bottom:4px}
-.mode-info p{font-size:12px;color:#6b7280;line-height:1.4}
-.arr{font-size:24px;color:#6b7280}
-.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:24px}
-.stat-box{background:rgba(255,255,255,0.15);backdrop-filter:blur(10px);border-radius:12px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,0.2)}
-.stat-box .n{font-size:20px;font-weight:800}
-.stat-box .l{font-size:10px;opacity:0.9;margin-top:2px}
+        .stats-header { background: linear-gradient(135deg, #7B68AE, #6A5ACD); padding: 20px 15px 30px; color: white; }
+        .stats-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .stat-card { background: rgba(255,255,255,0.2); border-radius: 16px; padding: 15px 20px; text-align: center; flex: 1; backdrop-filter: blur(10px); }
+        .stat-card .number { font-size: 28px; font-weight: bold; }
+        .stat-card .label { font-size: 12px; opacity: 0.9; }
+        .copyright { text-align: center; font-size: 12px; opacity: 0.8; padding: 10px; }
 
-/* ===== APP PAGES ===== */
-.app-page{display:none;min-height:100vh}
-.app-page.active{display:block;animation:fadeIn 0.3s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .green-header { background: #00A651; padding: 20px 15px; border-radius: 0 0 30px 30px; }
+        .app-title { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .app-title h1 { color: white; font-size: 28px; }
+        .app-title h1 span { color: #FFD700; }
+        .search-bar { background: white; border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .search-bar input { border: none; outline: none; font-size: 15px; width: 100%; color: #666; }
+        .search-bar .search-icon { font-size: 20px; }
 
-.switch-btn{position:fixed;top:12px;right:12px;z-index:1000;background:rgba(0,0,0,0.7);color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer}
+        .location-bar { display: flex; align-items: center; gap: 8px; padding: 12px 15px; background: white; border-bottom: 1px solid #eee; }
+        .location-dot { width: 12px; height: 12px; background: #00A651; border-radius: 50%; }
+        .location-bar .loc-text { font-size: 14px; font-weight: 600; color: #333; }
 
-/* ===== CUSTOMER ===== */
-.cust-header{background:#00b14f;color:#fff;padding:16px;border-radius:0 0 20px 20px}
-.cust-header .logo{font-size:22px;font-weight:800;display:flex;align-items:center;gap:6px}
-.cust-header .logo span{color:#ffd700}
-.search-box{background:#fff;border-radius:12px;padding:12px 16px;margin-top:12px;display:flex;align-items:center;gap:10px;color:#6b7280;font-size:14px;cursor:pointer}
-.loc-bar{background:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e5e7eb;font-size:13px}
-.loc-bar .dot{width:10px;height:10px;border-radius:50%;background:#00b14f;animation:pulse 2s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,177,79,0.4)}70%{box-shadow:0 0 0 6px rgba(0,177,79,0)}100%{box-shadow:0 0 0 0 rgba(0,177,79,0)}}
+        .categories { display: flex; gap: 12px; padding: 20px 15px; background: white; overflow-x: auto; }
+        .cat-item { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 80px; cursor: pointer; padding: 15px 10px; border-radius: 16px; background: #f8f9fa; border: 2px solid transparent; transition: all 0.3s; }
+        .cat-item:hover, .cat-item.active { border-color: #00A651; background: #e8f5e9; }
+        .cat-icon { font-size: 36px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .cat-label { font-size: 13px; font-weight: 600; color: #333; text-align: center; }
 
-.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:16px}
-.stat-card{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-.stat-card .n{font-size:20px;font-weight:800;color:#00b14f}
-.stat-card .l{font-size:10px;color:#6b7280;margin-top:2px}
+        .section-header { display: flex; align-items: center; gap: 10px; padding: 15px; font-size: 18px; font-weight: bold; color: #333; background: #f5f5f5; }
+        .section-header .icon { font-size: 24px; }
 
-.svc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;padding:0 16px 16px}
-.svc{background:#fff;border-radius:16px;padding:14px 8px;text-align:center;cursor:pointer;border:1px solid #e5e7eb;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-.svc:active{transform:scale(0.95)}
-.svc .ic{font-size:28px;margin-bottom:6px;display:block}
-.svc .lb{font-size:11px;font-weight:600}
+        .place-list { background: #f5f5f5; padding: 10px 15px 15px; }
+        .place-card { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; background: white; border: 1px solid #eee; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+        .place-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-1px); }
+        .place-card .place-icon { font-size: 32px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 14px; flex-shrink: 0; }
+        .place-card .place-info { flex: 1; min-width: 0; }
+        .place-card .place-name { font-weight: 700; font-size: 17px; color: #222; line-height: 1.3; }
+        .place-card .place-detail { font-size: 13px; color: #888; margin-top: 4px; line-height: 1.4; }
+        .place-card .place-rating { color: #FFA500; font-size: 15px; margin-top: 4px; }
+        .place-card .place-distance { font-size: 18px; color: #00A651; font-weight: 700; flex-shrink: 0; }
 
-.section{margin:16px 0}
-.section-title{font-size:16px;font-weight:700;padding:0 16px;margin-bottom:12px}
-.local-card{background:#fff;border-radius:14px;padding:12px;margin:0 16px 10px;display:flex;gap:12px;cursor:pointer;border:1px solid #e5e7eb;box-shadow:0 2px 4px rgba(0,0,0,0.02)}
-.local-card:active{transform:scale(0.98)}
-.local-card .img{width:56px;height:56px;border-radius:12px;background:#f5f6f8;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
-.local-card .info{flex:1;min-width:0}
-.local-card h4{font-size:13px;font-weight:600;margin-bottom:3px}
-.local-card .meta{font-size:11px;color:#6b7280;margin-bottom:3px}
-.local-card .rating{font-size:11px;color:#ff9500;margin-bottom:3px}
-.local-card .promo{display:inline-block;background:#e8f5e9;color:#00b14f;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
-.local-card .distance{font-size:11px;font-weight:700;color:#ee4d2d;margin-left:auto;flex-shrink:0;align-self:center}
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: white; border-radius: 24px; padding: 30px 25px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-icon { text-align: center; font-size: 64px; margin-bottom: 15px; }
+        .modal-title { font-size: 22px; font-weight: bold; text-align: center; margin-bottom: 10px; color: #333; }
+        .modal-category { text-align: center; color: #888; font-size: 14px; margin-bottom: 5px; }
+        .modal-rating { text-align: center; color: #FFA500; font-size: 16px; margin-bottom: 10px; }
+        .modal-location { display: flex; align-items: center; gap: 6px; color: #666; font-size: 14px; margin-bottom: 8px; justify-content: center; }
+        .modal-price { font-size: 20px; font-weight: bold; color: #00A651; margin: 10px 0; text-align: center; }
+        .modal-desc { color: #666; font-size: 14px; margin-bottom: 15px; text-align: center; }
 
-.map-container{height:350px;border-radius:16px;overflow:hidden;margin:0 16px 16px;border:2px solid #e5e7eb;background:#e8f5e9}
+        .btn-view-map { display: block; width: 100%; padding: 16px; background: #00A651; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+        .btn-add-destination { display: block; width: 100%; padding: 16px; background: #FF6B35; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+        .btn-travel { display: block; width: 100%; padding: 16px; background: #4A90D9; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+        .btn-order-food { display: block; width: 100%; padding: 16px; background: #E91E63; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+        .btn-close { display: block; width: 100%; padding: 16px; background: white; color: #333; border: 2px solid #ddd; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
 
-/* ===== SEARCH PAGE ===== */
-.search-container{padding:16px}
-.search-input{width:100%;height:48px;padding:0 16px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font-size:15px;margin-bottom:16px}
-.search-results{max-height:calc(100vh - 250px);overflow-y:auto}
+        .map-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 2000; flex-direction: column; }
+        .map-modal.active { display: flex; }
+        .map-header { background: #00A651; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; }
+        .map-header h3 { font-size: 16px; }
+        .map-header .back-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+        #map-container { flex: 1; width: 100%; }
+        .map-info-panel { background: white; padding: 15px; border-top: 2px solid #eee; max-height: 250px; overflow-y: auto; }
+        .route-info { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .route-info .label { font-size: 13px; color: #888; }
+        .route-info .value { font-size: 15px; font-weight: bold; color: #333; }
+        .cost-breakdown { background: #f8f9fa; border-radius: 12px; padding: 12px; margin-top: 10px; }
+        .cost-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; }
+        .cost-row.total { border-top: 2px solid #00A651; margin-top: 8px; padding-top: 8px; font-weight: bold; font-size: 16px; color: #00A651; }
 
-/* ===== FOOD & HOTEL GRID ===== */
-.grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px}
-.grid-item{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;transition:0.2s}
-.grid-item:active{transform:scale(0.97)}
-.grid-item .img{height:120px;background:#f5f6f8;display:flex;align-items:center;justify-content:center;font-size:56px;position:relative}
-.grid-item .badge{position:absolute;top:8px;right:8px;background:#ff9500;color:#fff;padding:4px 8px;border-radius:8px;font-size:10px;font-weight:700}
-.grid-item .info{padding:12px}
-.grid-item h4{font-size:14px;font-weight:700;margin-bottom:4px}
-.grid-item .meta{font-size:11px;color:#6b7280;margin-bottom:6px}
-.grid-item .price{font-size:15px;font-weight:800;color:#00b14f}
+        .page { display: none; }
+        .page.active { display: block; }
+        .back-nav { display: flex; align-items: center; gap: 10px; padding: 15px; background: white; border-bottom: 1px solid #eee; cursor: pointer; }
+        .back-nav .arrow { font-size: 20px; color: #333; }
+        .back-nav .title { font-size: 18px; font-weight: bold; color: #333; }
 
-/* ===== TRAVEL PAGE ===== */
-#travelMap{width:100%;height:calc(100vh - 280px);position:relative;z-index:1}
-.travel-panel{position:absolute;top:10px;left:10px;right:10px;z-index:500;background:#fff;border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,0.15)}
-.travel-input{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #e5e7eb}
-.travel-input:last-child{border-bottom:none}
-.travel-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
-.travel-dot.from{background:#00b14f}
-.travel-dot.to{background:#ee4d2d}
-.travel-input input{flex:1;border:none;outline:none;font:inherit;font-size:14px;background:transparent}
-.vehicle-selector{position:absolute;bottom:80px;left:10px;right:10px;z-index:500;background:#fff;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.2);display:none}
-.vehicle-selector.show{display:block}
-.vehicle-option{display:flex;align-items:center;gap:12px;padding:12px;border:2px solid #e5e7eb;border-radius:12px;margin-bottom:10px;cursor:pointer;transition:0.2s}
-.vehicle-option.selected{border-color:#00b14f;background:#e8f5e9}
-.vehicle-option .icon{font-size:36px;width:50px;text-align:center}
-.vehicle-option .info{flex:1}
-.vehicle-option .name{font-size:15px;font-weight:700;margin-bottom:2px}
-.vehicle-option .desc{font-size:12px;color:#6b7280}
-.vehicle-option .price{font-size:18px;font-weight:800;color:#00b14f}
-.travel-actions{display:flex;gap:10px;margin-top:14px}
-.travel-btn{flex:1;padding:14px;border-radius:12px;border:none;font-weight:700;cursor:pointer;font-size:15px}
-.travel-btn.primary{background:#00b14f;color:#fff}
-.travel-btn.secondary{background:#f0f0f0;color:#6b7280}
+        .food-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 15px; background: white; }
+        .food-grid-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 5px; cursor: pointer; border-radius: 12px; transition: all 0.2s; }
+        .food-grid-item:hover { background: #f0f0f0; }
+        .food-grid-item .f-icon { font-size: 32px; }
+        .food-grid-item .f-label { font-size: 11px; color: #666; text-align: center; }
 
-/* ===== RIDER ===== */
-.rider-header{background:linear-gradient(135deg,#ff6b00,#e55a00);color:#fff;padding:16px;border-radius:0 0 20px 20px}
-.rider-header .logo{font-size:22px;font-weight:800}
-.rider-body{padding:16px}
-.online-btn{width:100%;padding:14px;border-radius:12px;border:none;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:12px;transition:0.2s}
-.off{background:#e5e7eb;color:#6b7280}
-.on{background:#ff6b00;color:#fff}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
-.stat{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-.stat .n{font-size:20px;font-weight:800;color:#ff6b00}
-.stat .l{font-size:11px;color:#6b7280;margin-top:4px}
-.wallet-card{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:16px;padding:16px;margin-bottom:12px}
-.wallet-card .lbl{font-size:11px;opacity:0.8}
-.wallet-card .balance{font-size:28px;font-weight:800;margin:6px 0}
-.wallet-card .sub{font-size:11px;opacity:0.7}
+        .search-results { background: white; padding: 10px 15px; max-height: 300px; overflow-y: auto; display: none; }
+        .search-results.active { display: block; }
+        .search-result-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .search-result-item:hover { background: #f8f9fa; }
 
-.rider-tabs{display:flex;gap:6px;padding:12px 16px;overflow-x:auto;background:#fff;border-bottom:1px solid #e5e7eb}
-.rider-tabs::-webkit-scrollbar{display:none}
-.r-tab{padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;background:#f0f0f0;color:#6b7280;flex-shrink:0}
-.r-tab.on{background:#ff6b00;color:#fff}
-.r-tab .badge{background:#fff;color:#ff6b00;padding:1px 6px;border-radius:10px;font-size:10px;margin-left:4px;font-weight:700}
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 25px; font-size: 14px; z-index: 3000; display: none; animation: fadeIn 0.3s; }
+        .notification.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-.job-list{padding:0 16px}
-.job-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-left:4px solid #ff6b00}
-.job-card.urgent{border-left-color:#ee4d2d;background:linear-gradient(135deg,#fff5f5,#fff)}
-.job-header{display:flex;justify-content:space-between;margin-bottom:8px}
-.job-type{font-size:12px;font-weight:700;color:#ff6b00}
-.job-price{font-size:18px;font-weight:800;color:#ff6b00}
-.job-route{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
-.job-point{display:flex;align-items:flex-start;gap:10px}
-.job-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;margin-top:4px;border:2px solid}
-.job-dot.from{border-color:#00b14f;background:#e8f5e9}
-.job-dot.to{border-color:#ee4d2d;background:#ffebee}
-.job-point-text{flex:1}
-.job-point-text .label{font-size:10px;color:#6b7280}
-.job-point-text .addr{font-size:12px;font-weight:600}
-.job-meta{display:flex;gap:12px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#6b7280;flex-wrap:wrap}
-.job-meta span{display:flex;align-items:center;gap:4px}
-.job-actions{display:flex;gap:8px;margin-top:12px}
-.btn{flex:1;padding:10px;border-radius:8px;border:none;font-weight:700;cursor:pointer;font-size:13px}
-.btn-accept{background:#ff6b00;color:#fff}
-.btn-reject{background:#f0f0f0;color:#6b7280}
-.btn-navigate{background:#00b14f;color:#fff}
-.btn-complete{background:#ffc107;color:#000}
+        .destination-list { padding: 10px 15px; }
+        .dest-item { display: flex; align-items: center; gap: 10px; padding: 12px; background: #f8f9fa; border-radius: 12px; margin-bottom: 8px; }
+        .dest-item .dest-num { width: 28px; height: 28px; background: #00A651; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; }
+        .dest-item .dest-name { flex: 1; font-size: 14px; font-weight: 600; }
+        .dest-item .dest-remove { color: #e74c3c; cursor: pointer; font-size: 18px; }
 
-.empty-state{text-align:center;padding:40px 20px;color:#6b7280}
-.empty-state .icon{font-size:64px;margin-bottom:12px;opacity:0.5}
-.empty-state h3{font-size:15px;margin-bottom:6px;color:#1a1a2e}
-.empty-state p{font-size:12px}
+        .express-form { padding: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #333; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; font-size: 14px; outline: none; }
+        .form-group input:focus, .form-group textarea:focus { border-color: #00A651; }
+        .btn-submit { width: 100%; padding: 16px; background: #00A651; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
 
-/* ===== BOTTOM NAV ===== */
-.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:480px;width:100%;background:#fff;border-top:1px solid #e5e7eb;display:flex;padding:8px 0;z-index:100}
-.bnav button{flex:1;border:none;background:none;font-size:10px;color:#6b7280;padding:4px 2px;cursor:pointer}
-.bnav button.on.c{color:#00b14f}
-.bnav button.on.r{color:#ff6b00}
-.bnav button .ic{font-size:20px;display:block;margin-bottom:2px}
+        .offline-badge { position: absolute; top: 60px; right: 15px; background: #FF6B35; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; z-index: 500; }
 
-/* ===== MODAL ===== */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:2000;padding:20px;backdrop-filter:blur(2px)}
-.modal{background:#fff;border-radius:20px;padding:24px;max-width:380px;width:100%;max-height:90vh;overflow-y:auto;animation:slideUp 0.3s}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.modal h3{margin-bottom:12px;font-size:18px}
-button.pri{background:#00b14f;color:#fff;width:100%;height:46px;font-size:15px;border-radius:12px;border:none;font-weight:700;cursor:pointer;margin-top:12px}
-button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;height:42px;font-size:15px;border-radius:12px;font-weight:600;cursor:pointer;margin-top:12px}
+        .rider-order-section { background: #FFF3E0; border-radius: 12px; padding: 15px; margin: 15px 0; border: 1px solid #FFE0B2; }
+        .rider-order-section h4 { color: #E65100; margin-bottom: 8px; font-size: 15px; }
+        .rider-order-section p { font-size: 13px; color: #666; margin-bottom: 4px; }
 
-.leaflet-popup-content-wrapper{border-radius:12px!important}
-
-/* ===== CHIPS ===== */
-.chips{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;background:#fff;border-bottom:1px solid #e5e7eb}
-.chips::-webkit-scrollbar{display:none}
-.chip{padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;background:#f0f0f0;color:#6b7280;flex-shrink:0}
-.chip.on{background:#00b14f;color:#fff}
-
-/* ===== BOOKING CONFIRMATION ===== */
-.booking-card{background:linear-gradient(135deg,#00b14f,#008f3f);color:#fff;border-radius:16px;padding:20px;margin-bottom:16px;text-align:center}
-.booking-card .check{font-size:48px;margin-bottom:8px}
-.booking-card .title{font-size:20px;font-weight:800;margin-bottom:12px}
-.booking-detail{background:#f8f9fa;border-radius:12px;padding:16px;margin-bottom:12px}
-.booking-detail .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e7eb}
-.booking-detail .row:last-child{border-bottom:none}
-.booking-detail .label{color:#6b7280;font-size:13px}
-.booking-detail .value{font-weight:700;font-size:14px}
-.booking-detail .total{font-size:24px;color:#00b14f}
-</style>
+        .category-filter { display: flex; gap: 8px; padding: 10px 15px; background: white; overflow-x: auto; border-bottom: 1px solid #eee; }
+        .filter-chip { padding: 8px 14px; background: #f0f0f0; border-radius: 20px; font-size: 12px; white-space: nowrap; cursor: pointer; border: 2px solid transparent; }
+        .filter-chip.active { background: #e8f5e9; border-color: #00A651; color: #00A651; font-weight: 600; }
+    </style>
 </head>
 <body>
-<div id="app">
 
-<!-- 1. MODE SELECTOR -->
-<div id="selectorPage" class="app-page active">
-  <div class="logo-big">Chauat<span>Go</span></div>
-  <div class="tagline">ชะอวดที่เดียว • เลือกโหมดการใช้งาน</div>
-  <div class="mode-card cust" onclick="goMode('cust')">
-    <div class="mode-icon"></div>
-    <div class="mode-info"><h3>ฉันเป็นผู้โดยสาร</h3><p>เรียก xe • สั่งอาหาร • ค้นหาสถานที่</p></div>
-    <div class="arr">›</div>
-  </div>
-  <div class="mode-card rider" onclick="goMode('rider')">
-    <div class="mode-icon">🏍️</div>
-    <div class="mode-info"><h3>ฉันเป็นไรเดอร์</h3><p>รับงาน • หาเงิน • ติดตามรายได้</p></div>
-    <div class="arr">›</div>
-  </div>
-  <div class="stats-row">
-    <div class="stat-box"><div class="n">73+</div><div class="l">สถานที่จริง</div></div>
-    <div class="stat-box"><div class="n">12</div><div class="l">ตำบล</div></div>
-    <div class="stat-box"><div class="n" id="onlineRiders">15</div><div class="l">ไรเดอร์ออนไลน์</div></div>
-  </div>
-  <div style="margin-top:24px;font-size:11px;opacity:0.8;text-align:center">© 2024 ChauatGo • อ.ชะอวด จ.นครศรีธรรมราช</div>
-</div>
+<div class="notification" id="notification"></div>
 
-<!-- 2. CUSTOMER APP -->
-<div id="custPage" class="app-page">
-  <button class="switch-btn" onclick="goBack()">🔄 สลับโหมด</button>
-  <div class="cust-header">
-    <div class="logo">📍 Chauat<span>Go</span></div>
-    <div class="search-box" onclick="showPage('search')"><span>🔍</span><span>ค้นหาสถานที่ ร้านอาหาร โรงแรม...</span></div>
-  </div>
-  <div class="loc-bar"><span class="dot"></span><strong id="customerLocText">📍 กำลังหาตำแหน่ง...</strong></div>
-  
-  <!-- Main Services Grid -->
-  <div style="padding:16px">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-      <div class="svc" onclick="showPage('travel')"><span class="ic">🚗</span><span class="lb">เดินทาง</span></div>
-      <div class="svc" onclick="showPage('food')"><span class="ic"></span><span class="lb">อาหาร</span></div>
-      <div class="svc" onclick="showPage('hotels')"><span class="ic">🏨</span><span class="lb">โรงแรม</span></div>
-      <div class="svc" onclick="showPage('express')"><span class="ic">📦</span><span class="lb">ส่งด่วน</span></div>
+<!-- MAIN PAGE -->
+<div class="page active" id="page-main">
+    <div class="stats-header">
+        <div class="stats-row">
+            <div class="stat-card"><div class="number">50+</div><div class="label">สถานที่จริง</div></div>
+            <div class="stat-card"><div class="number">12</div><div class="label">ตำบล</div></div>
+            <div class="stat-card"><div class="number">11</div><div class="label">ไรเดอร์ ออนไลน์</div></div>
+        </div>
+        <div class="copyright">© 2024 ChauatGo • อ.ชะอวด จ.นครศรีธรรมราช</div>
     </div>
-  </div>
 
-  <div class="section"><div class="section-title">🏨 ที่พักแนะนำ</div><div id="hotelPreview"></div></div>
-  <div class="section"><div class="section-title">🍛 ร้านเด็ดใกล้คุณ</div><div id="foodPreview"></div></div>
-  <div class="section"><div class="section-title">🌿 ท่องเที่ยวและวัด</div><div id="tourismPreview"></div></div>
-</div>
-
-<!-- 3. SEARCH PAGE -->
-<div id="searchPage" class="app-page">
-  <button class="switch-btn" onclick="showPage('cust')">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo">🔍 ค้นหา</div></div>
-  <div class="search-container">
-    <input type="text" class="search-input" id="globalSearch" placeholder="🔍 ค้นหาสถานที่ ร้านอาหาร โรงแรม..." oninput="globalSearch()">
-    <div class="chips" id="searchChips"></div>
-    <div class="search-results" id="searchResults"></div>
-  </div>
-</div>
-
-<!-- 4. FOOD PAGE -->
-<div id="foodPage" class="app-page">
-  <button class="switch-btn" onclick="showPage('cust')">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo">🍛 อาหารและร้านอาหาร</div></div>
-  <div style="padding:12px 16px"><input type="text" id="foodSearch" placeholder="🔍 ค้นหาร้านอาหาร..." class="search-input" oninput="filterFood()"></div>
-  <div class="chips" id="foodChips"></div>
-  <div class="grid-2col" id="foodGrid"></div>
-</div>
-
-<!-- 5. HOTELS PAGE -->
-<div id="hotelsPage" class="app-page">
-  <button class="switch-btn" onclick="showPage('cust')">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo">🏨 โรงแรมและที่พัก</div></div>
-  <div style="padding:12px 16px"><input type="text" id="hotelSearch" placeholder="🔍 ค้นหาโรงแรม..." class="search-input" oninput="filterHotels()"></div>
-  <div class="grid-2col" id="hotelGrid"></div>
-</div>
-
-<!-- 6. EXPRESS DELIVERY PAGE -->
-<div id="expressPage" class="app-page">
-  <button class="switch-btn" onclick="showPage('cust')">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo"> ส่งด่วน</div></div>
-  <div style="padding:12px 16px"><input type="text" id="expressSearch" placeholder="🔍 ค้นหาบริการส่ง..." class="search-input" oninput="filterExpress()"></div>
-  <div class="chips" id="expressChips"></div>
-  <div class="grid-2col" id="expressGrid"></div>
-</div>
-
-<!-- 7. TRAVEL PAGE -->
-<div id="travelPage" class="app-page">
-  <button class="switch-btn" onclick="showPage('cust')">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo">🚗 เดินทาง</div></div>
-  <div id="travelMap"></div>
-  <div class="travel-panel">
-    <div class="travel-input">
-      <div class="travel-dot from"></div>
-      <input type="text" id="travelFrom" placeholder="จุดเริ่มต้น (คลิกบนแผนที่)" readonly>
+    <div class="green-header">
+        <div class="app-title">
+            <span style="font-size:28px">📍</span>
+            <h1>Chauat <span>Go</span></h1>
+        </div>
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="main-search" placeholder="ค้นหาสถานที่ ร้านอาหาร โรงแรม..." oninput="handleMainSearch(this.value)">
+        </div>
     </div>
-    <div class="travel-input">
-      <div class="travel-dot to"></div>
-      <input type="text" id="travelTo" placeholder="จุดหมาย (คลิกบนแผนที่)" readonly>
+
+    <div class="search-results" id="search-results"></div>
+
+    <div class="location-bar">
+        <div class="location-dot"></div>
+        <span class="loc-text">📍 อ.ชะอวด จ.นครศรีธรรมราช</span>
     </div>
-  </div>
-  <div class="vehicle-selector" id="vehicleSelector">
-    <div style="font-size:15px;font-weight:700;margin-bottom:12px">เลือกประเภทรถ</div>
-    <div class="vehicle-option selected" onclick="selectVehicle(0)">
-      <div class="icon"></div>
-      <div class="info"><div class="name">มอเตอร์ไซค์</div><div class="desc">เร็วสุด • 1 ที่นั่ง</div></div>
-      <div class="price" id="bikePrice">฿25</div>
+
+    <div class="categories">
+        <div class="cat-item" onclick="showPage('page-travel')">
+            <div class="cat-icon">🚗</div>
+            <div class="cat-label">เดินทาง</div>
+        </div>
+        <div class="cat-item" onclick="showPage('page-food')">
+            <div class="cat-icon">🍽️</div>
+            <div class="cat-label">อาหาร</div>
+        </div>
+        <div class="cat-item" onclick="showPage('page-hotel')">
+            <div class="cat-icon">🏨</div>
+            <div class="cat-label">โรงแรม</div>
+        </div>
+        <div class="cat-item" onclick="showPage('page-express')">
+            <div class="cat-icon">📦</div>
+            <div class="cat-label">ส่งด่วน</div>
+        </div>
     </div>
-    <div class="vehicle-option" onclick="selectVehicle(1)">
-      <div class="icon">🚗</div>
-      <div class="info"><div class="name">รถยนต์</div><div class="desc">สบาย • 4 ที่นั่ง</div></div>
-      <div class="price" id="carPrice">฿50</div>
-    </div>
-    <div class="travel-actions">
-      <button class="travel-btn secondary" onclick="clearTravel()">ล้าง</button>
-      <button class="travel-btn primary" onclick="confirmTravel()">เรียกรถ</button>
-    </div>
-  </div>
+
+    <div class="section-header"><span class="icon">🏨</span><span>ที่พักแนะนำ</span></div>
+    <div class="place-list" id="recommended-places"></div>
+
+    <div class="section-header"><span class="icon">🍜</span><span>ร้านเด็ดใกล้คุณ</span></div>
+    <div class="place-list" id="nearby-shops"></div>
+
+    <div class="section-header"><span class="icon">🏛️</span><span>สถานที่ราชการ</span></div>
+    <div class="place-list" id="gov-places"></div>
+
+    <div class="section-header"><span class="icon">⛽</span><span>ปั๊มน้ำมัน</span></div>
+    <div class="place-list" id="gas-places"></div>
+
+    <div class="section-header"><span class="icon">🛒</span><span>ร้านสะดวกซื้อ</span></div>
+    <div class="place-list" id="shop-places"></div>
+
+    <div class="section-header"><span class="icon">🌴</span><span>สถานที่ท่องเที่ยว</span></div>
+    <div class="place-list" id="tourist-places"></div>
+
+    <div class="section-header"><span class="icon">🛕</span><span>วัดและศาสนสถาน</span></div>
+    <div class="place-list" id="temple-places"></div>
 </div>
 
-<!-- 8. RIDER APP -->
-<div id="riderPage" class="app-page">
-  <button class="switch-btn" onclick="goBack()">🔄 สลับโหมด</button>
-  <div class="rider-header"><div class="logo">🏍️ Rider</div><p style="font-size:13px;opacity:0.9;margin-top:4px">สมชาย • ⭐ 4.92</p></div>
-  <div class="rider-body">
-    <button class="online-btn off" id="onlineBtn" onclick="toggleOnline()">😴 ออฟไลน์ - แตะเพื่อเริ่มรับงาน</button>
-    <div class="stat-grid">
-      <div class="stat"><div class="n" id="earn">฿0</div><div class="l">วันนี้</div></div>
-      <div class="stat"><div class="n" id="trip">0</div><div class="l">เที่ยว</div></div>
-      <div class="stat"><div class="n" id="wallet">฿2847</div><div class="l">กระเป๋า</div></div>
+<!-- FOOD PAGE -->
+<div class="page" id="page-food">
+    <div class="back-nav" onclick="showPage('page-main')">
+        <span class="arrow">←</span>
+        <span class="title">อาหารและร้านอาหาร</span>
     </div>
-    <div class="wallet-card"><div class="lbl">💰 กระเป๋าเงินไรเดอร์</div><div class="balance">฿<span id="walletBalance">2,847</span></div><div class="sub">ID: R-2024-001 • พร้อมถอน</div></div>
-    <div class="rider-tabs" id="riderTabs">
-      <div class="r-tab on" onclick="switchRiderTab('new')">งานใหม่ <span class="badge" id="newJobBadge">0</span></div>
-      <div class="r-tab" onclick="switchRiderTab('active')">🚗 กำลังทำ</div>
-      <div class="r-tab" onclick="switchRiderTab('today')">📋 วันนี้</div>
-      <div class="r-tab" onclick="switchRiderTab('earnings')">💰 รายได้</div>
+    <div class="green-header" style="border-radius: 0 0 30px 30px;">
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="food-search" placeholder="ค้นหาร้านอาหาร..." oninput="filterFoodList(this.value)">
+        </div>
     </div>
-    <div id="jobArea" class="job-list"></div>
-  </div>
+    <div class="food-grid">
+        <div class="food-grid-item" onclick="filterByFoodType('all')"><span class="f-icon">🍽️</span><span class="f-label">ทั้งหมด</span></div>
+        <div class="food-grid-item" onclick="filterByFoodType('thai')"><span class="f-icon">🍛</span><span class="f-label">อาหารไทย</span></div>
+        <div class="food-grid-item" onclick="filterByFoodType('noodle')"><span class="f-icon">🍜</span><span class="f-label">ก๋วยเตี๋ยว</span></div>
+        <div class="food-grid-item" onclick="filterByFoodType('drink')"><span class="f-icon">☕</span><span class="f-label">กาแฟ/เครื่องดื่ม</span></div>
+    </div>
+    <div class="section-header"><span class="icon">🍽️</span><span>ร้านอาหาร (ใกล้สุด → ไกลสุด)</span></div>
+    <div class="place-list" id="food-list"></div>
 </div>
 
-<!-- MODAL -->
-<div id="modalContainer"></div>
-
-<!-- BOTTOM NAV -->
-<div class="bnav" id="bottomNav" style="display:none">
-  <button class="on" id="navBtn1" onclick="navClick(0)"><span class="ic">🏠</span><span id="navLabel1">หน้าแรก</span></button>
-  <button id="navBtn2" onclick="navClick(1)"><span class="ic">📍</span><span id="navLabel2">ใกล้ฉัน</span></button>
-  <button id="navBtn3" onclick="navClick(2)"><span class="ic">📚</span><span id="navLabel3">ฐานข้อมูล</span></button>
+<!-- HOTEL PAGE -->
+<div class="page" id="page-hotel">
+    <div class="back-nav" onclick="showPage('page-main')">
+        <span class="arrow">←</span>
+        <span class="title">โรงแรมและที่พัก</span>
+    </div>
+    <div class="green-header" style="border-radius: 0 0 30px 30px;">
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="hotel-search" placeholder="ค้นหาโรงแรม..." oninput="filterHotelList(this.value)">
+        </div>
+    </div>
+    <div class="section-header"><span class="icon">🏨</span><span>โรงแรม (ใกล้สุด → ไกลสุด)</span></div>
+    <div class="place-list" id="hotel-list"></div>
 </div>
 
+<!-- TRAVEL PAGE -->
+<div class="page" id="page-travel">
+    <div class="back-nav" onclick="showPage('page-main')">
+        <span class="arrow">←</span>
+        <span class="title">เดินทาง</span>
+    </div>
+    <div class="green-header" style="border-radius: 0 0 30px 30px;">
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="travel-search" placeholder="ค้นหาจุดหมาย..." oninput="filterTravelList(this.value)">
+        </div>
+    </div>
+    <div class="category-filter" id="travel-filters">
+        <div class="filter-chip active" onclick="filterTravel('all', this)">ทั้งหมด</div>
+        <div class="filter-chip" onclick="filterTravel('government', this)">ราชการ</div>
+        <div class="filter-chip" onclick="filterTravel('hotel', this)">โรงแรม</div>
+        <div class="filter-chip" onclick="filterTravel('gas', this)">ปั๊มน้ำมัน</div>
+        <div class="filter-chip" onclick="filterTravel('shop', this)">ร้านค้า</div>
+        <div class="filter-chip" onclick="filterTravel('tourist', this)">ท่องเที่ยว</div>
+        <div class="filter-chip" onclick="filterTravel('temple', this)">วัด</div>
+        <div class="filter-chip" onclick="filterTravel('hospital', this)">โรงพยาบาล</div>
+        <div class="filter-chip" onclick="filterTravel('school', this)">โรงเรียน</div>
+    </div>
+    <div class="section-header"><span class="icon">🗺️</span><span>จุดหมายปลายทาง</span></div>
+    <div class="destination-list" id="destination-list">
+        <div style="text-align:center; color:#888; padding:20px;">ยังไม่มีจุดหมายปลายทาง<br><small>กด "เพิ่มเป็นจุดหมาย" จากหน้าสถานที่</small></div>
+    </div>
+    <div class="section-header"><span class="icon">📍</span><span>สถานที่ทั้งหมด</span></div>
+    <div class="place-list" id="travel-list"></div>
+</div>
+
+<!-- EXPRESS PAGE -->
+<div class="page" id="page-express">
+    <div class="back-nav" onclick="showPage('page-main')">
+        <span class="arrow">←</span>
+        <span class="title">ส่งด่วน</span>
+    </div>
+    <div class="green-header" style="border-radius: 0 0 30px 30px;">
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="ค้นหาสถานที่รับ-ส่ง...">
+        </div>
+    </div>
+    <div class="express-form">
+        <div class="form-group"><label>📍 จุดรับพัสดุ</label><input type="text" id="express-pickup" placeholder="ที่อยู่จุดรับ"></div>
+        <div class="form-group"><label>📍 จุดส่งพัสดุ</label><input type="text" id="express-delivery" placeholder="ที่อยู่จุดส่ง"></div>
+        <div class="form-group"><label>📦 ประเภทพัสดุ</label>
+            <select id="express-type">
+                <option value="small">ขนาดเล็ก (ไม่เกิน 1 กก.)</option>
+                <option value="medium">ขนาดกลาง (1-5 กก.)</option>
+                <option value="large">ขนาดใหญ่ (5-10 กก.)</option>
+            </select>
+        </div>
+        <div class="form-group"><label>📝 หมายเหตุ</label><textarea rows="3" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+        <div class="cost-breakdown" id="express-cost" style="display:none;">
+            <div class="cost-row"><span>ระยะทาง</span><span id="express-distance">-</span></div>
+            <div class="cost-row"><span>ค่าส่งพื้นฐาน</span><span id="express-base">-</span></div>
+            <div class="cost-row"><span>ค่าระยะทางเพิ่ม</span><span id="express-extra">-</span></div>
+            <div class="cost-row total"><span>รวมทั้งหมด</span><span id="express-total">-</span></div>
+        </div>
+        <button class="btn-submit" onclick="calculateExpressCost()" style="margin-top:10px;">📊 คำนวณค่าส่ง</button>
+        <button class="btn-submit" onclick="requestExpress()" style="margin-top:10px; background:#FF6B35;">📦 เรียกไรเดอร์ส่งด่วน</button>
+    </div>
+    <div class="section-header"><span class="icon">📍</span><span>จุดส่งด่วนใกล้เคียง</span></div>
+    <div class="place-list" id="express-list"></div>
+</div>
+
+<!-- PLACE MODAL -->
+<div class="modal-overlay" id="place-modal">
+    <div class="modal-content" id="modal-body"></div>
+</div>
+
+<!-- MAP MODAL -->
+<div class="map-modal" id="map-modal">
+    <div class="map-header">
+        <button class="back-btn" onclick="closeMapModal()">← กลับ</button>
+        <h3 id="map-title">แผนที่</h3>
+        <div style="width:30px"></div>
+    </div>
+    <div class="offline-badge">📡 Offline Map</div>
+    <div id="map-container"></div>
+    <div class="map-info-panel" id="map-info-panel"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ===== พิกัดที่ถูกต้องของอำเภอชะอวด =====
-const CHAUAT_CENTER = { lat: 7.9611, lng: 99.9906 };
-const CHAUAT_BOUNDS = { north: 8.05, south: 7.88, east: 100.10, west: 99.90 };
+// พิกัดศูนย์กลาง อ.ชะอวด
+const USER_LOCATION = { lat: 7.9620, lng: 99.9940 };
 
-// ===== ฐานข้อมูลสถานที่ =====
-const PLACES = [
-  {id:1, name:"ที่ว่าการอำเภอชะอวด", cat:"ราชการ", sub:"ต.ชะอวด", rating:4.5, img:"🏛️", promo:"ศูนย์กลาง", lat:7.9646, lng:99.9951, addr:"ต.ชะอวด"},
-  {id:2, name:"โรงพยาบาลชะอวด", cat:"สาธารณสุข", sub:"ต.ชะอวด", rating:4.4, img:"🏥", promo:"โรงพยาบาลชุมชน", lat:7.9680, lng:99.9980, addr:"ต.ชะอวด"},
-  {id:3, name:"สถานีรถไฟชะอวด", cat:"คมนาคม", sub:"ต.ชะอวด", rating:4.6, img:"🚂", promo:"สถาปัตยกรรมเก่าแก่", lat:7.9620, lng:99.9930, addr:"ต.ชะอวด"},
-  {id:4, name:"ตลาดสดเทศบาลชะอวด", cat:"ตลาด", sub:"ต.ชะอวด", rating:4.6, img:"🥬", promo:"ตลาดเช้า", lat:7.9640, lng:99.9950, addr:"ต.ชะอวด"},
-  {id:5, name:"โรงเรียนชะอวดวิทยาคาร", cat:"การศึกษา", sub:"ต.ชะอวด", rating:4.5, img:"🏫", promo:"โรงเรียนมัธยม", lat:7.9660, lng:99.9960, addr:"ต.ชะอวด"},
-  {id:6, name:"วัดเขาพระทอง", cat:"ท่องเที่ยว", sub:"ต.เขาพระทอง", rating:4.9, img:"🛕", promo:"พระพุทธรูปแกะสลัก", lat:8.0200, lng:100.0400, addr:"ต.เขาพระทอง"},
-  {id:7, name:"ล่องแพบ้านวังหอน", cat:"ท่องเที่ยว", sub:"ต.วังอ่าง", rating:4.7, img:"🚣", promo:"ล่องแพชมธรรมชาติ", lat:7.9800, lng:100.0100, addr:"ต.วังอ่าง"},
-  {id:8, name:"เซเว่นอีเลฟเว่น ตลาดชะอวด", cat:"ร้านค้า", sub:"ต.ชะอวด", rating:4.5, img:"🏪", promo:"เปิด 24 ชม.", lat:7.9642, lng:99.9952, addr:"ต.ชะอวด"},
-  {id:9, name:"ปตท. ชะอวด", cat:"ปั๊มน้ำมัน", sub:"ต.ชะอวด", rating:4.5, img:"⛽", promo:"มี Café Amazon", lat:7.9682, lng:99.9972, addr:"ต.ชะอวด"},
-  {id:10, name:"โรงแรมบ้านตูนรีสอร์ท", cat:"โรงแรม", sub:"ต.ชะอวด", rating:4.5, img:"🏨", promo:"ที่พักสบาย", lat:7.9650, lng:99.9970, addr:"ต.ชะอวด", price:"฿600-900"},
-  {id:11, name:"เหล่าเต๊ง Chauat", cat:"ร้านอาหาร", sub:"ต.ชะอวด", rating:4.7, img:"🥟", promo:"ร้านดัง", lat:7.9645, lng:99.9950, addr:"ถนนจันทรานนท์", price:"฿80-200"},
-  {id:12, name:"มัสยิดอิสลามิดีน", cat:"ศาสนสถาน", sub:"ต.ชะอวด", rating:4.7, img:"", promo:"มัสยิดกลาง", lat:7.9655, lng:99.9945, addr:"ต.ชะอวด"},
-  {id:13, name:"ซีเจ มอร์ ตลาดชะอวด", cat:"ร้านค้า", sub:"ต.ชะอวด", rating:4.3, img:"🛒", promo:"ราคาประหยัด", lat:7.9662, lng:99.9947, addr:"ต.ชะอวด"},
-  {id:14, name:"Mesa Coffee Roasters", cat:"คาเฟ่", sub:"ต.ชะอวด", rating:4.7, img:"☕", promo:"เมล็ดกาแฟคั่วเอง", lat:7.9640, lng:99.9958, addr:"ตรงข้าม รร.กุลวดีศึกษา", price:"฿40-120"},
-  {id:15, name:"Railway Cafe", cat:"คาเฟ่", sub:"ต.ชะอวด", rating:4.7, img:"", promo:"นั่งแลรถไฟ", lat:7.9615, lng:99.9932, addr:"ติดรางรถไฟ", price:"฿60-180"}
+// ===== ข้อมูลสถานที่จริงทั้งหมดใน อ.ชะอวด (รวมข้อมูลจาก GeoJSON แล้ว) =====
+const places = [
+    // 🏛️ 1. สถานราชการและหน่วยงานสำคัญ
+    { id: 1, name: "ที่ว่าการอำเภอชะอวด", type: "government", category: "government", icon: "🏛️", rating: 4.5, lat: 7.9646, lng: 99.9951, address: "ต.ชะอวด", desc: "ศูนย์ราชการอำเภอชะอวด" },
+    { id: 2, name: "สถานีตำรวจภูธรชะอวด", type: "government", category: "government", icon: "🚔", rating: 4.3, lat: 7.9652, lng: 99.9958, address: "ต.ชะอวด", desc: "สภ.ชะอวด" },
+    { id: 3, name: "เทศบาลตำบลชะอวด", type: "government", category: "government", icon: "🏢", rating: 4.2, lat: 7.9620, lng: 99.9935, address: "ต.ชะอวด", desc: "สำนักงานเทศบาล" },
+    { id: 4, name: "ที่ทำการไปรษณีย์ชะอวด", type: "government", category: "government", icon: "📮", rating: 4.1, lat: 7.9625, lng: 99.9940, address: "ต.ชะอวด", desc: "ไปรษณีย์ไทย สาขาชะอวด" },
+    { id: 5, name: "การไฟฟ้าส่วนภูมิภาค สาขาชะอวด", type: "government", category: "government", icon: "⚡", rating: 4.0, lat: 7.9665, lng: 99.9970, address: "ต.ชะอวด", desc: "PEA ชะอวด" },
+    { id: 6, name: "การประปาส่วนภูมิภาค สาขาชะอวด", type: "government", category: "government", icon: "💧", rating: 4.0, lat: 7.9590, lng: 99.9890, address: "ต.ชะอวด", desc: "PWA ชะอวด" },
+    { id: 7, name: "สำนักงานเกษตรอำเภอชะอวด", type: "government", category: "government", icon: "🌾", rating: 4.2, lat: 7.9648, lng: 99.9955, address: "ต.ชะอวด", desc: "ให้คำปรึกษาด้านการเกษตร" },
+    { id: 8, name: "สถานีขนส่งผู้โดยสารชะอวด (บขส.)", type: "transport", category: "transport", icon: "🚌", rating: 3.8, lat: 7.9635, lng: 99.9961, address: "ต.ชะอวด", desc: "จุดจอดรถโดยสารสาธารณะ" },
+
+    // 🏥 2. สถานพยาบาล
+    { id: 10, name: "โรงพยาบาลชะอวด", type: "hospital", category: "hospital", icon: "🏥", rating: 4.3, lat: 7.9575, lng: 99.9912, address: "ต.ชะอวด", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง" },
+    { id: 11, name: "รพ.สต. ท่าเสม็ด", type: "hospital", category: "hospital", icon: "🏥", rating: 4.0, lat: 7.9390, lng: 99.9490, address: "ต.ท่าเสม็ด", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 12, name: "รพ.สต. บ้านตูล", type: "hospital", category: "hospital", icon: "🏥", rating: 3.9, lat: 7.9230, lng: 99.9710, address: "ต.บ้านตูล", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 13, name: "รพ.สต. เคร็ง", type: "hospital", category: "hospital", icon: "🏥", rating: 3.8, lat: 7.8830, lng: 100.1110, address: "ต.เคร็ง", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 14, name: "รพ.สต. วังอ่าง", type: "hospital", category: "hospital", icon: "🏥", rating: 3.9, lat: 7.9010, lng: 99.9210, address: "ต.วังอ่าง", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 15, name: "รพ.สต. ควนหนองหงส์", type: "hospital", category: "hospital", icon: "🏥", rating: 3.8, lat: 8.0105, lng: 99.9505, address: "ต.ควนหนองหงส์", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 16, name: "รพ.สต. ไม้เสียบ", type: "hospital", category: "hospital", icon: "🏥", rating: 3.7, lat: 8.0710, lng: 99.9105, address: "ต.ไม้เสียบ", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 17, name: "รพ.สต. เขาพระทอง", type: "hospital", category: "hospital", icon: "🏥", rating: 3.9, lat: 8.0245, lng: 100.0395, address: "ต.เขาพระทอง", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+
+    // 🏫 3. สถานศึกษา
+    { id: 20, name: "โรงเรียนชะอวดวิทยาคาร", type: "school", category: "school", icon: "🏫", rating: 4.5, lat: 7.9680, lng: 99.9990, address: "ต.ชะอวด", desc: "โรงเรียนมัธยมศึกษาประจำอำเภอ" },
+    { id: 21, name: "โรงเรียนชะอวด", type: "school", category: "school", icon: "🏫", rating: 4.4, lat: 7.9600, lng: 99.9910, address: "ต.ชะอวด", desc: "โรงเรียนระดับประถมศึกษา-มัธยมศึกษา" },
+    { id: 22, name: "วิทยาลัยการอาชีพชะอวด", type: "school", category: "school", icon: "🎓", rating: 4.4, lat: 7.9800, lng: 100.0100, address: "ต.ชะอวด", desc: "สถานศึกษาอาชีวศึกษา" },
+    { id: 23, name: "โรงเรียนวัดเขาพระทอง", type: "school", category: "school", icon: "🏫", rating: 4.3, lat: 8.0252, lng: 100.0402, address: "ต.เขาพระทอง", desc: "โรงเรียนในตำบลเขาพระทอง" },
+
+    // 🏨 4. โรงแรมและที่พัก
+    { id: 30, name: "โรงแรมบ้านตูนรีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.2, lat: 7.9520, lng: 99.9290, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทบรรยากาศดี" },
+    { id: 31, name: "เฟื่องฟ้ารีสอร์ท ชะอวด", type: "hotel", category: "hotel", icon: "🏨", rating: 4.4, lat: 7.9600, lng: 99.9330, address: "ต.ชะอวด", price: "500-800฿", desc: "บรรยากาศร่มรื่น เหมาะแก่การพักผ่อน" },
+    { id: 32, name: "สวนพูลรีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.3, lat: 7.9480, lng: 99.9250, address: "ต.ชะอวด", price: "400-700฿", desc: "รีสอร์ทสไตล์สวนพูล" },
+    { id: 33, name: "เรือนกลางหลาด", type: "hotel", category: "hotel", icon: "🏠", rating: 4.5, lat: 7.9530, lng: 99.9270, address: "ต.ชะอวด", price: "600-1200฿", desc: "ที่พักสไตล์ท้องถิ่นร่วมสมัย" },
+    { id: 34, name: "นานา รีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.1, lat: 7.9570, lng: 99.9310, address: "ต.ชะอวด", price: "400-800฿", desc: "ที่พักสะดวกสบาย ราคาประหยัด" },
+    { id: 35, name: "ดอกคูณรีสอร์ท", type: "hotel", category: "hotel", icon: "🌸", rating: 4.3, lat: 7.9620, lng: 99.9350, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทท่ามกลางธรรมชาติ" },
+    { id: 36, name: "บี.เค.การ์เด้น", type: "hotel", category: "hotel", icon: "🏨", rating: 4.0, lat: 7.9510, lng: 99.9260, address: "ต.ชะอวด", price: "350-700฿", desc: "ที่พักสะอาด ปลอดภัย" },
+    { id: 37, name: "โรงแรมแอนนา ชะอวด", type: "hotel", category: "hotel", icon: "🏨", rating: 4.2, lat: 7.9550, lng: 99.9280, address: "ต.ชะอวด", price: "400-800฿", desc: "โรงแรมใจกลางเมือง" },
+
+    // ⛽ 5. สถานีบริการน้ำมัน
+    { id: 40, name: "ปตท. ชะอวด (Café Amazon)", type: "gas", category: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันพร้อมร้านกาแฟ" },
+    { id: 41, name: "พีที (PT) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.1, lat: 7.9550, lng: 99.9850, address: "ต.ชะอวด", desc: "ปั๊มน้ำมัน PT ราคาประหยัด" },
+    { id: 42, name: "เชลล์ (Shell) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.2, lat: 7.9520, lng: 99.9240, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันเชลล์" },
+    { id: 43, name: "บางจาก (Bangchak) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.2, lat: 7.9600, lng: 99.9900, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันบางจาก" },
+
+    // 🛒 6. ร้านสะดวกซื้อและซูเปอร์มาร์เก็ต
+    { id: 50, name: "เซเว่นอีเลฟเว่น สาขาตลาดชะอวด", type: "shop", category: "shop", icon: "🏪", rating: 4.3, lat: 7.9631, lng: 99.9945, address: "ต.ชะอวด", desc: "เปิด 24 ชั่วโมง" },
+    { id: 51, name: "เซเว่นอีเลฟเว่น สาขาหน้าสถานีรถไฟ", type: "shop", category: "shop", icon: "🏪", rating: 4.2, lat: 7.9614, lng: 99.9937, address: "ต.ชะอวด", desc: "เปิด 24 ชั่วโมง" },
+    { id: 52, name: "เซเว่นอีเลฟเว่น สาขาแยกไม้เสียบ", type: "shop", category: "shop", icon: "🏪", rating: 4.1, lat: 8.0740, lng: 99.9115, address: "ต.ไม้เสียบ", desc: "เปิด 24 ชั่วโมง" },
+    { id: 53, name: "โลตัส โก เฟรช สาขาชะอวด", type: "shop", category: "shop", icon: "🛒", rating: 4.4, lat: 7.9620, lng: 99.9940, address: "ต.ชะอวด", desc: "ซูเปอร์มาร์เก็ตสินค้าสดใหม่" },
+    { id: 54, name: "ซีเจ มอร์ (CJ More) สาขาตลาดชะอวด", type: "shop", category: "shop", icon: "🛒", rating: 4.2, lat: 7.9632, lng: 99.9947, address: "ต.ชะอวด", desc: "ร้านสะดวกซื้อราคาสมาชิก" },
+
+    // 🏪 7. ตลาดสดและตลาดนัด
+    { id: 60, name: "ตลาดสดเทศบาลตำบลชะอวด", type: "market", category: "market", icon: "🥦", rating: 4.1, lat: 7.9630, lng: 99.9945, address: "ต.ชะอวด", desc: "ตลาดสดของสดทุกวัน" },
+    { id: 61, name: "ตลาดนัดไม้เสียบ", type: "market", category: "market", icon: "🏪", rating: 4.0, lat: 8.0725, lng: 99.9112, address: "ต.ไม้เสียบ", desc: "ตลาดนัดชุมชน" },
+    { id: 62, name: "ตลาดนัดบ้านตูล", type: "market", category: "market", icon: "🏪", rating: 3.9, lat: 7.9236, lng: 99.9716, address: "ต.บ้านตูล", desc: "ตลาดนัดท้องถิ่น" },
+    { id: 63, name: "ตลาดนัดวังอ่าง", type: "market", category: "market", icon: "🏪", rating: 3.8, lat: 7.9015, lng: 99.9215, address: "ต.วังอ่าง", desc: "ตลาดนัดชุมชน" },
+
+    // 🌴 8. สถานที่ท่องเที่ยวและจุดเช็คอิน
+    { id: 70, name: "วัดเขาพระทอง", type: "tourist", category: "tourist", icon: "⛰️", rating: 4.7, lat: 8.0250, lng: 100.0400, address: "ต.เขาพระทอง", desc: "พระพุทธรูปทองคำและจุดชมวิว" },
+    { id: 71, name: "ล่องแพบ้านวังอ่าง", type: "tourist", category: "tourist", icon: "🛶", rating: 4.5, lat: 7.9025, lng: 99.9225, address: "ต.วังอ่าง", desc: "กิจกรรมล่องแพชมธรรมชาติ" },
+    { id: 72, name: "ป่าพรุควนเคร็ง", type: "tourist", category: "tourist", icon: "🌿", rating: 4.6, lat: 7.8850, lng: 100.1150, address: "ต.เคร็ง", desc: "ระบบนิเวศป่าพรุที่สำคัญ" },
+    { id: 73, name: "น้ำตกวังหอน", type: "tourist", category: "tourist", icon: "💧", rating: 4.4, lat: 7.9000, lng: 99.9150, address: "ต.วังอ่าง", desc: "น้ำตกธรรมชาติสวยงาม" },
+    { id: 74, name: "อ่างเก็บน้ำวังอ่าง", type: "tourist", category: "tourist", icon: "🏞️", rating: 4.3, lat: 7.9050, lng: 99.9250, address: "ต.วังอ่าง", desc: "จุดชมวิวและพักผ่อน" },
+    { id: 75, name: "สวนสาธารณะเทศบาลตำบลชะอวด", type: "tourist", category: "tourist", icon: "🌳", rating: 4.2, lat: 7.9618, lng: 99.9928, address: "ต.ชะอวด", desc: "สวนสาธารณะสำหรับออกกำลังกาย" },
+
+    // 🛕 9. วัดและศาสนสถาน
+    { id: 80, name: "วัดท่าสะท้อน", type: "temple", category: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, address: "ต.ท่าสะท้อน", desc: "วัดเก่าแก่คู่ชุมชน" },
+    { id: 81, name: "วัดรักขิตวัน (โคกรัก)", type: "temple", category: "temple", icon: "🛕", rating: 4.4, lat: 7.9502, lng: 99.9702, address: "ต.ชะอวด", desc: "วัดที่มีความสงบร่มรื่น" },
+    { id: 82, name: "วัดดิษฐวราราม (ท่าเสม็ด)", type: "temple", category: "temple", icon: "🛕", rating: 4.6, lat: 7.9387, lng: 99.9487, address: "ต.ท่าเสม็ด", desc: "วัดสำคัญประจำตำบล" },
+    { id: 83, name: "วัดโพธาราม (ควนเคร็ง)", type: "temple", category: "temple", icon: "🛕", rating: 4.5, lat: 7.9102, lng: 100.1202, address: "ต.เคร็ง", desc: "วัดริมป่าพรุ" },
+
+    // 🍽️ 10. ร้านอาหารและคาเฟ่ (รวมข้อมูลจาก GeoJSON ของคุณ)
+    { id: 90, name: "Chao Doi (เจ้าดอย)", type: "restaurant", category: "drink", icon: "☕", rating: 4.2, lat: 7.9613, lng: 99.9127, address: "อ.ชะอวด", price: "50-120฿", desc: "ร้านกาแฟบรรยากาศดี (Coffee Shop)" },
+    { id: 91, name: "ชวนชิลล์ cafa' & bar", type: "restaurant", category: "drink", icon: "☕", rating: 4.5, lat: 8.0910, lng: 99.9762, address: "ต.บ้านตูล", price: "60-150฿", desc: "เปิด 08:00-21:00 • มีที่นั่งกลางแจ้ง • 📞 063-036-4067" },
+    { id: 92, name: "ร้านข้าวมันไก่ชะอวด", type: "restaurant", category: "thai", icon: "🍛", rating: 4.5, lat: 7.9625, lng: 99.9942, address: "ต.ชะอวด", price: "40-80฿", desc: "ข้าวมันไก่สูตรดั้งเดิม" },
+    { id: 93, name: "ก๋วยเตี๋ยวเรือป้าแจ๋ว", type: "restaurant", category: "noodle", icon: "🍜", rating: 4.7, lat: 7.9628, lng: 99.9945, address: "ต.ชะอวด", price: "35-60฿", desc: "ก๋วยเตี๋ยวเรือรสเด็ด" }
 ];
 
-// ===== อาหารและร้านอาหาร =====
-const FOOD_SHOPS = [
-  {id:101, name:"เหล่าเต๊ง Chauat", cat:"อาหารจีน", img:"🥟", price:"฿80-200", rating:4.7, time:"20-30 นาที", lat:7.9645, lng:99.9950, desc:"อาหารจีนต้นตำรับ"},
-  {id:102, name:"ร้านขาหมูน้องออ", cat:"ข้าวขาหมู", img:"🍖", price:"฿60-150", rating:4.8, time:"15-25 นาที", lat:7.9635, lng:99.9940, desc:"ขาหมูสูตรพิเศษ"},
-  {id:103, name:"Mesa Coffee Roasters", cat:"คาเฟ่", img:"☕", price:"฿40-120", rating:4.7, time:"10-20 นาที", lat:7.9640, lng:99.9958, desc:"กาแฟคั่วเอง"},
-  {id:104, name:"Railway Cafe", cat:"คาเฟ่", img:"🚂", price:"฿60-180", rating:4.7, time:"15-25 นาที", lat:7.9615, lng:99.9932, desc:"นั่งแลรถไฟ"},
-  {id:105, name:"ร้านเยี่ยมโอชา", cat:"อาหารตามสั่ง", img:"🍛", price:"฿50-150", rating:4.8, time:"20-30 นาที", lat:7.9642, lng:99.9948, desc:"อาหารตามสั่ง"},
-  {id:106, name:"กระทะทอง หมูกะทะ", cat:"หมูกะทะ", img:"", price:"฿179-259", rating:4.6, time:"25-35 นาที", lat:7.9665, lng:99.9980, desc:"หมูกะทะบุฟเฟ่ต์"}
-];
+let destinations = [];
+let currentMap = null;
+let routeLine = null;
+let currentTravelFilter = 'all';
 
-// ===== โรงแรม =====
-const HOTELS = [
-  {id:201, name:"โรงแรมบ้านตูนรีสอร์ท", cat:"โรงแรม", img:"🏨", price:"฿600-900", rating:4.5, lat:7.9650, lng:99.9970, desc:"ที่พักสบาย ปลอดภัย", amenities:"WiFi • ที่จอดรถ • AC"},
-  {id:202, name:"เฟื่องฟ้ารีสอร์ท", cat:"โรงแรม", img:"", price:"฿500-800", rating:4.4, lat:7.9630, lng:99.9930, desc:"บรรยากาศร่มรื่น", amenities:"WiFi • ที่จอดรถ • อาหารเช้า"},
-  {id:203, name:"สวนพูลรีสอร์ท", cat:"โรงแรม", img:"🏊", price:"฿700-1,200", rating:4.3, lat:7.9610, lng:99.9950, desc:"มีสระว่ายน้ำ", amenities:"Pool • WiFi • ที่จอดรถ"},
-  {id:204, name:"เรือนกลางหลาด", cat:"โรงแรม", img:"🏡", price:"฿800-1,500", rating:4.6, lat:7.9660, lng:99.9970, desc:"สไตล์ไทยประยุกต์", amenities:"WiFi • AC • อาหารเช้า"},
-  {id:205, name:"นานา รีสอร์ท", cat:"โรงแรม", img:"🏨", price:"฿450-700", rating:4.4, lat:7.9600, lng:99.9910, desc:"ห้องสะอาด", amenities:"WiFi • AC • ที่จอดรถ"}
-];
-
-// ===== ส่งด่วน =====
-const EXPRESS_SERVICES = [
-  {id:301, name:"เซเว่นอีเลฟเว่น", cat:"ร้านค้า", img:"🏪", price:"ค่าส่ง ฿20", time:"15-30 นาที", lat:7.9642, lng:99.9952, desc:"ของใช้ อาหารพร้อมส่ง"},
-  {id:302, name:"ตลาดสดเทศบาล", cat:"ตลาด", img:"🥬", price:"ค่าส่ง ฿30", time:"30-45 นาที", lat:7.9640, lng:99.9950, desc:"ของสด ผัก ผลไม้"},
-  {id:303, name:"ปตท. ชะอวด", cat:"ปั๊มน้ำมัน", img:"⛽", price:"ค่าส่ง ฿25", time:"20-30 นาที", lat:7.9682, lng:99.9972, desc:"น้ำมัน กาแฟ Amazon"},
-  {id:304, name:"ซีเจ มอร์", cat:"ร้านค้า", img:"", price:"ค่าส่ง ฿25", time:"20-35 นาที", lat:7.9662, lng:99.9947, desc:"สินค้าราคาประหยัด"}
-];
-
-let currentMode = localStorage.getItem('chauatgo_mode') || null;
-let userLocation = { lat: CHAUAT_CENTER.lat, lng: CHAUAT_CENTER.lng, accuracy: 0 };
-let nearbyPlaces = [];
-let maps = {};
-let currentSearchCat = 'ทั้งหมด';
-
-// ===== Travel State =====
-let travelPoints = [];
-let travelLine = null;
-let travelMarkers = [];
-let selectedVehicleIdx = 0;
-let travelDistance = 0;
-
-// ===== RIDER STATE =====
-const riderState = {online:false, currentTab:'new', newJobs:[], activeJob:null, todayHistory:[], wallet:2847, todayEarning:0, todayTrips:0, weekEarning:3450};
-let jobInterval = null;
-const LOCATIONS = PLACES.slice(0, 10);
-const VEHICLE_TYPES = [
-  {id:'bike', name:'มอเตอร์ไซค์', icon:'', pricePerKm:18, basePrice:25, speed:40},
-  {id:'car', name:'รถยนต์', icon:'', pricePerKm:22, basePrice:50, speed:45}
-];
-
-// ===== UTILS =====
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2-lat1)*Math.PI/180;
-  const dLon = (lon2-lon1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+// คำนวณระยะทางจากพิกัดจริง (Haversine formula)
+function calcDistance(from, to) {
+    const R = 6371;
+    const dLat = (to.lat - from.lat) * Math.PI / 180;
+    const dLng = (to.lng - from.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(from.lat*Math.PI/180)*Math.cos(to.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ===== MODE SELECTOR =====
-function goMode(mode, save=true) {
-  if(save) localStorage.setItem('chauatgo_mode', mode);
-  currentMode = mode;
-  document.querySelectorAll('.app-page').forEach(p => p.classList.remove('active'));
-  if(mode === 'cust') {
-    document.getElementById('custPage').classList.add('active');
-    setupCustomerNav();
-    initCustomerGPS();
-    calculateNearbyPlaces();
-    renderHomePreviews();
-  } else if(mode === 'rider') {
-    document.getElementById('riderPage').classList.add('active');
-    setupRiderNav();
-    renderRiderContent();
-  }
-  document.getElementById('bottomNav').style.display = 'flex';
+function getDistance(p) {
+    return calcDistance(USER_LOCATION, { lat: p.lat, lng: p.lng });
 }
 
-function goBack() {
-  localStorage.removeItem('chauatgo_mode');
-  currentMode = null;
-  document.querySelectorAll('.app-page').forEach(p => p.classList.remove('active'));
-  document.getElementById('selectorPage').classList.add('active');
-  document.getElementById('bottomNav').style.display = 'none';
-  if(jobInterval) clearInterval(jobInterval);
+function formatDistance(km) {
+    if (km < 1) return (km * 1000).toFixed(0) + 'ม.';
+    return km.toFixed(1) + ' กม.';
 }
 
-function setupCustomerNav() {
-  document.getElementById('navLabel1').textContent = 'หน้าแรก';
-  document.getElementById('navLabel2').textContent = 'ใกล้ฉัน';
-  document.getElementById('navLabel3').textContent = 'ฐานข้อมูล';
-  document.querySelectorAll('.bnav button').forEach(b => {b.classList.remove('c','r','on'); b.classList.add('c');});
-  document.getElementById('navBtn1').classList.add('on');
+function getTypeLabel(type) {
+    const labels = {
+        government: 'ราชการ', hotel: 'โรงแรม', restaurant: 'ร้านอาหาร',
+        hospital: 'โรงพยาบาล', market: 'ตลาด', temple: 'วัด',
+        school: 'โรงเรียน', gas: 'ปั๊มน้ำมัน', shop: 'ร้านค้า',
+        tourist: 'ท่องเที่ยว', transport: 'คมนาคม'
+    };
+    return labels[type] || type;
 }
 
-function setupRiderNav() {
-  document.getElementById('navLabel1').textContent = 'หน้าหลัก';
-  document.getElementById('navLabel2').textContent = 'แผนที่';
-  document.getElementById('navLabel3').textContent = 'กระเป๋า';
-  document.querySelectorAll('.bnav button').forEach(b => {b.classList.remove('c','r','on'); b.classList.add('r');});
-  document.getElementById('navBtn1').classList.add('on');
+// NAVIGATION
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    if (pageId === 'page-food') renderFoodList();
+    if (pageId === 'page-hotel') renderHotelList();
+    if (pageId === 'page-travel') renderTravelList();
+    if (pageId === 'page-express') renderExpressList();
+    window.scrollTo(0, 0);
 }
 
-function navClick(idx) {
-  if(currentMode === 'cust') {
-    const pages = ['home','nearby','database'];
-    if(pages[idx] === 'home') showPage('cust');
-    else if(pages[idx] === 'nearby') showPage('nearby');
-    else if(pages[idx] === 'database') showPage('database');
-  } else if(currentMode === 'rider') {
-    if(idx === 0) switchRiderTab('new');
-    else if(idx === 1) alert('🗺️ แผนที่ไรเดอร์');
-    else if(idx === 2) alert('💰 กระเป๋า: ฿' + riderState.wallet);
-  }
-}
+// SEARCH
+function handleMainSearch(query) {
+    const results = document.getElementById('search-results');
+    if (query.length < 2) { results.classList.remove('active'); return; }
+    const filtered = places.filter(p =>
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        p.desc.toLowerCase().includes(query.toLowerCase())
+    ).map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
 
-function showPage(page) {
-  document.querySelectorAll('.app-page').forEach(p => p.classList.remove('active'));
-  if(page === 'cust') {document.getElementById('custPage').classList.add('active');}
-  else if(page === 'search') {document.getElementById('searchPage').classList.add('active'); renderSearchChips(); globalSearch();}
-  else if(page === 'food') {document.getElementById('foodPage').classList.add('active'); renderFoodChips(); filterFood();}
-  else if(page === 'hotels') {document.getElementById('hotelsPage').classList.add('active'); filterHotels();}
-  else if(page === 'express') {document.getElementById('expressPage').classList.add('active'); renderExpressChips(); filterExpress();}
-  else if(page === 'travel') {document.getElementById('travelPage').classList.add('active'); setTimeout(()=>{if(!maps.travel) initTravelMap();},100);}
-  else if(page === 'nearby') {document.getElementById('nearbyPage').classList.add('active'); renderNearby();}
-  else if(page === 'database') {document.getElementById('databasePage').classList.add('active'); setTimeout(()=>{if(!maps.mapDb) initMap('mapDb',13);},100);}
-}
-
-// ===== GPS =====
-function initCustomerGPS() {
-  const textEl = document.getElementById('customerLocText');
-  if(navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((pos)=>{
-      userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy};
-      updateUserLocationUI();
-      calculateNearbyPlaces();
-      renderHomePreviews();
-    },()=>{textEl.textContent='📍 อำเภอชะอวด, นครศรีธรรมราช';},{enableHighAccuracy:true, timeout:5000});
-  }
-}
-
-function updateUserLocationUI() {
-  const textEl = document.getElementById('customerLocText');
-  let nearest = null, minD = Infinity;
-  PLACES.forEach(p=>{const d=calculateDistance(userLocation.lat,userLocation.lng,p.lat,p.lng); if(d<minD){minD=d; nearest=p;}});
-  const distText = minD < 0.1 ? Math.round(minD*1000)+'ม.' : minD.toFixed(2)+'กม.';
-  const locName = nearest ? 'ใกล้'+nearest.name+' ('+distText+')' : 'อำเภอชะอวด';
-  textEl.textContent = '📍 '+locName;
-}
-
-function calculateNearbyPlaces() {
-  nearbyPlaces = PLACES.map(p=>({...p, distance:calculateDistance(userLocation.lat,userLocation.lng,p.lat,p.lng)})).sort((a,b)=>a.distance-b.distance);
-}
-
-// ===== SEARCH FUNCTION =====
-function renderSearchChips() {
-  const cats = ['ทั้งหมด','ร้านอาหาร','โรงแรม','ร้านค้า','สถานที่สำคัญ'];
-  document.getElementById('searchChips').innerHTML = cats.map(c=>'<div class="chip '+(currentSearchCat===c?'on':'')+'" onclick="setSearchCat(\''+c+'\')">'+c+'</div>').join('');
-}
-
-function setSearchCat(cat) {
-  currentSearchCat = cat;
-  renderSearchChips();
-  globalSearch();
-}
-
-function globalSearch() {
-  const query = document.getElementById('globalSearch').value.toLowerCase();
-  let data = [...PLACES, ...FOOD_SHOPS.map(f=>({...f, type:'food'})), ...HOTELS.map(h=>({...h, type:'hotel'}))];
-  
-  if(currentSearchCat !== 'ทั้งหมด') {
-    if(currentSearchCat === 'ร้านอาหาร') data = data.filter(i=>i.cat==='ร้านอาหาร'||i.cat==='คาเฟ่');
-    else if(currentSearchCat === 'โรงแรม') data = data.filter(i=>i.cat==='โรงแรม');
-    else if(currentSearchCat === 'ร้านค้า') data = data.filter(i=>i.cat==='ร้านค้า'||i.cat==='ตลาด');
-    else if(currentSearchCat === 'สถานที่สำคัญ') data = data.filter(i=>['ราชการ','ท่องเที่ยว','วัด'].includes(i.cat));
-  }
-  
-  if(query) {
-    data = data.filter(i=>i.name.toLowerCase().includes(query)||i.cat.toLowerCase().includes(query)||i.desc?.toLowerCase().includes(query));
-  }
-  
-  data = data.map(i=>({...i, distance:calculateDistance(userLocation.lat,userLocation.lng,i.lat,i.lng)})).sort((a,b)=>a.distance-b.distance);
-  
-  document.getElementById('searchResults').innerHTML = data.slice(0,20).map(item=>`
-    <div class="local-card" onclick="showLocationDetail(${item.id}, '${item.type||'place'}')">
-      <div class="img">${item.img}</div>
-      <div class="info">
-        <h4>${item.name}</h4>
-        <div class="meta">⭐ ${item.rating} • ${item.cat}</div>
-        ${item.price?`<div class="price">${item.price}</div>`:''}
-        <div style="font-size:11px;color:#ee4d2d;margin-top:4px"> ${(item.distance||0).toFixed(1)} กม.</div>
-      </div>
-    </div>
-  `).join('') || '<div style="text-align:center;padding:40px;color:#6b7280">ไม่พบผลลัพธ์</div>';
-}
-
-function showLocationDetail(id, type) {
-  let item;
-  if(type==='food') item = FOOD_SHOPS.find(f=>f.id===id);
-  else if(type==='hotel') item = HOTELS.find(h=>h.id===id);
-  else item = PLACES.find(p=>p.id===id);
-  
-  if(!item) return;
-  
-  document.getElementById('modalContainer').innerHTML = `
-    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div style="text-align:center;font-size:64px;margin-bottom:12px">${item.img}</div>
-        <h3>${item.name}</h3>
-        <p style="color:#6b7280;font-size:13px">${item.cat} • ⭐ ${item.rating}</p>
-        ${item.desc?`<p style="font-size:13px;margin:8px 0">${item.desc}</p>`:''}
-        ${item.price?`<p style="font-size:16px;font-weight:800;color:#00b14f;margin:12px 0">${item.price}</p>`:''}
-        <p style="font-size:13px;margin:12px 0">📍 ${item.addr||item.desc}</p>
-        <button class="pri" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name+' ชะอวด')}', '_blank')">🗺️ ดูบนแผนที่</button>
-        <button class="sec" onclick="closeModal()">ปิด</button>
-      </div>
-    </div>
-  `;
-}
-
-// ===== FOOD PAGE =====
-function renderFoodChips() {
-  const cats = ['ทั้งหมด','อาหารจีน','ข้าวขาหมู','คาเฟ่','อาหารตามสั่ง','หมูกะทะ'];
-  document.getElementById('foodChips').innerHTML = cats.map(c=>'<div class="chip '+(currentFoodCat===c?'on':'')+'" onclick="setFoodCat(\''+c+'\')">'+c+'</div>').join('');
-}
-
-function setFoodCat(cat) {
-  currentFoodCat = cat;
-  renderFoodChips();
-  filterFood();
-}
-
-function filterFood() {
-  const query = document.getElementById('foodSearch').value.toLowerCase();
-  let data = FOOD_SHOPS;
-  if(currentFoodCat !== 'ทั้งหมด') data = data.filter(f=>f.cat===currentFoodCat);
-  if(query) data = data.filter(f=>f.name.toLowerCase().includes(query));
-  document.getElementById('foodGrid').innerHTML = data.map(f=>`
-    <div class="grid-item" onclick="showLocationDetail(${f.id}, 'food')">
-      <div class="img">${f.img}</div>
-      <div class="info">
-        <h4>${f.name}</h4>
-        <div class="meta">⭐ ${f.rating} • ${f.time}</div>
-        <div class="price">${f.price}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ===== HOTELS PAGE =====
-function filterHotels() {
-  const query = document.getElementById('hotelSearch').value.toLowerCase();
-  let data = HOTELS;
-  if(query) data = data.filter(h=>h.name.toLowerCase().includes(query));
-  document.getElementById('hotelGrid').innerHTML = data.map(h=>`
-    <div class="grid-item" onclick="showLocationDetail(${h.id}, 'hotel')">
-      <div class="img">${h.img}</div>
-      <div class="info">
-        <h4>${h.name}</h4>
-        <div class="meta">⭐ ${h.rating}</div>
-        <div class="price">${h.price}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:4px">${h.amenities}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ===== EXPRESS PAGE =====
-function renderExpressChips() {
-  const cats = ['ทั้งหมด','ร้านค้า','ตลาด','ปั๊มน้ำมัน'];
-  document.getElementById('expressChips').innerHTML = cats.map(c=>'<div class="chip '+(currentExpressCat===c?'on':'')+'" onclick="setExpressCat(\''+c+'\')">'+c+'</div>').join('');
-}
-
-function setExpressCat(cat) {
-  currentExpressCat = cat;
-  renderExpressChips();
-  filterExpress();
-}
-
-function filterExpress() {
-  const query = document.getElementById('expressSearch').value.toLowerCase();
-  let data = EXPRESS_SERVICES;
-  if(currentExpressCat !== 'ทั้งหมด') data = data.filter(e=>e.cat===currentExpressCat);
-  if(query) data = data.filter(e=>e.name.toLowerCase().includes(query));
-  document.getElementById('expressGrid').innerHTML = data.map(e=>`
-    <div class="grid-item" onclick="showLocationDetail(${e.id}, 'express')">
-      <div class="img">${e.img}</div>
-      <div class="info">
-        <h4>${e.name}</h4>
-        <div class="meta">${e.time}</div>
-        <div class="price">${e.price}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ===== TRAVEL MAP =====
-function initTravelMap() {
-  const map = L.map('travelMap', {zoomControl:false, minZoom:13, maxZoom:18, maxBounds:L.latLngBounds([CHAUAT_BOUNDS.south,CHAUAT_BOUNDS.west],[CHAUAT_BOUNDS.north,CHAUAT_BOUNDS.east]), maxBoundsViscosity:1.0});
-  map.setView([CHAUAT_CENTER.lat, CHAUAT_CENTER.lng], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© ChauatGo', maxZoom:19}).addTo(map);
-  L.control.zoom({position:'topright'}).addTo(map);
-  L.rectangle(L.latLngBounds([CHAUAT_BOUNDS.south,CHAUAT_BOUNDS.west],[CHAUAT_BOUNDS.north,CHAUAT_BOUNDS.east]),{color:'#00b14f', weight:3, fillOpacity:0.05, dashArray:'5,10'}).addTo(map);
-  
-  map.on('click', (e)=>{
-    const {lat, lng} = e.latlng;
-    if(travelPoints.length < 2) {
-      travelPoints.push([lat, lng]);
-      const color = travelPoints.length === 1 ? '#00b14f' : '#ee4d2d';
-      const label = travelPoints.length === 1 ? 'จุดเริ่มต้น' : 'จุดหมาย';
-      const icon = L.divIcon({html:'<div style="background:'+color+';color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">'+(travelPoints.length===1?'📍':'🏁')+'</div>', className:'', iconSize:[32,32], iconAnchor:[16,16]});
-      const marker = L.marker([lat, lng], {icon}).addTo(map);
-      marker.bindPopup(label).openPopup();
-      travelMarkers.push(marker);
-      
-      if(travelPoints.length === 1) {
-        document.getElementById('travelFrom').value = lat.toFixed(5)+', '+lng.toFixed(5);
-      } else {
-        document.getElementById('travelTo').value = lat.toFixed(5)+', '+lng.toFixed(5);
-        drawTravelRoute();
-        document.getElementById('vehicleSelector').classList.add('show');
-      }
+    if (filtered.length === 0) {
+        results.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">ไม่พบผลลัพธ์</div>';
+    } else {
+        results.innerHTML = filtered.map(p => `
+            <div class="search-result-item" onclick="openPlaceModal(${p.id})">
+                <span style="font-size:24px">${p.icon}</span>
+                <div style="flex:1">
+                    <div style="font-weight:600; font-size:14px">${p.name}</div>
+                    <div style="font-size:12px; color:#888">${getTypeLabel(p.type)} • ${formatDistance(p.distance)}</div>
+                </div>
+            </div>
+        `).join('');
     }
-  });
-  
-  maps.travel = map;
+    results.classList.add('active');
 }
 
-function drawTravelRoute() {
-  if(travelPoints.length < 2) return;
-  if(travelLine) maps.travel.removeLayer(travelLine);
-  travelLine = L.polyline(travelPoints, {color:'#00b14f', weight:5, opacity:0.8, dashArray:'10,10'}).addTo(maps.travel);
-  maps.travel.fitBounds(travelLine.getBounds(), {padding:[50,50]});
-  travelDistance = calculateDistance(travelPoints[0][0], travelPoints[0][1], travelPoints[1][0], travelPoints[1][1]);
-  updateVehiclePrices();
-}
+// FOOD LIST
+function renderFoodList(filter = 'all') {
+    const restaurants = places.filter(p => p.type === 'restaurant')
+        .filter(p => filter === 'all' || p.category === filter)
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
 
-function updateVehiclePrices() {
-  const bikePrice = Math.round(VEHICLE_TYPES[0].basePrice + travelDistance * VEHICLE_TYPES[0].pricePerKm);
-  const carPrice = Math.round(VEHICLE_TYPES[1].basePrice + travelDistance * VEHICLE_TYPES[1].pricePerKm);
-  document.getElementById('bikePrice').textContent = '฿'+bikePrice;
-  document.getElementById('carPrice').textContent = '฿'+carPrice;
-}
-
-function selectVehicle(idx) {
-  selectedVehicleIdx = idx;
-  document.querySelectorAll('.vehicle-option').forEach((el, i)=>{
-    el.classList.toggle('selected', i===idx);
-  });
-}
-
-function clearTravel() {
-  travelPoints = [];
-  travelMarkers.forEach(m=>maps.travel.removeLayer(m));
-  travelMarkers = [];
-  if(travelLine) maps.travel.removeLayer(travelLine);
-  travelLine = null;
-  document.getElementById('travelFrom').value = '';
-  document.getElementById('travelTo').value = '';
-  document.getElementById('vehicleSelector').classList.remove('show');
-}
-
-function confirmTravel() {
-  const vehicle = VEHICLE_TYPES[selectedVehicleIdx];
-  const price = Math.round(vehicle.basePrice + travelDistance * vehicle.pricePerKm);
-  const duration = Math.round((travelDistance / vehicle.speed) * 60);
-  
-  document.getElementById('modalContainer').innerHTML = `
-    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="booking-card">
-          <div class="check">✅</div>
-          <div class="title">จอง${vehicle.name}สำเร็จ!</div>
+    const list = document.getElementById('food-list');
+    if (restaurants.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">ไม่พบร้านอาหารในหมวดนี้</div>';
+        return;
+    }
+    list.innerHTML = restaurants.map(r => `
+        <div class="place-card" onclick="openPlaceModal(${r.id})">
+            <div class="place-icon">${r.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${r.name}</div>
+                <div class="place-detail">${r.desc} • ${r.price || ''}</div>
+                <div class="place-rating">⭐ ${r.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(r.distance)}</div>
         </div>
-        <div class="booking-detail">
-          <div class="row"><span class="label">ประเภทรถ</span><span class="value">${vehicle.icon} ${vehicle.name}</span></div>
-          <div class="row"><span class="label">ระยะทาง</span><span class="value">${travelDistance.toFixed(2)} กม.</span></div>
-          <div class="row"><span class="label">เวลาโดยประมาณ</span><span class="value">${duration} นาที</span></div>
-          <div class="row"><span class="label">จุดเริ่มต้น</span><span class="value">${document.getElementById('travelFrom').value}</span></div>
-          <div class="row"><span class="label">จุดหมาย</span><span class="value">${document.getElementById('travelTo').value}</span></div>
-          <div class="row" style="border-top:2px solid #e5e7eb;margin-top:8px;padding-top:12px"><span class="label">ราคา</span><span class="value total">฿${price}</span></div>
+    `).join('');
+}
+
+function filterFoodList(query) {
+    if (query.length < 1) { renderFoodList(); return; }
+    const filtered = places.filter(p => p.type === 'restaurant' && p.name.includes(query))
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const list = document.getElementById('food-list');
+    list.innerHTML = filtered.map(r => `
+        <div class="place-card" onclick="openPlaceModal(${r.id})">
+            <div class="place-icon">${r.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${r.name}</div>
+                <div class="place-detail">${r.desc} • ${r.price || ''}</div>
+                <div class="place-rating">⭐ ${r.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(r.distance)}</div>
         </div>
-        <button class="pri" onclick="closeModal(); clearTravel()">ตกลง</button>
-      </div>
-    </div>
-  `;
+    `).join('');
 }
 
-// ===== RIDER SYSTEM =====
-function generateMockJob() {
-  const from = LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];
-  let to = LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];
-  while(to.name===from.name) to=LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];
-  const vehicle = VEHICLE_TYPES[0];
-  const dist = calculateDistance(from.lat,from.lng,to.lat,to.lng);
-  const price = Math.round(vehicle.basePrice + dist*vehicle.pricePerKm);
-  const duration = Math.max(5, Math.round((dist/vehicle.speed)*60));
-  const riderDist = calculateDistance(userLocation.lat,userLocation.lng,from.lat,from.lng);
-  const customers = ['คุณสมหญิง','คุณวิชัย','คุณมานี'];
-  return {id:Date.now()+Math.random(), from, to, distance:dist, price, duration, vehicle, customer:customers[Math.floor(Math.random()*customers.length)], customerRating:(4.3+Math.random()*0.7).toFixed(1), riderDistance:riderDist, time:new Date(), urgent:Math.random()>0.75};
+function filterByFoodType(type) { renderFoodList(type); }
+
+// HOTEL LIST
+function renderHotelList() {
+    const hotels = places.filter(p => p.type === 'hotel')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const list = document.getElementById('hotel-list');
+    list.innerHTML = hotels.map(h => `
+        <div class="place-card" onclick="openPlaceModal(${h.id})">
+            <div class="place-icon">${h.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${h.name}</div>
+                <div class="place-detail">${h.desc} • ${h.price || ''}</div>
+                <div class="place-rating">⭐ ${h.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(h.distance)}</div>
+        </div>
+    `).join('');
 }
 
-function startJobSimulation() {
-  if(jobInterval) clearInterval(jobInterval);
-  jobInterval = setInterval(()=>{if(riderState.online && riderState.newJobs.length<5){const job=generateMockJob(); riderState.newJobs.unshift(job); renderRiderContent();}}, 12000+Math.random()*10000);
+function filterHotelList(query) {
+    if (query.length < 1) { renderHotelList(); return; }
+    const filtered = places.filter(p => p.type === 'hotel' && p.name.includes(query))
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const list = document.getElementById('hotel-list');
+    list.innerHTML = filtered.map(h => `
+        <div class="place-card" onclick="openPlaceModal(${h.id})">
+            <div class="place-icon">${h.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${h.name}</div>
+                <div class="place-detail">${h.desc} • ${h.price || ''}</div>
+                <div class="place-rating">⭐ ${h.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(h.distance)}</div>
+        </div>
+    `).join('');
 }
 
-function toggleOnline() {
-  riderState.online = !riderState.online;
-  const btn = document.getElementById('onlineBtn');
-  if(riderState.online) {
-    btn.className = 'online-btn on';
-    btn.innerHTML = '🔥 ออนไลน์ - แตะเพื่อหยุดรับงาน';
-    startJobSimulation();
-    setTimeout(()=>{const job=generateMockJob(); riderState.newJobs.unshift(job); renderRiderContent();}, 2000);
-  } else {
-    btn.className = 'online-btn off';
-    btn.innerHTML = ' ออฟไลน์ - แตะเพื่อเริ่มรับงาน';
-    if(jobInterval) clearInterval(jobInterval);
-  }
+// TRAVEL LIST
+function renderTravelList() {
+    let filtered = places;
+    if (currentTravelFilter !== 'all') {
+        filtered = places.filter(p => p.category === currentTravelFilter);
+    }
+    const allPlaces = filtered.map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const list = document.getElementById('travel-list');
+    list.innerHTML = allPlaces.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${getTypeLabel(p.type)} • ${p.address || ''}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
+    renderDestinations();
 }
 
-function switchRiderTab(tab) {
-  riderState.currentTab = tab;
-  document.querySelectorAll('.r-tab').forEach(t=>t.classList.remove('on'));
-  event.target.closest('.r-tab').classList.add('on');
-  renderRiderContent();
+function filterTravel(type, element) {
+    currentTravelFilter = type;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    if(element) element.classList.add('active');
+    renderTravelList();
 }
 
-function renderRiderContent() {
-  const container = document.getElementById('jobArea');
-  const tab = riderState.currentTab;
-  document.getElementById('newJobBadge').textContent = riderState.newJobs.length;
-  document.getElementById('earn').textContent = '฿'+riderState.todayEarning;
-  document.getElementById('trip').textContent = riderState.todayTrips;
-  document.getElementById('wallet').textContent = '฿'+riderState.wallet;
-  
-  if(tab==='new') {
-    if(!riderState.online) {container.innerHTML = '<div class="empty-state"><div class="icon">😴</div><h3>คุณออฟไลน์อยู่</h3><p>เปิดสวิตช์ด้านบนเพื่อเริ่มรับงาน</p></div>'; return;}
-    if(riderState.newJobs.length===0) {container.innerHTML = '<div class="empty-state"><div class="icon">📡</div><h3>กำลังหางานใกล้คุณ...</h3></div>'; return;}
-    container.innerHTML = riderState.newJobs.map(job=>'<div class="job-card '+(job.urgent?'urgent':'')+'"><div class="job-header"><div class="job-type">'+job.vehicle.icon+' '+job.vehicle.name+(job.urgent?' ⚡ ด่วน':'')+'</div><div class="job-price">฿'+job.price+'</div></div><div class="job-route"><div class="job-point"><div class="job-dot from"></div><div class="job-point-text"><div class="label">📍 จุดรับ • '+job.riderDistance.toFixed(1)+' กม.</div><div class="addr">'+job.from.name+'</div></div></div><div class="job-point"><div class="job-dot to"></div><div class="job-point-text"><div class="label">🏁 จุดส่ง • '+job.distance.toFixed(1)+' กม.</div><div class="addr">'+job.to.name+'</div></div></div></div><div class="job-meta"><span>👤 '+job.customer+'</span><span>⭐ '+job.customerRating+'</span><span>️ '+job.duration+' นาที</span></div><div class="job-actions"><button class="btn btn-reject" onclick="rejectJob('+job.id+')">ปฏิเสธ</button><button class="btn btn-accept" onclick="acceptJob('+job.id+')">✓ รับงาน</button></div></div>').join('');
-  } else if(tab==='active') {
-    if(!riderState.activeJob) {container.innerHTML = '<div class="empty-state"><div class="icon">🚗</div><h3>ไม่มีงานที่กำลังทำ</h3></div>'; return;}
-    const job = riderState.activeJob;
-    container.innerHTML = '<div class="job-card accepted"><div class="job-header"><div class="job-type">'+job.vehicle.icon+' กำลังดำเนินการ</div><div class="job-price">฿'+job.price+'</div></div><div class="job-route"><div class="job-point"><div class="job-dot from"></div><div class="job-point-text"><div class="label">📍 จุดรับ</div><div class="addr">'+job.from.name+'</div></div></div><div class="job-point"><div class="job-dot to"></div><div class="job-point-text"><div class="label">🏁 จุดส่ง</div><div class="addr">'+job.to.name+'</div></div></div></div><div class="job-actions"><button class="btn btn-navigate" onclick="alert(\'🗺️ นำทาง\')">นำทาง</button><button class="btn btn-complete" onclick="completeJob()">✅ ถึงจุดหมาย</button></div></div>';
-  } else if(tab==='today') {
-    if(riderState.todayHistory.length===0) {container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>ยังไม่มีประวัติวันนี้</h3></div>'; return;}
-    container.innerHTML = '<div style="background:linear-gradient(135deg,#ff6b00,#e55a00);color:#fff;border-radius:14px;padding:16px;margin-bottom:12px"><div style="font-size:12px;opacity:0.9">สรุปวันนี้</div><div style="font-size:28px;font-weight:800;margin:4px 0">฿'+riderState.todayEarning+'</div><div style="font-size:12px;opacity:0.9">'+riderState.todayTrips+' เที่ยว</div></div>'+riderState.todayHistory.map(job=>'<div class="job-card" style="border-left-color:#00b14f"><div class="job-header"><div class="job-type">'+job.vehicle.icon+' เสร็จสิ้น ✓</div><div class="job-price" style="color:#00b14f">+฿'+job.price+'</div></div><div class="job-meta"><span>📏 '+job.distance.toFixed(1)+' กม.</span><span>🕐 '+job.time.getHours()+':'+job.time.getMinutes().toString().padStart(2,'0')+'</span></div></div>').join('');
-  } else if(tab==='earnings') {
-    container.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><div style="background:linear-gradient(135deg,#ff6b00,#e55a00);color:#fff;border-radius:14px;padding:14px"><div style="font-size:11px;opacity:0.9">วันนี้</div><div style="font-size:22px;font-weight:800">฿'+riderState.todayEarning+'</div></div><div style="background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08)"><div style="font-size:11px;color:#6b7280">สัปดาห์นี้</div><div style="font-size:22px;font-weight:800">฿'+riderState.weekEarning.toLocaleString()+'</div></div></div>';
-  }
+function filterTravelList(query) {
+    if (query.length < 1) { renderTravelList(); return; }
+    const filtered = places.filter(p => p.name.includes(query))
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const list = document.getElementById('travel-list');
+    list.innerHTML = filtered.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${getTypeLabel(p.type)}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
 }
 
-function acceptJob(jobId) {
-  const job = riderState.newJobs.find(j=>j.id===jobId);
-  if(!job) return;
-  riderState.newJobs = riderState.newJobs.filter(j=>j.id!==jobId);
-  riderState.activeJob = job;
-  alert('✅ รับงานสำเร็จ!');
-  switchRiderTab('active');
+// EXPRESS LIST
+function renderExpressList() {
+    const expressPoints = places.filter(p => ['market','restaurant','hotel','shop'].includes(p.type))
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const list = document.getElementById('express-list');
+    list.innerHTML = expressPoints.map(p => `
+        <div class="place-card" onclick="setExpressPoint('${p.name}', '${p.address}')">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">📍 ${p.address || ''}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
 }
 
-function rejectJob(jobId) {
-  riderState.newJobs = riderState.newJobs.filter(j=>j.id!==jobId);
-  renderRiderContent();
+function setExpressPoint(name, address) {
+    const pickup = document.getElementById('express-pickup');
+    const delivery = document.getElementById('express-delivery');
+    if (!pickup.value) { pickup.value = `${name}, ${address}`; showNotification('📍 ตั้งเป็นจุดรับพัสดุ'); }
+    else if (!delivery.value) { delivery.value = `${name}, ${address}`; showNotification('📍 ตั้งเป็นจุดส่งพัสดุ'); }
+    else { delivery.value = `${name}, ${address}`; showNotification('📍 อัพเดทจุดส่งพัสดุ'); }
 }
 
-function completeJob() {
-  if(!riderState.activeJob) return;
-  const job = riderState.activeJob;
-  riderState.todayHistory.unshift(job);
-  riderState.todayEarning += job.price;
-  riderState.todayTrips += 1;
-  riderState.weekEarning += job.price;
-  riderState.wallet += job.price;
-  riderState.activeJob = null;
-  alert('🎉 เสร็จสิ้น! +฿'+job.price);
-  renderRiderContent();
+// PLACE MODAL
+function openPlaceModal(id) {
+    const place = places.find(p => p.id === id);
+    if (!place) return;
+    const dist = getDistance(place);
+    const isRestaurant = place.type === 'restaurant';
+    const isHotel = place.type === 'hotel';
+
+    let buttons = `
+        <button class="btn-view-map" onclick="openMapModal(${place.id})">🗺️ ดูบนแผนที่</button>
+        <button class="btn-add-destination" onclick="addDestination(${place.id})">📍 เพิ่มเป็นจุดหมายปลายทาง</button>
+    `;
+    if (isRestaurant) {
+        buttons += `
+            <button class="btn-travel" onclick="travelToPlace(${place.id})">🚗 เดินทางไปร้าน</button>
+            <button class="btn-order-food" onclick="orderFoodFromRestaurant(${place.id})">🛵 ให้ไรเดอร์สั่งซื้ออาหารมาส่ง</button>
+        `;
+    }
+    if (isHotel) {
+        buttons += `<button class="btn-travel" onclick="travelToHotel(${place.id})">🚗 เดินทางไปโรงแรม (เป็นปลายทาง)</button>`;
+    }
+    buttons += `<button class="btn-close" onclick="closeModal()">ปิด</button>`;
+
+    document.getElementById('modal-body').innerHTML = `
+        <div class="modal-icon">${place.icon}</div>
+        <div class="modal-title">${place.name}</div>
+        <div class="modal-category">${getTypeLabel(place.type)} ${place.price ? '• '+place.price : ''}</div>
+        <div class="modal-rating">⭐ ${place.rating} • 📏 ${formatDistance(dist)}</div>
+        <div class="modal-location">📍 ${place.address || ''}</div>
+        ${place.desc ? `<div class="modal-desc">${place.desc}</div>` : ''}
+        ${buttons}
+    `;
+    document.getElementById('place-modal').classList.add('active');
 }
 
-// ===== INIT =====
-document.addEventListener('DOMContentLoaded', ()=>{
-  document.getElementById('onlineRiders').textContent = Math.floor(Math.random()*20+10);
-  if(currentMode) goMode(currentMode, false);
-  if(navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((pos)=>{userLocation={lat:pos.coords.latitude, lng:pos.coords.longitude, accuracy:pos.coords.accuracy};}, ()=>{}, {enableHighAccuracy:true, timeout:5000});
-  }
+function closeModal() { document.getElementById('place-modal').classList.remove('active'); }
+
+// DESTINATIONS
+function addDestination(id) {
+    const place = places.find(p => p.id === id);
+    if (!place) return;
+    if (destinations.find(d => d.id === id)) { showNotification('⚠️ เพิ่มเป็นจุดหมายแล้ว'); return; }
+    destinations.push(place);
+    showNotification(`✅ เพิ่ม "${place.name}" เป็นจุดหมายปลายทาง`);
+    renderDestinations();
+    closeModal();
+}
+
+function removeDestination(id) {
+    destinations = destinations.filter(d => d.id !== id);
+    renderDestinations();
+    showNotification('🗑️ ลบจุดหมายปลายทางแล้ว');
+}
+
+function renderDestinations() {
+    const list = document.getElementById('destination-list');
+    if (destinations.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">ยังไม่มีจุดหมายปลายทาง<br><small>กด "เพิ่มเป็นจุดหมาย" จากหน้าสถานที่</small></div>';
+        return;
+    }
+    list.innerHTML = destinations.map((d, i) => `
+        <div class="dest-item">
+            <div class="dest-num">${i+1}</div>
+            <span style="font-size:20px">${d.icon}</span>
+            <div class="dest-name">${d.name}</div>
+            <span class="dest-remove" onclick="removeDestination(${d.id})">✕</span>
+        </div>
+    `).join('') + `<button class="btn-view-map" onclick="showRouteOnMap()" style="margin-top:10px;">🗺️ แสดงเส้นทางทั้งหมดบนแผนที่</button>`;
+}
+
+// MAP
+function openMapModal(id) {
+    const place = places.find(p => p.id === id);
+    if (!place) return;
+    document.getElementById('map-modal').classList.add('active');
+    document.getElementById('map-title').textContent = place.name;
+
+    setTimeout(() => {
+        if (currentMap) currentMap.remove();
+        currentMap = L.map('map-container').setView([USER_LOCATION.lat, USER_LOCATION.lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(currentMap);
+
+        const userIcon = L.divIcon({ html: '<div style="width:20px;height:20px;background:#4A90D9;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>', className: 'user-marker' });
+        L.marker([USER_LOCATION.lat, USER_LOCATION.lng], { icon: userIcon }).addTo(currentMap).bindPopup('📍 ตำแหน่งของคุณ');
+
+        const placeIcon = L.divIcon({ html: `<div style="font-size:30px;text-align:center;">${place.icon}</div>`, className: 'place-marker' });
+        L.marker([place.lat, place.lng], { icon: placeIcon }).addTo(currentMap).bindPopup(`<b>${place.name}</b><br>${getTypeLabel(place.type)}`);
+
+        if (routeLine) currentMap.removeLayer(routeLine);
+        const latlngs = [[USER_LOCATION.lat, USER_LOCATION.lng], [place.lat, place.lng]];
+        routeLine = L.polyline(latlngs, { color: '#00A651', weight: 4, opacity: 0.8, dashArray: '10, 5' }).addTo(currentMap);
+        currentMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+        const dist = calcDistance(USER_LOCATION, { lat: place.lat, lng: place.lng });
+        const cost = calculateTravelCost(dist);
+
+        document.getElementById('map-info-panel').innerHTML = `
+            <div class="route-info"><span class="label">📍 จาก</span><span class="value">ตำแหน่งปัจจุบัน</span></div>
+            <div class="route-info"><span class="label">🎯 ถึง</span><span class="value">${place.name}</span></div>
+            <div class="route-info"><span class="label">📏 ระยะทาง</span><span class="value">${dist.toFixed(2)} กม.</span></div>
+            <div class="route-info"><span class="label">⏱️ เวลาโดยประมาณ</span><span class="value">${(dist*3).toFixed(0)} นาที</span></div>
+            <div class="cost-breakdown">
+                <div style="font-weight:bold; margin-bottom:8px; color:#333;">💰 ค่าใช้จ่ายโดยประมาณ</div>
+                <div class="cost-row"><span>ค่าเริ่มต้น (0-1 กม.)</span><span>${cost.base}฿</span></div>
+                <div class="cost-row"><span>ค่าระยะทางเพิ่ม (${Math.max(0,dist-1).toFixed(2)} กม. × 15฿)</span><span>${cost.extra}฿</span></div>
+                <div class="cost-row total"><span>รวมทั้งหมด</span><span>${cost.total}฿</span></div>
+            </div>
+            <button class="btn-add-destination" onclick="addDestination(${place.id}); closeMapModal();" style="margin-top:10px;">📍 เพิ่มเป็นจุดหมายปลายทาง</button>
+        `;
+    }, 300);
+}
+
+function showRouteOnMap() {
+    if (destinations.length === 0) { showNotification('⚠️ ยังไม่มีจุดหมายปลายทาง'); return; }
+    document.getElementById('map-modal').classList.add('active');
+    document.getElementById('map-title').textContent = `เส้นทาง (${destinations.length} จุดหมาย)`;
+
+    setTimeout(() => {
+        if (currentMap) currentMap.remove();
+        currentMap = L.map('map-container').setView([USER_LOCATION.lat, USER_LOCATION.lng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(currentMap);
+
+        const userIcon = L.divIcon({ html: '<div style="width:20px;height:20px;background:#4A90D9;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>', className: 'user-marker' });
+        L.marker([USER_LOCATION.lat, USER_LOCATION.lng], { icon: userIcon }).addTo(currentMap).bindPopup('📍 ตำแหน่งของคุณ (จุดเริ่มต้น)');
+
+        const allPoints = [[USER_LOCATION.lat, USER_LOCATION.lng]];
+        destinations.forEach((d, i) => {
+            const destIcon = L.divIcon({ html: `<div style="background:#00A651;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);">${i+1}</div>`, className: 'dest-marker' });
+            L.marker([d.lat, d.lng], { icon: destIcon }).addTo(currentMap).bindPopup(`<b>${i+1}. ${d.name}</b><br>${getTypeLabel(d.type)}`);
+            allPoints.push([d.lat, d.lng]);
+        });
+
+        if (routeLine) currentMap.removeLayer(routeLine);
+        routeLine = L.polyline(allPoints, { color: '#00A651', weight: 4, opacity: 0.8 }).addTo(currentMap);
+        currentMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+        let totalDist = 0;
+        for (let i = 0; i < allPoints.length - 1; i++) {
+            totalDist += calcDistance({ lat: allPoints[i][0], lng: allPoints[i][1] }, { lat: allPoints[i+1][0], lng: allPoints[i+1][1] });
+        }
+        const cost = calculateTravelCost(totalDist);
+
+        document.getElementById('map-info-panel').innerHTML = `
+            <div style="font-weight:bold; font-size:16px; margin-bottom:10px;">🗺️ สรุปเส้นทาง</div>
+            ${destinations.map((d, i) => `<div class="route-info"><span class="label">📍 จุดที่ ${i+1}</span><span class="value">${d.name}</span></div>`).join('')}
+            <div class="route-info" style="border-top:2px solid #00A651; margin-top:8px; padding-top:8px;"><span class="label">📏 ระยะทางรวม</span><span class="value">${totalDist.toFixed(2)} กม.</span></div>
+            <div class="route-info"><span class="label">⏱️ เวลาโดยประมาณ</span><span class="value">${(totalDist*3).toFixed(0)} นาที</span></div>
+            <div class="cost-breakdown">
+                <div style="font-weight:bold; margin-bottom:8px;">💰 ค่าใช้จ่ายรวม</div>
+                <div class="cost-row"><span>ค่าเริ่มต้น</span><span>${cost.base}฿</span></div>
+                <div class="cost-row"><span>ค่าระยะทางเพิ่ม</span><span>${cost.extra}฿</span></div>
+                <div class="cost-row total"><span>รวมทั้งหมด</span><span>${cost.total}฿</span></div>
+            </div>
+        `;
+    }, 300);
+}
+
+function closeMapModal() {
+    document.getElementById('map-modal').classList.remove('active');
+    if (currentMap) { currentMap.remove(); currentMap = null; }
+}
+
+function calculateTravelCost(distance) {
+    const base = 30, perKm = 15;
+    const extra = Math.max(0, Math.ceil((distance - 1) * perKm));
+    return { base, extra, total: base + extra };
+}
+
+function travelToPlace(id) {
+    const place = places.find(p => p.id === id);
+    showNotification(`🚗 กำลังนำทางไป ${place.name}`);
+    openMapModal(id);
+}
+
+function travelToHotel(id) {
+    const place = places.find(p => p.id === id);
+    addDestination(id);
+    showNotification(`🏨 เพิ่ม ${place.name} เป็นปลายทาง`);
+    setTimeout(() => openMapModal(id), 500);
+}
+
+function orderFoodFromRestaurant(id) {
+    const place = places.find(p => p.id === id);
+    const dist = getDistance(place);
+    const cost = calculateTravelCost(dist);
+    document.getElementById('modal-body').innerHTML = `
+        <div class="modal-icon">🛵</div>
+        <div class="modal-title">สั่งอาหารจาก ${place.name}</div>
+        <div class="modal-category">ไรเดอร์จะเดินทางไปรับอาหารและมาส่งให้คุณ</div>
+        <div class="rider-order-section">
+            <h4>📋 รายละเอียดการสั่งซื้อ</h4>
+            <p>🏪 ร้าน: ${place.name}</p>
+            <p>📍 ระยะทาง: ${formatDistance(dist)}</p>
+            <p>⏱️ เวลาโดยประมาณ: ${(dist*5).toFixed(0)} นาที</p>
+        </div>
+        <div class="cost-breakdown">
+            <div style="font-weight:bold; margin-bottom:8px;">💰 ค่าบริการ</div>
+            <div class="cost-row"><span>ค่าจัดส่ง</span><span>${cost.total}฿</span></div>
+            <div class="cost-row"><span>ค่าบริการไรเดอร์</span><span>10฿</span></div>
+            <div class="cost-row total"><span>รวมค่าส่ง</span><span>${cost.total+10}฿</span></div>
+        </div>
+        <div class="form-group" style="margin-top:15px;"><label>📝 รายการอาหาร</label><textarea rows="3" placeholder="เช่น ข้าวมันไก่ 1 จาน..."></textarea></div>
+        <div class="form-group"><label>💳 วิธีชำระเงิน</label><select><option>ชำระปลายทาง (เงินสด)</option><option>พร้อมเพย์</option><option>โอนเงิน</option></select></div>
+        <button class="btn-order-food" onclick="confirmFoodOrder(${place.id})">✅ ยืนยันการสั่งซื้อ</button>
+        <button class="btn-close" onclick="openPlaceModal(${place.id})" style="margin-top:10px;">← กลับ</button>
+    `;
+}
+
+function confirmFoodOrder(id) {
+    const place = places.find(p => p.id === id);
+    showNotification(`✅ สั่งอาหารจาก ${place.name} สำเร็จ! ไรเดอร์กำลังเดินทางไป`);
+    closeModal();
+}
+
+function calculateExpressCost() {
+    const pickup = document.getElementById('express-pickup').value;
+    const delivery = document.getElementById('express-delivery').value;
+    const type = document.getElementById('express-type').value;
+    if (!pickup || !delivery) { showNotification('⚠️ กรุณากรอกจุดรับและจุดส่ง'); return; }
+    const typeMultiplier = { small: 1, medium: 1.5, large: 2 };
+    const baseCost = 30, distance = 2.5;
+    const extraCost = Math.ceil((distance - 1) * 15);
+    const total = (baseCost + extraCost) * typeMultiplier[type];
+    document.getElementById('express-distance').textContent = `${distance} กม.`;
+    document.getElementById('express-base').textContent = `${baseCost}฿`;
+    document.getElementById('express-extra').textContent = `${extraCost}฿`;
+    document.getElementById('express-total').textContent = `${total.toFixed(0)}฿`;
+    document.getElementById('express-cost').style.display = 'block';
+    showNotification('📊 คำนวณค่าส่งเรียบร้อยแล้ว');
+}
+
+function requestExpress() {
+    const pickup = document.getElementById('express-pickup').value;
+    const delivery = document.getElementById('express-delivery').value;
+    if (!pickup || !delivery) { showNotification('⚠️ กรุณากรอกจุดรับและจุดส่ง'); return; }
+    showNotification('📦 เรียกไรเดอร์ส่งด่วนสำเร็จ! ไรเดอร์กำลังเดินทางมารับพัสดุ');
+}
+
+function showNotification(msg) {
+    const notif = document.getElementById('notification');
+    notif.textContent = msg;
+    notif.classList.add('active');
+    setTimeout(() => notif.classList.remove('active'), 3000);
+}
+
+// INIT: โหลดข้อมูลทั้งหมดอัตโนมัติ
+function init() {
+    const recommended = places.filter(p => p.type === 'hotel')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance).slice(0, 3);
+    document.getElementById('recommended-places').innerHTML = recommended.map(h => `
+        <div class="place-card" onclick="openPlaceModal(${h.id})">
+            <div class="place-icon">${h.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${h.name}</div>
+                <div class="place-detail">${h.desc} • ${h.price}</div>
+                <div class="place-rating">⭐ ${h.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(h.distance)}</div>
+        </div>
+    `).join('');
+
+    const nearby = places.filter(p => p.type === 'restaurant')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('nearby-shops').innerHTML = nearby.map(r => `
+        <div class="place-card" onclick="openPlaceModal(${r.id})">
+            <div class="place-icon">${r.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${r.name}</div>
+                <div class="place-detail">${r.desc} • ${r.price}</div>
+                <div class="place-rating">⭐ ${r.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(r.distance)}</div>
+        </div>
+    `).join('');
+
+    const gov = places.filter(p => p.category === 'government')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('gov-places').innerHTML = gov.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${p.desc}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
+
+    const gas = places.filter(p => p.type === 'gas')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('gas-places').innerHTML = gas.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${p.desc}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
+
+    const shops = places.filter(p => p.type === 'shop')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('shop-places').innerHTML = shops.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${p.desc}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
+
+    const tourist = places.filter(p => p.type === 'tourist')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('tourist-places').innerHTML = tourist.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${p.desc}</div>
+                <div class="place-rating">⭐ ${p.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
+
+    const temples = places.filter(p => p.type === 'temple')
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('temple-places').innerHTML = temples.map(p => `
+        <div class="place-card" onclick="openPlaceModal(${p.id})">
+            <div class="place-icon">${p.icon}</div>
+            <div class="place-info">
+                <div class="place-name">${p.name}</div>
+                <div class="place-detail">${p.desc} • ${p.address}</div>
+                <div class="place-rating">⭐ ${p.rating}</div>
+            </div>
+            <div class="place-distance">${formatDistance(p.distance)}</div>
+        </div>
+    `).join('');
+}
+
+document.getElementById('place-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
 });
+
+// เริ่มต้นทำงานอัตโนมัติ
+init();
 </script>
 </body>
 </html>
