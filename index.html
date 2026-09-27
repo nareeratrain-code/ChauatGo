@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chauat Go - แอปนำทางและสั่งอาหารอำเภอชะอวด</title>
+    <title>Chauat Go - แอปนำทางและบริการอำเภอชะอวด</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', 'Prompt', sans-serif; }
@@ -132,7 +132,7 @@
 <div class="page active" id="page-main">
     <div class="stats-header">
         <div class="stats-row">
-            <div class="stat-card"><div class="number">50+</div><div class="label">สถานที่จริง</div></div>
+            <div class="stat-card"><div class="number" id="total-places-count">40+</div><div class="label">สถานที่จริง</div></div>
             <div class="stat-card"><div class="number">12</div><div class="label">ตำบล</div></div>
             <div class="stat-card"><div class="number">11</div><div class="label">ไรเดอร์ ออนไลน์</div></div>
         </div>
@@ -182,13 +182,13 @@
     <div class="section-header"><span class="icon">🍜</span><span>ร้านเด็ดใกล้คุณ</span></div>
     <div class="place-list" id="nearby-shops"></div>
 
-    <div class="section-header"><span class="icon">🏛️</span><span>สถานที่ราชการ</span></div>
+    <div class="section-header"><span class="icon">🏛️</span><span>สถานที่ราชการ/โรงพยาบาล</span></div>
     <div class="place-list" id="gov-places"></div>
 
     <div class="section-header"><span class="icon">⛽</span><span>ปั๊มน้ำมัน</span></div>
     <div class="place-list" id="gas-places"></div>
 
-    <div class="section-header"><span class="icon">🛒</span><span>ร้านสะดวกซื้อ</span></div>
+    <div class="section-header"><span class="icon">🛒</span><span>ร้านสะดวกซื้อ/ตลาด</span></div>
     <div class="place-list" id="shop-places"></div>
 
     <div class="section-header"><span class="icon">🌴</span><span>สถานที่ท่องเที่ยว</span></div>
@@ -214,6 +214,7 @@
         <div class="food-grid-item" onclick="filterByFoodType('all')"><span class="f-icon">🍽️</span><span class="f-label">ทั้งหมด</span></div>
         <div class="food-grid-item" onclick="filterByFoodType('thai')"><span class="f-icon">🍛</span><span class="f-label">อาหารไทย</span></div>
         <div class="food-grid-item" onclick="filterByFoodType('noodle')"><span class="f-icon">🍜</span><span class="f-label">ก๋วยเตี๋ยว</span></div>
+        <div class="food-grid-item" onclick="filterByFoodType('bbq')"><span class="f-icon">🍲</span><span class="f-label">ชาบู/ปิ้งย่าง</span></div>
         <div class="food-grid-item" onclick="filterByFoodType('drink')"><span class="f-icon">☕</span><span class="f-label">กาแฟ/เครื่องดื่ม</span></div>
     </div>
     <div class="section-header"><span class="icon">🍽️</span><span>ร้านอาหาร (ใกล้สุด → ไกลสุด)</span></div>
@@ -250,13 +251,12 @@
     </div>
     <div class="category-filter" id="travel-filters">
         <div class="filter-chip active" onclick="filterTravel('all', this)">ทั้งหมด</div>
-        <div class="filter-chip" onclick="filterTravel('government', this)">ราชการ</div>
+        <div class="filter-chip" onclick="filterTravel('government', this)">ราชการ/รพ.</div>
         <div class="filter-chip" onclick="filterTravel('hotel', this)">โรงแรม</div>
         <div class="filter-chip" onclick="filterTravel('gas', this)">ปั๊มน้ำมัน</div>
         <div class="filter-chip" onclick="filterTravel('shop', this)">ร้านค้า</div>
         <div class="filter-chip" onclick="filterTravel('tourist', this)">ท่องเที่ยว</div>
         <div class="filter-chip" onclick="filterTravel('temple', this)">วัด</div>
-        <div class="filter-chip" onclick="filterTravel('hospital', this)">โรงพยาบาล</div>
         <div class="filter-chip" onclick="filterTravel('school', this)">โรงเรียน</div>
     </div>
     <div class="section-header"><span class="icon">🗺️</span><span>จุดหมายปลายทาง</span></div>
@@ -325,90 +325,68 @@
 // พิกัดศูนย์กลาง อ.ชะอวด
 const USER_LOCATION = { lat: 7.9620, lng: 99.9940 };
 
-// ===== ข้อมูลสถานที่จริงทั้งหมดใน อ.ชะอวด (รวมข้อมูลจาก GeoJSON แล้ว) =====
+// ===== ข้อมูลสถานที่ทั้งหมดใน อ.ชะอวด =====
 const places = [
-    // 🏛️ 1. สถานราชการและหน่วยงานสำคัญ
+    // 🏛️ ราชการ
     { id: 1, name: "ที่ว่าการอำเภอชะอวด", type: "government", category: "government", icon: "🏛️", rating: 4.5, lat: 7.9646, lng: 99.9951, address: "ต.ชะอวด", desc: "ศูนย์ราชการอำเภอชะอวด" },
     { id: 2, name: "สถานีตำรวจภูธรชะอวด", type: "government", category: "government", icon: "🚔", rating: 4.3, lat: 7.9652, lng: 99.9958, address: "ต.ชะอวด", desc: "สภ.ชะอวด" },
     { id: 3, name: "เทศบาลตำบลชะอวด", type: "government", category: "government", icon: "🏢", rating: 4.2, lat: 7.9620, lng: 99.9935, address: "ต.ชะอวด", desc: "สำนักงานเทศบาล" },
-    { id: 4, name: "ที่ทำการไปรษณีย์ชะอวด", type: "government", category: "government", icon: "📮", rating: 4.1, lat: 7.9625, lng: 99.9940, address: "ต.ชะอวด", desc: "ไปรษณีย์ไทย สาขาชะอวด" },
-    { id: 5, name: "การไฟฟ้าส่วนภูมิภาค สาขาชะอวด", type: "government", category: "government", icon: "⚡", rating: 4.0, lat: 7.9665, lng: 99.9970, address: "ต.ชะอวด", desc: "PEA ชะอวด" },
-    { id: 6, name: "การประปาส่วนภูมิภาค สาขาชะอวด", type: "government", category: "government", icon: "💧", rating: 4.0, lat: 7.9590, lng: 99.9890, address: "ต.ชะอวด", desc: "PWA ชะอวด" },
-    { id: 7, name: "สำนักงานเกษตรอำเภอชะอวด", type: "government", category: "government", icon: "🌾", rating: 4.2, lat: 7.9648, lng: 99.9955, address: "ต.ชะอวด", desc: "ให้คำปรึกษาด้านการเกษตร" },
-    { id: 8, name: "สถานีขนส่งผู้โดยสารชะอวด (บขส.)", type: "transport", category: "transport", icon: "🚌", rating: 3.8, lat: 7.9635, lng: 99.9961, address: "ต.ชะอวด", desc: "จุดจอดรถโดยสารสาธารณะ" },
+    
+    // 🏥 โรงพยาบาล
+    { id: 10, name: "โรงพยาบาลชะอวด", type: "hospital", category: "government", icon: "🏥", rating: 4.3, lat: 7.9811, lng: 99.9913, address: "ต.ชะอวด", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง" },
+    { id: 11, name: "รพ.สต. ท่าเสม็ด", type: "hospital", category: "government", icon: "🏥", rating: 4.0, lat: 7.9390, lng: 99.9490, address: "ต.ท่าเสม็ด", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
+    { id: 12, name: "รพ.สต. บ้านตูล", type: "hospital", category: "government", icon: "🏥", rating: 3.9, lat: 7.9230, lng: 99.9710, address: "ต.บ้านตูล", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
 
-    // 🏥 2. สถานพยาบาล
-    { id: 10, name: "โรงพยาบาลชะอวด", type: "hospital", category: "hospital", icon: "🏥", rating: 4.3, lat: 7.9575, lng: 99.9912, address: "ต.ชะอวด", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง" },
-    { id: 11, name: "รพ.สต. ท่าเสม็ด", type: "hospital", category: "hospital", icon: "🏥", rating: 4.0, lat: 7.9390, lng: 99.9490, address: "ต.ท่าเสม็ด", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-    { id: 12, name: "รพ.สต. บ้านตูล", type: "hospital", category: "hospital", icon: "🏥", rating: 3.9, lat: 7.9230, lng: 99.9710, address: "ต.บ้านตูล", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-    { id: 13, name: "รพ.สต. เคร็ง", type: "hospital", category: "hospital", icon: "🏥", rating: 3.8, lat: 7.8830, lng: 100.1110, address: "ต.เคร็ง", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-    { id: 14, name: "รพ.สต. วังอ่าง", type: "hospital", category: "hospital", icon: "🏥", rating: 3.9, lat: 7.9010, lng: 99.9210, address: "ต.วังอ่าง", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-    { id: 15, name: "รพ.สต. ควนหนองหงส์", type: "hospital", category: "hospital", icon: "🏥", rating: 3.8, lat: 8.0105, lng: 99.9505, address: "ต.ควนหนองหงส์", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-    { id: 16, name: "รพ.สต. ไม้เสียบ", type: "hospital", category: "hospital", icon: "🏥", rating: 3.7, lat: 8.0710, lng: 99.9105, address: "ต.ไม้เสียบ", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-    { id: 17, name: "รพ.สต. เขาพระทอง", type: "hospital", category: "hospital", icon: "🏥", rating: 3.9, lat: 8.0245, lng: 100.0395, address: "ต.เขาพระทอง", desc: "โรงพยาบาลส่งเสริมสุขภาพตำบล" },
-
-    // 🏫 3. สถานศึกษา
+    // 🏫 โรงเรียน
     { id: 20, name: "โรงเรียนชะอวดวิทยาคาร", type: "school", category: "school", icon: "🏫", rating: 4.5, lat: 7.9680, lng: 99.9990, address: "ต.ชะอวด", desc: "โรงเรียนมัธยมศึกษาประจำอำเภอ" },
     { id: 21, name: "โรงเรียนชะอวด", type: "school", category: "school", icon: "🏫", rating: 4.4, lat: 7.9600, lng: 99.9910, address: "ต.ชะอวด", desc: "โรงเรียนระดับประถมศึกษา-มัธยมศึกษา" },
     { id: 22, name: "วิทยาลัยการอาชีพชะอวด", type: "school", category: "school", icon: "🎓", rating: 4.4, lat: 7.9800, lng: 100.0100, address: "ต.ชะอวด", desc: "สถานศึกษาอาชีวศึกษา" },
-    { id: 23, name: "โรงเรียนวัดเขาพระทอง", type: "school", category: "school", icon: "🏫", rating: 4.3, lat: 8.0252, lng: 100.0402, address: "ต.เขาพระทอง", desc: "โรงเรียนในตำบลเขาพระทอง" },
 
-    // 🏨 4. โรงแรมและที่พัก
+    // 🏨 โรงแรม
     { id: 30, name: "โรงแรมบ้านตูนรีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.2, lat: 7.9520, lng: 99.9290, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทบรรยากาศดี" },
-    { id: 31, name: "เฟื่องฟ้ารีสอร์ท ชะอวด", type: "hotel", category: "hotel", icon: "🏨", rating: 4.4, lat: 7.9600, lng: 99.9330, address: "ต.ชะอวด", price: "500-800฿", desc: "บรรยากาศร่มรื่น เหมาะแก่การพักผ่อน" },
-    { id: 32, name: "สวนพูลรีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.3, lat: 7.9480, lng: 99.9250, address: "ต.ชะอวด", price: "400-700฿", desc: "รีสอร์ทสไตล์สวนพูล" },
-    { id: 33, name: "เรือนกลางหลาด", type: "hotel", category: "hotel", icon: "🏠", rating: 4.5, lat: 7.9530, lng: 99.9270, address: "ต.ชะอวด", price: "600-1200฿", desc: "ที่พักสไตล์ท้องถิ่นร่วมสมัย" },
-    { id: 34, name: "นานา รีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.1, lat: 7.9570, lng: 99.9310, address: "ต.ชะอวด", price: "400-800฿", desc: "ที่พักสะดวกสบาย ราคาประหยัด" },
-    { id: 35, name: "ดอกคูณรีสอร์ท", type: "hotel", category: "hotel", icon: "🌸", rating: 4.3, lat: 7.9620, lng: 99.9350, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทท่ามกลางธรรมชาติ" },
-    { id: 36, name: "บี.เค.การ์เด้น", type: "hotel", category: "hotel", icon: "🏨", rating: 4.0, lat: 7.9510, lng: 99.9260, address: "ต.ชะอวด", price: "350-700฿", desc: "ที่พักสะอาด ปลอดภัย" },
-    { id: 37, name: "โรงแรมแอนนา ชะอวด", type: "hotel", category: "hotel", icon: "🏨", rating: 4.2, lat: 7.9550, lng: 99.9280, address: "ต.ชะอวด", price: "400-800฿", desc: "โรงแรมใจกลางเมือง" },
+    { id: 31, name: "เรือนกลางหลาด", type: "hotel", category: "hotel", icon: "🏠", rating: 4.5, lat: 7.9530, lng: 99.9270, address: "ต.ชะอวด", price: "600-1200฿", desc: "ที่พักสไตล์ท้องถิ่นร่วมสมัย" },
+    { id: 32, name: "นานา รีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.1, lat: 8.0124, lng: 99.9015, address: "ต.ชะอวด", price: "400-800฿", desc: "ที่พักสะดวกสบาย" },
 
-    // ⛽ 5. สถานีบริการน้ำมัน
-    { id: 40, name: "ปตท. ชะอวด (Café Amazon)", type: "gas", category: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันพร้อมร้านกาแฟ" },
-    { id: 41, name: "พีที (PT) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.1, lat: 7.9550, lng: 99.9850, address: "ต.ชะอวด", desc: "ปั๊มน้ำมัน PT ราคาประหยัด" },
-    { id: 42, name: "เชลล์ (Shell) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.2, lat: 7.9520, lng: 99.9240, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันเชลล์" },
-    { id: 43, name: "บางจาก (Bangchak) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.2, lat: 7.9600, lng: 99.9900, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันบางจาก" },
+    // ⛽ ปั๊มน้ำมัน
+    { id: 40, name: "ปตท. ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันพร้อม Café Amazon" },
+    { id: 41, name: "พีที (PT) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.1, lat: 7.9550, lng: 99.9850, address: "ต.ชะอวด", desc: "ปั๊มน้ำมัน PT" },
+    { id: 42, name: "เชลล์ (Shell) ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.2, lat: 7.9611, lng: 99.9130, address: "ต.ชะอวด", desc: "ปั๊มน้ำมันเชลล์" },
 
-    // 🛒 6. ร้านสะดวกซื้อและซูเปอร์มาร์เก็ต
+    // 🛒 ร้านสะดวกซื้อ
     { id: 50, name: "เซเว่นอีเลฟเว่น สาขาตลาดชะอวด", type: "shop", category: "shop", icon: "🏪", rating: 4.3, lat: 7.9631, lng: 99.9945, address: "ต.ชะอวด", desc: "เปิด 24 ชั่วโมง" },
-    { id: 51, name: "เซเว่นอีเลฟเว่น สาขาหน้าสถานีรถไฟ", type: "shop", category: "shop", icon: "🏪", rating: 4.2, lat: 7.9614, lng: 99.9937, address: "ต.ชะอวด", desc: "เปิด 24 ชั่วโมง" },
-    { id: 52, name: "เซเว่นอีเลฟเว่น สาขาแยกไม้เสียบ", type: "shop", category: "shop", icon: "🏪", rating: 4.1, lat: 8.0740, lng: 99.9115, address: "ต.ไม้เสียบ", desc: "เปิด 24 ชั่วโมง" },
-    { id: 53, name: "โลตัส โก เฟรช สาขาชะอวด", type: "shop", category: "shop", icon: "🛒", rating: 4.4, lat: 7.9620, lng: 99.9940, address: "ต.ชะอวด", desc: "ซูเปอร์มาร์เก็ตสินค้าสดใหม่" },
-    { id: 54, name: "ซีเจ มอร์ (CJ More) สาขาตลาดชะอวด", type: "shop", category: "shop", icon: "🛒", rating: 4.2, lat: 7.9632, lng: 99.9947, address: "ต.ชะอวด", desc: "ร้านสะดวกซื้อราคาสมาชิก" },
+    { id: 51, name: "โลตัส โก เฟรช สาขาชะอวด", type: "shop", category: "shop", icon: "🛒", rating: 4.4, lat: 7.9620, lng: 99.9940, address: "ต.ชะอวด", desc: "ซูเปอร์มาร์เก็ตสินค้าสดใหม่" },
 
-    // 🏪 7. ตลาดสดและตลาดนัด
-    { id: 60, name: "ตลาดสดเทศบาลตำบลชะอวด", type: "market", category: "market", icon: "🥦", rating: 4.1, lat: 7.9630, lng: 99.9945, address: "ต.ชะอวด", desc: "ตลาดสดของสดทุกวัน" },
-    { id: 61, name: "ตลาดนัดไม้เสียบ", type: "market", category: "market", icon: "🏪", rating: 4.0, lat: 8.0725, lng: 99.9112, address: "ต.ไม้เสียบ", desc: "ตลาดนัดชุมชน" },
-    { id: 62, name: "ตลาดนัดบ้านตูล", type: "market", category: "market", icon: "🏪", rating: 3.9, lat: 7.9236, lng: 99.9716, address: "ต.บ้านตูล", desc: "ตลาดนัดท้องถิ่น" },
-    { id: 63, name: "ตลาดนัดวังอ่าง", type: "market", category: "market", icon: "🏪", rating: 3.8, lat: 7.9015, lng: 99.9215, address: "ต.วังอ่าง", desc: "ตลาดนัดชุมชน" },
-
-    // 🌴 8. สถานที่ท่องเที่ยวและจุดเช็คอิน
+    // 🌴 ท่องเที่ยว
     { id: 70, name: "วัดเขาพระทอง", type: "tourist", category: "tourist", icon: "⛰️", rating: 4.7, lat: 8.0250, lng: 100.0400, address: "ต.เขาพระทอง", desc: "พระพุทธรูปทองคำและจุดชมวิว" },
     { id: 71, name: "ล่องแพบ้านวังอ่าง", type: "tourist", category: "tourist", icon: "🛶", rating: 4.5, lat: 7.9025, lng: 99.9225, address: "ต.วังอ่าง", desc: "กิจกรรมล่องแพชมธรรมชาติ" },
     { id: 72, name: "ป่าพรุควนเคร็ง", type: "tourist", category: "tourist", icon: "🌿", rating: 4.6, lat: 7.8850, lng: 100.1150, address: "ต.เคร็ง", desc: "ระบบนิเวศป่าพรุที่สำคัญ" },
-    { id: 73, name: "น้ำตกวังหอน", type: "tourist", category: "tourist", icon: "💧", rating: 4.4, lat: 7.9000, lng: 99.9150, address: "ต.วังอ่าง", desc: "น้ำตกธรรมชาติสวยงาม" },
-    { id: 74, name: "อ่างเก็บน้ำวังอ่าง", type: "tourist", category: "tourist", icon: "🏞️", rating: 4.3, lat: 7.9050, lng: 99.9250, address: "ต.วังอ่าง", desc: "จุดชมวิวและพักผ่อน" },
-    { id: 75, name: "สวนสาธารณะเทศบาลตำบลชะอวด", type: "tourist", category: "tourist", icon: "🌳", rating: 4.2, lat: 7.9618, lng: 99.9928, address: "ต.ชะอวด", desc: "สวนสาธารณะสำหรับออกกำลังกาย" },
 
-    // 🛕 9. วัดและศาสนสถาน
+    // 🛕 วัด
     { id: 80, name: "วัดท่าสะท้อน", type: "temple", category: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, address: "ต.ท่าสะท้อน", desc: "วัดเก่าแก่คู่ชุมชน" },
-    { id: 81, name: "วัดรักขิตวัน (โคกรัก)", type: "temple", category: "temple", icon: "🛕", rating: 4.4, lat: 7.9502, lng: 99.9702, address: "ต.ชะอวด", desc: "วัดที่มีความสงบร่มรื่น" },
-    { id: 82, name: "วัดดิษฐวราราม (ท่าเสม็ด)", type: "temple", category: "temple", icon: "🛕", rating: 4.6, lat: 7.9387, lng: 99.9487, address: "ต.ท่าเสม็ด", desc: "วัดสำคัญประจำตำบล" },
-    { id: 83, name: "วัดโพธาราม (ควนเคร็ง)", type: "temple", category: "temple", icon: "🛕", rating: 4.5, lat: 7.9102, lng: 100.1202, address: "ต.เคร็ง", desc: "วัดริมป่าพรุ" },
+    { id: 81, name: "วัดควนเงิน", type: "temple", category: "temple", icon: "🛕", rating: 4.4, lat: 8.0342, lng: 99.9591, address: "ต.ชะอวด", desc: "วัดสำคัญประจำตำบล" },
 
-    // 🍽️ 10. ร้านอาหารและคาเฟ่ (รวมข้อมูลจาก GeoJSON ของคุณ)
-    { id: 90, name: "Chao Doi (เจ้าดอย)", type: "restaurant", category: "drink", icon: "☕", rating: 4.2, lat: 7.9613, lng: 99.9127, address: "อ.ชะอวด", price: "50-120฿", desc: "ร้านกาแฟบรรยากาศดี (Coffee Shop)" },
-    { id: 91, name: "ชวนชิลล์ cafa' & bar", type: "restaurant", category: "drink", icon: "☕", rating: 4.5, lat: 8.0910, lng: 99.9762, address: "ต.บ้านตูล", price: "60-150฿", desc: "เปิด 08:00-21:00 • มีที่นั่งกลางแจ้ง • 📞 063-036-4067" },
-    { id: 92, name: "ร้านข้าวมันไก่ชะอวด", type: "restaurant", category: "thai", icon: "🍛", rating: 4.5, lat: 7.9625, lng: 99.9942, address: "ต.ชะอวด", price: "40-80฿", desc: "ข้าวมันไก่สูตรดั้งเดิม" },
-    { id: 93, name: "ก๋วยเตี๋ยวเรือป้าแจ๋ว", type: "restaurant", category: "noodle", icon: "🍜", rating: 4.7, lat: 7.9628, lng: 99.9945, address: "ต.ชะอวด", price: "35-60฿", desc: "ก๋วยเตี๋ยวเรือรสเด็ด" }
+    // 🍽️ ร้านอาหาร (13 แห่ง ตามลำดับที่ระบุ)
+    { id: 100, name: "ร้านเยี่ยมโอชา", type: "restaurant", category: "thai", icon: "🍽️", rating: 4.5, lat: 7.992417, lng: 99.986761, address: "อ.ชะอวด", price: "50-150฿", desc: "พิกัดแม่นยำ" },
+    { id: 101, name: "ครัว ชานเมือง", type: "restaurant", category: "thai", icon: "🍽️", rating: 4.3, lat: 7.9565, lng: 99.9893, address: "อ.ชะอวด", price: "60-150฿", desc: "พิกัดโดยประมาณ" },
+    { id: 102, name: "ร้านหนองคาย อาหารอิสาน", type: "restaurant", category: "thai", icon: "🍽️", rating: 4.4, lat: 7.9674, lng: 99.9975, address: "อ.ชะอวด", price: "50-120฿", desc: "พิกัดโดยประมาณ" },
+    { id: 103, name: "ชิปปิ้ง ชาบู&หมูกระทะ", type: "restaurant", category: "bbq", icon: "🍲", rating: 4.4, lat: 7.9674, lng: 100.0019, address: "อ.ชะอวด", price: "150-300฿", desc: "พิกัดโดยประมาณ" },
+    { id: 104, name: "ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์", type: "restaurant", category: "thai", icon: "🥩", rating: 4.3, lat: 7.96713, lng: 99.99771, address: "อ.ชะอวด", price: "100-250฿", desc: "พิกัดโดยประมาณ" },
+    { id: 105, name: "ร้าน ทุ่งนาคาราโอเกะ", type: "restaurant", category: "thai", icon: "🎤", rating: 4.2, lat: 7.9674, lng: 99.9975, address: "อ.ชะอวด", price: "80-200฿", desc: "พิกัดโดยประมาณ" },
+    { id: 106, name: "ข้าวหน้าเป็ด ข้าวหมูอบ ข้าวหน้ารวม", type: "restaurant", category: "thai", icon: "🦆", rating: 4.3, lat: 7.9744, lng: 100.0159, address: "อ.ชะอวด", price: "40-80฿", desc: "พิกัดโดยประมาณ" },
+    { id: 107, name: "เต๋วเรือลานข่อย ณ ชะอวด", type: "restaurant", category: "noodle", icon: "🍜", rating: 4.5, lat: 7.96713, lng: 99.99771, address: "อ.ชะอวด", price: "40-80฿", desc: "พิกัดโดยประมาณ" },
+    { id: 108, name: "ลาบอุดร(หน้าสวนหย่อม)", type: "restaurant", category: "thai", icon: "🍽️", rating: 4.4, lat: 7.9674, lng: 100.0019, address: "อ.ชะอวด", price: "50-120฿", desc: "พิกัดโดยประมาณ" },
+    { id: 109, name: "ร้านอาหารโอเค", type: "restaurant", category: "thai", icon: "🍽️", rating: 4.2, lat: 7.9674, lng: 99.9975, address: "อ.ชะอวด", price: "50-150฿", desc: "พิกัดโดยประมาณ" },
+    { id: 110, name: "ข้าวมันไก่ใบหม่อน", type: "restaurant", category: "thai", icon: "🍛", rating: 4.5, lat: 7.9744, lng: 100.0159, address: "อ.ชะอวด", price: "40-80฿", desc: "พิกัดโดยประมาณ" },
+    { id: 111, name: "Samu sushi สาขาชะอวด", type: "restaurant", category: "thai", icon: "🍣", rating: 4.4, lat: 7.9674, lng: 100.0019, address: "อ.ชะอวด", price: "60-150฿", desc: "พิกัดโดยประมาณ" },
+    { id: 112, name: "ร้านขาหมูน้องออชะอวด", type: "restaurant", category: "thai", icon: "🍖", rating: 4.3, lat: 7.9674, lng: 99.9975, address: "อ.ชะอวด", price: "50-120฿", desc: "พิกัดโดยประมาณ" },
+
+    // ☕ คาเฟ่ (3 แห่ง ตามลำดับที่ระบุ)
+    { id: 120, name: "เหล่าเต๊ง Chauat", type: "restaurant", category: "drink", icon: "☕", rating: 4.4, lat: 7.9674, lng: 100.0019, address: "อ.ชะอวด", price: "40-120฿", desc: "พิกัดโดยประมาณ" },
+    { id: 121, name: "Love Milk Cafe&Restaurant", type: "restaurant", category: "drink", icon: "☕", rating: 4.5, lat: 7.9674, lng: 99.9975, address: "อ.ชะอวด", price: "50-150฿", desc: "พิกัดโดยประมาณ" },
+    { id: 122, name: "ริ่มละมุล", type: "restaurant", category: "drink", icon: "☕", rating: 4.6, lat: 7.9674, lng: 100.0019, address: "อ.ชะอวด", price: "40-120฿", desc: "พิกัดโดยประมาณ" }
 ];
 
-let destinations = [];
-let currentMap = null;
-let routeLine = null;
-let currentTravelFilter = 'all';
-
-// คำนวณระยะทางจากพิกัดจริง (Haversine formula)
+// ===== ฟังก์ชันช่วยคำนวณและจัดรูปแบบ =====
 function calcDistance(from, to) {
     const R = 6371;
     const dLat = (to.lat - from.lat) * Math.PI / 180;
@@ -417,26 +395,14 @@ function calcDistance(from, to) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function getDistance(p) {
-    return calcDistance(USER_LOCATION, { lat: p.lat, lng: p.lng });
-}
-
-function formatDistance(km) {
-    if (km < 1) return (km * 1000).toFixed(0) + 'ม.';
-    return km.toFixed(1) + ' กม.';
-}
-
+function getDistance(p) { return calcDistance(USER_LOCATION, { lat: p.lat, lng: p.lng }); }
+function formatDistance(km) { return km < 1 ? (km * 1000).toFixed(0) + 'ม.' : km.toFixed(1) + ' กม.'; }
 function getTypeLabel(type) {
-    const labels = {
-        government: 'ราชการ', hotel: 'โรงแรม', restaurant: 'ร้านอาหาร',
-        hospital: 'โรงพยาบาล', market: 'ตลาด', temple: 'วัด',
-        school: 'โรงเรียน', gas: 'ปั๊มน้ำมัน', shop: 'ร้านค้า',
-        tourist: 'ท่องเที่ยว', transport: 'คมนาคม'
-    };
-    return labels[type] || type;
+    const labels = { government: 'ราชการ/รพ.', hotel: 'โรงแรม', restaurant: 'ร้านอาหาร', hospital: 'โรงพยาบาล', market: 'ตลาด', temple: 'วัด', school: 'โรงเรียน', gas: 'ปั๊มน้ำมัน', shop: 'ร้านค้า', tourist: 'ท่องเที่ยว', transport: 'คมนาคม' };
+    return labels[type] || 'สถานที่';
 }
 
-// NAVIGATION
+// ===== NAVIGATION & RENDERING =====
 function showPage(pageId) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
@@ -447,173 +413,78 @@ function showPage(pageId) {
     window.scrollTo(0, 0);
 }
 
-// SEARCH
 function handleMainSearch(query) {
     const results = document.getElementById('search-results');
     if (query.length < 2) { results.classList.remove('active'); return; }
-    const filtered = places.filter(p =>
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.desc.toLowerCase().includes(query.toLowerCase())
-    ).map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    const filtered = places.filter(p => p.name.toLowerCase().includes(query.toLowerCase()) || p.desc.toLowerCase().includes(query.toLowerCase()))
+        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
 
-    if (filtered.length === 0) {
-        results.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">ไม่พบผลลัพธ์</div>';
-    } else {
-        results.innerHTML = filtered.map(p => `
-            <div class="search-result-item" onclick="openPlaceModal(${p.id})">
-                <span style="font-size:24px">${p.icon}</span>
-                <div style="flex:1">
-                    <div style="font-weight:600; font-size:14px">${p.name}</div>
-                    <div style="font-size:12px; color:#888">${getTypeLabel(p.type)} • ${formatDistance(p.distance)}</div>
-                </div>
-            </div>
-        `).join('');
-    }
+    results.innerHTML = filtered.length === 0 ? '<div style="padding:15px; text-align:center; color:#888;">ไม่พบผลลัพธ์</div>' :
+        filtered.map(p => `<div class="search-result-item" onclick="openPlaceModal(${p.id})"><span style="font-size:24px">${p.icon}</span><div style="flex:1"><div style="font-weight:600; font-size:14px">${p.name}</div><div style="font-size:12px; color:#888">${getTypeLabel(p.type)} • ${formatDistance(p.distance)}</div></div></div>`).join('');
     results.classList.add('active');
 }
 
-// FOOD LIST
+// ===== FOOD LIST =====
 function renderFoodList(filter = 'all') {
+    const list = document.getElementById('food-list');
     const restaurants = places.filter(p => p.type === 'restaurant')
         .filter(p => filter === 'all' || p.category === filter)
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-
-    const list = document.getElementById('food-list');
-    if (restaurants.length === 0) {
-        list.innerHTML = '<div style="text-align:center; padding:30px; color:#888;">ไม่พบร้านอาหารในหมวดนี้</div>';
-        return;
-    }
-    list.innerHTML = restaurants.map(r => `
-        <div class="place-card" onclick="openPlaceModal(${r.id})">
-            <div class="place-icon">${r.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${r.name}</div>
-                <div class="place-detail">${r.desc} • ${r.price || ''}</div>
-                <div class="place-rating">⭐ ${r.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(r.distance)}</div>
-        </div>
-    `).join('');
+        .map(p => ({...p, distance: getDistance(p)}))
+        .sort((a,b) => a.distance - b.distance);
+    
+    list.innerHTML = restaurants.length === 0 ? '<div style="text-align:center; padding:30px; color:#888;">ไม่พบร้านอาหารในหมวดนี้</div>' :
+        restaurants.map(r => `<div class="place-card" onclick="openPlaceModal(${r.id})"><div class="place-icon">${r.icon}</div><div class="place-info"><div class="place-name">${r.name}</div><div class="place-detail">${r.desc} • ${r.price || ''}</div><div class="place-rating">⭐ ${r.rating}</div></div><div class="place-distance">${formatDistance(r.distance)}</div></div>`).join('');
 }
 
 function filterFoodList(query) {
     if (query.length < 1) { renderFoodList(); return; }
     const filtered = places.filter(p => p.type === 'restaurant' && p.name.includes(query))
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    const list = document.getElementById('food-list');
-    list.innerHTML = filtered.map(r => `
-        <div class="place-card" onclick="openPlaceModal(${r.id})">
-            <div class="place-icon">${r.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${r.name}</div>
-                <div class="place-detail">${r.desc} • ${r.price || ''}</div>
-                <div class="place-rating">⭐ ${r.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(r.distance)}</div>
-        </div>
-    `).join('');
+        .map(p => ({...p, distance: getDistance(p)}))
+        .sort((a,b) => a.distance - b.distance);
+    
+    document.getElementById('food-list').innerHTML = filtered.map(r => `<div class="place-card" onclick="openPlaceModal(${r.id})"><div class="place-icon">${r.icon}</div><div class="place-info"><div class="place-name">${r.name}</div><div class="place-detail">${r.desc}</div></div><div class="place-distance">${formatDistance(r.distance)}</div></div>`).join('');
 }
 
 function filterByFoodType(type) { renderFoodList(type); }
 
-// HOTEL LIST
+// ===== HOTEL LIST =====
 function renderHotelList() {
-    const hotels = places.filter(p => p.type === 'hotel')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    const list = document.getElementById('hotel-list');
-    list.innerHTML = hotels.map(h => `
-        <div class="place-card" onclick="openPlaceModal(${h.id})">
-            <div class="place-icon">${h.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${h.name}</div>
-                <div class="place-detail">${h.desc} • ${h.price || ''}</div>
-                <div class="place-rating">⭐ ${h.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(h.distance)}</div>
-        </div>
-    `).join('');
+    const hotels = places.filter(p => p.type === 'hotel').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('hotel-list').innerHTML = hotels.map(h => `<div class="place-card" onclick="openPlaceModal(${h.id})"><div class="place-icon">${h.icon}</div><div class="place-info"><div class="place-name">${h.name}</div><div class="place-detail">${h.desc} • ${h.price || ''}</div><div class="place-rating">⭐ ${h.rating}</div></div><div class="place-distance">${formatDistance(h.distance)}</div></div>`).join('');
 }
-
 function filterHotelList(query) {
     if (query.length < 1) { renderHotelList(); return; }
-    const filtered = places.filter(p => p.type === 'hotel' && p.name.includes(query))
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    const list = document.getElementById('hotel-list');
-    list.innerHTML = filtered.map(h => `
-        <div class="place-card" onclick="openPlaceModal(${h.id})">
-            <div class="place-icon">${h.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${h.name}</div>
-                <div class="place-detail">${h.desc} • ${h.price || ''}</div>
-                <div class="place-rating">⭐ ${h.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(h.distance)}</div>
-        </div>
-    `).join('');
+    const filtered = places.filter(p => p.type === 'hotel' && p.name.includes(query)).map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('hotel-list').innerHTML = filtered.map(h => `<div class="place-card" onclick="openPlaceModal(${h.id})"><div class="place-icon">${h.icon}</div><div class="place-info"><div class="place-name">${h.name}</div><div class="place-detail">${h.desc}</div></div><div class="place-distance">${formatDistance(h.distance)}</div></div>`).join('');
 }
 
-// TRAVEL LIST
+// ===== TRAVEL LIST =====
+let currentTravelFilter = 'all';
 function renderTravelList() {
-    let filtered = places;
-    if (currentTravelFilter !== 'all') {
-        filtered = places.filter(p => p.category === currentTravelFilter);
-    }
+    let filtered = currentTravelFilter === 'all' ? places : places.filter(p => p.category === currentTravelFilter);
     const allPlaces = filtered.map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    const list = document.getElementById('travel-list');
-    list.innerHTML = allPlaces.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${getTypeLabel(p.type)} • ${p.address || ''}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    document.getElementById('travel-list').innerHTML = allPlaces.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${getTypeLabel(p.type)} • ${p.address || ''}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
     renderDestinations();
 }
-
 function filterTravel(type, element) {
     currentTravelFilter = type;
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     if(element) element.classList.add('active');
     renderTravelList();
 }
-
 function filterTravelList(query) {
     if (query.length < 1) { renderTravelList(); return; }
-    const filtered = places.filter(p => p.name.includes(query))
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    const list = document.getElementById('travel-list');
-    list.innerHTML = filtered.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${getTypeLabel(p.type)}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const filtered = places.filter(p => p.name.includes(query)).map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('travel-list').innerHTML = filtered.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${getTypeLabel(p.type)}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
 }
 
-// EXPRESS LIST
+// ===== EXPRESS LIST =====
 function renderExpressList() {
-    const expressPoints = places.filter(p => ['market','restaurant','hotel','shop'].includes(p.type))
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    const list = document.getElementById('express-list');
-    list.innerHTML = expressPoints.map(p => `
-        <div class="place-card" onclick="setExpressPoint('${p.name}', '${p.address}')">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">📍 ${p.address || ''}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const expressPoints = places.filter(p => ['market','restaurant','hotel','shop','gas','government'].includes(p.type))
+        .map(p => ({...p, distance: getDistance(p)}))
+        .sort((a,b) => a.distance - b.distance);
+    document.getElementById('express-list').innerHTML = expressPoints.map(p => `<div class="place-card" onclick="setExpressPoint('${p.name}', '${p.address}')"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">📍 ${p.address || ''}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
 }
-
 function setExpressPoint(name, address) {
     const pickup = document.getElementById('express-pickup');
     const delivery = document.getElementById('express-delivery');
@@ -622,27 +493,17 @@ function setExpressPoint(name, address) {
     else { delivery.value = `${name}, ${address}`; showNotification('📍 อัพเดทจุดส่งพัสดุ'); }
 }
 
-// PLACE MODAL
+// ===== MODAL & MAP =====
 function openPlaceModal(id) {
     const place = places.find(p => p.id === id);
     if (!place) return;
     const dist = getDistance(place);
-    const isRestaurant = place.type === 'restaurant';
-    const isHotel = place.type === 'hotel';
-
-    let buttons = `
-        <button class="btn-view-map" onclick="openMapModal(${place.id})">🗺️ ดูบนแผนที่</button>
-        <button class="btn-add-destination" onclick="addDestination(${place.id})">📍 เพิ่มเป็นจุดหมายปลายทาง</button>
-    `;
-    if (isRestaurant) {
-        buttons += `
-            <button class="btn-travel" onclick="travelToPlace(${place.id})">🚗 เดินทางไปร้าน</button>
-            <button class="btn-order-food" onclick="orderFoodFromRestaurant(${place.id})">🛵 ให้ไรเดอร์สั่งซื้ออาหารมาส่ง</button>
-        `;
+    let buttons = `<button class="btn-view-map" onclick="openMapModal(${place.id})">🗺️ ดูบนแผนที่</button><button class="btn-add-destination" onclick="addDestination(${place.id})">📍 เพิ่มเป็นจุดหมายปลายทาง</button>`;
+    if (place.type === 'restaurant') {
+        buttons += `<button class="btn-travel" onclick="travelToPlace(${place.id})">🚗 เดินทางไปร้าน</button>`;
+        buttons += `<button class="btn-order-food" onclick="orderFoodFromRestaurant(${place.id})">🛵 ให้ไรเดอร์สั่งซื้ออาหารมาส่ง</button>`;
     }
-    if (isHotel) {
-        buttons += `<button class="btn-travel" onclick="travelToHotel(${place.id})">🚗 เดินทางไปโรงแรม (เป็นปลายทาง)</button>`;
-    }
+    if (place.type === 'hotel') buttons += `<button class="btn-travel" onclick="travelToHotel(${place.id})">🚗 เดินทางไปโรงแรม (เป็นปลายทาง)</button>`;
     buttons += `<button class="btn-close" onclick="closeModal()">ปิด</button>`;
 
     document.getElementById('modal-body').innerHTML = `
@@ -652,47 +513,30 @@ function openPlaceModal(id) {
         <div class="modal-rating">⭐ ${place.rating} • 📏 ${formatDistance(dist)}</div>
         <div class="modal-location">📍 ${place.address || ''}</div>
         ${place.desc ? `<div class="modal-desc">${place.desc}</div>` : ''}
-        ${buttons}
-    `;
+        ${buttons}`;
     document.getElementById('place-modal').classList.add('active');
 }
-
 function closeModal() { document.getElementById('place-modal').classList.remove('active'); }
 
-// DESTINATIONS
+let destinations = [];
 function addDestination(id) {
     const place = places.find(p => p.id === id);
-    if (!place) return;
-    if (destinations.find(d => d.id === id)) { showNotification('⚠️ เพิ่มเป็นจุดหมายแล้ว'); return; }
+    if (!place || destinations.find(d => d.id === id)) { showNotification('⚠️ เพิ่มเป็นจุดหมายแล้ว'); return; }
     destinations.push(place);
     showNotification(`✅ เพิ่ม "${place.name}" เป็นจุดหมายปลายทาง`);
-    renderDestinations();
-    closeModal();
+    renderDestinations(); closeModal();
 }
-
 function removeDestination(id) {
     destinations = destinations.filter(d => d.id !== id);
-    renderDestinations();
-    showNotification('🗑️ ลบจุดหมายปลายทางแล้ว');
+    renderDestinations(); showNotification('🗑️ ลบจุดหมายปลายทางแล้ว');
 }
-
 function renderDestinations() {
     const list = document.getElementById('destination-list');
-    if (destinations.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">ยังไม่มีจุดหมายปลายทาง<br><small>กด "เพิ่มเป็นจุดหมาย" จากหน้าสถานที่</small></div>';
-        return;
-    }
-    list.innerHTML = destinations.map((d, i) => `
-        <div class="dest-item">
-            <div class="dest-num">${i+1}</div>
-            <span style="font-size:20px">${d.icon}</span>
-            <div class="dest-name">${d.name}</div>
-            <span class="dest-remove" onclick="removeDestination(${d.id})">✕</span>
-        </div>
-    `).join('') + `<button class="btn-view-map" onclick="showRouteOnMap()" style="margin-top:10px;">🗺️ แสดงเส้นทางทั้งหมดบนแผนที่</button>`;
+    if (destinations.length === 0) { list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">ยังไม่มีจุดหมายปลายทาง<br><small>กด "เพิ่มเป็นจุดหมาย" จากหน้าสถานที่</small></div>'; return; }
+    list.innerHTML = destinations.map((d, i) => `<div class="dest-item"><div class="dest-num">${i+1}</div><span style="font-size:20px">${d.icon}</span><div class="dest-name">${d.name}</div><span class="dest-remove" onclick="removeDestination(${d.id})">✕</span></div>`).join('') + `<button class="btn-view-map" onclick="showRouteOnMap()" style="margin-top:10px;">🗺️ แสดงเส้นทางทั้งหมดบนแผนที่</button>`;
 }
 
-// MAP
+let currentMap = null, routeLine = null;
 function openMapModal(id) {
     const place = places.find(p => p.id === id);
     if (!place) return;
@@ -711,12 +555,12 @@ function openMapModal(id) {
         L.marker([place.lat, place.lng], { icon: placeIcon }).addTo(currentMap).bindPopup(`<b>${place.name}</b><br>${getTypeLabel(place.type)}`);
 
         if (routeLine) currentMap.removeLayer(routeLine);
-        const latlngs = [[USER_LOCATION.lat, USER_LOCATION.lng], [place.lat, place.lng]];
-        routeLine = L.polyline(latlngs, { color: '#00A651', weight: 4, opacity: 0.8, dashArray: '10, 5' }).addTo(currentMap);
+        routeLine = L.polyline([[USER_LOCATION.lat, USER_LOCATION.lng], [place.lat, place.lng]], { color: '#00A651', weight: 4, opacity: 0.8, dashArray: '10, 5' }).addTo(currentMap);
         currentMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
 
         const dist = calcDistance(USER_LOCATION, { lat: place.lat, lng: place.lng });
-        const cost = calculateTravelCost(dist);
+        const cost = { base: 30, extra: Math.max(0, Math.ceil((dist - 1) * 15)), total: 0 };
+        cost.total = cost.base + cost.extra;
 
         document.getElementById('map-info-panel').innerHTML = `
             <div class="route-info"><span class="label">📍 จาก</span><span class="value">ตำแหน่งปัจจุบัน</span></div>
@@ -729,8 +573,7 @@ function openMapModal(id) {
                 <div class="cost-row"><span>ค่าระยะทางเพิ่ม (${Math.max(0,dist-1).toFixed(2)} กม. × 15฿)</span><span>${cost.extra}฿</span></div>
                 <div class="cost-row total"><span>รวมทั้งหมด</span><span>${cost.total}฿</span></div>
             </div>
-            <button class="btn-add-destination" onclick="addDestination(${place.id}); closeMapModal();" style="margin-top:10px;">📍 เพิ่มเป็นจุดหมายปลายทาง</button>
-        `;
+            <button class="btn-add-destination" onclick="addDestination(${place.id}); closeMapModal();" style="margin-top:10px;">📍 เพิ่มเป็นจุดหมายปลายทาง</button>`;
     }, 300);
 }
 
@@ -750,7 +593,7 @@ function showRouteOnMap() {
         const allPoints = [[USER_LOCATION.lat, USER_LOCATION.lng]];
         destinations.forEach((d, i) => {
             const destIcon = L.divIcon({ html: `<div style="background:#00A651;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:13px;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.3);">${i+1}</div>`, className: 'dest-marker' });
-            L.marker([d.lat, d.lng], { icon: destIcon }).addTo(currentMap).bindPopup(`<b>${i+1}. ${d.name}</b><br>${getTypeLabel(d.type)}`);
+            L.marker([d.lat, d.lng], { icon: destIcon }).addTo(currentMap).bindPopup(`<b>${i+1}. ${d.name}</b>`);
             allPoints.push([d.lat, d.lng]);
         });
 
@@ -759,23 +602,20 @@ function showRouteOnMap() {
         currentMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
 
         let totalDist = 0;
-        for (let i = 0; i < allPoints.length - 1; i++) {
-            totalDist += calcDistance({ lat: allPoints[i][0], lng: allPoints[i][1] }, { lat: allPoints[i+1][0], lng: allPoints[i+1][1] });
-        }
-        const cost = calculateTravelCost(totalDist);
+        for (let i = 0; i < allPoints.length - 1; i++) totalDist += calcDistance({ lat: allPoints[i][0], lng: allPoints[i][1] }, { lat: allPoints[i+1][0], lng: allPoints[i+1][1] });
+        const cost = { base: 30, extra: Math.max(0, Math.ceil((totalDist - 1) * 15)) };
+        cost.total = cost.base + cost.extra;
 
         document.getElementById('map-info-panel').innerHTML = `
             <div style="font-weight:bold; font-size:16px; margin-bottom:10px;">🗺️ สรุปเส้นทาง</div>
             ${destinations.map((d, i) => `<div class="route-info"><span class="label">📍 จุดที่ ${i+1}</span><span class="value">${d.name}</span></div>`).join('')}
             <div class="route-info" style="border-top:2px solid #00A651; margin-top:8px; padding-top:8px;"><span class="label">📏 ระยะทางรวม</span><span class="value">${totalDist.toFixed(2)} กม.</span></div>
-            <div class="route-info"><span class="label">⏱️ เวลาโดยประมาณ</span><span class="value">${(totalDist*3).toFixed(0)} นาที</span></div>
             <div class="cost-breakdown">
                 <div style="font-weight:bold; margin-bottom:8px;">💰 ค่าใช้จ่ายรวม</div>
                 <div class="cost-row"><span>ค่าเริ่มต้น</span><span>${cost.base}฿</span></div>
                 <div class="cost-row"><span>ค่าระยะทางเพิ่ม</span><span>${cost.extra}฿</span></div>
                 <div class="cost-row total"><span>รวมทั้งหมด</span><span>${cost.total}฿</span></div>
-            </div>
-        `;
+            </div>`;
     }, 300);
 }
 
@@ -784,29 +624,14 @@ function closeMapModal() {
     if (currentMap) { currentMap.remove(); currentMap = null; }
 }
 
-function calculateTravelCost(distance) {
-    const base = 30, perKm = 15;
-    const extra = Math.max(0, Math.ceil((distance - 1) * perKm));
-    return { base, extra, total: base + extra };
-}
-
-function travelToPlace(id) {
-    const place = places.find(p => p.id === id);
-    showNotification(`🚗 กำลังนำทางไป ${place.name}`);
-    openMapModal(id);
-}
-
-function travelToHotel(id) {
-    const place = places.find(p => p.id === id);
-    addDestination(id);
-    showNotification(`🏨 เพิ่ม ${place.name} เป็นปลายทาง`);
-    setTimeout(() => openMapModal(id), 500);
-}
+function travelToPlace(id) { showNotification(`🚗 กำลังนำทางไป ${places.find(p => p.id === id).name}`); openMapModal(id); }
+function travelToHotel(id) { addDestination(id); showNotification(`🏨 เพิ่ม ${places.find(p => p.id === id).name} เป็นปลายทาง`); setTimeout(() => openMapModal(id), 500); }
 
 function orderFoodFromRestaurant(id) {
     const place = places.find(p => p.id === id);
     const dist = getDistance(place);
-    const cost = calculateTravelCost(dist);
+    const cost = { base: 30, extra: Math.max(0, Math.ceil((dist - 1) * 15)) };
+    cost.total = cost.base + cost.extra;
     document.getElementById('modal-body').innerHTML = `
         <div class="modal-icon">🛵</div>
         <div class="modal-title">สั่งอาหารจาก ${place.name}</div>
@@ -826,15 +651,9 @@ function orderFoodFromRestaurant(id) {
         <div class="form-group" style="margin-top:15px;"><label>📝 รายการอาหาร</label><textarea rows="3" placeholder="เช่น ข้าวมันไก่ 1 จาน..."></textarea></div>
         <div class="form-group"><label>💳 วิธีชำระเงิน</label><select><option>ชำระปลายทาง (เงินสด)</option><option>พร้อมเพย์</option><option>โอนเงิน</option></select></div>
         <button class="btn-order-food" onclick="confirmFoodOrder(${place.id})">✅ ยืนยันการสั่งซื้อ</button>
-        <button class="btn-close" onclick="openPlaceModal(${place.id})" style="margin-top:10px;">← กลับ</button>
-    `;
+        <button class="btn-close" onclick="openPlaceModal(${place.id})" style="margin-top:10px;">← กลับ</button>`;
 }
-
-function confirmFoodOrder(id) {
-    const place = places.find(p => p.id === id);
-    showNotification(`✅ สั่งอาหารจาก ${place.name} สำเร็จ! ไรเดอร์กำลังเดินทางไป`);
-    closeModal();
-}
+function confirmFoodOrder(id) { showNotification(`✅ สั่งอาหารจาก ${places.find(p => p.id === id).name} สำเร็จ! ไรเดอร์กำลังเดินทางไป`); closeModal(); }
 
 function calculateExpressCost() {
     const pickup = document.getElementById('express-pickup').value;
@@ -842,8 +661,7 @@ function calculateExpressCost() {
     const type = document.getElementById('express-type').value;
     if (!pickup || !delivery) { showNotification('⚠️ กรุณากรอกจุดรับและจุดส่ง'); return; }
     const typeMultiplier = { small: 1, medium: 1.5, large: 2 };
-    const baseCost = 30, distance = 2.5;
-    const extraCost = Math.ceil((distance - 1) * 15);
+    const baseCost = 30, distance = 2.5, extraCost = Math.ceil((distance - 1) * 15);
     const total = (baseCost + extraCost) * typeMultiplier[type];
     document.getElementById('express-distance').textContent = `${distance} กม.`;
     document.getElementById('express-base').textContent = `${baseCost}฿`;
@@ -852,124 +670,47 @@ function calculateExpressCost() {
     document.getElementById('express-cost').style.display = 'block';
     showNotification('📊 คำนวณค่าส่งเรียบร้อยแล้ว');
 }
-
 function requestExpress() {
-    const pickup = document.getElementById('express-pickup').value;
-    const delivery = document.getElementById('express-delivery').value;
-    if (!pickup || !delivery) { showNotification('⚠️ กรุณากรอกจุดรับและจุดส่ง'); return; }
+    if (!document.getElementById('express-pickup').value || !document.getElementById('express-delivery').value) { showNotification('⚠️ กรุณากรอกจุดรับและจุดส่ง'); return; }
     showNotification('📦 เรียกไรเดอร์ส่งด่วนสำเร็จ! ไรเดอร์กำลังเดินทางมารับพัสดุ');
 }
 
 function showNotification(msg) {
     const notif = document.getElementById('notification');
-    notif.textContent = msg;
-    notif.classList.add('active');
+    notif.textContent = msg; notif.classList.add('active');
     setTimeout(() => notif.classList.remove('active'), 3000);
 }
 
-// INIT: โหลดข้อมูลทั้งหมดอัตโนมัติ
+// ===== INIT =====
 function init() {
-    const recommended = places.filter(p => p.type === 'hotel')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance).slice(0, 3);
-    document.getElementById('recommended-places').innerHTML = recommended.map(h => `
-        <div class="place-card" onclick="openPlaceModal(${h.id})">
-            <div class="place-icon">${h.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${h.name}</div>
-                <div class="place-detail">${h.desc} • ${h.price}</div>
-                <div class="place-rating">⭐ ${h.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(h.distance)}</div>
-        </div>
-    `).join('');
+    const rec = places.filter(p => p.type === 'hotel').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance).slice(0, 3);
+    document.getElementById('recommended-places').innerHTML = rec.map(h => `<div class="place-card" onclick="openPlaceModal(${h.id})"><div class="place-icon">${h.icon}</div><div class="place-info"><div class="place-name">${h.name}</div><div class="place-detail">${h.desc} • ${h.price}</div><div class="place-rating">⭐ ${h.rating}</div></div><div class="place-distance">${formatDistance(h.distance)}</div></div>`).join('');
 
-    const nearby = places.filter(p => p.type === 'restaurant')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    document.getElementById('nearby-shops').innerHTML = nearby.map(r => `
-        <div class="place-card" onclick="openPlaceModal(${r.id})">
-            <div class="place-icon">${r.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${r.name}</div>
-                <div class="place-detail">${r.desc} • ${r.price}</div>
-                <div class="place-rating">⭐ ${r.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(r.distance)}</div>
-        </div>
-    `).join('');
+    const nearby = places.filter(p => p.type === 'restaurant').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance).slice(0, 5);
+    document.getElementById('nearby-shops').innerHTML = nearby.map(r => `<div class="place-card" onclick="openPlaceModal(${r.id})"><div class="place-icon">${r.icon}</div><div class="place-info"><div class="place-name">${r.name}</div><div class="place-detail">${r.desc} • ${r.price}</div><div class="place-rating">⭐ ${r.rating}</div></div><div class="place-distance">${formatDistance(r.distance)}</div></div>`).join('');
 
-    const gov = places.filter(p => p.category === 'government')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    document.getElementById('gov-places').innerHTML = gov.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${p.desc}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const gov = places.filter(p => p.category === 'government').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('gov-places').innerHTML = gov.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${p.desc}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
 
-    const gas = places.filter(p => p.type === 'gas')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    document.getElementById('gas-places').innerHTML = gas.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${p.desc}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const gas = places.filter(p => p.type === 'gas').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('gas-places').innerHTML = gas.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${p.desc}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
 
-    const shops = places.filter(p => p.type === 'shop')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    document.getElementById('shop-places').innerHTML = shops.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${p.desc}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const shops = places.filter(p => p.type === 'shop').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('shop-places').innerHTML = shops.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${p.desc}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
 
-    const tourist = places.filter(p => p.type === 'tourist')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    document.getElementById('tourist-places').innerHTML = tourist.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${p.desc}</div>
-                <div class="place-rating">⭐ ${p.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const tourist = places.filter(p => p.type === 'tourist').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('tourist-places').innerHTML = tourist.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${p.desc}</div><div class="place-rating">⭐ ${p.rating}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
 
-    const temples = places.filter(p => p.type === 'temple')
-        .map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
-    document.getElementById('temple-places').innerHTML = temples.map(p => `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${p.desc} • ${p.address}</div>
-                <div class="place-rating">⭐ ${p.rating}</div>
-            </div>
-            <div class="place-distance">${formatDistance(p.distance)}</div>
-        </div>
-    `).join('');
+    const temples = places.filter(p => p.type === 'temple').map(p => ({...p, distance: getDistance(p)})).sort((a,b) => a.distance - b.distance);
+    document.getElementById('temple-places').innerHTML = temples.map(p => `<div class="place-card" onclick="openPlaceModal(${p.id})"><div class="place-icon">${p.icon}</div><div class="place-info"><div class="place-name">${p.name}</div><div class="place-detail">${p.desc} • ${p.address}</div><div class="place-rating">⭐ ${p.rating}</div></div><div class="place-distance">${formatDistance(p.distance)}</div></div>`).join('');
+    
+    // อัพเดทจำนวนสถานที่จริง
+    document.getElementById('total-places-count').textContent = places.length + "+";
 }
 
-document.getElementById('place-modal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
-});
+document.getElementById('place-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 
-// เริ่มต้นทำงานอัตโนมัติ
+// เริ่มต้นทำงาน
 init();
 </script>
 </body>
