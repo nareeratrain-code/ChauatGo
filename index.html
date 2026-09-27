@@ -12,18 +12,11 @@ body{background:#f0f2f5;color:#1a1a2e}
 #app{max-width:480px;margin:0 auto;min-height:100vh;background:#fff;position:relative;overflow-x:hidden;padding-bottom:70px}
 
 /* ===== MODE SELECTOR ===== */
-#selectorPage{
-  min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:#fff;
-}
+#selectorPage{min-height:100vh;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:#fff}
 .logo-big{font-size:42px;font-weight:900;margin-bottom:8px;text-align:center}
 .logo-big span{color:#ffd700}
 .tagline{font-size:15px;opacity:0.95;margin-bottom:32px;text-align:center}
-.mode-card{
-  background:#fff;border-radius:20px;padding:20px;margin-bottom:16px;width:100%;
-  display:flex;align-items:center;gap:16px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.15);
-  border:3px solid transparent;transition:0.2s;
-}
+.mode-card{background:#fff;border-radius:20px;padding:20px;margin-bottom:16px;width:100%;display:flex;align-items:center;gap:16px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.15);border:3px solid transparent;transition:0.2s}
 .mode-card:active{transform:scale(0.97)}
 .mode-card.cust:hover{border-color:#00b14f}
 .mode-card.rider:hover{border-color:#ff6b00}
@@ -44,10 +37,7 @@ body{background:#f0f2f5;color:#1a1a2e}
 .app-page.active{display:block;animation:fadeIn 0.3s}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-.switch-btn{
-  position:fixed;top:12px;right:12px;z-index:1000;background:rgba(0,0,0,0.7);color:#fff;
-  border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;
-}
+.switch-btn{position:fixed;top:12px;right:12px;z-index:1000;background:rgba(0,0,0,0.7);color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer}
 
 /* ===== CUSTOMER ===== */
 .cust-header{background:#00b14f;color:#fff;padding:16px;border-radius:0 0 20px 20px}
@@ -81,7 +71,38 @@ body{background:#f0f2f5;color:#1a1a2e}
 .local-card .promo{display:inline-block;background:#e8f5e9;color:#00b14f;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}
 .local-card .distance{font-size:11px;font-weight:700;color:#ee4d2d;margin-left:auto;flex-shrink:0;align-self:center}
 
-.map-container{height:300px;border-radius:16px;overflow:hidden;margin:0 16px 16px;border:2px solid #e5e7eb;background:#e8f5e9}
+.map-container{height:350px;border-radius:16px;overflow:hidden;margin:0 16px 16px;border:2px solid #e5e7eb;background:#e8f5e9}
+
+/* ===== TRAVEL PAGE ===== */
+#travelMap{width:100%;height:calc(100vh - 220px);position:relative;z-index:1}
+.travel-panel{position:absolute;top:10px;left:10px;right:10px;z-index:500;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.travel-input{display:flex;align-items:center;gap:10px;padding:8px 0}
+.travel-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.travel-dot.from{background:#00b14f}
+.travel-dot.to{background:#ee4d2d}
+.travel-input input{flex:1;border:none;outline:none;font:inherit;font-size:13px}
+.vehicle-selector{position:absolute;bottom:80px;left:10px;right:10px;z-index:500;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:none}
+.vehicle-selector.show{display:block}
+.vehicle-option{display:flex;align-items:center;gap:12px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;margin-bottom:8px;cursor:pointer}
+.vehicle-option.selected{border-color:#00b14f;background:#e8f5e9}
+.vehicle-option .icon{font-size:32px}
+.vehicle-option .info{flex:1}
+.vehicle-option .name{font-size:14px;font-weight:700}
+.vehicle-option .price{font-size:16px;font-weight:800;color:#00b14f}
+.travel-actions{display:flex;gap:8px;margin-top:12px}
+.travel-btn{flex:1;padding:12px;border-radius:8px;border:none;font-weight:700;cursor:pointer;font-size:14px}
+.travel-btn.primary{background:#00b14f;color:#fff}
+.travel-btn.secondary{background:#f0f0f0;color:#6b7280}
+
+/* ===== FOOD DELIVERY ===== */
+.food-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.food-card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer}
+.food-card:active{transform:scale(0.97)}
+.food-card .img{height:100px;background:#f5f6f8;display:flex;align-items:center;justify-content:center;font-size:48px}
+.food-card .info{padding:10px}
+.food-card h4{font-size:13px;font-weight:700;margin-bottom:4px}
+.food-card .meta{font-size:11px;color:#6b7280}
+.food-card .price{font-size:14px;font-weight:800;color:#00b14f;margin-top:4px}
 
 /* ===== RIDER ===== */
 .rider-header{background:linear-gradient(135deg,#ff6b00,#e55a00);color:#fff;padding:16px;border-radius:0 0 20px 20px}
@@ -149,6 +170,12 @@ button.pri{background:#00b14f;color:#fff;width:100%;height:46px;font-size:15px;b
 button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;height:42px;font-size:15px;border-radius:12px;font-weight:600;cursor:pointer;margin-top:12px}
 
 .leaflet-popup-content-wrapper{border-radius:12px!important}
+
+/* ===== CHIPS ===== */
+.chips{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;background:#fff;border-bottom:1px solid #e5e7eb}
+.chips::-webkit-scrollbar{display:none}
+.chip{padding:8px 14px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;background:#f0f0f0;color:#6b7280;flex-shrink:0}
+.chip.on{background:#00b14f;color:#fff}
 </style>
 </head>
 <body>
@@ -183,7 +210,7 @@ button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;hei
     <div class="logo">📍 Chauat<span>Go</span></div>
     <div class="search-box" onclick="showPage('database')"><span>🔍</span><span>ค้นหา 73+ สถานที่ในชะอวด...</span></div>
   </div>
-  <div class="loc-bar"><span class="dot"></span><strong id="customerLocText"> กำลังหาตำแหน่ง...</strong></div>
+  <div class="loc-bar"><span class="dot"></span><strong id="customerLocText">📍 กำลังหาตำแหน่ง...</strong></div>
   <div class="stats-row">
     <div class="stat-card"><div class="n" id="totalCountDisplay">0</div><div class="l">สถานที่จริง</div></div>
     <div class="stat-card"><div class="n" id="nearbyCount">0</div><div class="l">ใกล้คุณ</div></div>
@@ -191,19 +218,20 @@ button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;hei
   </div>
   <div class="svc-grid">
     <div class="svc" onclick="showPage('travel')"><span class="ic">🚗</span><span class="lb">เดินทาง</span></div>
-    <div class="svc" onclick="showPage('nearby')"><span class="ic"></span><span class="lb">ใกล้ฉัน</span></div>
+    <div class="svc" onclick="showPage('food')"><span class="ic">🍛</span><span class="lb">Food</span></div>
+    <div class="svc" onclick="showPage('nearby')"><span class="ic">📍</span><span class="lb">ใกล้ฉัน</span></div>
     <div class="svc" onclick="showPage('database')"><span class="ic">📚</span><span class="lb">ฐานข้อมูล</span></div>
     <div class="svc" onclick="showPage('map')"><span class="ic">🗺️</span><span class="lb">แผนที่</span></div>
   </div>
-  <div class="section"><div class="section-title"> ที่พักและโรงแรม</div><div id="hotelPreview"></div></div>
-  <div class="section"><div class="section-title"> ร้านเด็ดใกล้คุณ</div><div id="foodPreview"></div></div>
-  <div class="section"><div class="section-title"> ท่องเที่ยวและวัด</div><div id="tourismPreview"></div></div>
+  <div class="section"><div class="section-title">🏨 ที่พักและโรงแรม</div><div id="hotelPreview"></div></div>
+  <div class="section"><div class="section-title">🍛 ร้านเด็ดใกล้คุณ</div><div id="foodPreview"></div></div>
+  <div class="section"><div class="section-title">🌿 ท่องเที่ยวและวัด</div><div id="tourismPreview"></div></div>
 </div>
 
 <!-- 3. RIDER APP -->
 <div id="riderPage" class="app-page">
   <button class="switch-btn" onclick="goBack()">🔄 สลับโหมด</button>
-  <div class="rider-header"><div class="logo">️ Rider</div><p style="font-size:13px;opacity:0.9;margin-top:4px">สมชาย • ⭐ 4.92</p></div>
+  <div class="rider-header"><div class="logo">🏍️ Rider</div><p style="font-size:13px;opacity:0.9;margin-top:4px">สมชาย • ⭐ 4.92</p></div>
   <div class="rider-body">
     <button class="online-btn off" id="onlineBtn" onclick="toggleOnline()">😴 ออฟไลน์ - แตะเพื่อเริ่มรับงาน</button>
     <div class="stat-grid">
@@ -224,9 +252,10 @@ button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;hei
 
 <!-- 4. DATABASE PAGE -->
 <div id="databasePage" class="app-page">
-  <button class="switch-btn" onclick="goBack()"> กลับ</button>
+  <button class="switch-btn" onclick="goBack()">🔄 กลับ</button>
   <div class="cust-header"><div class="logo">📚 ฐานข้อมูลชะอวด</div></div>
   <div style="padding:12px 16px"><input type="text" id="searchInput" placeholder="🔍 ค้นชื่อสถานที่..." style="width:100%;height:44px;padding:0 16px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit" oninput="filterDatabase()"></div>
+  <div class="chips" id="categoryChips"></div>
   <div class="map-container"><div id="mapDb"></div></div>
   <div style="padding:0 16px"><div class="section-title" style="padding:0">ผลลัพธ์ <span id="resultCount" style="background:#ff9500;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">0</span></div><div id="listContainer" style="max-height:50vh;overflow-y:auto;padding-bottom:20px"></div></div>
 </div>
@@ -234,7 +263,7 @@ button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;hei
 <!-- 5. MAP PAGE -->
 <div id="mapPage" class="app-page">
   <button class="switch-btn" onclick="goBack()">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo">️ แผนที่ 12 ตำบล</div></div>
+  <div class="cust-header"><div class="logo">🗺️ แผนที่ 12 ตำบล</div></div>
   <div style="background:#00b14f;color:#fff;padding:6px 16px;font-size:11px;font-weight:600;text-align:center">📍 อำเภอชะอวด จ.นครศรีธรรมราช</div>
   <div style="height:calc(100vh - 130px)"><div id="mapAll" style="height:100%;width:100%"></div></div>
 </div>
@@ -243,13 +272,49 @@ button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;hei
 <div id="travelPage" class="app-page">
   <button class="switch-btn" onclick="goBack()">🔄 กลับ</button>
   <div class="cust-header"><div class="logo">🚗 เดินทาง</div></div>
-  <div style="padding:16px;text-align:center;color:#6b7280">ฟีเจอร์เดินทาง - กำลังพัฒนา</div>
+  <div id="travelMap"></div>
+  <div class="travel-panel">
+    <div class="travel-input">
+      <div class="travel-dot from"></div>
+      <input type="text" id="travelFrom" placeholder="จุดเริ่มต้น (คลิกบนแผนที่)" readonly>
+    </div>
+    <div class="travel-input">
+      <div class="travel-dot to"></div>
+      <input type="text" id="travelTo" placeholder="จุดหมาย (คลิกบนแผนที่)" readonly>
+    </div>
+  </div>
+  <div class="vehicle-selector" id="vehicleSelector">
+    <div style="font-size:14px;font-weight:700;margin-bottom:10px">เลือกประเภทรถ</div>
+    <div class="vehicle-option selected" onclick="selectVehicle(0)">
+      <div class="icon">🛵</div>
+      <div class="info"><div class="name">มอเตอร์ไซค์</div><div class="meta">เร็วสุด • 1 ที่นั่ง</div></div>
+      <div class="price" id="bikePrice">฿25</div>
+    </div>
+    <div class="vehicle-option" onclick="selectVehicle(1)">
+      <div class="icon">🚗</div>
+      <div class="info"><div class="name">รถยนต์</div><div class="meta">สบาย • 4 ที่นั่ง</div></div>
+      <div class="price" id="carPrice">฿50</div>
+    </div>
+    <div class="travel-actions">
+      <button class="travel-btn secondary" onclick="clearTravel()">ล้าง</button>
+      <button class="travel-btn primary" onclick="confirmTravel()">ยืนยัน</button>
+    </div>
+  </div>
 </div>
 
-<!-- 7. NEARBY PAGE -->
+<!-- 7. FOOD DELIVERY PAGE -->
+<div id="foodPage" class="app-page">
+  <button class="switch-btn" onclick="goBack()">🔄 กลับ</button>
+  <div class="cust-header"><div class="logo">🍛 Food Delivery</div></div>
+  <div style="padding:12px 16px"><input type="text" id="foodSearch" placeholder="🔍 ค้นหาร้านอาหาร..." style="width:100%;height:44px;padding:0 16px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit" oninput="filterFood()"></div>
+  <div class="chips" id="foodChips"></div>
+  <div class="food-grid" id="foodGrid"></div>
+</div>
+
+<!-- 8. NEARBY PAGE -->
 <div id="nearbyPage" class="app-page">
   <button class="switch-btn" onclick="goBack()">🔄 กลับ</button>
-  <div class="cust-header"><div class="logo"> ใกล้ฉัน</div></div>
+  <div class="cust-header"><div class="logo">📍 ใกล้ฉัน</div></div>
   <div class="loc-bar"><span class="dot"></span><strong id="nearbyLocText">📍 กำลังหาตำแหน่ง...</strong></div>
   <div id="nearbyList" style="padding:16px;max-height:calc(100vh - 180px);overflow-y:auto"></div>
 </div>
@@ -268,27 +333,53 @@ button.sec{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;width:100%;hei
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ===== พิกัดที่ถูกต้องของอำเภอชะอวด =====
-const CHAUAT_CENTER = { lat: 8.4611, lng: 99.8853 };
-const CHAUAT_BOUNDS = { north: 8.55, south: 8.38, east: 100.10, west: 99.80 };
+// ===== พิกัดที่ถูกต้องของอำเภอชะอวด (ตามการแก้ไข) =====
+const CHAUAT_CENTER = { lat: 7.9611, lng: 99.9906 };
+const CHAUAT_BOUNDS = { north: 8.05, south: 7.88, east: 100.10, west: 99.90 };
 
-// ===== ฐานข้อมูลสถานที่จริง =====
+// ===== 12 ตำบลของอำเภอชะอวด =====
+const TAMBONS = [
+  {name:'ชะอวด', lat:7.9646, lng:99.9951},
+  {name:'เขาพระทอง', lat:8.0200, lng:100.0400},
+  {name:'ควนหนองหงส์', lat:7.9400, lng:99.9700},
+  {name:'ท่าประจะ', lat:7.9500, lng:99.9800},
+  {name:'เคร็ง', lat:7.9200, lng:100.0200},
+  {name:'วังอ่าง', lat:7.9800, lng:100.0100},
+  {name:'บ้านตูล', lat:7.9100, lng:99.9600},
+  {name:'ขอนหาด', lat:8.0100, lng:99.9500},
+  {name:'นางหลง', lat:7.8900, lng:99.9400},
+  {name:'ท่าเสม็ด', lat:7.9600, lng:100.0000},
+  {name:'เกาะขันธ์', lat:7.9700, lng:99.9700},
+  {name:'ไม้เสียบ', lat:8.0300, lng:99.9800}
+];
+
+// ===== ฐานข้อมูลสถานที่จริง (พิกัดปรับให้ตรงกับพื้นที่จริง) =====
 const PLACES = [
-  {id:1, name:"ที่ว่าการอำเภอชะอวด", cat:"ราชการ", sub:"ต.ชะอวด", rating:4.5, img:"️", promo:"ศูนย์กลาง", lat:8.4646, lng:99.9951, addr:"ต.ชะอวด"},
-  {id:2, name:"โรงพยาบาลชะอวด", cat:"สาธารณสุข", sub:"ต.ชะอวด", rating:4.4, img:"🏥", promo:"โรงพยาบาลชุมชน", lat:8.4680, lng:99.9980, addr:"ต.ชะอวด"},
-  {id:3, name:"สถานีรถไฟชะอวด", cat:"คมนาคม", sub:"ต.ชะอวด", rating:4.6, img:"🚂", promo:"สถาปัตยกรรมเก่าแก่", lat:8.4620, lng:99.9930, addr:"ต.ชะอวด"},
-  {id:4, name:"ตลาดสดเทศบาลชะอวด", cat:"ตลาด", sub:"ต.ชะอวด", rating:4.6, img:"🥬", promo:"ตลาดเช้า", lat:8.4640, lng:99.9950, addr:"ต.ชะอวด"},
-  {id:5, name:"โรงเรียนชะอวดวิทยาคาร", cat:"การศึกษา", sub:"ต.ชะอวด", rating:4.5, img:"🏫", promo:"โรงเรียนมัธยม", lat:8.4660, lng:99.9960, addr:"ต.ชะอวด"},
-  {id:6, name:"วัดเขาพระทอง", cat:"ท่องเที่ยว", sub:"ต.เขาพระทอง", rating:4.9, img:"🛕", promo:"พระพุทธรูปแกะสลัก", lat:8.5200, lng:100.0400, addr:"ต.เขาพระทอง"},
-  {id:7, name:"ล่องแพบ้านวังหอน", cat:"ท่องเที่ยว", sub:"ต.วังอ่าง", rating:4.7, img:"🚣", promo:"ล่องแพชมธรรมชาติ", lat:8.4800, lng:100.0100, addr:"ต.วังอ่าง"},
-  {id:8, name:"เซเว่นอีเลฟเว่น ตลาดชะอวด", cat:"ร้านค้า", sub:"ต.ชะอวด", rating:4.5, img:"🏪", promo:"เปิด 24 ชม.", lat:8.4642, lng:99.9952, addr:"ต.ชะอวด"},
-  {id:9, name:"ปตท. ชะอวด", cat:"ปั๊มน้ำมัน", sub:"ต.ชะอวด", rating:4.5, img:"⛽", promo:"มี Café Amazon", lat:8.4682, lng:99.9972, addr:"ต.ชะอวด"},
-  {id:10, name:"โรงแรมบ้านตูนรีสอร์ท", cat:"โรงแรม", sub:"ต.ชะอวด", rating:4.5, img:"🏨", promo:"ที่พักสบาย", lat:8.4650, lng:99.9970, addr:"ต.ชะอวด"},
-  {id:11, name:"เหล่าเต๊ง Chauat", cat:"ร้านอาหาร", sub:"ต.ชะอวด", rating:4.7, img:"🥟", promo:"ร้านดัง", lat:8.4645, lng:99.9950, addr:"ถนนจันทรานนท์"},
-  {id:12, name:"มัสยิดอิสลามิดีน", cat:"ศาสนสถาน", sub:"ต.ชะอวด", rating:4.7, img:"🕌", promo:"มัสยิดกลาง", lat:8.4655, lng:99.9945, addr:"ต.ชะอวด"},
-  {id:13, name:"ซีเจ มอร์ ตลาดชะอวด", cat:"ร้านค้า", sub:"ต.ชะอวด", rating:4.3, img:"🛒", promo:"ราคาประหยัด", lat:8.4662, lng:99.9947, addr:"ต.ชะอวด"},
-  {id:14, name:"Mesa Coffee Roasters", cat:"คาเฟ่", sub:"ต.ชะอวด", rating:4.7, img:"☕", promo:"เมล็ดกาแฟคั่วเอง", lat:8.4640, lng:99.9958, addr:"ตรงข้าม รร.กุลวดีศึกษา"},
-  {id:15, name:"Railway Cafe", cat:"คาเฟ่", sub:"ต.ชะอวด", rating:4.7, img:"🚂", promo:"นั่งแลรถไฟ", lat:8.4615, lng:99.9932, addr:"ติดรางรถไฟ"}
+  {id:1, name:"ที่ว่าการอำเภอชะอวด", cat:"ราชการ", sub:"ต.ชะอวด", rating:4.5, img:"🏛️", promo:"ศูนย์กลาง", lat:7.9646, lng:99.9951, addr:"ต.ชะอวด"},
+  {id:2, name:"โรงพยาบาลชะอวด", cat:"สาธารณสุข", sub:"ต.ชะอวด", rating:4.4, img:"🏥", promo:"โรงพยาบาลชุมชน", lat:7.9680, lng:99.9980, addr:"ต.ชะอวด"},
+  {id:3, name:"สถานีรถไฟชะอวด", cat:"คมนาคม", sub:"ต.ชะอวด", rating:4.6, img:"🚂", promo:"สถาปัตยกรรมเก่าแก่", lat:7.9620, lng:99.9930, addr:"ต.ชะอวด"},
+  {id:4, name:"ตลาดสดเทศบาลชะอวด", cat:"ตลาด", sub:"ต.ชะอวด", rating:4.6, img:"🥬", promo:"ตลาดเช้า", lat:7.9640, lng:99.9950, addr:"ต.ชะอวด"},
+  {id:5, name:"โรงเรียนชะอวดวิทยาคาร", cat:"การศึกษา", sub:"ต.ชะอวด", rating:4.5, img:"🏫", promo:"โรงเรียนมัธยม", lat:7.9660, lng:99.9960, addr:"ต.ชะอวด"},
+  {id:6, name:"วัดเขาพระทอง", cat:"ท่องเที่ยว", sub:"ต.เขาพระทอง", rating:4.9, img:"🛕", promo:"พระพุทธรูปแกะสลัก", lat:8.0200, lng:100.0400, addr:"ต.เขาพระทอง"},
+  {id:7, name:"ล่องแพบ้านวังหอน", cat:"ท่องเที่ยว", sub:"ต.วังอ่าง", rating:4.7, img:"🚣", promo:"ล่องแพชมธรรมชาติ", lat:7.9800, lng:100.0100, addr:"ต.วังอ่าง"},
+  {id:8, name:"เซเว่นอีเลฟเว่น ตลาดชะอวด", cat:"ร้านค้า", sub:"ต.ชะอวด", rating:4.5, img:"🏪", promo:"เปิด 24 ชม.", lat:7.9642, lng:99.9952, addr:"ต.ชะอวด"},
+  {id:9, name:"ปตท. ชะอวด", cat:"ปั๊มน้ำมัน", sub:"ต.ชะอวด", rating:4.5, img:"⛽", promo:"มี Café Amazon", lat:7.9682, lng:99.9972, addr:"ต.ชะอวด"},
+  {id:10, name:"โรงแรมบ้านตูนรีสอร์ท", cat:"โรงแรม", sub:"ต.ชะอวด", rating:4.5, img:"🏨", promo:"ที่พักสบาย", lat:7.9650, lng:99.9970, addr:"ต.ชะอวด"},
+  {id:11, name:"เหล่าเต๊ง Chauat", cat:"ร้านอาหาร", sub:"ต.ชะอวด", rating:4.7, img:"🥟", promo:"ร้านดัง", lat:7.9645, lng:99.9950, addr:"ถนนจันทรานนท์"},
+  {id:12, name:"มัสยิดอิสลามิดีน", cat:"ศาสนสถาน", sub:"ต.ชะอวด", rating:4.7, img:"🕌", promo:"มัสยิดกลาง", lat:7.9655, lng:99.9945, addr:"ต.ชะอวด"},
+  {id:13, name:"ซีเจ มอร์ ตลาดชะอวด", cat:"ร้านค้า", sub:"ต.ชะอวด", rating:4.3, img:"🛒", promo:"ราคาประหยัด", lat:7.9662, lng:99.9947, addr:"ต.ชะอวด"},
+  {id:14, name:"Mesa Coffee Roasters", cat:"คาเฟ่", sub:"ต.ชะอวด", rating:4.7, img:"☕", promo:"เมล็ดกาแฟคั่วเอง", lat:7.9640, lng:99.9958, addr:"ตรงข้าม รร.กุลวดีศึกษา"},
+  {id:15, name:"Railway Cafe", cat:"คาเฟ่", sub:"ต.ชะอวด", rating:4.7, img:"🚂", promo:"นั่งแลรถไฟ", lat:7.9615, lng:99.9932, addr:"ติดรางรถไฟ"}
+];
+
+// ===== Food Delivery Data =====
+const FOOD_SHOPS = [
+  {id:101, name:"เหล่าเต๊ง Chauat", cat:"อาหารจีน", img:"🥟", price:"฿80-200", rating:4.7, time:"20-30 นาที", lat:7.9645, lng:99.9950},
+  {id:102, name:"ร้านขาหมูน้องออ", cat:"ข้าวขาหมู", img:"🍖", price:"฿60-150", rating:4.8, time:"15-25 นาที", lat:7.9635, lng:99.9940},
+  {id:103, name:"Mesa Coffee Roasters", cat:"คาเฟ่", img:"☕", price:"฿40-120", rating:4.7, time:"10-20 นาที", lat:7.9640, lng:99.9958},
+  {id:104, name:"Railway Cafe", cat:"คาเฟ่", img:"🚂", price:"฿60-180", rating:4.7, time:"15-25 นาที", lat:7.9615, lng:99.9932},
+  {id:105, name:"ร้านเยี่ยมโอชา", cat:"อาหารตามสั่ง", img:"🍛", price:"฿50-150", rating:4.8, time:"20-30 นาที", lat:7.9642, lng:99.9948},
+  {id:106, name:"กระทะทอง หมูกะทะ", cat:"หมูกะทะ", img:"🍲", price:"฿179-259", rating:4.6, time:"25-35 นาที", lat:7.9665, lng:99.9980}
 ];
 
 let currentMode = localStorage.getItem('chauatgo_mode') || null;
@@ -296,12 +387,23 @@ let userLocation = { lat: CHAUAT_CENTER.lat, lng: CHAUAT_CENTER.lng, accuracy: 0
 let nearbyPlaces = [];
 let maps = {};
 let currentCat = 'ทั้งหมด';
+let currentFoodCat = 'ทั้งหมด';
+
+// ===== Travel State =====
+let travelPoints = [];
+let travelLine = null;
+let travelMarkers = [];
+let selectedVehicleIdx = 0;
+let travelDistance = 0;
 
 // ===== RIDER STATE =====
 const riderState = {online:false, currentTab:'new', newJobs:[], activeJob:null, todayHistory:[], wallet:2847, todayEarning:0, todayTrips:0, weekEarning:3450};
 let jobInterval = null;
 const LOCATIONS = PLACES.slice(0, 10);
-const VEHICLE_TYPES = [{id:'bike', name:'มอเตอร์ไซค์', icon:'🏍️', pricePerKm:18, basePrice:25, speed:40}];
+const VEHICLE_TYPES = [
+  {id:'bike', name:'มอเตอร์ไซค์', icon:'🛵', pricePerKm:18, basePrice:25, speed:40},
+  {id:'car', name:'รถยนต์', icon:'🚗', pricePerKm:22, basePrice:50, speed:45}
+];
 
 // ===== UTILS =====
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -373,7 +475,8 @@ function showPage(page) {
   else if(page === 'nearby') {document.getElementById('nearbyPage').classList.add('active'); renderNearby();}
   else if(page === 'database') {document.getElementById('databasePage').classList.add('active'); setTimeout(()=>{if(!maps.mapDb) initMap('mapDb',13); renderChips(); filterDatabase();},100);}
   else if(page === 'map') {document.getElementById('mapPage').classList.add('active'); setTimeout(()=>{if(!maps.mapAll) initFullMap();},100);}
-  else if(page === 'travel') {document.getElementById('travelPage').classList.add('active');}
+  else if(page === 'travel') {document.getElementById('travelPage').classList.add('active'); setTimeout(()=>{if(!maps.travel) initTravelMap();},100);}
+  else if(page === 'food') {document.getElementById('foodPage').classList.add('active'); renderFoodChips(); filterFood();}
 }
 
 // ===== GPS =====
@@ -402,7 +505,8 @@ function updateUserLocationUI() {
 
 function calculateNearbyPlaces() {
   nearbyPlaces = PLACES.map(p=>({...p, distance:calculateDistance(userLocation.lat,userLocation.lng,p.lat,p.lng)})).sort((a,b)=>a.distance-b.distance);
-  document.getElementById('nearbyCount').textContent = nearbyPlaces.filter(p=>p.distance<=0.1).length;
+  // ขยายรัศมีหน้าใกล้ฉันเป็น 5 กม. ตามที่แจ้ง
+  document.getElementById('nearbyCount').textContent = nearbyPlaces.filter(p=>p.distance<=5).length;
   document.getElementById('totalCountDisplay').textContent = PLACES.length;
 }
 
@@ -423,6 +527,16 @@ function initFullMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© ChauatGo', maxZoom:19}).addTo(map);
   L.control.zoom({position:'topright'}).addTo(map);
   L.rectangle(L.latLngBounds([CHAUAT_BOUNDS.south,CHAUAT_BOUNDS.west],[CHAUAT_BOUNDS.north,CHAUAT_BOUNDS.east]),{color:'#00b14f', weight:3, fillOpacity:0.05, dashArray:'5,10'}).addTo(map);
+  
+  // เพิ่ม label 12 ตำบล
+  TAMBONS.forEach(t=>{
+    const icon = L.divIcon({
+      html:'<div style="background:rgba(0,177,79,0.95);color:#fff;padding:5px 10px;border-radius:14px;font-size:12px;font-weight:700;white-space:nowrap;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">📍 ต.'+t.name+'</div>',
+      className:'', iconSize:[120, 30], iconAnchor:[60, 15]
+    });
+    L.marker([t.lat, t.lng], {icon, interactive:false}).addTo(map);
+  });
+  
   addMarkersToMap(map, PLACES);
   maps.mapAll = map;
 }
@@ -435,6 +549,106 @@ function addMarkersToMap(map, dataList) {
     const marker = L.marker([item.lat, item.lng], {icon}).addTo(map);
     marker.bindPopup('<div style="min-width:180px"><strong style="font-size:14px">'+item.img+' '+item.name+'</strong><br><span style="color:#666;font-size:12px">'+item.cat+' • ⭐ '+item.rating+'</span><br><small style="color:#888">📍 '+item.addr+'</small></div>');
   });
+}
+
+// ===== TRAVEL MAP =====
+function initTravelMap() {
+  const map = L.map('travelMap', {zoomControl:false, minZoom:13, maxZoom:18, maxBounds:L.latLngBounds([CHAUAT_BOUNDS.south,CHAUAT_BOUNDS.west],[CHAUAT_BOUNDS.north,CHAUAT_BOUNDS.east]), maxBoundsViscosity:1.0});
+  map.setView([CHAUAT_CENTER.lat, CHAUAT_CENTER.lng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© ChauatGo', maxZoom:19}).addTo(map);
+  L.control.zoom({position:'topright'}).addTo(map);
+  L.rectangle(L.latLngBounds([CHAUAT_BOUNDS.south,CHAUAT_BOUNDS.west],[CHAUAT_BOUNDS.north,CHAUAT_BOUNDS.east]),{color:'#00b14f', weight:3, fillOpacity:0.05, dashArray:'5,10'}).addTo(map);
+  
+  map.on('click', (e)=>{
+    const {lat, lng} = e.latlng;
+    if(travelPoints.length < 2) {
+      travelPoints.push([lat, lng]);
+      const color = travelPoints.length === 1 ? '#00b14f' : '#ee4d2d';
+      const label = travelPoints.length === 1 ? 'จุดเริ่มต้น' : 'จุดหมาย';
+      const icon = L.divIcon({html:'<div style="background:'+color+';color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">'+(travelPoints.length===1?'📍':'🏁')+'</div>', className:'', iconSize:[32,32], iconAnchor:[16,16]});
+      const marker = L.marker([lat, lng], {icon}).addTo(map);
+      marker.bindPopup(label).openPopup();
+      travelMarkers.push(marker);
+      
+      if(travelPoints.length === 1) {
+        document.getElementById('travelFrom').value = lat.toFixed(5)+', '+lng.toFixed(5);
+      } else {
+        document.getElementById('travelTo').value = lat.toFixed(5)+', '+lng.toFixed(5);
+        drawTravelRoute();
+        document.getElementById('vehicleSelector').classList.add('show');
+      }
+    }
+  });
+  
+  maps.travel = map;
+}
+
+function drawTravelRoute() {
+  if(travelPoints.length < 2) return;
+  if(travelLine) maps.travel.removeLayer(travelLine);
+  travelLine = L.polyline(travelPoints, {color:'#00b14f', weight:5, opacity:0.8, dashArray:'10,10'}).addTo(maps.travel);
+  maps.travel.fitBounds(travelLine.getBounds(), {padding:[50,50]});
+  travelDistance = calculateDistance(travelPoints[0][0], travelPoints[0][1], travelPoints[1][0], travelPoints[1][1]);
+  updateVehiclePrices();
+}
+
+function updateVehiclePrices() {
+  const bikePrice = Math.round(VEHICLE_TYPES[0].basePrice + travelDistance * VEHICLE_TYPES[0].pricePerKm);
+  const carPrice = Math.round(VEHICLE_TYPES[1].basePrice + travelDistance * VEHICLE_TYPES[1].pricePerKm);
+  document.getElementById('bikePrice').textContent = '฿'+bikePrice;
+  document.getElementById('carPrice').textContent = '฿'+carPrice;
+}
+
+function selectVehicle(idx) {
+  selectedVehicleIdx = idx;
+  document.querySelectorAll('.vehicle-option').forEach((el, i)=>{
+    el.classList.toggle('selected', i===idx);
+  });
+}
+
+function clearTravel() {
+  travelPoints = [];
+  travelMarkers.forEach(m=>maps.travel.removeLayer(m));
+  travelMarkers = [];
+  if(travelLine) maps.travel.removeLayer(travelLine);
+  travelLine = null;
+  document.getElementById('travelFrom').value = '';
+  document.getElementById('travelTo').value = '';
+  document.getElementById('vehicleSelector').classList.remove('show');
+}
+
+function confirmTravel() {
+  const vehicle = VEHICLE_TYPES[selectedVehicleIdx];
+  const price = Math.round(vehicle.basePrice + travelDistance * vehicle.pricePerKm);
+  const duration = Math.round((travelDistance / vehicle.speed) * 60);
+  alert('✅ จอง'+vehicle.name+'สำเร็จ!\n\nระยะทาง: '+travelDistance.toFixed(2)+' กม.\nเวลา: '+duration+' นาที\nราคา: ฿'+price);
+  clearTravel();
+}
+
+// ===== FOOD DELIVERY =====
+function renderFoodChips() {
+  const cats = ['ทั้งหมด','อาหารจีน','ข้าวขาหมู','คาเฟ่','อาหารตามสั่ง','หมูกะทะ'];
+  document.getElementById('foodChips').innerHTML = cats.map(c=>'<div class="chip '+(currentFoodCat===c?'on':'')+'" onclick="setFoodCat(\''+c+'\')">'+c+'</div>').join('');
+}
+
+function setFoodCat(cat) {
+  currentFoodCat = cat;
+  renderFoodChips();
+  filterFood();
+}
+
+function filterFood() {
+  const query = document.getElementById('foodSearch').value.toLowerCase();
+  let data = FOOD_SHOPS;
+  if(currentFoodCat !== 'ทั้งหมด') data = data.filter(f=>f.cat===currentFoodCat);
+  if(query) data = data.filter(f=>f.name.toLowerCase().includes(query));
+  document.getElementById('foodGrid').innerHTML = data.map(f=>'<div class="food-card" onclick="showFoodDetail('+f.id+')"><div class="img">'+f.img+'</div><div class="info"><h4>'+f.name+'</h4><div class="meta">⭐ '+f.rating+' • '+f.time+'</div><div class="price">'+f.price+'</div></div></div>').join('');
+}
+
+function showFoodDetail(id) {
+  const f = FOOD_SHOPS.find(x=>x.id===id);
+  if(!f) return;
+  document.getElementById('modalContainer').innerHTML = '<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="text-align:center;font-size:64px;margin-bottom:12px">'+f.img+'</div><h3>'+f.name+'</h3><p style="color:#6b7280;font-size:13px">'+f.cat+' • ⭐ '+f.rating+'</p><p style="font-size:13px;margin:12px 0">⏱️ '+f.time+'</p><p style="font-size:18px;font-weight:800;color:#00b14f;margin:12px 0">'+f.price+'</p><button class="pri" onclick="alert(\'🛒 สั่งอาหารจาก '+f.name+'\')">🛒 สั่งเลย</button><button class="sec" onclick="closeModal()">ปิด</button></div></div>';
 }
 
 // ===== CUSTOMER UI =====
@@ -454,15 +668,16 @@ function showDetail(id) {
   if(!item) return;
   const distance = calculateDistance(userLocation.lat, userLocation.lng, item.lat, item.lng);
   const distanceText = distance < 0.1 ? Math.round(distance*1000)+' เมตร' : distance.toFixed(2)+' กิโลเมตร';
-  document.getElementById('modalContainer').innerHTML = '<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="text-align:center;font-size:64px;margin-bottom:12px">'+item.img+'</div><h3>'+item.name+'</h3><p style="color:#6b7280;font-size:13px">'+item.cat+' • ⭐ '+item.rating+'</p><p style="font-size:13px;margin:12px 0">📍 '+item.addr+'</p><p style="font-size:13px;margin:10px 0;color:#00b14f;font-weight:600"> '+item.promo+'</p><div style="background:#fff3e0;padding:12px;border-radius:10px;margin:12px 0;text-align:center"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">📏 ระยะทางจากคุณ</div><div style="font-size:24px;font-weight:700;color:#ee4d2d">'+distanceText+'</div></div><button class="pri" onclick="window.open(\'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(item.name+' ชะอวด')+'\',\'_blank\')">🔍 ค้นหาใน Google Maps</button><button class="sec" onclick="closeModal()">ปิด</button></div></div>';
+  document.getElementById('modalContainer').innerHTML = '<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><div style="text-align:center;font-size:64px;margin-bottom:12px">'+item.img+'</div><h3>'+item.name+'</h3><p style="color:#6b7280;font-size:13px">'+item.cat+' • ⭐ '+item.rating+'</p><p style="font-size:13px;margin:12px 0">📍 '+item.addr+'</p><p style="font-size:13px;margin:10px 0;color:#00b14f;font-weight:600">💡 '+item.promo+'</p><div style="background:#fff3e0;padding:12px;border-radius:10px;margin:12px 0;text-align:center"><div style="font-size:12px;color:#6b7280;margin-bottom:4px">📏 ระยะทางจากคุณ</div><div style="font-size:24px;font-weight:700;color:#ee4d2d">'+distanceText+'</div></div><button class="pri" onclick="window.open(\'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(item.name+' ชะอวด')+'\',\'_blank\')">🔍 ค้นหาใน Google Maps</button><button class="sec" onclick="closeModal()">ปิด</button></div></div>';
 }
 
 function closeModal() {document.getElementById('modalContainer').innerHTML = '';}
 
 function renderNearby() {
-  const filtered = nearbyPlaces.filter(p=>p.distance<=0.1);
+  // ขยายรัศมีเป็น 5 กม.
+  const filtered = nearbyPlaces.filter(p=>p.distance<=5);
   const container = document.getElementById('nearbyList');
-  if(filtered.length===0) {container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280"><div style="font-size:48px;margin-bottom:12px">📍</div><h3>ไม่มีสถานที่ในรัศมี 100 เมตร</h3></div>';}
+  if(filtered.length===0) {container.innerHTML = '<div style="text-align:center;padding:40px;color:#6b7280"><div style="font-size:48px;margin-bottom:12px">📍</div><h3>ไม่มีสถานที่ในรัศมี 5 กม.</h3></div>';}
   else {container.innerHTML = filtered.map(item=>createCardHTML(item)).join('');}
 }
 
@@ -470,8 +685,7 @@ function renderChips() {
   const cats = ['ทั้งหมด','ราชการ','วัด','โรงแรม','ร้านอาหาร','คาเฟ่','ปั๊มน้ำมัน','ตลาด','ท่องเที่ยว'];
   const counts = {};
   cats.forEach(c=>{if(c==='ทั้งหมด') counts[c]=PLACES.length; else counts[c]=PLACES.filter(i=>i.cat===c).length;});
-  const el = document.getElementById('categoryChips');
-  if(el) el.innerHTML = cats.map(c=>'<div class="chip '+(currentCat===c?'on':'')+'" onclick="setCategory(\''+c+'\')" style="background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:8px 14px;font-size:13px;white-space:nowrap;cursor:pointer;flex-shrink:0;margin-right:8px">'+c+'<span style="opacity:0.7">('+counts[c]+')</span></div>').join('');
+  document.getElementById('categoryChips').innerHTML = cats.map(c=>'<div class="chip '+(currentCat===c?'on':'')+'" onclick="setCategory(\''+c+'\')">'+c+' ('+counts[c]+')</div>').join('');
 }
 
 function setCategory(cat) {currentCat=cat; renderChips(); filterDatabase(); updateMapMarkers();}
@@ -481,12 +695,13 @@ function getFilteredData() {let data=PLACES; if(currentCat!=='ทั้งหม
 function filterDatabase() {
   const query = document.getElementById('searchInput').value.toLowerCase();
   let data = getFilteredData();
-  data = data.map(item=>({...item, distance:calculateDistance(userLocation.lat,userLocation.lng,item.lat,item.lng)})).filter(item=>item.distance<=0.3);
-  if(query) data = data.filter(i=>i.name.toLowerCase().includes(query)||i.addr.toLowerCase().includes(query));
+  // คำนวณระยะทางเพื่อเรียงลำดับ แต่ไม่จำกัดรัศมี (แสดงทุกรายการที่ตรงตามคำค้น/หมวดหมู่)
+  data = data.map(item=>({...item, distance:calculateDistance(userLocation.lat,userLocation.lng,item.lat,item.lng)}));
+  if(query) data = data.filter(i=>i.name.toLowerCase().includes(query)||i.addr.toLowerCase().includes(query)||i.cat.toLowerCase().includes(query));
   data.sort((a,b)=>a.distance-b.distance);
   document.getElementById('resultCount').textContent = data.length;
   const container = document.getElementById('listContainer');
-  container.innerHTML = data.length===0 ? '<p style="text-align:center;padding:30px;color:#6b7280">ไม่มีสถานที่ในรัศมี 300 เมตร</p>' : data.map(item=>createCardHTML(item)).join('');
+  container.innerHTML = data.length===0 ? '<p style="text-align:center;padding:30px;color:#6b7280">ไม่พบสถานที่</p>' : data.map(item=>createCardHTML(item)).join('');
 }
 
 function updateMapMarkers() {
@@ -511,14 +726,7 @@ function generateMockJob() {
 
 function startJobSimulation() {
   if(jobInterval) clearInterval(jobInterval);
-  jobInterval = setInterval(()=>{if(riderState.online && riderState.newJobs.length<5){const job=generateMockJob(); riderState.newJobs.unshift(job); showNewJobAlert(job); renderRiderContent();}}, 12000+Math.random()*10000);
-}
-
-function showNewJobAlert(job) {
-  const alert = document.getElementById('newJobAlert');
-  if(!alert) return;
-  alert.classList.add('show');
-  setTimeout(()=>alert.classList.remove('show'), 6000);
+  jobInterval = setInterval(()=>{if(riderState.online && riderState.newJobs.length<5){const job=generateMockJob(); riderState.newJobs.unshift(job); renderRiderContent();}}, 12000+Math.random()*10000);
 }
 
 function toggleOnline() {
@@ -590,7 +798,7 @@ function completeJob() {
   riderState.weekEarning += job.price;
   riderState.wallet += job.price;
   riderState.activeJob = null;
-  alert(' เสร็จสิ้น! +฿'+job.price);
+  alert('🎉 เสร็จสิ้น! +฿'+job.price);
   renderRiderContent();
 }
 
