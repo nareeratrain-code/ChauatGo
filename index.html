@@ -2,666 +2,920 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Chauat Go - แพลตฟอร์มท้องถิ่นชะอวด</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Google Fonts for Thai Support -->
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     
+    <!-- External Libraries -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
-        body { background: #f5f5f5; max-width: 480px; margin: 0 auto; min-height: 100vh; overflow-x: hidden; color: #333; }
+        /* =========================================
+           CSS RESET & VARIABLES
+           ========================================= */
+        :root {
+            --primary-color: #00A651; /* Green for Trust/Nature */
+            --secondary-color: #FF6B35; /* Orange for Action/Food */
+            --accent-gold: #FFD700;
+            --dark-text: #2C3E50;
+            --light-text: #7F8C8D;
+            --bg-body: #F4F6F8;
+            --white: #FFFFFF;
+            --border-color: #E0E0E0;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+            --radius-sm: 8px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --font-main: 'Sarabun', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-main);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--dark-text);
+            max-width: 480px; /* Mobile App Width Constraint */
+            margin: 0 auto;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Utility Classes */
+        .hidden { display: none !important; }
+        .flex-center { display: flex; align-items: center; justify-content: center; }
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 10px; }
+        .mb-1 { margin-bottom: 10px; }
+        .p-1 { padding: 10px; }
         
-        /* --- NEW: PDPA Consent Modal Styles --- */
-        .consent-overlay {
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+        /* =========================================
+           LEGAL COMPLIANCE COMPONENTS (PDPA/E-COMM)
+           ========================================= */
+        
+        /* 1. PDPA Consent Modal */
+        #pdpa-modal {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8); z-index: 9999;
-            display: flex; justify-content: center; align-items: center; padding: 20px;
+            background: rgba(0,0,0,0.85); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px; backdrop-filter: blur(5px);
         }
-        .consent-card {
-            background: white; border-radius: 20px; padding: 25px; width: 100%; max-width: 400px;
-            max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        .pdpa-card {
+            background: var(--white); border-radius: var(--radius-lg);
+            padding: 25px; width: 100%; max-width: 400px;
+            max-height: 85vh; overflow-y: auto;
+            box-shadow: var(--shadow-lg); animation: slideUpFade 0.4s ease-out;
         }
-        .consent-title { font-size: 20px; font-weight: bold; color: #00A651; margin-bottom: 15px; text-align: center; }
-        .consent-text { font-size: 13px; line-height: 1.6; color: #555; margin-bottom: 20px; }
-        .consent-checkbox-group { margin-bottom: 20px; }
-        .checkbox-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; cursor: pointer; }
-        .checkbox-item input[type="checkbox"] { margin-top: 3px; accent-color: #00A651; width: 18px; height: 18px; }
-        .checkbox-label { font-size: 13px; color: #333; }
-        .checkbox-sub { font-size: 11px; color: #888; display: block; margin-top: 2px; }
-        .btn-consent-agree {
-            width: 100%; padding: 14px; background: #00A651; color: white; border: none; 
-            border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer;
-        }
-        .btn-consent-decline {
-            width: 100%; padding: 12px; background: transparent; color: #999; border: none; 
-            font-size: 14px; margin-top: 10px; cursor: pointer; text-decoration: underline;
-        }
-        .privacy-link { color: #00A651; text-decoration: underline; cursor: pointer; }
-
-        /* --- Existing Styles (Optimized) --- */
-        .login-page { min-height: 100vh; background: linear-gradient(135deg, #7B68AE 0%, #6A5ACD 50%, #00A651 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
-        .login-logo { font-size: 80px; margin-bottom: 10px; }
-        .login-title { color: white; font-size: 36px; font-weight: bold; margin-bottom: 5px; }
-        .login-title span { color: #FFD700; }
-        .login-subtitle { color: rgba(255,255,255,0.8); font-size: 14px; margin-bottom: 40px; }
-        .login-card { background: white; border-radius: 24px; padding: 30px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .login-btn { display: flex; align-items: center; gap: 15px; width: 100%; padding: 18px; border: 2px solid #eee; border-radius: 16px; background: white; cursor: pointer; margin-bottom: 12px; transition: all 0.3s; }
-        .login-btn:hover { border-color: #00A651; background: #f0fff0; }
-        .login-footer-note { font-size: 10px; color: rgba(255,255,255,0.6); text-align: center; margin-top: 20px; line-height: 1.4; }
-
-        /* Main App Layout */
-        .page { display: none; }
-        .page.active { display: block; }
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         
-        .green-header { background: #00A651; padding: 20px 15px; border-radius: 0 0 30px 30px; }
-        .app-title { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
-        .app-title h1 { color: white; font-size: 28px; }
-        .app-title h1 span { color: #FFD700; }
-        .search-bar { background: white; border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .search-bar input { border: none; outline: none; font-size: 15px; width: 100%; color: #666; }
+        .pdpa-header { text-align: center; margin-bottom: 20px; }
+        .pdpa-icon { font-size: 48px; margin-bottom: 10px; display: block; }
+        .pdpa-title { font-size: 20px; font-weight: 700; color: var(--primary-color); margin-bottom: 5px; }
+        .pdpa-subtitle { font-size: 13px; color: var(--light-text); line-height: 1.5; }
         
-        .location-bar { display: flex; align-items: center; gap: 8px; padding: 12px 15px; background: white; border-bottom: 1px solid #eee; }
-        .location-dot { width: 12px; height: 12px; background: #00A651; border-radius: 50%; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 166, 81, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(0, 166, 81, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 166, 81, 0); } }
+        .consent-group { margin-bottom: 20px; }
+        .consent-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px; background: #F9FAFB; border-radius: var(--radius-sm);
+            margin-bottom: 10px; border: 1px solid transparent; transition: 0.2s;
+        }
+        .consent-item.required { border-color: #E0E0E0; background: #FFF; }
+        .consent-item input[type="checkbox"] {
+            width: 20px; height: 20px; accent-color: var(--primary-color);
+            margin-top: 2px; cursor: pointer;
+        }
+        .consent-label { flex: 1; }
+        .consent-label strong { display: block; font-size: 14px; color: var(--dark-text); margin-bottom: 2px; }
+        .consent-label span { font-size: 12px; color: var(--light-text); line-height: 1.4; }
         
-        .categories { display: flex; gap: 12px; padding: 20px 15px; background: white; overflow-x: auto; scrollbar-width: none; }
-        .cat-item { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 80px; cursor: pointer; padding: 15px 10px; border-radius: 16px; background: #f8f9fa; border: 2px solid transparent; }
-        .cat-item:hover { border-color: #00A651; background: #e8f5e9; }
-        .cat-icon { font-size: 36px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .cat-label { font-size: 13px; font-weight: 600; color: #333; text-align: center; }
+        .btn-full {
+            width: 100%; padding: 14px; border: none; border-radius: var(--radius-md);
+            font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary { background: var(--primary-color); color: var(--white); }
+        .btn-primary:hover { background: #008C45; }
+        .btn-outline { background: transparent; border: 2px solid var(--border-color); color: var(--light-text); margin-top: 10px; }
+        .btn-outline:hover { border-color: var(--dark-text); color: var(--dark-text); }
+        
+        .legal-link { color: var(--primary-color); text-decoration: underline; font-size: 12px; cursor: pointer; }
 
-        .section-header { display: flex; align-items: center; gap: 10px; padding: 15px; font-size: 18px; font-weight: bold; color: #333; background: #f5f5f5; }
-        .place-list { background: #f5f5f5; padding: 10px 15px 15px; }
-        .place-card { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; margin-bottom: 12px; cursor: pointer; background: white; border: 1px solid #eee; transition: transform 0.2s; }
-        .place-card:active { transform: scale(0.98); }
-        .place-icon { font-size: 32px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 14px; flex-shrink: 0; }
+        /* 2. General Legal Disclaimers in UI */
+        .disclaimer-box {
+            background: #FFF8E1; border-left: 4px solid #FFB300;
+            padding: 12px; border-radius: 4px; margin: 15px 0;
+            font-size: 11px; color: #5D4037; line-height: 1.5;
+        }
+        .disclaimer-box strong { color: #E65100; display: block; margin-bottom: 4px; }
+        
+        .footer-legal {
+            text-align: center; padding: 20px; font-size: 10px; color: #AAA;
+            line-height: 1.6; border-top: 1px solid var(--border-color);
+            margin-top: 30px; background: var(--white);
+        }
+        .footer-legal a { color: var(--primary-color); text-decoration: none; }
+
+        /* =========================================
+           APP LAYOUT & NAVIGATION
+           ========================================= */
+        .app-container { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+        
+        /* Screens */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body); overflow-y: auto;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+            z-index: 10;
+        }
+        .screen.active { transform: translateX(0); opacity: 1; z-index: 20; }
+        .screen.inactive-right { transform: translateX(100%); opacity: 0; pointer-events: none; }
+        .screen.inactive-left { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+
+        /* Header Styles */
+        .header-gradient {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #008C45 100%);
+            color: var(--white); padding: 20px 15px 30px;
+            border-radius: 0 0 30px 30px; position: sticky; top: 0; z-index: 100;
+            box-shadow: var(--shadow-md);
+        }
+        .header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .logo-area h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .logo-area h1 span { color: var(--accent-gold); }
+        .location-tag { 
+            display: inline-flex; align-items: center; gap: 5px; 
+            background: rgba(255,255,255,0.2); padding: 4px 10px; 
+            border-radius: 20px; font-size: 11px; backdrop-filter: blur(4px);
+        }
+        
+        .search-container {
+            background: var(--white); border-radius: var(--radius-md);
+            padding: 12px 15px; display: flex; align-items: center; gap: 10px;
+            box-shadow: var(--shadow-sm);
+        }
+        .search-input {
+            border: none; outline: none; width: 100%; font-size: 15px; color: var(--dark-text);
+            background: transparent;
+        }
+        .search-input::placeholder { color: #BBB; }
+
+        /* Category Grid */
+        .category-scroll {
+            display: flex; gap: 15px; padding: 20px 15px; overflow-x: auto;
+            scrollbar-width: none; background: var(--white);
+            border-bottom: 1px solid var(--border-color);
+        }
+        .category-scroll::-webkit-scrollbar { display: none; }
+        .cat-item {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            min-width: 70px; cursor: pointer; transition: 0.2s;
+        }
+        .cat-icon-wrapper {
+            width: 50px; height: 50px; border-radius: 14px;
+            background: #F0FDF4; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; box-shadow: inset 0 0 0 1px rgba(0,166,81,0.1);
+            transition: 0.3s;
+        }
+        .cat-item:hover .cat-icon-wrapper, .cat-item.active .cat-icon-wrapper {
+            background: var(--primary-color); color: var(--white); transform: scale(1.05);
+        }
+        .cat-label { font-size: 12px; font-weight: 600; color: var(--dark-text); text-align: center; }
+
+        /* Place Cards */
+        .section-title {
+            padding: 15px; font-size: 16px; font-weight: 700; color: var(--dark-text);
+            display: flex; align-items: center; gap: 8px; background: var(--bg-body);
+        }
+        .place-list { padding: 0 15px 20px; display: grid; gap: 12px; }
+        .place-card {
+            background: var(--white); border-radius: var(--radius-md);
+            padding: 15px; display: flex; gap: 15px; align-items: center;
+            box-shadow: var(--shadow-sm); cursor: pointer; transition: 0.2s;
+            border: 1px solid transparent;
+        }
+        .place-card:hover { border-color: var(--primary-color); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .place-img-placeholder {
+            width: 60px; height: 60px; border-radius: 12px; background: #EEE;
+            display: flex; align-items: center; justify-content: center; font-size: 28px;
+            flex-shrink: 0;
+        }
         .place-info { flex: 1; min-width: 0; }
-        .place-name { font-weight: 700; font-size: 17px; color: #222; line-height: 1.3; }
-        .place-detail { font-size: 13px; color: #888; margin-top: 4px; }
-        .place-rating { color: #FFA500; font-size: 15px; margin-top: 4px; }
-        .place-distance { font-size: 18px; color: #00A651; font-weight: 700; flex-shrink: 0; }
+        .place-name { font-size: 15px; font-weight: 700; color: var(--dark-text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .place-meta { font-size: 12px; color: var(--light-text); display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+        .rating-badge { color: #FFA500; font-weight: 600; }
+        .distance-badge { color: var(--primary-color); font-weight: 600; }
+        .place-tags { display: flex; gap: 5px; margin-top: 5px; }
+        .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #F5F5F5; color: #666; }
+        .tag.open { background: #E8F5E9; color: #2E7D32; }
 
-        /* Modals */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
-        .modal-overlay.active { display: flex; }
-        .modal-content { background: white; border-radius: 24px; padding: 25px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        
-        .legal-disclaimer {
-            background: #FFF3E0; border-left: 4px solid #FF9800; padding: 12px; margin: 15px 0;
-            font-size: 11px; color: #E65100; border-radius: 8px; line-height: 1.5;
+        /* Bottom Sheet Modal (For Details) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            display: flex; align-items: flex-end; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
-        .refund-policy {
-            background: #F5F5F5; padding: 10px; border-radius: 8px; font-size: 12px; color: #666; margin-top: 10px;
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        .bottom-sheet {
+            background: var(--white); width: 100%; max-width: 480px;
+            border-radius: 24px 24px 0 0; padding: 25px;
+            max-height: 90vh; overflow-y: auto;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .btn-primary { display: block; width: 100%; padding: 16px; color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
-        .btn-green { background: #00A651; }
-        .btn-orange { background: #FF6B35; }
-        .btn-blue { background: #4A90D9; }
-        .btn-pink { background: #E91E63; }
-        .btn-secondary { background: white; color: #333; border: 2px solid #ddd; }
+        .modal-overlay.active .bottom-sheet { transform: translateY(0); }
+        .sheet-handle { width: 40px; height: 4px; background: #DDD; border-radius: 2px; margin: 0 auto 20px; }
+        .detail-header { display: flex; gap: 15px; margin-bottom: 20px; }
+        .detail-icon-large { width: 80px; height: 80px; border-radius: 16px; background: #F9FAFB; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+        .detail-title h2 { font-size: 20px; font-weight: 700; margin-bottom: 5px; }
+        .detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn-action {
+            padding: 12px; border-radius: 12px; border: none; font-weight: 600;
+            display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+        }
+        .btn-map { background: #E3F2FD; color: #1976D2; }
+        .btn-order { background: var(--secondary-color); color: var(--white); }
+        .btn-call { background: #F3E5F5; color: #7B1FA2; }
+        .btn-share { background: #E8F5E9; color: #2E7D32; }
 
-        /* Map & Others */
-        .map-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 2000; flex-direction: column; }
-        .map-modal.active { display: flex; }
-        .map-header { background: #00A651; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; }
-        #map-container { flex: 1; width: 100%; }
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 12px 24px; border-radius: 25px; font-size: 14px; z-index: 3000; display: none; }
-        .notification.active { display: block; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Map Container */
+        #map-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        .map-controls {
+            position: absolute; top: 20px; right: 20px; z-index: 500;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .map-btn {
+            width: 40px; height: 40px; background: var(--white); border-radius: 50%;
+            box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center;
+            cursor: pointer; border: none; font-size: 18px;
+        }
+        .back-to-home-fab {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: var(--dark-text); color: var(--white); padding: 12px 24px;
+            border-radius: 30px; font-weight: 600; box-shadow: var(--shadow-lg);
+            z-index: 500; cursor: pointer; display: flex; align-items: center; gap: 8px;
+        }
 
-        /* Rider Status (Simplified for now as requested) */
-        .rider-status-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 5000; justify-content: center; align-items: center; padding: 20px; }
-        .rider-status-overlay.active { display: flex; }
-        .rider-status-modal { background: white; border-radius: 28px; padding: 30px 25px; width: 100%; max-width: 380px; text-align: center; }
+        /* Notification Toast */
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: var(--dark-text); color: var(--white); padding: 12px 24px;
+            border-radius: 30px; font-size: 14px; z-index: 9999;
+            box-shadow: var(--shadow-lg); transition: transform 0.3s ease;
+            display: flex; align-items: center; gap: 8px;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Rider Mode Specifics (Simplified for now as requested) */
+        .rider-dashboard { padding: 20px; }
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: var(--white); padding: 15px; border-radius: var(--radius-md); text-align: center; box-shadow: var(--shadow-sm); }
+        .stat-value { font-size: 20px; font-weight: 700; color: var(--secondary-color); }
+        .stat-label { font-size: 11px; color: var(--light-text); margin-top: 5px; }
+        .order-card-rider {
+            background: var(--white); border-radius: var(--radius-md); padding: 15px;
+            margin-bottom: 15px; border-left: 4px solid var(--secondary-color);
+            box-shadow: var(--shadow-sm);
+        }
+        .order-status { font-size: 12px; font-weight: 600; color: var(--secondary-color); text-transform: uppercase; }
+        .accept-btn {
+            width: 100%; padding: 12px; background: var(--primary-color); color: var(--white);
+            border: none; border-radius: 8px; font-weight: 600; margin-top: 10px; cursor: pointer;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 40px; height: 40px; border: 4px solid #F3F3F3; border-top: 4px solid var(--primary-color);
+            border-radius: 50%; animation: spin 1s linear infinite; margin: 50px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
     </style>
 </head>
 <body>
 
-<!-- 1. PDPA CONSENT SCREEN (Must appear first) -->
-<div class="consent-overlay" id="pdpa-screen">
-    <div class="consent-card">
-        <div class="consent-title">🔒 นโยบายความเป็นส่วนตัว (PDPA)</div>
-        <div class="consent-text">
-            กรุณาอ่านและทำความเข้าใจเกี่ยวกับการเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคลของท่าน ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562
-        </div>
-        
-        <div class="consent-checkbox-group">
-            <label class="checkbox-item">
-                <input type="checkbox" id="chk-core" checked disabled>
-                <div>
-                    <span class="checkbox-label"><strong>ข้อมูลที่จำเป็นต่อการให้บริการ</strong></span>
-                    <span class="checkbox-sub">เช่น ตำแหน่ง GPS สำหรับการค้นหาสถานที่ใกล้เคียง และประวัติคำสั่งซื้อ (ไม่สามารถเลือกปิดได้)</span>
-                </div>
-            </label>
-            <label class="checkbox-item">
-                <input type="checkbox" id="chk-marketing">
-                <div>
-                    <span class="checkbox-label">การตลาดและการวิเคราะห์พฤติกรรม</span>
-                    <span class="checkbox-sub">เพื่อส่งโปรโมชั่นหรือแนะนำร้านอาหารที่คุณอาจสนใจ</span>
-                </div>
-            </label>
-            <label class="checkbox-item">
-                <input type="checkbox" id="chk-thirdparty">
-                <div>
-                    <span class="checkbox-label">การแบ่งปันข้อมูลกับพันธมิตร</span>
-                    <span class="checkbox-sub">เช่น ร้านค้าหรือผู้จัดส่งสินค้า (Rider) เพื่อให้การสั่งซื้oสำเร็จลุล่วง</span>
-                </div>
-            </label>
-        </div>
-
-        <button class="btn-consent-agree" onclick="acceptPDPA()">ยอมรับและเข้าสู่ระบบ</button>
-        <button class="btn-consent-decline" onclick="alert('หากคุณไม่ยินยอม เราไม่สามารถให้บริการคุณได้อย่างเต็มรูปแบบ')">ไม่ยอมรับ (ออกจากแอป)</button>
-        <div style="text-align:center; margin-top:15px; font-size:12px;">
-            อ่านรายละเอียดฉบับเต็มที่ <span class="privacy-link" onclick="showPrivacyPolicy()">นโยบายความเป็นส่วนตัว</span>
-        </div>
-    </div>
-</div>
-
-<!-- 2. LOGIN PAGE -->
-<div class="page" id="page-login">
-    <div class="login-page">
-        <div class="login-logo">📍</div>
-        <div class="login-title">Chauat <span>Go</span></div>
-        <div class="login-subtitle">อ.ชะอวด จ.นครศรีธรรมราช</div>
-        <div class="login-card">
-            <h3>เลือกประเภทการใช้งาน</h3>
-            <div class="login-btn" onclick="loginAs('user')">
-                <div class="btn-icon">👤</div>
-                <div class="btn-info">
-                    <div class="btn-title">ผู้ใช้ทั่วไป</div>
-                    <div class="btn-desc">ค้นหาสถานที่ สั่งอาหาร เดินทาง</div>
-                </div>
-                <div class="btn-arrow">→</div>
+    <!-- 1. PDPA CONSENT MODAL (Must be first interaction) -->
+    <div id="pdpa-modal">
+        <div class="pdpa-card">
+            <div class="pdpa-header">
+                <span class="pdpa-icon">🔒</span>
+                <h2 class="pdpa-title">นโยบายความเป็นส่วนตัว (PDPA)</h2>
+                <p class="pdpa-subtitle"> Chauat Go ให้ความสำคัญกับการปกป้องข้อมูลส่วนบุคคลของท่าน ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562</p>
             </div>
-            <div class="login-btn" onclick="loginAs('rider')">
-                <div class="btn-icon">🛵</div>
-                <div class="btn-info">
-                    <div class="btn-title">ไรเดอร์</div>
-                    <div class="btn-desc">รับออเดอร์ ส่งอาหาร ส่งพัสดุ</div>
+            
+            <div class="consent-group">
+                <!-- Required Consent -->
+                <div class="consent-item required">
+                    <input type="checkbox" checked disabled>
+                    <div class="consent-label">
+                        <strong>ยินยอมให้เก็บข้อมูลตำแหน่ง (GPS) และประวัติการใช้งาน</strong>
+                        <span>จำเป็นสำหรับการทำงานของแอปพลิเคชัน การค้นหาสถานที่ใกล้เคียง และการประมวลผลคำสั่งซื้อ</span>
+                    </div>
                 </div>
-                <div class="btn-arrow">→</div>
+                
+                <!-- Optional Marketing Consent -->
+                <div class="consent-item">
+                    <input type="checkbox" id="chk-marketing">
+                    <div class="consent-label">
+                        <strong>ยินยอมรับข่าวสารและโปรโมชั่น</strong>
+                        <span>เพื่อรับข้อเสนอพิเศษจากพันธมิตรร้านค้าและบริการจัดส่ง (สามารถยกเลิกได้ทุกเมื่อ)</span>
+                    </div>
+                </div>
+
+                <!-- Third Party Sharing Disclosure -->
+                <div class="consent-item">
+                    <input type="checkbox" id="chk-thirdparty" checked disabled>
+                    <div class="consent-label">
+                        <strong>การแบ่งปันข้อมูลกับคู่ค้า (Riders/Merchants)</strong>
+                        <span>ชื่อและที่อยู่จัดส่งจะถูกส่งไปยังไรเดอร์และร้านค้าเพื่อให้บริการสำเร็จลุล่วง</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-full btn-primary" onclick="handlePDPAConsent()">
+                <span>ยอมรับเงื่อนไขและเข้าสู่ระบบ</span>
+            </button>
+            <button class="btn-full btn-outline" onclick="alert('หากคุณไม่ยินยอม เราจะไม่สามารถให้บริการเต็มรูปแบบได้ กรุณาปิดเบราว์เซอร์')">
+                ไม่ยอมรับ (ออกจากแอป)
+            </button>
+            
+            <div style="margin-top: 15px; text-align: center;">
+                <a href="#" class="legal-link" onclick="showPrivacyPolicyDetail(event)">อ่านฉบับเต็ม: นโยบายความเป็นส่วนตัว</a>
             </div>
         </div>
-        <div class="login-footer-note">
-            © 2024 Chauat Go Platform.<br>
-            บริการนี้เป็นตัวกลางเชื่อมต่อระหว่างผู้ใช้บริการและผู้ประกอบการ<br>
-            โปรดตรวจสอบเงื่อนไขก่อนใช้บริการทุกครั้ง
-        </div>
-    </div>
-</div>
-
-<!-- 3. MAIN APP PAGE -->
-<div class="page" id="page-main">
-    <div class="green-header">
-        <div class="app-title">
-            <span style="font-size:28px">📍</span>
-            <h1>Chauat <span>Go</span></h1>
-        </div>
-        <div class="search-bar">
-            <span style="font-size:20px">🔍</span>
-            <input type="text" id="main-search" placeholder="ค้นหาสถานที่ ร้านอาหาร โรงแรม..." oninput="handleMainSearch(this.value)">
-        </div>
     </div>
 
-    <div class="search-results" id="search-results"></div>
-
-    <div class="location-bar">
-        <div class="location-dot"></div>
-        <span class="loc-text">📍 อ.ชะอวด จ.นครศรีธรรมราช</span>
-    </div>
-
-    <div class="categories">
-        <div class="cat-item" onclick="showPage('page-travel')"><div class="cat-icon">🚘</div><div class="cat-label">เดินทาง</div></div>
-        <div class="cat-item" onclick="showPage('page-food')"><div class="cat-icon">🍽️</div><div class="cat-label">อาหาร</div></div>
-        <div class="cat-item" onclick="showPage('page-hotel')"><div class="cat-icon">🏨</div><div class="cat-label">โรงแรม</div></div>
-        <div class="cat-item" onclick="showPage('page-express')"><div class="cat-icon">📦</div><div class="cat-label">ส่งด่วน</div></div>
-    </div>
-
-    <div class="section-header"><span class="icon"></span><span>ที่พักแนะนำ</span></div>
-    <div class="place-list" id="recommended-places"></div>
-
-    <div class="section-header"><span class="icon">🍜</span><span>ร้านเด็ดใกล้คุณ</span></div>
-    <div class="place-list" id="nearby-shops"></div>
-    
-    <!-- Add more sections via JS init() -->
-</div>
-
-<!-- OTHER PAGES (Food, Hotel, Travel, Express) remain similar but with legal tweaks in modals -->
-<div class="page" id="page-food">
-    <div class="back-nav" onclick="showPage('page-main')"><span class="arrow">←</span><span class="title">อาหารและร้านอาหาร</span></div>
-    <div class="green-header" style="border-radius: 0 0 30px 30px;">
-        <div class="search-bar"><span style="font-size:20px">🔍</span><input type="text" placeholder="ค้นหาร้านอาหาร..."></div>
-    </div>
-    <div class="section-header"><span class="icon">🍽️</span><span>รายชื่อร้านอาหาร</span></div>
-    <div class="place-list" id="food-list"></div>
-</div>
-
-<div class="page" id="page-hotel">
-    <div class="back-nav" onclick="showPage('page-main')"><span class="arrow">←</span><span class="title">โรงแรมและที่พัก</span></div>
-    <div class="green-header" style="border-radius: 0 0 30px 30px;"></div>
-    <div class="place-list" id="hotel-list"></div>
-</div>
-
-<div class="page" id="page-travel">
-    <div class="back-nav" onclick="showPage('page-main')"><span class="arrow">←</span><span class="title">เดินทาง</span></div>
-    <div class="green-header" style="border-radius: 0 0 30px 30px;"></div>
-    <div class="place-list" id="travel-list"></div>
-</div>
-
-<div class="page" id="page-express">
-    <div class="back-nav" onclick="showPage('page-main')"><span class="arrow">←</span><span class="title">ส่งด่วน</span></div>
-    <div class="green-header" style="border-radius: 0 0 30px 30px;"></div>
-    <div class="express-form" style="padding:15px;">
-        <div class="form-group"><label>📍 จุดรับ</label><input type="text" placeholder="ที่อยู่จุดรับ"></div>
-        <div class="form-group"><label>📍 จุดส่ง</label><input type="text" placeholder="ที่อยู่จุดส่ง"></div>
-        <div class="legal-disclaimer">
-            ⚠️ ข้อควรระวัง: ผู้ใช้บริการต้องระบุชนิดสิ่งของที่ถูกต้อง ห้ามส่งสิ่งผิดกฎหมาย สารเสพติด หรือวัตถุอันตราย หากเกิดเหตุขัดข้อง บริษัทขอสงวนสิทธิ์ในการปฏิเสธการขนส่งโดยไม่คืนค่าธรรมเนียม
-        </div>
-        <button class="btn-submit btn-orange" style="width:100%; padding:16px; border:none; border-radius:14px; color:white; font-weight:bold;" onclick="alert('กำลังเรียกไรเดอร์... (Demo Mode)')">📦 เรียกไรเดอร์ส่งด่วน</button>
-    </div>
-</div>
-
-<!-- MODALS -->
-<div class="modal-overlay" id="place-modal"><div class="modal-content" id="modal-body"></div></div>
-<div class="map-modal" id="map-modal">
-    <div class="map-header">
-        <button class="back-btn" onclick="closeMapModal()" style="background:none; border:none; color:white; font-size:20px;">← กลับ</button>
-        <h3 id="map-title">แผนที่</h3>
-        <div style="width:30px"></div>
-    </div>
-    <div id="map-container"></div>
-</div>
-
-<div class="rider-status-overlay" id="rider-status-overlay">
-    <div class="rider-status-modal" id="rider-status-modal"></div>
-</div>
-
-<div class="notification" id="notification"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-// ==========================================
-// CONFIGURATION & SECURITY WARNING
-// ==========================================
-/* 
-   [CRITICAL LEGAL/SECURITY NOTE]
-   In production, NEVER hardcode API keys or signatures in frontend code.
-   The URLs below are for DEMO purposes only.
-   You must create a Backend Proxy (Node.js/Python/PHP) to fetch data from Apify securely.
-*/
-const USE_DEMO_DATA = true; // Set to false when backend is ready
-
-const USER_LOCATION = { lat: 7.9620, lng: 99.9940 };
-
-// Mock Data for immediate rendering without external dependency issues during demo
-const MOCK_PLACES = [
-    { id: 1, name: "เทศบาลตำบลชะอวด", type: "government", icon: "🏢", rating: 4.2, lat: 7.9620, lng: 99.9935, address: "ต.ชะอวด", desc: "สำนักงานเทศบาล" },
-    { id: 2, name: "ร้านเย็นตาโฟเจ๊แดง", type: "restaurant", category: "noodle", icon: "🍜", rating: 4.8, lat: 7.9630, lng: 99.9950, address: "ตลาดชะอวด", price: "50-80฿", desc: "เจ้าดังประจำอำเภอ" },
-    { id: 3, name: "Coffee Mountain", type: "restaurant", category: "drink", icon: "☕", rating: 4.5, lat: 7.9610, lng: 99.9920, address: "ริมถนนสายเอเชีย", price: "60-120฿", desc: "กาแฟสดบรรยากาศดี" },
-    { id: 4, name: "โรงแรมบ้านทูนรีสอร์ท", type: "hotel", icon: "🏨", rating: 4.2, lat: 7.9520, lng: 99.9290, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทเงียบสงบ" },
-    { id: 5, name: "ปตท. ชะอวด", type: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, address: "สี่แยกชะอวด", desc: "ปั๊มใหญ่ มี Cafe Amazon" },
-    { id: 6, name: "วัดท่าสะท้อน", type: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, address: "ต.ท่าสะท้อน", desc: "วัดเก่าแก่คู่ชุมชน" },
-    { id: 7, name: "โรงพยาบาลชะอวด", type: "hospital", icon: "🏥", rating: 4.3, lat: 7.9811, lng: 99.9913, address: "ต.ชะอวด", desc: "รพ.ชุมชน 60 เตียง" }
-];
-
-let places = [...MOCK_PLACES];
-
-// ==========================================
-// PDPA LOGIC
-// ==========================================
-function checkPDPAStatus() {
-    const consent = localStorage.getItem('chauatgo_pdpa_consent');
-    if (!consent) {
-        document.getElementById('pdpa-screen').style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Prevent scrolling behind modal
-    } else {
-        document.getElementById('pdpa-screen').style.display = 'none';
-        showPage('page-login');
-    }
-}
-
-function acceptPDPA() {
-    const marketing = document.getElementById('chk-marketing').checked;
-    const thirdParty = document.getElementById('chk-thirdparty').checked;
-    
-    // Save consent status and preferences
-    const consentData = {
-        timestamp: new Date().toISOString(),
-        core: true,
-        marketing: marketing,
-        thirdParty: thirdParty,
-        version: "1.0"
-    };
-    
-    localStorage.setItem('chauatgo_pdpa_consent', JSON.stringify(consentData));
-    
-    document.getElementById('pdpa-screen').style.display = 'none';
-    document.body.style.overflow = 'auto';
-    showPage('page-login');
-    showNotification("✅ บันทึกความยินยอมเรียบร้อยแล้ว");
-}
-
-function showPrivacyPolicy() {
-    alert("เปิดหน้าต่างใหม่เพื่อดูนโยบายความเป็นส่วนตัวฉบับเต็ม\n(Demo: Link to actual PDF/Webpage)");
-}
-
-// ==========================================
-// CORE FUNCTIONS
-// ==========================================
-function loginAs(role) {
-    if (role === 'rider') {
-        // For now, just redirect to main or a simple rider view
-        // As per request, we focus on User side legality first
-        alert("โหมดไรเดอร์อยู่ระหว่างการพัฒนาระบบสัญญาจ้างงานแยกต่างหาก");
-        return; 
-    }
-    showPage('page-main');
-    loadPlaces(); // Load mock or real data
-}
-
-function logout() {
-    // Optional: Clear session but keep PDPA consent usually stays until revoked
-    showPage('page-login');
-}
-
-function showPage(pageId) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById(pageId).classList.add('active');
-    window.scrollTo(0, 0);
-    
-    if(pageId === 'page-main') renderHomeSections();
-    if(pageId === 'page-food') renderList('food-list', 'restaurant');
-    if(pageId === 'page-hotel') renderList('hotel-list', 'hotel');
-    if(pageId === 'page-travel') renderList('travel-list', 'all');
-}
-
-// Helper to calculate distance
-function calcDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-}
-
-function formatDist(km) {
-    return km < 1 ? (km * 1000).toFixed(0) + ' ม.' : km.toFixed(1) + ' กม.';
-}
-
-// Render Lists
-function renderList(containerId, filterType) {
-    const container = document.getElementById(containerId);
-    let filtered = places;
-    
-    if (filterType !== 'all') {
-        filtered = places.filter(p => p.type === filterType);
-    }
-    
-    // Sort by distance
-    filtered.sort((a, b) => {
-        const distA = calcDistance(USER_LOCATION.lat, USER_LOCATION.lng, a.lat, a.lng);
-        const distB = calcDistance(USER_LOCATION.lat, USER_LOCATION.lng, b.lat, b.lng);
-        return distA - distB;
-    });
-
-    if(filtered.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:#888;">ไม่พบข้อมูล</div>';
-        return;
-    }
-
-    container.innerHTML = filtered.map(p => {
-        const dist = calcDistance(USER_LOCATION.lat, USER_LOCATION.lng, p.lat, p.lng);
-        return `
-        <div class="place-card" onclick="openPlaceModal(${p.id})">
-            <div class="place-icon">${p.icon}</div>
-            <div class="place-info">
-                <div class="place-name">${p.name}</div>
-                <div class="place-detail">${p.desc || ''} ${p.price ? '• '+p.price : ''}</div>
-                <div class="place-rating">⭐ ${p.rating}</div>
+    <!-- 2. MAIN APPLICATION CONTAINER -->
+    <div class="app-container">
+        
+        <!-- SCREEN: HOME / DISCOVERY -->
+        <div id="screen-home" class="screen active">
+            <div class="header-gradient">
+                <div class="header-flex">
+                    <div class="logo-area">
+                        <h1>Chauat <span>Go</span></h1>
+                    </div>
+                    <div class="location-tag">
+                        📍 อ.ชะอวด จ.นครศรีธรรมราช
+                    </div>
+                </div>
+                <div class="search-container">
+                    <span style="color:#AAA; font-size:18px;">🔍</span>
+                    <input type="text" class="search-input" placeholder="ค้นหาสถานที่, ร้านอาหาร, หรือบริการ..." onkeyup="handleSearch(this.value)">
+                </div>
             </div>
-            <div class="place-distance">${formatDist(dist)}</div>
-        </div>`;
-    }).join('');
-}
 
-function renderHomeSections() {
-    // Hotels
-    const hotels = places.filter(p=>p.type==='hotel').slice(0,3);
-    document.getElementById('recommended-places').innerHTML = hotels.map(h => createCardHTML(h)).join('');
-    
-    // Restaurants
-    const rests = places.filter(p=>p.type==='restaurant').slice(0,5);
-    document.getElementById('nearby-shops').innerHTML = rests.map(r => createCardHTML(r)).join('');
-}
+            <!-- Categories -->
+            <div class="category-scroll">
+                <div class="cat-item active" onclick="filterCategory('all', this)">
+                    <div class="cat-icon-wrapper">✨</div>
+                    <span class="cat-label">ทั้งหมด</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('food', this)">
+                    <div class="cat-icon-wrapper">🍽️</div>
+                    <span class="cat-label">อาหาร</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('gov', this)">
+                    <div class="cat-icon-wrapper">🏛️</div>
+                    <span class="cat-label">ราชการ</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('hotel', this)">
+                    <div class="cat-icon-wrapper">🏨</div>
+                    <span class="cat-label">ที่พัก</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('shop', this)">
+                    <div class="cat-icon-wrapper">🛒</div>
+                    <span class="cat-label">ร้านสะดวกซื้อ</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('gas', this)">
+                    <div class="cat-icon-wrapper">⛽</div>
+                    <span class="cat-label">ปั๊มน้ำมัน</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('tourist', this)">
+                    <div class="cat-icon-wrapper">🌴</div>
+                    <span class="cat-label">ท่องเที่ยว</span>
+                </div>
+                <div class="cat-item" onclick="filterCategory('temple', this)">
+                    <div class="cat-icon-wrapper">🛕</div>
+                    <span class="cat-label">วัด</span>
+                </div>
+            </div>
 
-function createCardHTML(p) {
-    const dist = calcDistance(USER_LOCATION.lat, USER_LOCATION.lng, p.lat, p.lng);
-    return `
-    <div class="place-card" onclick="openPlaceModal(${p.id})">
-        <div class="place-icon">${p.icon}</div>
-        <div class="place-info">
-            <div class="place-name">${p.name}</div>
-            <div class="place-detail">${p.desc}</div>
-            <div class="place-rating">⭐ ${p.rating}</div>
+            <!-- List Content -->
+            <div id="content-list" class="place-list">
+                <!-- Items will be injected by JS -->
+            </div>
+
+            <!-- Footer Legal Info -->
+            <div class="footer-legal">
+                © 2024 Chauat Go Platform.<br>
+                ผู้ให้บริการแพลตฟอร์มดิจิทัลกลาง (Digital Intermediary)<br>
+                เลขทะเบียนพาณิชย์อิเล็กทรอนิกส์: [อยู่ระหว่างดำเนินการ]<br>
+                <a href="#">ข้อกำหนดการใช้บริการ</a> | <a href="#">นโยบายคืนเงิน</a>
+            </div>
         </div>
-        <div class="place-distance">${formatDist(dist)}</div>
-    </div>`;
-}
 
-// Search Functionality
-function handleMainSearch(query) {
-    const resultsDiv = document.getElementById('search-results');
-    if(query.length < 2) {
-        resultsDiv.style.display = 'none';
-        return;
-    }
-    const lowerQuery = query.toLowerCase();
-    const matches = places.filter(p => p.name.toLowerCase().includes(lowerQuery) || (p.desc && p.desc.toLowerCase().includes(lowerQuery)));
-    
-    if(matches.length > 0) {
-        resultsDiv.innerHTML = matches.slice(0,5).map(createCardHTML).join('');
-        resultsDiv.style.display = 'block';
-        resultsDiv.style.position = 'absolute';
-        resultsDiv.style.top = '120px'; // Adjust based on header height
-        resultsDiv.style.left = '0';
-        resultsDiv.style.right = '0';
-        resultsDiv.style.background = 'white';
-        resultsDiv.style.zIndex = '100';
-        resultsDiv.style.padding = '10px';
-        resultsDiv.style.boxShadow = '0 5px 10px rgba(0,0,0,0.1)';
-    } else {
-        resultsDiv.innerHTML = '<div style="padding:15px; text-align:center; color:#888;">ไม่พบผลลัพธ์</div>';
-        resultsDiv.style.display = 'block';
-    }
-}
-
-// Hide search results when clicking outside
-document.addEventListener('click', function(e) {
-    const searchBar = document.querySelector('.search-bar');
-    const results = document.getElementById('search-results');
-    if(searchBar && results && !searchBar.contains(e.target) && !results.contains(e.target)) {
-        results.style.display = 'none';
-    }
-});
-
-// ==========================================
-// PLACE MODAL WITH LEGAL DISCLAIMERS
-// ==========================================
-function openPlaceModal(id) {
-    const place = places.find(p => p.id === id);
-    if(!place) return;
-    
-    const dist = calcDistance(USER_LOCATION.lat, USER_LOCATION.lng, place.lat, place.lng);
-    
-    let actionButtons = '';
-    
-    if(place.type === 'restaurant') {
-        actionButtons += `<button class="btn-primary btn-pink" onclick="simulateOrderFlow('${place.name}', ${dist})">🛵 สั่งผ่านไรเดอร์</button>`;
-        actionButtons += `<button class="btn-primary btn-blue" onclick="viewOnMap(${place.lat}, ${place.lng}, '${place.name}')">🗺️ ดูเส้นทางไปร้าน</button>`;
-    } else if (place.type === 'hotel') {
-        actionButtons += `<button class="btn-primary btn-green" onclick="alert('ติดต่อจองห้องพักโดยตรงกับทางโรงแรม (ฟีเจอร์ Booking อยู่ระหว่างพัฒนา)')">📞 ติดต่อจองห้อง</button>`;
-    } else {
-        actionButtons += `<button class="btn-primary btn-green" onclick="viewOnMap(${place.lat}, ${place.lng}, '${place.name}')">🗺️ นำทางไปยังที่นี่</button>`;
-    }
-
-    // Legal Disclaimers Block
-    const legalBlock = `
-        <div class="legal-disclaimer">
-            <strong>หมายเหตุ:</strong> Chauat Go เป็นเพียงสื่อกลางในการค้นหาข้อมูลเท่านั้น ราคาและบริการขึ้นอยู่กับผู้ประกอบการแต่ละราย โปรดยืนยันรายละเอียดกับร้านค้าก่อนชำระเงิน
+        <!-- SCREEN: MAP VIEW -->
+        <div id="screen-map" class="screen inactive-right">
+            <div id="map-container"></div>
+            <div class="map-controls">
+                <button class="map-btn" onclick="locateUser()" title="หาตำแหน่งฉัน">🎯</button>
+                <button class="map-btn" onclick="toggleLayers()" title="เปลี่ยนชั้นแผนที่">🗺️</button>
+            </div>
+            <div class="back-to-home-fab" onclick="switchScreen('home')">
+                ← กลับหน้าหลัก
+            </div>
+            <!-- Map Overlay Info Card -->
+            <div id="map-info-card" class="bottom-sheet" style="position:absolute; bottom:0; left:0; right:0; max-height: 40%; transform: translateY(100%); transition: transform 0.3s; z-index: 600;">
+                <div class="sheet-handle"></div>
+                <div id="map-info-content">
+                    <!-- Dynamic Content -->
+                </div>
+            </div>
         </div>
-        <div class="refund-policy">
-            <strong>นโยบายการยกเลิก:</strong> สามารถยกเลิกคำสั่งซื้อได้ฟรีภายใน 2 นาทีหลังยืนยัน หากเกินกำหนดอาจมีค่าธรรมเนียมตามที่ระบุในเงื่อนไข
+
+        <!-- SCREEN: RIDER MODE (Placeholder for future dev) -->
+        <div id="screen-rider" class="screen inactive-right">
+            <div class="header-gradient" style="background: linear-gradient(135deg, #FF6B35, #E55A2B);">
+                <div class="header-flex">
+                    <div class="logo-area">
+                        <h1>Rider Mode</h1>
+                    </div>
+                    <button class="btn-outline" style="padding: 5px 10px; font-size:12px;" onclick="switchScreen('home')">ออกจากระบบ</button>
+                </div>
+            </div>
+            <div class="rider-dashboard">
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">฿450</div>
+                        <div class="stat-label">รายได้วันนี้</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">3</div>
+                        <div class="stat-label">งานเสร็จ</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">4.9</div>
+                        <div class="stat-label">คะแนน</div>
+                    </div>
+                </div>
+                
+                <div class="disclaimer-box">
+                    <strong>หมายเหตุทางกฎหมาย:</strong> สถานะการทำงานนี้เป็นโหมดสาธิต ในเวอร์ชันใช้งานจริง สัญญาจ้างงานจะแยกต่างหากตาม พ.ร.บ.คุ้มครองแรงงาน และประกันอุบัติเหตุภาคบังคับ
+                </div>
+
+                <h3 style="margin: 20px 0 10px; font-size:16px;">ออเดอร์รอรับ</h3>
+                <div class="order-card-rider">
+                    <div class="order-status">NEW ORDER</div>
+                    <h4 style="margin: 5px 0;">🍽️ สั่งอาหาร - เย็นตาโฟเจ๊แดง</h4>
+                    <p style="font-size:12px; color:#666;">📍 รับ: ตลาดชะอวด → ส่ง: ต.ชะอวด</p>
+                    <p style="font-size:12px; color:#666;">💰 ค่าส่ง: ฿45 | ระยะทาง: 1.2 กม.</p>
+                    <button class="accept-btn" onclick="alert('Demo: ระบบกำลังจับคู่ไรเดอร์...')">✅ รับงาน</button>
+                </div>
+            </div>
         </div>
-    `;
 
-    document.getElementById('modal-body').innerHTML = `
-        <div style="text-align:center; font-size:64px; margin-bottom:10px;">${place.icon}</div>
-        <h2 style="text-align:center; margin-bottom:5px;">${place.name}</h2>
-        <div style="text-align:center; color:#888; font-size:14px; margin-bottom:15px;">
-            ${place.address} • ⭐ ${place.rating} • 📏 ${formatDist(dist)}
+    </div>
+
+    <!-- DETAIL MODAL (Bottom Sheet) -->
+    <div id="detail-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="bottom-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-handle"></div>
+            <div id="modal-content-inner">
+                <!-- Injected by JS -->
+            </div>
         </div>
-        <p style="color:#666; font-size:14px; margin-bottom:20px; text-align:center;">${place.desc}</p>
-        
-        ${actionButtons}
-        ${legalBlock}
-        
-        <button class="btn-primary btn-secondary" onclick="closeModal()">ปิดหน้าต่าง</button>
-    `;
-    
-    document.getElementById('place-modal').classList.add('active');
-}
+    </div>
 
-function closeModal() {
-    document.getElementById('place-modal').classList.remove('active');
-}
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast">ข้อความแจ้งเตือน</div>
 
-// Simulate Order Flow with Legal Check
-function simulateOrderFlow(shopName, dist) {
-    closeModal();
-    setTimeout(() => {
-        const costBase = 30;
-        const costExtra = Math.ceil((dist - 1) * 15);
-        const totalDelivery = costBase + costExtra;
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // =========================================
+        // CONFIGURATION & DATA
+        // =========================================
         
-        const confirmMsg = `ยืนยันการสั่งจาก: ${shopName}\nค่าส่งโดยประมาณ: ฿${totalDelivery}\n\nโปรดตรวจสอบรายการอาหารและที่อยู่จัดส่งให้ถูกต้องก่อนกดยืนยัน`;
+        // ⚠️ SECURITY WARNING FOR DEVELOPERS:
+        // In production, NEVER expose API keys or complex business logic here.
+        // Use a Backend Proxy (Node.js/Python) to fetch data from Apify/Google Maps.
+        // This code uses static mock data for demonstration of Legal/UI flow.
         
-        if(confirm(confirmMsg)) {
-            showRiderSimulation(shopName);
+        const USER_LOC = { lat: 7.9620, lng: 99.9940 }; // Center of Chahut
+        
+        // Comprehensive Database of Places in Amphoe Chahut
+        const PLACES_DB = [
+            // GOVERNMENT & HOSPITAL
+            { id: 101, name: "ที่ว่าการอำเภอชะอวด", cat: "gov", icon: "🏛️", rating: 4.5, lat: 7.9646, lng: 99.9951, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "ศูนย์ราชการอำเภอชะอวด ให้บริการด้านทะเบียนราษฎร ทะเบียนบัตรประชาชน และงานปกครองท้องที่" },
+            { id: 102, name: "สถานีตำรวจภูธรชะอวด", cat: "gov", icon: "🚔", rating: 4.3, lat: 7.9652, lng: 99.9958, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "สภ.ชะอวด ดูแลความปลอดภัยในชีวิตและทรัพย์สินของประชาชนในพื้นที่" },
+            { id: 103, name: "เทศบาลตำบลชะอวด", cat: "gov", icon: "🏢", rating: 4.2, lat: 7.9620, lng: 99.9935, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "สำนักงานเทศบาล ดูแลสาธารณูปโภค การจัดเก็บภาษีที่ดินและสิ่งปลูกสร้าง" },
+            { id: 104, name: "โรงพยาบาลชะอวด", cat: "gov", icon: "🏥", rating: 4.4, lat: 7.9811, lng: 99.9913, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง บริการรักษาโรคทั่วไป ฉุกเฉิน และทันตกรรม" },
+            { id: 105, name: "โรงเรียนชะอวดวิทยาคาร", cat: "gov", icon: "🏫", rating: 4.6, lat: 7.9680, lng: 99.9990, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "สถานศึกษาสังกัด สพฐ. ระดับมัธยมศึกษาตอนต้น-ปลาย" },
+
+            // HOTELS & ACCOMMODATION
+            { id: 201, name: "บ้านตูนรีสอร์ท", cat: "hotel", icon: "🏨", rating: 4.2, lat: 7.9520, lng: 99.9290, addr: "ต.ชะอวด", price: "฿500-900", phone: "081-xxx-xxxx", desc: "รีสอร์ทบรรยากาศร่มรื่น เหมาะแก่การพักผ่อน มีสระว่ายน้ำและร้านอาหาร" },
+            { id: 202, name: "เรือนกลางลาด", cat: "hotel", icon: "🏠", rating: 4.5, lat: 7.9530, lng: 99.9270, addr: "ต.ชะอวด", price: "฿600-1200", phone: "089-xxx-xxxx", desc: "ที่พักสไตล์ท้องถิ่นร่วมสมัย สะอาด ปลอดภัย ใกล้ตลาดนัด" },
+            { id: 203, name: "นานารีสอร์ท", cat: "hotel", icon: "🏨", rating: 4.1, lat: 8.0124, lng: 99.9015, addr: "ต.ชะอวด", price: "฿400-800", phone: "086-xxx-xxxx", desc: "ที่พักประหยัด เหมาะสำหรับนักเดินทางผ่านเส้นทางสายเอเชีย" },
+
+            // RESTAURANTS & FOOD
+            { id: 301, name: "เย็นตาโฟเจ๊แดง", cat: "food", icon: "🍜", rating: 4.8, lat: 7.9630, lng: 99.9950, addr: "ตลาดชะอวด", price: "฿50-80", phone: "081-xxx-xxxx", desc: "เจ้าดังประจำอำเภอ น้ำซุปเข้มข้น ลูกชิ้นเด้งกรอบ เปิดตั้งแต่เช้าถึงบ่าย" },
+            { id: 302, name: "Coffee Mountain", cat: "food", icon: "☕", rating: 4.5, lat: 7.9610, lng: 99.9920, addr: "ริมถนนสายเอเชีย", price: "฿60-120", phone: "092-xxx-xxxx", desc: "คาเฟ่บรรยากาศดี กาแฟคั่วสดใหม่ มีเบเกอรี่โฮมเมด รองรับลูกค้าทั้ง walk-in และ delivery" },
+            { id: 303, name: "ครัวป้าเล็ก", cat: "food", icon: "🍛", rating: 4.7, lat: 7.9600, lng: 99.9900, addr: "หลังสถานีรถไฟ", price: "฿60-150", phone: "085-xxx-xxxx", desc: "อาหารใต้รสจัดจ้าน เมนูแนะนำ: ผัดเผ็ดหมูป่า, แกงส้มไข่ปลาเรียวเซียว" },
+            { id: 304, name: "ชาบูชิ ชะอวด", cat: "food", icon: "🍲", rating: 4.3, lat: 7.9650, lng: 99.9960, addr: "ติดโลตัส", price: "฿299++", phone: "-", desc: "บุฟเฟ่ต์ชาบูและซูชิสายพาน ยอดนิยมสำหรับกลุ่มเพื่อนและครอบครัว" },
+            { id: 305, name: "ก๋วยเตี๋ยวเรืออยุธยา", cat: "food", icon: "🛶", rating: 4.4, lat: 7.9615, lng: 99.9945, addr: "ข้างธนาคารกรุงไทย", price: "฿30-50", phone: "-", desc: "ก๋วยเตี๋ยวน้ำตกสูตรโบราณ เนื้อนุ่ม ชิ้นใหญ่ เครื่องในสะอาด" },
+
+            // SHOPS & GAS STATIONS
+            { id: 401, name: "เซเว่นอีเลฟเว่น สาขาตลาด", cat: "shop", icon: "🏪", rating: 4.3, lat: 7.9631, lng: 99.9945, addr: "กลางตลาด", phone: "-", desc: "เปิด 24 ชั่วโมง สินค้าอุปโภคบริโภคครบครัน จุดรับ-ส่งพัสดุ" },
+            { id: 402, name: "โลตัส โก เฟรช", cat: "shop", icon: "🛒", rating: 4.4, lat: 7.9620, lng: 99.9940, addr: "สี่แยกไฟแดง", phone: "-", desc: "มินิซูเปอร์มาร์เก็ต สินค้าสดใหม่ ราคาประหยัด โปรโมชั่นทุกวันศุกร์-อาทิตย์" },
+            { id: 403, name: "ปตท. ชะอวด", cat: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, addr: "ขาเข้าเมือง", phone: "-", desc: "ปั๊มน้ำมันขนาดใหญ่ มี Café Amazon, 7-Eleven, ศูนย์บริการรถยนต์ FIT Auto" },
+            { id: 404, name: "พีที (PT) ชะอวด", cat: "gas", icon: "⛽", rating: 4.1, lat: 7.9550, lng: 99.9850, addr: "ก่อนถึงตัวอำเภอ", phone: "-", desc: "น้ำมันคุณภาพสูง มีร้านกาแฟพันธุ์ไทย และห้องน้ำสะอาด" },
+
+            // TOURIST ATTRACTIONS
+            { id: 501, name: "วัดเขาพระทอง", cat: "tourist", icon: "⛰️", rating: 4.7, lat: 8.0250, lng: 100.0400, addr: "ต.เขาพระทอง", phone: "-", desc: "แหล่งท่องเที่ยวเชิงศาสนาและธรรมชาติ ชมพระพุทธรูปทองคำองค์ใหญ่ และวิวมุมสูงของอำเภอ" },
+            { id: 502, name: "ล่องแพบ้านวังอ่าง", cat: "tourist", icon: "🛶", rating: 4.5, lat: 7.9025, lng: 99.9225, addr: "ต.วังอ่าง", phone: "087-xxx-xxxx", desc: "กิจกรรมผจญภัย ล่องแพไม้ไผ่ชมธรรมชาติ ลำธารใส ปลาเยอะ เหมาะสำหรับครอบครัว" },
+            { id: 503, name: "ป่าพรุควนเคร็ง", cat: "tourist", icon: "🌿", rating: 4.6, lat: 7.8850, lng: 100.1150, addr: "ต.เคร็ง", phone: "-", desc: "พื้นที่ชุ่มน้ำนานาชาติ ศึกษาวิถีชีวิตคนเลี้ยงผึ้งโพรงและหาของป่า" },
+
+            // TEMPLES
+            { id: 601, name: "วัดท่าสะท้อน", cat: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, addr: "ต.ท่าสะท้อน", phone: "-", desc: "วัดเก่าแก่คู่ชุมชน มีโบสถ์ไม้แกะสลักสวยงาม และตลาดน้ำยามเย็น" },
+            { id: 602, name: "วัดควนเงิน", cat: "temple", icon: "🛕", rating: 4.4, lat: 8.0342, lng: 99.9591, addr: "ต.ชะอวด", phone: "-", desc: "ศูนย์กลางจิตใจของคนในตำบล บรรยากาศเงียบสงบ ร่มรื่นด้วยต้นไม้ใหญ่" }
+        ];
+
+        let currentMap = null;
+        let mapMarkers = [];
+        let filteredPlaces = [...PLACES_DB];
+
+        // =========================================
+        // INITIALIZATION & PDPA LOGIC
+        // =========================================
+
+        window.onload = function() {
+            checkPDPAStatus();
+            renderList(filteredPlaces);
+            initMapIfNeeded(); // Pre-load map resources if possible, but wait for screen switch
+        };
+
+        function checkPDPAStatus() {
+            const consent = localStorage.getItem('chauatgo_pdpa_v1');
+            if (!consent) {
+                document.getElementById('pdpa-modal').style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.getElementById('pdpa-modal').style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
         }
-    }, 300);
-}
 
-function showRiderSimulation(shopName) {
-    const overlay = document.getElementById('rider-status-overlay');
-    const modal = document.getElementById('rider-status-modal');
-    
-    modal.innerHTML = `
-        <div style="font-size:50px; margin-bottom:15px;">🛵</div>
-        <h3>กำลังจับคู่ไรเดอร์...</h3>
-        <p style="color:#888; font-size:13px; margin:10px 0;">เป้าหมาย: ${shopName}</p>
-        <div class="progress-bar" style="height:6px; background:#eee; border-radius:3px; margin:20px 0; overflow:hidden;">
-            <div style="width:50%; height:100%; background:#00A651; animation: progressAnim 2s infinite;"></div>
-        </div>
-        <button class="btn-primary btn-secondary" onclick="cancelRideSim()">ยกเลิกการค้นหา</button>
-    `;
-    
-    overlay.classList.add('active');
-    
-    // Auto success after 3 seconds for demo
-    setTimeout(() => {
-        if(document.getElementById('rider-status-overlay').classList.contains('active')) {
-             modal.innerHTML = `
-                <div style="font-size:50px; color:#00A651; margin-bottom:15px;">✅</div>
-                <h3>พบไรเดอร์แล้ว!</h3>
-                <p style="margin:10px 0;">ชื่อ: สมชาย ใจดี<br>รถ: Honda PCX</p>
-                <div class="legal-disclaimer" style="text-align:left; font-size:10px;">
-                    * จำลองสถานการณ์จริง ระบบจะทำการหักเงินจาก Wallet หรือแจ้งชำระปลายทาง
+        function handlePDPAConsent() {
+            const marketingChecked = document.getElementById('chk-marketing').checked;
+            const consentData = {
+                timestamp: new Date().toISOString(),
+                version: '1.0',
+                coreServices: true, // Always true
+                marketing: marketingChecked,
+                thirdPartySharing: true // Necessary for operation
+            };
+            
+            localStorage.setItem('chauatgo_pdpa_v1', JSON.stringify(consentData));
+            
+            document.getElementById('pdpa-modal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            showToast("✅ ยินยอมรับเงื่อนไขเรียบร้อย");
+        }
+
+        function showPrivacyPolicyDetail(e) {
+            e.preventDefault();
+            alert("หน้านี้จะลิงก์ไปเอกสาร PDF ฉบับเต็ม:\n\n1. ประเภทข้อมูลที่เก็บรวบรวม\n2. วัตถุประสงค์การใช้ข้อมูล\n3. ระยะเวลาการจัดเก็บ\n4. สิทธิของเจ้าของข้อมูล\n5. ช่องทางการติดต่อ DPO");
+        }
+
+        // =========================================
+        // NAVIGATION & RENDERING
+        // =========================================
+
+        function switchScreen(screenId) {
+            const screens = ['home', 'map', 'rider'];
+            screens.forEach(s => {
+                const el = document.getElementById(`screen-${s}`);
+                if (el) {
+                    if (s === screenId) {
+                        el.className = 'screen active';
+                    } else {
+                        // Determine direction for animation simplicity
+                        el.className = 'screen inactive-right'; 
+                    }
+                }
+            });
+
+            if (screenId === 'map') {
+                setTimeout(() => {
+                    if (!currentMap) initMap();
+                    else currentMap.invalidateSize();
+                }, 100);
+            }
+        }
+
+        function renderList(data) {
+            const container = document.getElementById('content-list');
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = `<div class="text-center p-1" style="color:#999;">ไม่พบผลลัพธ์</div>`;
+                return;
+            }
+
+            data.forEach(place => {
+                const dist = calcDistance(USER_LOC.lat, USER_LOC.lng, place.lat, place.lng);
+                const distStr = dist < 1 ? `${Math.round(dist * 1000)} ม.` : `${dist.toFixed(1)} กม.`;
+                
+                const card = document.createElement('div');
+                card.className = 'place-card';
+                card.onclick = () => openPlaceDetail(place.id);
+                
+                card.innerHTML = `
+                    <div class="place-img-placeholder">${place.icon}</div>
+                    <div class="place-info">
+                        <div class="place-name">${place.name}</div>
+                        <div class="place-meta">
+                            <span class="rating-badge">⭐ ${place.rating}</span>
+                            <span>|</span>
+                            <span class="distance-badge">📍 ${distStr}</span>
+                        </div>
+                        <div style="font-size:11px; color:#888; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${place.addr}</div>
+                        <div class="place-tags">
+                            <span class="tag">${getCatLabel(place.cat)}</span>
+                            ${place.price ? `<span class="tag open">${place.price}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function getCatLabel(cat) {
+            const labels = { gov: 'ราชการ', hotel: 'ที่พัก', food: 'อาหาร', shop: 'ร้านค้า', gas: 'พลังงาน', tourist: 'ท่องเที่ยว', temple: 'ศาสนา' };
+            return labels[cat] || 'อื่นๆ';
+        }
+
+        function filterCategory(cat, element) {
+            // Update Active State
+            document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('active'));
+            if(element) element.classList.add('active');
+
+            // Filter Data
+            if (cat === 'all') {
+                filteredPlaces = [...PLACES_DB];
+            } else {
+                filteredPlaces = PLACES_DB.filter(p => p.cat === cat);
+            }
+            renderList(filteredPlaces);
+        }
+
+        function handleSearch(query) {
+            const q = query.toLowerCase();
+            if (q.length < 2) {
+                filteredPlaces = [...PLACES_DB];
+            } else {
+                filteredPlaces = PLACES_DB.filter(p => 
+                    p.name.toLowerCase().includes(q) || 
+                    p.desc.toLowerCase().includes(q) ||
+                    p.addr.toLowerCase().includes(q)
+                );
+            }
+            renderList(filteredPlaces);
+        }
+
+        // =========================================
+        // PLACE DETAILS MODAL (Legal Compliant)
+        // =========================================
+
+        function openPlaceDetail(id) {
+            const place = PLACES_DB.find(p => p.id === id);
+            if (!place) return;
+
+            const dist = calcDistance(USER_LOC.lat, USER_LOC.lng, place.lat, place.lng);
+            const distStr = dist < 1 ? `${Math.round(dist * 1000)} ม.` : `${dist.toFixed(1)} กม.`;
+            
+            // Generate Action Buttons based on Category
+            let actionsHtml = '';
+            if (place.cat === 'food') {
+                actionsHtml = `
+                    <button class="btn-action btn-order" onclick="simulateOrder('${place.name}')">🛵 สั่งเดลิเวอรี่</button>
+                    <button class="btn-action btn-map" onclick="viewOnMap(${place.lat}, ${place.lng}, '${place.name}')">🗺️ ดูเส้นทาง</button>
+                `;
+            } else if (place.cat === 'hotel') {
+                actionsHtml = `
+                    <button class="btn-action btn-call" onclick="tel:${place.phone}">📞 โทรจองห้อง</button>
+                    <button class="btn-action btn-map" onclick="viewOnMap(${place.lat}, ${place.lng}, '${place.name}')">🗺️ ตั้งนำทาง</button>
+                `;
+            } else {
+                actionsHtml = `
+                    <button class="btn-action btn-map" onclick="viewOnMap(${place.lat}, ${place.lng}, '${place.name}')">🗺️ นำทางไปที่นั่น</button>
+                    ${place.phone !== '-' ? `<button class="btn-action btn-call" onclick="tel:${place.phone}">📞 ติดต่อ</button>` : ''}
+                `;
+            }
+
+            const content = `
+                <div class="detail-header">
+                    <div class="detail-icon-large">${place.icon}</div>
+                    <div class="detail-title">
+                        <h2>${place.name}</h2>
+                        <div class="place-meta">
+                            <span class="rating-badge">⭐ ${place.rating}</span>
+                            <span>|</span>
+                            <span>${getCatLabel(place.cat)}</span>
+                            <span>|</span>
+                            <span class="distance-badge">${distStr}</span>
+                        </div>
+                        <p style="font-size:12px; color:#666; margin-top:5px;">📍 ${place.addr}</p>
+                    </div>
                 </div>
-                <button class="btn-primary btn-green" onclick="cancelRideSim()">เสร็จสิ้น (Demo)</button>
+                
+                <p style="font-size:14px; line-height:1.6; color:#444; margin-bottom:15px;">
+                    ${place.desc}
+                </p>
+
+                ${place.price ? `<div style="background:#F9FAFB; padding:10px; border-radius:8px; font-size:13px; margin-bottom:15px;"><strong>ช่วงราคา:</strong> ${place.price}</div>` : ''}
+
+                <div class="disclaimer-box">
+                    <strong>ข้อควรระวังทางกฎหมาย (Legal Disclaimer):</strong><br>
+                    Chauat Go เป็นเพียงสื่อกลางในการเชื่อมต่อผู้ใช้กับผู้ประกอบการ ข้อมูลราคาและคุณภาพสินค้าขึ้นอยู่กับผู้ขายโดยตรง โปรดตรวจสอบรายละเอียดกับผู้ขายก่อนชำระเงิน หากเกิดข้อพิพาท กรุณาติดต่อฝ่ายสนับสนุนภายใน 24 ชั่วโมง
+                </div>
+
+                <div class="detail-actions">
+                    ${actionsHtml}
+                </div>
+                
+                <button class="btn-full btn-outline mt-1" onclick="closeModalDirect()">ปิดหน้าต่าง</button>
             `;
+
+            document.getElementById('modal-content-inner').innerHTML = content;
+            document.getElementById('detail-modal').classList.add('active');
         }
-    }, 3000);
-}
 
-function cancelRideSim() {
-    document.getElementById('rider-status-overlay').classList.remove('active');
-}
-
-// Add CSS animation keyframe dynamically
-const styleSheet = document.createElement("style");
-styleSheet.innerText = "@keyframes progressAnim { 0% { width: 0%; } 100% { width: 100%; } }";
-document.head.appendChild(styleSheet);
-
-
-// ==========================================
-// MAP FUNCTIONALITY
-// ==========================================
-let mapInstance = null;
-
-function viewOnMap(lat, lng, title) {
-    closeModal();
-    const mapModal = document.getElementById('map-modal');
-    mapModal.classList.add('active');
-    document.getElementById('map-title').textContent = title;
-    
-    setTimeout(() => {
-        if(mapInstance) mapInstance.remove();
+        function closeModal(e) {
+            if (e.target === document.getElementById('detail-modal')) {
+                document.getElementById('detail-modal').classList.remove('active');
+            }
+        }
         
-        mapInstance = L.map('map-container').setView([USER_LOCATION.lat, USER_LOCATION.lng], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(mapInstance);
-        
-        // User Marker
-        L.circleMarker([USER_LOCATION.lat, USER_LOCATION.lng], {radius: 8, fillColor: "#4A90D9", color: "#fff", weight: 2, fillOpacity: 1}).addTo(mapInstance).bindPopup("ตำแหน่งของคุณ");
-        
-        // Destination Marker
-        L.marker([lat, lng]).addTo(mapInstance).bindPopup(`<b>${title}</b>`);
-        
-        // Line
-        L.polyline([[USER_LOCATION.lat, USER_LOCATION.lng], [lat, lng]], {color: '#00A651', dashArray: '5, 5'}).addTo(mapInstance);
-        
-        mapInstance.fitBounds([[USER_LOCATION.lat, USER_LOCATION.lng], [lat, lng]]);
-    }, 300);
-}
+        function closeModalDirect() {
+            document.getElementById('detail-modal').classList.remove('active');
+        }
 
-function closeMapModal() {
-    document.getElementById('map-modal').classList.remove('active');
-    if(mapInstance) {
-        mapInstance.remove();
-        mapInstance = null;
-    }
-}
+        function simulateOrder(shopName) {
+            closeModalDirect();
+            showToast(`🛵 กำลังเชื่อมต่อกับไรเดอร์เพื่อสั่งจาก ${shopName}...`);
+            setTimeout(() => {
+                alert("DEMO MODE:\n\n1. สร้าง Transaction ID\n2. แจ้งเตือนร้านค้า\n3. จับคู่ไรเดอร์ใกล้สุด\n\n(ระบบจ่ายเงินจริงยังไม่เปิดใช้งานในเวอร์ชันทดสอบนี้)");
+            }, 1500);
+        }
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
-window.onload = function() {
-    checkPDPAStatus();
-};
+        // =========================================
+        // MAP FUNCTIONS (Leaflet)
+        // =========================================
 
-function showNotification(msg) {
-    const n = document.getElementById('notification');
-    n.textContent = msg;
-    n.classList.add('active');
-    setTimeout(() => n.classList.remove('active'), 3000);
-}
+        function initMap() {
+            if (currentMap) return;
+            
+            currentMap = L.map('map-container').setView([USER_LOC.lat, USER_LOC.lng], 14);
+            
+            // OpenStreetMap Tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(currentMap);
 
-// Placeholder for loading real data later
-function loadPlaces() {
-    if(USE_DEMO_DATA) {
-        console.log("Using Demo Data for Legal Compliance Test");
-        return;
-    }
-    // TODO: Implement secure backend fetch here
-    // fetch('/api/get-places') ...
-}
-</script>
+            // Add All Markers initially? No, better to add specific ones or cluster.
+            // For demo, we'll just show user location and allow searching/placing pins.
+            
+            updateUserMarker();
+        }
+
+        function updateUserMarker() {
+            if (!currentMap) return;
+            
+            // Remove existing user marker if any
+            currentMap.eachLayer(layer => {
+                if (layer instanceof L.CircleMarker && layer.options.pane === 'markerPane' && layer.getRadius() === 8) {
+                     currentMap.removeLayer(layer);
+                }
+            });
+
+            L.circleMarker([USER_LOC.lat, USER_LOC.lng], {
+                radius: 8,
+                fillColor: "#4A90D9",
+                color: "#fff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 1
+            }).addTo(currentMap).bindPopup("<b>คุณอยู่ที่นี่</b>").openPopup();
+        }
+
+        function viewOnMap(lat, lng, name) {
+            switchScreen('map');
+            closeModalDirect();
+            
+            setTimeout(() => {
+                if (!currentMap) initMap();
+                
+                // Clear previous route lines if needed (simple implementation)
+                currentMap.flyTo([lat, lng], 16);
+                
+                // Add Destination Marker
+                const destIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color:#FF6B35; width:30px; height:30px; border-radius:50%; border:3px solid white; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.3);">📍</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                
+                L.marker([lat, lng], {icon: destIcon}).addTo(currentMap).bindPopup(`<b>${name}</b>`).openPopup();
+                
+                // Draw Line
+                L.polyline([[USER_LOC.lat, USER_LOC.lng], [lat, lng]], {color: '#00A651', weight: 4, dashArray: '10, 10'}).addTo(currentMap);
+                
+                // Show Info Panel
+                const panel = document.getElementById('map-info-card');
+                const content = document.getElementById('map-info-content');
+                const dist = calcDistance(USER_LOC.lat, USER_LOC.lng, lat, lng);
+                
+                content.innerHTML = `
+                    <h3 style="margin-bottom:10px;">${name}</h3>
+                    <p style="font-size:13px; color:#666;">ระยะทางโดยประมาณ: <strong>${dist.toFixed(1)} กม.</strong></p>
+                    <p style="font-size:13px; color:#666;">เวลาเดินทาง (มอเตอร์ไซค์): ~${Math.ceil(dist*3)} นาที</p>
+                    <button class="btn-full btn-primary mt-1" onclick="startNavigationSim()">เริ่มนำทาง (จำลอง)</button>
+                `;
+                
+                panel.style.transform = 'translateY(0)';
+            }, 300);
+        }
+
+        function startNavigationSim() {
+            showToast("🚗 เริ่มการนำทาง... (โหมด Demo)");
+            setTimeout(() => {
+                alert("สิ้นสุดการจำลองการเดินทาง\n\nหมายเหตุ: ในเวอร์ชันจริง จะมีการติดตามตำแหน่งแบบ Real-time ผ่าน WebSocket");
+            }, 2000);
+        }
+
+        function locateUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    // Note: In real app, update USER_LOC global variable here
+                    showToast("📍 พบตำแหน่งปัจจุบันแล้ว");
+                    if(currentMap) currentMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
+                }, err => {
+                    showToast("❌ ไม่สามารถเข้าถึงตำแหน่งได้");
+                });
+            } else {
+                showToast("❌ เบราว์เซอร์ไม่รองรับ Geolocation");
+            }
+        }
+
+        function toggleLayers() {
+            showToast("🗺️ สลับมุมมองแผนที่ (Satellite/Terrain) - Coming Soon");
+        }
+
+        // =========================================
+        // UTILITIES
+        // =========================================
+
+        function calcDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radius of the earth in km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            const d = R * c; // Distance in km
+            return d;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI/180);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+    </script>
 </body>
 </html>
