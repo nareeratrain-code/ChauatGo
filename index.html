@@ -137,24 +137,18 @@
         .filter-chip.active { background: #e8f5e9; border-color: #00A651; color: #00A651; font-weight: 600; }
         .user-badge { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 20px; font-size: 12px; color: white; cursor: pointer; }
         
-        /* ===== RIDER STATUS POPUP (ใหม่) ===== */
         .rider-status-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 5000; justify-content: center; align-items: center; padding: 20px; }
         .rider-status-overlay.active { display: flex; }
         .rider-status-modal { background: white; border-radius: 28px; padding: 30px 25px; width: 100%; max-width: 380px; text-align: center; animation: slideUp 0.4s ease; position: relative; overflow: hidden; }
-        
-        /* Step 1: Scanning */
         .scan-animation { position: relative; width: 120px; height: 120px; margin: 0 auto 20px; }
         .scan-circle { position: absolute; top: 50%; left: 50%; width: 100px; height: 100px; transform: translate(-50%, -50%); border: 4px solid #00A651; border-radius: 50%; border-top-color: transparent; animation: spin 1s linear infinite; }
         .scan-circle-2 { position: absolute; top: 50%; left: 50%; width: 80px; height: 80px; transform: translate(-50%, -50%); border: 3px solid #FF6B35; border-radius: 50%; border-bottom-color: transparent; animation: spin 1.5s linear infinite reverse; }
         .scan-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; z-index: 2; }
         @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
-        
         .scanning-text { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; }
         .scanning-sub { font-size: 13px; color: #888; margin-bottom: 20px; }
         .scanning-dots::after { content: ''; animation: dots 1.5s steps(4, end) infinite; }
         @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; } }
-        
-        /* Step 2: Rider Found */
         .rider-found-header { background: linear-gradient(135deg, #00A651, #008C45); color: white; margin: -30px -25px 20px; padding: 25px 25px 20px; border-radius: 28px 28px 0 0; }
         .rider-found-title { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
         .rider-found-sub { font-size: 13px; opacity: 0.9; }
@@ -164,25 +158,50 @@
         .rider-name { font-weight: bold; font-size: 16px; color: #333; }
         .rider-vehicle { font-size: 12px; color: #888; margin-top: 2px; }
         .rider-rating { color: #FFA500; font-size: 13px; margin-top: 3px; }
-        .rider-call-btn { width: 40px; height: 40px; border-radius: 50%; background: #00A651; border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .rider-action-btns { display: flex; gap: 8px; }
+        .rider-btn { width: 40px; height: 40px; border-radius: 50%; border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-call { background: #4A90D9; }
+        .btn-chat { background: #00A651; }
         
         .eta-box { background: linear-gradient(135deg, #4A90D9, #3A7BC8); color: white; border-radius: 16px; padding: 20px; margin-bottom: 15px; }
         .eta-label { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
         .eta-time { font-size: 36px; font-weight: bold; }
         .eta-time span { font-size: 16px; opacity: 0.9; }
         .eta-distance { font-size: 13px; opacity: 0.9; margin-top: 5px; }
-        
         .trip-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .trip-info-item { background: #f8f9fa; padding: 12px; border-radius: 12px; }
         .trip-info-item .lbl { font-size: 11px; color: #888; }
         .trip-info-item .val { font-size: 14px; font-weight: bold; color: #333; margin-top: 3px; }
-        
         .btn-cancel-ride { width: 100%; padding: 14px; background: white; color: #e74c3c; border: 2px solid #e74c3c; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
         .btn-track-ride { width: 100%; padding: 14px; background: #00A651; color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
-        
         .progress-bar { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin: 15px 0; overflow: hidden; }
         .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #00A651, #FF6B35); border-radius: 3px; animation: progress 3s ease-in-out infinite; }
         @keyframes progress { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+
+        /* ===== CHAT MODAL STYLES ===== */
+        .chat-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #f0f2f5; z-index: 6000; flex-direction: column; }
+        .chat-modal.active { display: flex; }
+        .chat-header { background: #00A651; color: white; padding: 15px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .chat-back-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 5px; }
+        .chat-rider-info { flex: 1; }
+        .chat-rider-name { font-weight: bold; font-size: 16px; }
+        .chat-rider-status { font-size: 12px; opacity: 0.9; display: flex; align-items: center; gap: 5px; }
+        .status-dot { width: 8px; height: 8px; background: #4ADE80; border-radius: 50%; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 14px; line-height: 1.4; position: relative; word-wrap: break-word; }
+        .msg.rider { background: white; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .msg.user { background: #00A651; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .msg-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
+        .typing-indicator { font-size: 12px; color: #888; margin-left: 15px; margin-bottom: 10px; display: none; align-items: center; gap: 5px; }
+        .typing-dots span { animation: blink 1.4s infinite both; font-size: 18px; line-height: 10px; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
+        .chat-input-area { padding: 12px; background: white; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
+        .chat-input-area input { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; outline: none; font-size: 14px; transition: border-color 0.3s; }
+        .chat-input-area input:focus { border-color: #00A651; }
+        .chat-send-btn { background: #00A651; color: white; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.3s; }
+        .chat-send-btn:hover { background: #008C45; }
     </style>
 </head>
 <body>
@@ -237,8 +256,8 @@
             <h3>📋 ออเดอร์รอรับ</h3>
             <div class="order-card">
                 <div class="order-id">#ORD-001 • เมื่อ 5 นาทีที่แล้ว</div>
-                <div class="order-title">️ สั่งอาหาร - ร้านเยี่ยมโอชา</div>
-                <div class="order-detail">📍 จาก: ร้านเยี่ยมโอชา →  ต.ชะอวด</div>
+                <div class="order-title">🍽️ สั่งอาหาร - ร้านเยี่ยมโอชา</div>
+                <div class="order-detail">📍 จาก: ร้านเยี่ยมโอชา → 🏠 ต.ชะอวด</div>
                 <div class="order-detail">📏 ระยะทาง: 1.2 กม.</div>
                 <div class="order-price">ค่าส่ง: ฿45</div>
                 <button class="btn-accept" onclick="acceptOrder(this)">✅ รับออเดอร์</button>
@@ -273,7 +292,7 @@
             <h1>Chauat <span>Go</span></h1>
         </div>
         <div class="search-bar">
-            <span style="font-size:20px"></span>
+            <span style="font-size:20px">🔍</span>
             <input type="text" id="main-search" placeholder="ค้นหาสถานที่ ร้านอาหาร โรงแรม..." oninput="handleMainSearch(this.value)">
         </div>
     </div>
@@ -295,7 +314,7 @@
     <div class="section-header"><span class="icon">🏨</span><span>ที่พักแนะนำ</span></div>
     <div class="place-list" id="recommended-places"></div>
 
-    <div class="section-header"><span class="icon"></span><span>ร้านเด็ดใกล้คุณ</span></div>
+    <div class="section-header"><span class="icon">🍜</span><span>ร้านเด็ดใกล้คุณ</span></div>
     <div class="place-list" id="nearby-shops"></div>
 
     <div class="section-header"><span class="icon">🏛️</span><span>สถานที่ราชการ/โรงพยาบาล</span></div>
@@ -389,10 +408,8 @@
     <div class="place-list" id="express-list"></div>
 </div>
 
-<!-- PLACE MODAL -->
+<!-- MODALS -->
 <div class="modal-overlay" id="place-modal"><div class="modal-content" id="modal-body"></div></div>
-
-<!-- MAP MODAL -->
 <div class="map-modal" id="map-modal">
     <div class="map-header">
         <button class="back-btn" onclick="closeMapModal()">← กลับ</button>
@@ -404,10 +421,28 @@
     <div class="map-info-panel" id="map-info-panel"></div>
 </div>
 
-<!-- ===== RIDER STATUS POPUP (ใหม่) ===== -->
+<!-- RIDER STATUS POPUP -->
 <div class="rider-status-overlay" id="rider-status-overlay">
-    <div class="rider-status-modal" id="rider-status-modal">
-        <!-- เนื้อหาจะถูกเปลี่ยนด้วย JavaScript -->
+    <div class="rider-status-modal" id="rider-status-modal"></div>
+</div>
+
+<!-- 🆕 CHAT MODAL -->
+<div class="chat-modal" id="chat-modal">
+    <div class="chat-header">
+        <button class="chat-back-btn" onclick="closeChat()">←</button>
+        <div class="chat-rider-info">
+            <div class="chat-rider-name" id="chat-rider-name">ไรเดอร์</div>
+            <div class="chat-rider-status"><span class="status-dot"></span> กำลังเดินทาง</div>
+        </div>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="typing-indicator" id="typing-indicator">
+        <span>ไรเดอร์กำลังพิมพ์</span>
+        <div class="typing-dots"><span>.</span><span>.</span><span>.</span></div>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="พิมพ์ข้อความถึงไรเดอร์..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button class="chat-send-btn" onclick="sendMessage()">➤</button>
     </div>
 </div>
 
@@ -418,36 +453,29 @@
 <script>
 const USER_LOCATION = { lat: 7.9620, lng: 99.9940 };
 
-// ===== รายชื่อไรเดอร์จำลอง =====
 const RIDERS = [
-    { name: "สมชาย ใจดี", vehicle: "🛵 Honda PCX • ทะเบียน 1กข-1234", rating: 4.9, trips: 1247, avatar: "ส" },
-    { name: "วิชัย เร็วไว", vehicle: " Yamaha NMAX • ทะเบียน 2ขค-5678", rating: 4.8, trips: 892, avatar: "ว" },
-    { name: "ประเสริฐ ซิ่ง", vehicle: " Honda Scoopy • ทะเบียน 3คฆ-9012", rating: 4.7, trips: 654, avatar: "ป" },
-    { name: "มานพ ขยัน", vehicle: " Yamaha Grand Filano • 4งจ-3456", rating: 4.9, trips: 1580, avatar: "ม" },
-    { name: "ธีระ ปลอดภัย", vehicle: " Honda Click • 5จฉ-7890", rating: 4.6, trips: 423, avatar: "ธ" }
+    { name: "สมชาย ใจดี", vehicle: "🛵 Honda PCX • 1กข-1234", rating: 4.9, trips: 1247, avatar: "ส" },
+    { name: "วิชัย เร็วไว", vehicle: "🏍️ Yamaha NMAX • 2ขค-5678", rating: 4.8, trips: 892, avatar: "ว" },
+    { name: "ประเสริฐ ซิ่ง", vehicle: "🛵 Honda Scoopy • 3คฆ-9012", rating: 4.7, trips: 654, avatar: "ป" },
+    { name: "มานพ ขยัน", vehicle: "🏍️ Yamaha Filano • 4งจ-3456", rating: 4.9, trips: 1580, avatar: "ม" },
+    { name: "ธีระ ปลอดภัย", vehicle: "🛵 Honda Click • 5จฉ-7890", rating: 4.6, trips: 423, avatar: "ธ" }
 ];
 
 function loginAs(role) {
-    if (role === 'rider') {
-        showPage('page-rider');
-    } else {
-        showPage('page-main');
-        loadAllApifyData();
-    }
+    if (role === 'rider') showPage('page-rider');
+    else { showPage('page-main'); loadAllApifyData(); }
 }
-function logout() {
-    showPage('page-login');
-}
+function logout() { showPage('page-login'); }
 
 const corePlaces = [
     { id: 1, name: "ที่ว่าการอำเภอชะอวด", type: "government", category: "government", icon: "🏛️", rating: 4.5, lat: 7.9646, lng: 99.9951, address: "ต.ชะอวด", price: "", desc: "ศูนย์ราชการอำเภอชะอวด" },
-    { id: 2, name: "สถานีตำรวจภูธรชะอวด", type: "government", category: "government", icon: "", rating: 4.3, lat: 7.9652, lng: 99.9958, address: "ต.ชะอวด", price: "", desc: "สภ.ชะอวด" },
+    { id: 2, name: "สถานีตำรวจภูธรชะอวด", type: "government", category: "government", icon: "🚔", rating: 4.3, lat: 7.9652, lng: 99.9958, address: "ต.ชะอวด", price: "", desc: "สภ.ชะอวด" },
     { id: 3, name: "เทศบาลตำบลชะอวด", type: "government", category: "government", icon: "🏢", rating: 4.2, lat: 7.9620, lng: 99.9935, address: "ต.ชะอวด", price: "", desc: "สำนักงานเทศบาล" },
     { id: 10, name: "โรงพยาบาลชะอวด", type: "hospital", category: "government", icon: "🏥", rating: 4.3, lat: 7.9811, lng: 99.9913, address: "ต.ชะอวด", price: "", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง" },
     { id: 20, name: "โรงเรียนชะอวดวิทยาคาร", type: "school", category: "school", icon: "🏫", rating: 4.5, lat: 7.9680, lng: 99.9990, address: "ต.ชะอวด", price: "", desc: "โรงเรียนมัธยมศึกษาประจำอำเภอ" },
     { id: 21, name: "โรงเรียนชะอวด", type: "school", category: "school", icon: "🏫", rating: 4.4, lat: 7.9600, lng: 99.9910, address: "ต.ชะอวด", price: "", desc: "โรงเรียนระดับประถมศึกษา-มัธยมศึกษา" },
     { id: 22, name: "วิทยาลัยการอาชีพชะอวด", type: "school", category: "school", icon: "🎓", rating: 4.4, lat: 7.9800, lng: 100.0100, address: "ต.ชะอวด", price: "", desc: "สถานศึกษาอาชีวศึกษา" },
-    { id: 30, name: "โรงแรมบ้านตูนรีสอร์ท", type: "hotel", category: "hotel", icon: "", rating: 4.2, lat: 7.9520, lng: 99.9290, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทบรรยากาศดี" },
+    { id: 30, name: "โรงแรมบ้านตูนรีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.2, lat: 7.9520, lng: 99.9290, address: "ต.ชะอวด", price: "500-900฿", desc: "รีสอร์ทบรรยากาศดี" },
     { id: 31, name: "เรือนกลางหลาด", type: "hotel", category: "hotel", icon: "🏠", rating: 4.5, lat: 7.9530, lng: 99.9270, address: "ต.ชะอวด", price: "600-1200฿", desc: "ที่พักสไตล์ท้องถิ่นร่วมสมัย" },
     { id: 32, name: "นานา รีสอร์ท", type: "hotel", category: "hotel", icon: "🏨", rating: 4.1, lat: 8.0124, lng: 99.9015, address: "ต.ชะอวด", price: "400-800฿", desc: "ที่พักสะดวกสบาย" },
     { id: 40, name: "ปตท. ชะอวด", type: "gas", category: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, address: "ต.ชะอวด", price: "", desc: "ปั๊มน้ำมันพร้อม Café Amazon" },
@@ -457,14 +485,13 @@ const corePlaces = [
     { id: 51, name: "โลตัส โก เฟรช สาขาชะอวด", type: "shop", category: "shop", icon: "🛒", rating: 4.4, lat: 7.9620, lng: 99.9940, address: "ต.ชะอวด", price: "", desc: "ซูเปอร์มาร์เก็ตสินค้าสดใหม่" },
     { id: 70, name: "วัดเขาพระทอง", type: "tourist", category: "tourist", icon: "⛰️", rating: 4.7, lat: 8.0250, lng: 100.0400, address: "ต.เขาพระทอง", price: "", desc: "พระพุทธรูปทองคำและจุดชมวิว" },
     { id: 71, name: "ล่องแพบ้านวังอ่าง", type: "tourist", category: "tourist", icon: "🛶", rating: 4.5, lat: 7.9025, lng: 99.9225, address: "ต.วังอ่าง", price: "", desc: "กิจกรรมล่องแพชมธรรมชาติ" },
-    { id: 72, name: "ป่าพรุควนเคร็ง", type: "tourist", category: "tourist", icon: "", rating: 4.6, lat: 7.8850, lng: 100.1150, address: "ต.เคร็ง", price: "", desc: "ระบบนิเวศป่าพรุที่สำคัญ" },
+    { id: 72, name: "ป่าพรุควนเคร็ง", type: "tourist", category: "tourist", icon: "🌿", rating: 4.6, lat: 7.8850, lng: 100.1150, address: "ต.เคร็ง", price: "", desc: "ระบบนิเวศป่าพรุที่สำคัญ" },
     { id: 80, name: "วัดท่าสะท้อน", type: "temple", category: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, address: "ต.ท่าสะท้อน", price: "", desc: "วัดเก่าแก่คู่ชุมชน" },
     { id: 81, name: "วัดควนเงิน", type: "temple", category: "temple", icon: "🛕", rating: 4.4, lat: 8.0342, lng: 99.9591, address: "ต.ชะอวด", price: "", desc: "วัดสำคัญประจำตำบล" }
 ];
 
 let places = [...corePlaces];
-
-const NOT_FOOD_KEYWORDS = ['บ.', 'บริษัท', 'การเกษตร', 'วัสดุก่อสร้าง', 'ล้างรถ', 'คอมพิวเตอร์', 'อุปกรณ์อิเล็กทรอนิกส์', 'เครื่องเขียน', 'ตัดแต่งผม', 'ปุ๋ย', 'โรงอิฐ', 'ศูนย์ธุรกิจ', 'ผู้จำหน่าย', 'อินเทอร์เน็ต', 'บริการ', 'คลินิก', 'ทันต', 'เสริมสวย', 'ตัดผม', 'ทำผม', 'สปา', 'นวด', 'อสังหา', 'ที่ดิน', 'ทนาย', 'กฎหมาย', 'บัญชี', 'พิมพ์', 'ถ่ายเอกสาร', 'ซ่อม', 'ช่าง', 'ไฟฟ้า', 'ประปา', 'แอร์', 'เครื่องใช้', 'เฟอร์นิเจอร์', 'ผ้า', 'เสื้อผ้า', 'รองเท้า', 'ทอง', 'จิวเวล', 'พระเครื่อง', 'ดอกไม้', 'ของขวัญ', 'สัตว์เลี้ยง', 'ยาสัตว์', 'เกษตร', 'พันธุ์ไม้', 'เมล็ดพันธุ์', 'ร้านขายของชำ', 'กลุ่ม', 'สหกรณ์'];
+const NOT_FOOD_KEYWORDS = ['บ.', 'บริษัท', 'การเกษตร', 'วัสดุก่อสร้าง', 'ล้างรถ', 'คอมพิวเตอร์', 'อุปกรณ์อิเล็กทรอนิกส์', 'เครื่องเขียน', 'ตัดแต่งผม', 'ปุ๋ย', 'โรงอิฐ', 'ศูนย์ธุรกิจ', 'ผู้จำหน่าย', 'อินเทอร์เน็ต', 'บริการ', 'คลินิก', 'ทันต', 'เสริมสวย', 'ตัดผม', 'ทำผม', 'สปา', 'นวด', 'อสังหา', 'ที่ดิน', 'ทนาย', 'กฎหมาย', 'บัญชี', 'พิมพ์', 'ถ่ายเอกสาร', 'ซ่อม', 'ช่าง', 'ไฟฟ้า', 'ประปา', 'แอร์', 'เครื่องใช้', 'เฟอร์นิเจอร์', 'ผ้า', 'เสื้อผ้า', 'รองเท้า', 'ทอง', 'จิวเวล', 'พระเครื่อง', 'ดอกไม้', 'ของขวัญ', 'สัตว์เลี้ยง', 'ยาสัตว์', 'เกษตร', 'พันธุ์ไม้', 'เมล็ดพันธุ์', 'ร้านขายของชำ', 'กลุ่ม', 'สหกรณ์', 'สถาบันการศึกษา', 'โรงเรียน', 'รัฐบาล', 'เนอร์สเซอรี', 'หนังสือ'];
 
 function isFoodPlace(name, category) {
     const nameLower = name.toLowerCase();
@@ -472,9 +499,9 @@ function isFoodPlace(name, category) {
     for (const keyword of NOT_FOOD_KEYWORDS) {
         if (nameLower.includes(keyword.toLowerCase()) || catLower.includes(keyword.toLowerCase())) return false;
     }
-    const foodCategories = ['ร้านอาหาร', 'ร้านกาแฟ', 'คาเฟ่', 'cafe', 'restaurant', 'ก๋วยเตี๋ยว', 'ขนมจีน', 'ชาบู', 'หมูกระทะ', 'บุฟเฟต์', 'อาหาร', 'ภัตตาคาร', 'ฟาสต์ฟูด', 'fast food', 'เบเกอรี่', 'bakery', 'ขนม', 'ไอศกรีม', 'น้ำชา', 'เครื่องดื่ม', 'bar', 'pub', 'ร้านขายไก่', 'ร้านลูกชิ้น', 'ร้านน้ำ', 'ร้านขนม'];
+    const foodCategories = ['ร้านอาหาร', 'ร้านกาแฟ', 'คาเฟ่', 'cafe', 'restaurant', 'ก๋วยเตี๋ยว', 'ขนมจีน', 'ชาบู', 'หมูกระทะ', 'บุฟเฟต์', 'อาหาร', 'ภัตตาคาร', 'ฟาสต์ฟูด', 'fast food', 'เบเกอรี่', 'bakery', 'ขนม', 'ไอศกรีม', 'น้ำชา', 'เครื่องดื่ม', 'bar', 'pub', 'ร้านขายไก่', 'ร้านลูกชิ้น', 'ร้านน้ำ', 'ร้านขนม', 'จัดเลี้ยง'];
     for (const fc of foodCategories) { if (catLower.includes(fc.toLowerCase())) return true; }
-    const foodNameKeywords = ['ร้าน', 'cafe', 'coffee', 'kitchen', 'ครัว', 'อาหาร', 'กิน', 'eat', 'food', 'restaurant', 'ข้าว', 'ก๋วย', 'noodle', 'ชาบู', 'หมูกระทะ', 'ส้มตำ', 'ลาบ', 'ไก่', 'เป็ด', 'หมู', 'เนื้อ', 'ปลา', 'ทะเล', 'สเต็ก', 'pizza', 'burger', 'sushi', 'โรตี', 'ผัดไทย', 'หอยทอด', 'ขนมจีน', 'น้ำชา', 'ชานม', 'ไอติม', 'ซาลาเปา', 'ปาท่องโก๋', 'ข้าวต้ม', 'เกาเหลา', 'ยำ', 'ตำ', 'ลูกชิ้น', 'หม่าล่า', 'ทอดมัน', 'สลัด', 'ซูชิ'];
+    const foodNameKeywords = ['ร้าน', 'cafe', 'coffee', 'kitchen', 'ครัว', 'อาหาร', 'กิน', 'eat', 'food', 'restaurant', 'ข้าว', 'ก๋วย', 'noodle', 'ชาบู', 'หมูกระทะ', 'ส้มตำ', 'ลาบ', 'ไก่', 'เป็ด', 'หมู', 'เนื้อ', 'ปลา', 'ทะเล', 'สเต็ก', 'pizza', 'burger', 'sushi', 'โรตี', 'ผัดไทย', 'หอยทอด', 'ขนมจีน', 'น้ำชา', 'ชานม', 'ไอติม', 'ซาลาเปา', 'ปาท่องโก๋', 'ข้าวต้ม', 'เกาเหลา', 'ยำ', 'ตำ', 'ลูกชิ้น', 'หม่าล่า', 'ทอดมัน', 'สลัด', 'ซูชิ', 'ใต้ขาม'];
     for (const fk of foodNameKeywords) { if (nameLower.includes(fk.toLowerCase())) return true; }
     return false;
 }
@@ -482,16 +509,19 @@ function isFoodPlace(name, category) {
 async function loadAllApifyData() {
     const db1Url = "https://api.apify.com/v2/datasets/JBYKQCZiSjk80CGDu/items?signature=MC4xNzkxNzg2MDIxNzc2LjFxMGh5bXFidGZjREVWMDJYSVJCNw&format=json&clean=true";
     const db2Url = "https://api.apify.com/v2/datasets/6tk31e4SOU2t8NgQd/items?signature=MC4xNzkxNzg5MDgzMjY4LjE2cHBmV0cxOHM0QWwzTThjQ29aSw&format=json&clean=true";
+    const db3Url = "https://api.apify.com/v2/datasets/EhvdFrkv1whK2ZhCB/items?signature=MC4xNzkxNzk2MTQ4OTI0LjRjU0xGNmY1eVVUak9SUHE1eGw2&format=json&clean=true";
+    
     let currentId = 1000;
     const seenNames = new Set();
     corePlaces.forEach(p => seenNames.add(p.name.toLowerCase()));
     
     try {
-        const [response1, response2] = await Promise.all([fetch(db1Url), fetch(db2Url)]);
-        if (!response1.ok || !response2.ok) throw new Error("Network error");
+        const [response1, response2, response3] = await Promise.all([fetch(db1Url), fetch(db2Url), fetch(db3Url)]);
+        if (!response1.ok || !response2.ok || !response3.ok) throw new Error("Network error");
         const data1 = await response1.json();
         const data2 = await response2.json();
-        const allData = [...data1, ...data2];
+        const data3 = await response3.json();
+        const allData = [...data1, ...data2, ...data3];
         let addedCount = 0, dupCount = 0, filteredCount = 0;
         
         allData.forEach(item => {
@@ -531,7 +561,6 @@ async function loadAllApifyData() {
     }
 }
 
-// ===== ฟังก์ชันคำนวณ =====
 function calcDistance(from, to) {
     const R = 6371;
     const dLat = (to.lat - from.lat) * Math.PI / 180;
@@ -617,7 +646,7 @@ function setExpressPoint(name, address) {
     const delivery = document.getElementById('express-delivery');
     if (!pickup.value) { pickup.value = `${name}, ${address}`; showNotification('📍 ตั้งเป็นจุดรับพัสดุ'); }
     else if (!delivery.value) { delivery.value = `${name}, ${address}`; showNotification('📍 ตั้งเป็นจุดส่งพัสดุ'); }
-    else { delivery.value = `${name}, ${address}`; showNotification(' อัพเดทจุดส่งพัสดุ'); }
+    else { delivery.value = `${name}, ${address}`; showNotification('📍 อัพเดทจุดส่งพัสดุ'); }
 }
 
 function openPlaceModal(id) {
@@ -625,10 +654,7 @@ function openPlaceModal(id) {
     if (!place) return;
     const dist = getDistance(place);
     let buttons = `<button class="btn-view-map" onclick="openMapModal(${place.id})">🗺️ ดูบนแผนที่</button>`;
-    
-    // ✅ ปุ่มเพิ่มจุดหมายปลายทาง - เรียก Popup ไรเดอร์
     buttons += `<button class="btn-add-destination" onclick="requestRiderToDestination(${place.id})">📍 เพิ่มเป็นจุดหมายปลายทาง</button>`;
-    
     if (place.type === 'restaurant') {
         buttons += `<button class="btn-travel" onclick="travelToPlace(${place.id})">🚗 เดินทางไปร้าน</button>`;
         buttons += `<button class="btn-order-food" onclick="orderFoodFromRestaurant(${place.id})">🛵 ให้ไรเดอร์สั่งซื้ออาหารมาส่ง</button>`;
@@ -648,29 +674,21 @@ function openPlaceModal(id) {
 }
 function closeModal() { document.getElementById('place-modal').classList.remove('active'); }
 
-// ===== 🆕 ระบบเรียกไรเดอร์แบบ Real-time =====
+// ===== 🆕 ระบบแชทกับไรเดอร์ =====
 let riderSearchTimer = null;
-let riderAcceptTimer = null;
 let currentRiderDestination = null;
 
 function requestRiderToDestination(placeId) {
     const place = places.find(p => p.id === placeId);
     if (!place) return;
-    
     currentRiderDestination = place;
-    closeModal(); // ปิด modal สถานที่
-    
-    // แสดง Popup ขั้นตอนที่ 1: กำลังแสกนหาไรเดอร์
+    closeModal();
     showScanningPopup(place);
-    
-    // จำลองการแสกนหาไรเดอร์ 3-5 วินาที
     const scanDuration = 3000 + Math.random() * 2000;
     riderSearchTimer = setTimeout(() => {
-        // ไรเดอร์รับงาน!
         const rider = RIDERS[Math.floor(Math.random() * RIDERS.length)];
         const dist = getDistance(place);
-        const etaMinutes = Math.max(3, Math.round(dist * 4)); // ประมาณ 4 นาที/กม.
-        
+        const etaMinutes = Math.max(3, Math.round(dist * 4));
         showRiderFoundPopup(place, rider, etaMinutes, dist);
     }, scanDuration);
 }
@@ -678,14 +696,10 @@ function requestRiderToDestination(placeId) {
 function showScanningPopup(place) {
     const modal = document.getElementById('rider-status-modal');
     modal.innerHTML = `
-        <div class="scan-animation">
-            <div class="scan-circle"></div>
-            <div class="scan-circle-2"></div>
-            <div class="scan-icon">🛵</div>
-        </div>
+        <div class="scan-animation"><div class="scan-circle"></div><div class="scan-circle-2"></div><div class="scan-icon">🛵</div></div>
         <div class="scanning-text">กำลังแสกนหาไรเดอร์<span class="scanning-dots"></span></div>
         <div class="scanning-sub">📍 ปลายทาง: <b>${place.name}</b></div>
-        <div class="scanning-sub"> ระยะทาง: <b>${formatDistance(getDistance(place))}</b></div>
+        <div class="scanning-sub">📏 ระยะทาง: <b>${formatDistance(getDistance(place))}</b></div>
         <div class="progress-bar"><div class="progress-bar-fill"></div></div>
         <div class="scanning-sub" style="color:#00A651;">🔍 ค้นหาไรเดอร์ใกล้เคียง 11 คน</div>
         <button class="btn-cancel-ride" onclick="cancelRiderSearch()" style="margin-top:15px;">✕ ยกเลิก</button>
@@ -703,7 +717,6 @@ function showRiderFoundPopup(place, rider, etaMinutes, dist) {
             <div class="rider-found-title">✅ ไรเดอร์รับงานแล้ว!</div>
             <div class="rider-found-sub">กำลังเดินทางมารับคุณ</div>
         </div>
-        
         <div class="rider-profile">
             <div class="rider-avatar">${rider.avatar}</div>
             <div class="rider-info">
@@ -711,46 +724,32 @@ function showRiderFoundPopup(place, rider, etaMinutes, dist) {
                 <div class="rider-vehicle">${rider.vehicle}</div>
                 <div class="rider-rating">⭐ ${rider.rating} • 📦 ${rider.trips} เที่ยว</div>
             </div>
-            <button class="rider-call-btn" onclick="callRider('${rider.name}')">📞</button>
+            <div class="rider-action-btns">
+                <button class="rider-btn btn-call" onclick="callRider('${rider.name}')">📞</button>
+                <button class="rider-btn btn-chat" onclick="openChat('${rider.name}')">💬</button>
+            </div>
         </div>
-        
         <div class="eta-box">
             <div class="eta-label">🚗 รถจะมาถึงในอีก</div>
             <div class="eta-time" id="eta-countdown">${etaMinutes} <span>นาที</span></div>
-            <div class="eta-distance"> ระยะทาง ${dist.toFixed(1)} กม. • 📍 ${place.name}</div>
+            <div class="eta-distance">📏 ระยะทาง ${dist.toFixed(1)} กม. • 📍 ${place.name}</div>
         </div>
-        
         <div class="trip-info">
-            <div class="trip-info-item">
-                <div class="lbl">️ เส้นทาง</div>
-                <div class="val">${dist.toFixed(1)} กม.</div>
-            </div>
-            <div class="trip-info-item">
-                <div class="lbl">️ เวลาถึง</div>
-                <div class="val" id="arrival-time">-</div>
-            </div>
-            <div class="trip-info-item">
-                <div class="lbl">💰 ค่าโดยสาร</div>
-                <div class="val">${Math.max(30, Math.round(dist * 25))}฿</div>
-            </div>
-            <div class="trip-info-item">
-                <div class="lbl">🏁 สถานะ</div>
-                <div class="val" style="color:#00A651;">กำลังมา</div>
-            </div>
+            <div class="trip-info-item"><div class="lbl">🗺️ เส้นทาง</div><div class="val">${dist.toFixed(1)} กม.</div></div>
+            <div class="trip-info-item"><div class="lbl">⏱️ เวลาถึง</div><div class="val" id="arrival-time">-</div></div>
+            <div class="trip-info-item"><div class="lbl">💰 ค่าโดยสาร</div><div class="val">${Math.max(30, Math.round(dist * 25))}฿</div></div>
+            <div class="trip-info-item"><div class="lbl">🏁 สถานะ</div><div class="val" style="color:#00A651;">กำลังมา</div></div>
         </div>
-        
         <button class="btn-track-ride" onclick="trackRiderOnMap(${place.id})">🗺️ ติดตามไรเดอร์บนแผนที่</button>
         <button class="btn-cancel-ride" onclick="cancelRide()">✕ ยกเลิกการเดินทาง</button>
     `;
     document.getElementById('rider-status-overlay').classList.add('active');
     
-    // คำนวณเวลาถึง
     const arrivalTime = new Date(Date.now() + etaSeconds * 1000);
     const hours = arrivalTime.getHours().toString().padStart(2, '0');
     const mins = arrivalTime.getMinutes().toString().padStart(2, '0');
     document.getElementById('arrival-time').textContent = `${hours}:${mins} น.`;
     
-    // นับถอยหลัง ETA
     let displayMinutes = etaMinutes;
     const countdownInterval = setInterval(() => {
         remainingSeconds--;
@@ -768,22 +767,73 @@ function showRiderFoundPopup(place, rider, etaMinutes, dist) {
     }, 1000);
 }
 
-function callRider(riderName) {
-    showNotification(`📞 กำลังโทรหาไรเดอร์ ${riderName}...`);
+// 🆕 ฟังก์ชันแชท
+function openChat(riderName) {
+    document.getElementById('chat-rider-name').textContent = riderName;
+    document.getElementById('chat-modal').classList.add('active');
+    const msgContainer = document.getElementById('chat-messages');
+    msgContainer.innerHTML = '';
+    
+    setTimeout(() => {
+        addMessage(`สวัสดีครับ ผม ${riderName} กำลังเดินทางไปรับครับ 🛵`, 'rider');
+    }, 600);
 }
 
+function closeChat() {
+    document.getElementById('chat-modal').classList.remove('active');
+}
+
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    addMessage(text, 'user');
+    input.value = '';
+
+    document.getElementById('typing-indicator').style.display = 'flex';
+    const msgContainer = document.getElementById('chat-messages');
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    setTimeout(() => {
+        document.getElementById('typing-indicator').style.display = 'none';
+        const replies = [
+            "รับทราบครับ อีกสักครู่ถึงครับ 🙏",
+            "เจอแล้วครับ กำลังจะเข้าไปหาครับ",
+            "อีกประมาณ 2 นาทีถึงนะครับ",
+            "ครับผม สบายดีครับ",
+            "ถึงหน้าร้านแล้วครับ เดี๋ยวผมเดินเข้าไปรับให้ครับ",
+            "ฝนตกนิดหน่อยนะครับ แต่ผมถึงแน่นอนครับ 🌧️",
+            "ได้ครับ เดี๋ยวผมโทรหาเมื่อถึงครับ"
+        ];
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        addMessage(randomReply, 'rider');
+    }, 1500 + Math.random() * 1500);
+}
+
+function addMessage(text, sender) {
+    const msgContainer = document.getElementById('chat-messages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `msg ${sender}`;
+    
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+    
+    msgDiv.innerHTML = `${text}<div class="msg-time">${timeStr}</div>`;
+    msgContainer.appendChild(msgDiv);
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+}
+
+function callRider(riderName) { showNotification(`📞 กำลังโทรหาไรเดอร์ ${riderName}...`); }
 function trackRiderOnMap(placeId) {
     document.getElementById('rider-status-overlay').classList.remove('active');
     openMapModal(placeId);
 }
-
 function cancelRiderSearch() {
     clearTimeout(riderSearchTimer);
-    clearTimeout(riderAcceptTimer);
     document.getElementById('rider-status-overlay').classList.remove('active');
     showNotification('❌ ยกเลิกการเรียกไรเดอร์แล้ว');
 }
-
 function cancelRide() {
     document.getElementById('rider-status-overlay').classList.remove('active');
     showNotification('❌ ยกเลิกการเดินทางแล้ว');
@@ -830,7 +880,7 @@ function openMapModal(id) {
         cost.total = cost.base + cost.extra;
         document.getElementById('map-info-panel').innerHTML = `
             <div class="route-info"><span class="label">📍 จาก</span><span class="value">ตำแหน่งปัจจุบัน</span></div>
-            <div class="route-info"><span class="label"> ถึง</span><span class="value">${place.name}</span></div>
+            <div class="route-info"><span class="label">🎯 ถึง</span><span class="value">${place.name}</span></div>
             <div class="route-info"><span class="label">📏 ระยะทาง</span><span class="value">${dist.toFixed(2)} กม.</span></div>
             <div class="route-info"><span class="label">⏱️ เวลา</span><span class="value">${(dist*3).toFixed(0)} นาที</span></div>
             <div class="cost-breakdown">
@@ -883,7 +933,7 @@ function closeMapModal() {
     if (currentMap) { currentMap.remove(); currentMap = null; }
 }
 
-function travelToPlace(id) { showNotification(` กำลังนำทางไป ${places.find(p => p.id === id).name}`); openMapModal(id); }
+function travelToPlace(id) { showNotification(`🚗 กำลังนำทางไป ${places.find(p => p.id === id).name}`); openMapModal(id); }
 function travelToHotel(id) { addDestination(id); showPage('page-travel'); }
 
 function orderFoodFromRestaurant(id) {
@@ -892,13 +942,13 @@ function orderFoodFromRestaurant(id) {
     const cost = { base: 30, extra: Math.max(0, Math.ceil((dist - 1) * 15)) };
     cost.total = cost.base + cost.extra;
     document.getElementById('modal-body').innerHTML = `
-        <div class="modal-icon"></div>
+        <div class="modal-icon">🛵</div>
         <div class="modal-title">สั่งอาหารจาก ${place.name}</div>
         <div class="modal-category">ไรเดอร์จะเดินทางไปรับอาหารและมาส่งให้คุณ</div>
         <div class="rider-order-section">
             <h4>📋 รายละเอียดการสั่งซื้อ</h4>
             <p>🏪 ร้าน: ${place.name}</p>
-            <p> ระยะทาง: ${formatDistance(dist)}</p>
+            <p>📍 ระยะทาง: ${formatDistance(dist)}</p>
             <p>⏱️ เวลาโดยประมาณ: ${(dist*5).toFixed(0)} นาที</p>
         </div>
         <div class="cost-breakdown">
@@ -915,7 +965,6 @@ function orderFoodFromRestaurant(id) {
 function confirmFoodOrder(id) {
     const place = places.find(p => p.id === id);
     closeModal();
-    // เรียก Popup ไรเดอร์หลังจากสั่งอาหาร
     setTimeout(() => requestRiderToDestination(id), 300);
 }
 
