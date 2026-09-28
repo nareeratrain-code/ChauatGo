@@ -277,27 +277,14 @@
         }
         #toast.show { transform: translateX(-50%) translateY(0); }
 
-        /* Rider Mode Specifics (Simplified for now as requested) */
-        .rider-dashboard { padding: 20px; }
-        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-        .stat-card { background: var(--white); padding: 15px; border-radius: var(--radius-md); text-align: center; box-shadow: var(--shadow-sm); }
-        .stat-value { font-size: 20px; font-weight: 700; color: var(--secondary-color); }
-        .stat-label { font-size: 11px; color: var(--light-text); margin-top: 5px; }
-        .order-card-rider {
-            background: var(--white); border-radius: var(--radius-md); padding: 15px;
-            margin-bottom: 15px; border-left: 4px solid var(--secondary-color);
-            box-shadow: var(--shadow-sm);
-        }
-        .order-status { font-size: 12px; font-weight: 600; color: var(--secondary-color); text-transform: uppercase; }
-        .accept-btn {
-            width: 100%; padding: 12px; background: var(--primary-color); color: var(--white);
-            border: none; border-radius: 8px; font-weight: 600; margin-top: 10px; cursor: pointer;
-        }
-
         /* Loading Spinner */
+        .loading-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px; color: var(--light-text);
+        }
         .spinner {
             width: 40px; height: 40px; border: 4px solid #F3F3F3; border-top: 4px solid var(--primary-color);
-            border-radius: 50%; animation: spin 1s linear infinite; margin: 50px auto;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
@@ -346,7 +333,7 @@
             <button class="btn-full btn-primary" onclick="handlePDPAConsent()">
                 <span>ยอมรับเงื่อนไขและเข้าสู่ระบบ</span>
             </button>
-            <button class="btn-full btn-outline" onclick="alert('หากคุณไม่ยินยอม เราจะไม่สามารถให้บริการเต็มรูปแบบได้ กรุณาปิดเบราว์เซอร์')">
+            <button class="btn-full btn-outline" onclick="alert('หากคุณไม่ยินยอม เราไม่สามารถให้บริการเต็มรูปแบบได้ กรุณาปิดเบราว์เซอร์')">
                 ไม่ยอมรับ (ออกจากแอป)
             </button>
             
@@ -414,7 +401,11 @@
 
             <!-- List Content -->
             <div id="content-list" class="place-list">
-                <!-- Items will be injected by JS -->
+                <!-- Initial Loading State -->
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>กำลังโหลดข้อมูลสถานที่จริง...</p>
+                </div>
             </div>
 
             <!-- Footer Legal Info -->
@@ -422,7 +413,7 @@
                 © 2024 Chauat Go Platform.<br>
                 ผู้ให้บริการแพลตฟอร์มดิจิทัลกลาง (Digital Intermediary)<br>
                 เลขทะเบียนพาณิชย์อิเล็กทรอนิกส์: [อยู่ระหว่างดำเนินการ]<br>
-                <a href="#">ข้อกำหนดการใช้บริการ</a> | <a href="#">นโยบายคืนเงิน</a>
+                <a href="#">ข้อกำหนดการใช้งาน</a> | <a href="#">นโยบายคืนเงิน</a>
             </div>
         </div>
 
@@ -441,47 +432,6 @@
                 <div class="sheet-handle"></div>
                 <div id="map-info-content">
                     <!-- Dynamic Content -->
-                </div>
-            </div>
-        </div>
-
-        <!-- SCREEN: RIDER MODE (Placeholder for future dev) -->
-        <div id="screen-rider" class="screen inactive-right">
-            <div class="header-gradient" style="background: linear-gradient(135deg, #FF6B35, #E55A2B);">
-                <div class="header-flex">
-                    <div class="logo-area">
-                        <h1>Rider Mode</h1>
-                    </div>
-                    <button class="btn-outline" style="padding: 5px 10px; font-size:12px;" onclick="switchScreen('home')">ออกจากระบบ</button>
-                </div>
-            </div>
-            <div class="rider-dashboard">
-                <div class="stat-grid">
-                    <div class="stat-card">
-                        <div class="stat-value">฿450</div>
-                        <div class="stat-label">รายได้วันนี้</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">3</div>
-                        <div class="stat-label">งานเสร็จ</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">4.9</div>
-                        <div class="stat-label">คะแนน</div>
-                    </div>
-                </div>
-                
-                <div class="disclaimer-box">
-                    <strong>หมายเหตุทางกฎหมาย:</strong> สถานะการทำงานนี้เป็นโหมดสาธิต ในเวอร์ชันใช้งานจริง สัญญาจ้างงานจะแยกต่างหากตาม พ.ร.บ.คุ้มครองแรงงาน และประกันอุบัติเหตุภาคบังคับ
-                </div>
-
-                <h3 style="margin: 20px 0 10px; font-size:16px;">ออเดอร์รอรับ</h3>
-                <div class="order-card-rider">
-                    <div class="order-status">NEW ORDER</div>
-                    <h4 style="margin: 5px 0;">🍽️ สั่งอาหาร - เย็นตาโฟเจ๊แดง</h4>
-                    <p style="font-size:12px; color:#666;">📍 รับ: ตลาดชะอวด → ส่ง: ต.ชะอวด</p>
-                    <p style="font-size:12px; color:#666;">💰 ค่าส่ง: ฿45 | ระยะทาง: 1.2 กม.</p>
-                    <button class="accept-btn" onclick="alert('Demo: ระบบกำลังจับคู่ไรเดอร์...')">✅ รับงาน</button>
                 </div>
             </div>
         </div>
@@ -505,65 +455,47 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
         // =========================================
-        // CONFIGURATION & DATA
+        // CONFIGURATION & DATA SOURCE
         // =========================================
-        
-        // ⚠️ SECURITY WARNING FOR DEVELOPERS:
-        // In production, NEVER expose API keys or complex business logic here.
-        // Use a Backend Proxy (Node.js/Python) to fetch data from Apify/Google Maps.
-        // This code uses static mock data for demonstration of Legal/UI flow.
         
         const USER_LOC = { lat: 7.9620, lng: 99.9940 }; // Center of Chahut
         
-        // Comprehensive Database of Places in Amphoe Chahut
-        const PLACES_DB = [
-            // GOVERNMENT & HOSPITAL
+        // ⚠️ SECURITY WARNING:
+        // In production, NEVER expose API keys/signatures in frontend code.
+        // Create a backend proxy (Node.js/Python) to fetch this data securely.
+        // For this demo, we attempt direct fetch. If it fails due to CORS/Network, 
+        // it falls back to local mock data to ensure the app remains functional for testing.
+        
+        const APIFY_URL = "https://api.apify.com/v2/datasets/6tk31e4SOU2t8NgQd/items?signature=MC4xNzkxNzg5MDgzMjY4LjE2cHBmV0cxOHM0QWwzTThjQ29aSw&format=json&clean=true";
+
+        // Fallback Mock Data (Accurate coordinates for Chahut) used if API fails
+        const FALLBACK_PLACES = [
             { id: 101, name: "ที่ว่าการอำเภอชะอวด", cat: "gov", icon: "🏛️", rating: 4.5, lat: 7.9646, lng: 99.9951, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "ศูนย์ราชการอำเภอชะอวด ให้บริการด้านทะเบียนราษฎร ทะเบียนบัตรประชาชน และงานปกครองท้องที่" },
             { id: 102, name: "สถานีตำรวจภูธรชะอวด", cat: "gov", icon: "🚔", rating: 4.3, lat: 7.9652, lng: 99.9958, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "สภ.ชะอวด ดูแลความปลอดภัยในชีวิตและทรัพย์สินของประชาชนในพื้นที่" },
             { id: 103, name: "เทศบาลตำบลชะอวด", cat: "gov", icon: "🏢", rating: 4.2, lat: 7.9620, lng: 99.9935, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "สำนักงานเทศบาล ดูแลสาธารณูปโภค การจัดเก็บภาษีที่ดินและสิ่งปลูกสร้าง" },
-            { id: 104, name: "โรงพยาบาลชะอวด", cat: "gov", icon: "🏥", rating: 4.4, lat: 7.9811, lng: 99.9913, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง บริการรักษาโรคทั่วไป ฉุกเฉิน และทันตกรรม" },
-            { id: 105, name: "โรงเรียนชะอวดวิทยาคาร", cat: "gov", icon: "🏫", rating: 4.6, lat: 7.9680, lng: 99.9990, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "สถานศึกษาสังกัด สพฐ. ระดับมัธยมศึกษาตอนต้น-ปลาย" },
-
-            // HOTELS & ACCOMMODATION
+            { id: 104, name: "โรงพยาบาลชะอวด", cat: "gov", icon: "🏥", rating: 4.4, lat: 7.9811, lng: 99.9913, addr: "ต.ชะอวด", phone: "075-xxx-xxxx", desc: "โรงพยาบาลชุมชนขนาด 60 เตียง บริการรักษาโรคทั่วไป ฉุดเฉิน และทันตกรรม" },
             { id: 201, name: "บ้านตูนรีสอร์ท", cat: "hotel", icon: "🏨", rating: 4.2, lat: 7.9520, lng: 99.9290, addr: "ต.ชะอวด", price: "฿500-900", phone: "081-xxx-xxxx", desc: "รีสอร์ทบรรยากาศร่มรื่น เหมาะแก่การพักผ่อน มีสระว่ายน้ำและร้านอาหาร" },
-            { id: 202, name: "เรือนกลางลาด", cat: "hotel", icon: "🏠", rating: 4.5, lat: 7.9530, lng: 99.9270, addr: "ต.ชะอวด", price: "฿600-1200", phone: "089-xxx-xxxx", desc: "ที่พักสไตล์ท้องถิ่นร่วมสมัย สะอาด ปลอดภัย ใกล้ตลาดนัด" },
-            { id: 203, name: "นานารีสอร์ท", cat: "hotel", icon: "🏨", rating: 4.1, lat: 8.0124, lng: 99.9015, addr: "ต.ชะอวด", price: "฿400-800", phone: "086-xxx-xxxx", desc: "ที่พักประหยัด เหมาะสำหรับนักเดินทางผ่านเส้นทางสายเอเชีย" },
-
-            // RESTAURANTS & FOOD
             { id: 301, name: "เย็นตาโฟเจ๊แดง", cat: "food", icon: "🍜", rating: 4.8, lat: 7.9630, lng: 99.9950, addr: "ตลาดชะอวด", price: "฿50-80", phone: "081-xxx-xxxx", desc: "เจ้าดังประจำอำเภอ น้ำซุปเข้มข้น ลูกชิ้นเด้งกรอบ เปิดตั้งแต่เช้าถึงบ่าย" },
             { id: 302, name: "Coffee Mountain", cat: "food", icon: "☕", rating: 4.5, lat: 7.9610, lng: 99.9920, addr: "ริมถนนสายเอเชีย", price: "฿60-120", phone: "092-xxx-xxxx", desc: "คาเฟ่บรรยากาศดี กาแฟคั่วสดใหม่ มีเบเกอรี่โฮมเมด รองรับลูกค้าทั้ง walk-in และ delivery" },
-            { id: 303, name: "ครัวป้าเล็ก", cat: "food", icon: "🍛", rating: 4.7, lat: 7.9600, lng: 99.9900, addr: "หลังสถานีรถไฟ", price: "฿60-150", phone: "085-xxx-xxxx", desc: "อาหารใต้รสจัดจ้าน เมนูแนะนำ: ผัดเผ็ดหมูป่า, แกงส้มไข่ปลาเรียวเซียว" },
-            { id: 304, name: "ชาบูชิ ชะอวด", cat: "food", icon: "🍲", rating: 4.3, lat: 7.9650, lng: 99.9960, addr: "ติดโลตัส", price: "฿299++", phone: "-", desc: "บุฟเฟ่ต์ชาบูและซูชิสายพาน ยอดนิยมสำหรับกลุ่มเพื่อนและครอบครัว" },
-            { id: 305, name: "ก๋วยเตี๋ยวเรืออยุธยา", cat: "food", icon: "🛶", rating: 4.4, lat: 7.9615, lng: 99.9945, addr: "ข้างธนาคารกรุงไทย", price: "฿30-50", phone: "-", desc: "ก๋วยเตี๋ยวน้ำตกสูตรโบราณ เนื้อนุ่ม ชิ้นใหญ่ เครื่องในสะอาด" },
-
-            // SHOPS & GAS STATIONS
             { id: 401, name: "เซเว่นอีเลฟเว่น สาขาตลาด", cat: "shop", icon: "🏪", rating: 4.3, lat: 7.9631, lng: 99.9945, addr: "กลางตลาด", phone: "-", desc: "เปิด 24 ชั่วโมง สินค้าอุปโภคบริโภคครบครัน จุดรับ-ส่งพัสดุ" },
-            { id: 402, name: "โลตัส โก เฟรช", cat: "shop", icon: "🛒", rating: 4.4, lat: 7.9620, lng: 99.9940, addr: "สี่แยกไฟแดง", phone: "-", desc: "มินิซูเปอร์มาร์เก็ต สินค้าสดใหม่ ราคาประหยัด โปรโมชั่นทุกวันศุกร์-อาทิตย์" },
             { id: 403, name: "ปตท. ชะอวด", cat: "gas", icon: "⛽", rating: 4.3, lat: 7.9682, lng: 99.9872, addr: "ขาเข้าเมือง", phone: "-", desc: "ปั๊มน้ำมันขนาดใหญ่ มี Café Amazon, 7-Eleven, ศูนย์บริการรถยนต์ FIT Auto" },
-            { id: 404, name: "พีที (PT) ชะอวด", cat: "gas", icon: "⛽", rating: 4.1, lat: 7.9550, lng: 99.9850, addr: "ก่อนถึงตัวอำเภอ", phone: "-", desc: "น้ำมันคุณภาพสูง มีร้านกาแฟพันธุ์ไทย และห้องน้ำสะอาด" },
-
-            // TOURIST ATTRACTIONS
             { id: 501, name: "วัดเขาพระทอง", cat: "tourist", icon: "⛰️", rating: 4.7, lat: 8.0250, lng: 100.0400, addr: "ต.เขาพระทอง", phone: "-", desc: "แหล่งท่องเที่ยวเชิงศาสนาและธรรมชาติ ชมพระพุทธรูปทองคำองค์ใหญ่ และวิวมุมสูงของอำเภอ" },
-            { id: 502, name: "ล่องแพบ้านวังอ่าง", cat: "tourist", icon: "🛶", rating: 4.5, lat: 7.9025, lng: 99.9225, addr: "ต.วังอ่าง", phone: "087-xxx-xxxx", desc: "กิจกรรมผจญภัย ล่องแพไม้ไผ่ชมธรรมชาติ ลำธารใส ปลาเยอะ เหมาะสำหรับครอบครัว" },
-            { id: 503, name: "ป่าพรุควนเคร็ง", cat: "tourist", icon: "🌿", rating: 4.6, lat: 7.8850, lng: 100.1150, addr: "ต.เคร็ง", phone: "-", desc: "พื้นที่ชุ่มน้ำนานาชาติ ศึกษาวิถีชีวิตคนเลี้ยงผึ้งโพรงและหาของป่า" },
-
-            // TEMPLES
-            { id: 601, name: "วัดท่าสะท้อน", cat: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, addr: "ต.ท่าสะท้อน", phone: "-", desc: "วัดเก่าแก่คู่ชุมชน มีโบสถ์ไม้แกะสลักสวยงาม และตลาดน้ำยามเย็น" },
-            { id: 602, name: "วัดควนเงิน", cat: "temple", icon: "🛕", rating: 4.4, lat: 8.0342, lng: 99.9591, addr: "ต.ชะอวด", phone: "-", desc: "ศูนย์กลางจิตใจของคนในตำบล บรรยากาศเงียบสงบ ร่มรื่นด้วยต้นไม้ใหญ่" }
+            { id: 601, name: "วัดท่าสะท้อน", cat: "temple", icon: "🛕", rating: 4.5, lat: 7.9452, lng: 99.9602, addr: "ต.ท่าสะท้อน", phone: "-", desc: "วัดเก่าแก่คู่ชุมชน มีโบสถ์ไม้แกะสลักสวยงาม และตลาดน้ำยามเย็น" }
         ];
 
         let currentMap = null;
         let mapMarkers = [];
-        let filteredPlaces = [...PLACES_DB];
+        let placesData = []; // Will hold final processed data
+        let filteredPlaces = [];
 
         // =========================================
         // INITIALIZATION & PDPA LOGIC
         // =========================================
 
-        window.onload = function() {
+        window.onload = async function() {
             checkPDPAStatus();
+            await loadRealData(); // Try fetching from Apify first
             renderList(filteredPlaces);
-            initMapIfNeeded(); // Pre-load map resources if possible, but wait for screen switch
         };
 
         function checkPDPAStatus() {
@@ -582,9 +514,9 @@
             const consentData = {
                 timestamp: new Date().toISOString(),
                 version: '1.0',
-                coreServices: true, // Always true
+                coreServices: true,
                 marketing: marketingChecked,
-                thirdPartySharing: true // Necessary for operation
+                thirdPartySharing: true
             };
             
             localStorage.setItem('chauatgo_pdpa_v1', JSON.stringify(consentData));
@@ -600,18 +532,104 @@
         }
 
         // =========================================
+        // DATA LOADING (Apify Integration)
+        // =========================================
+
+        async function loadRealData() {
+            const container = document.getElementById('content-list');
+            container.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>กำลังเชื่อมต่อกับฐานข้อมูล...</p></div>`;
+
+            try {
+                console.log("Attempting to fetch from Apify...");
+                const response = await fetch(APIFY_URL);
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const rawData = await response.json();
+                
+                if (rawData && Array.isArray(rawData) && rawData.length > 0) {
+                    console.log(`Success! Loaded ${rawData.length} items from Apify.`);
+                    placesData = processDataFromApify(rawData);
+                    showToast(`✅ โหลดข้อมูลจริงสำเร็จ (${placesData.length} แห่ง)`);
+                } else {
+                    throw new Error("Empty dataset returned");
+                }
+
+            } catch (error) {
+                console.warn("Failed to fetch from Apify directly (likely CORS or Network issue). Falling back to local mock data.", error);
+                placesData = [...FALLBACK_PLACES];
+                showToast("⚠️ ใช้ข้อมูลสำรอง (Local Mock) เนื่องจากเชื่อมต่อ API ไม่ได้");
+            } finally {
+                filteredPlaces = [...placesData];
+            }
+        }
+
+        /**
+         * Transforms raw Apify data into our internal schema
+         * Assumes Apify dataset has fields like: title, location.lat, location.lng, categoryName, address, etc.
+         */
+        function processDataFromApify(items) {
+            return items.map((item, index) => {
+                // Basic validation
+                if (!item.title || !item.location?.lat || !item.location?.lng) return null;
+
+                // Determine Category based on keywords in Apify data
+                let cat = 'other';
+                let icon = '📍';
+                const nameLower = item.title.toLowerCase();
+                const catName = (item.categoryName || '').toLowerCase();
+
+                if (catName.includes('restaurant') || catName.includes('food') || nameLower.includes('ร้าน') || nameLower.includes('กาแฟ')) {
+                    cat = 'food'; icon = '🍽️';
+                } else if (catName.includes('hotel') || catName.includes('accommodation') || nameLower.includes('โรงแรม')) {
+                    cat = 'hotel'; icon = '🏨';
+                } else if (catName.includes('government') || catName.includes('hospital') || nameLower.includes('อำเภอ') || nameLower.includes('โรงพยาบาล') || nameLower.includes('เทศบาล')) {
+                    cat = 'gov'; icon = '🏛️';
+                } else if (catName.includes('shop') || catName.includes('convenience') || nameLower.includes('เซเว่น') || nameLower.includes('โลตัส')) {
+                    cat = 'shop'; icon = '🛒';
+                } else if (catName.includes('gas') || catName.includes('fuel') || nameLower.includes('ปตท.') || nameLower.includes('บางจาก')) {
+                    cat = 'gas'; icon = '⛽';
+                } else if (catName.includes('temple') || catName.includes('religious') || nameLower.includes('วัด')) {
+                    cat = 'temple'; icon = '🛕';
+                } else if (catName.includes('tourist') || catName.includes('attraction') || nameLower.includes('อุทยาน') || nameLower.includes('จุดชมวิว')) {
+                    cat = 'tourist'; icon = '🌴';
+                }
+
+                // Clean Address
+                let addr = item.address || "อ.ชะอวด";
+                if (addr.includes('ตำบล')) {
+                    const parts = addr.split('ตำบล');
+                    if(parts.length > 1) addr = 'ต.' + parts[1].split('อำเภอ')[0].trim();
+                }
+
+                return {
+                    id: 1000 + index, // Unique ID generation
+                    name: item.title.trim(),
+                    cat: cat,
+                    icon: icon,
+                    rating: item.rating ? parseFloat(item.rating).toFixed(1) : "4.0",
+                    lat: item.location.lat,
+                    lng: item.location.lng,
+                    addr: addr,
+                    phone: item.phone || '-',
+                    desc: item.description || `สถานที่ประเภท ${getCatLabel(cat)} ในพื้นที่อำเภอชะอวด`,
+                    price: item.priceRange || ""
+                };
+            }).filter(p => p !== null); // Remove invalid entries
+        }
+
+        // =========================================
         // NAVIGATION & RENDERING
         // =========================================
 
         function switchScreen(screenId) {
-            const screens = ['home', 'map', 'rider'];
+            const screens = ['home', 'map'];
             screens.forEach(s => {
                 const el = document.getElementById(`screen-${s}`);
                 if (el) {
                     if (s === screenId) {
                         el.className = 'screen active';
                     } else {
-                        // Determine direction for animation simplicity
                         el.className = 'screen inactive-right'; 
                     }
                 }
@@ -663,20 +681,18 @@
         }
 
         function getCatLabel(cat) {
-            const labels = { gov: 'ราชการ', hotel: 'ที่พัก', food: 'อาหาร', shop: 'ร้านค้า', gas: 'พลังงาน', tourist: 'ท่องเที่ยว', temple: 'ศาสนา' };
+            const labels = { gov: 'ราชการ', hotel: 'ที่พัก', food: 'อาหาร', shop: 'ร้านค้า', gas: 'พลังงาน', tourist: 'ท่องเที่ยว', temple: 'ศาสนา', other: 'อื่นๆ' };
             return labels[cat] || 'อื่นๆ';
         }
 
         function filterCategory(cat, element) {
-            // Update Active State
             document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('active'));
             if(element) element.classList.add('active');
 
-            // Filter Data
             if (cat === 'all') {
-                filteredPlaces = [...PLACES_DB];
+                filteredPlaces = [...placesData];
             } else {
-                filteredPlaces = PLACES_DB.filter(p => p.cat === cat);
+                filteredPlaces = placesData.filter(p => p.cat === cat);
             }
             renderList(filteredPlaces);
         }
@@ -684,9 +700,9 @@
         function handleSearch(query) {
             const q = query.toLowerCase();
             if (q.length < 2) {
-                filteredPlaces = [...PLACES_DB];
+                filteredPlaces = [...placesData];
             } else {
-                filteredPlaces = PLACES_DB.filter(p => 
+                filteredPlaces = placesData.filter(p => 
                     p.name.toLowerCase().includes(q) || 
                     p.desc.toLowerCase().includes(q) ||
                     p.addr.toLowerCase().includes(q)
@@ -700,13 +716,12 @@
         // =========================================
 
         function openPlaceDetail(id) {
-            const place = PLACES_DB.find(p => p.id === id);
+            const place = placesData.find(p => p.id === id);
             if (!place) return;
 
             const dist = calcDistance(USER_LOC.lat, USER_LOC.lng, place.lat, place.lng);
             const distStr = dist < 1 ? `${Math.round(dist * 1000)} ม.` : `${dist.toFixed(1)} กม.`;
             
-            // Generate Action Buttons based on Category
             let actionsHtml = '';
             if (place.cat === 'food') {
                 actionsHtml = `
@@ -749,7 +764,7 @@
 
                 <div class="disclaimer-box">
                     <strong>ข้อควรระวังทางกฎหมาย (Legal Disclaimer):</strong><br>
-                    Chauat Go เป็นเพียงสื่อกลางในการเชื่อมต่อผู้ใช้กับผู้ประกอบการ ข้อมูลราคาและคุณภาพสินค้าขึ้นอยู่กับผู้ขายโดยตรง โปรดตรวจสอบรายละเอียดกับผู้ขายก่อนชำระเงิน หากเกิดข้อพิพาท กรุณาติดต่อฝ่ายสนับสนุนภายใน 24 ชั่วโมง
+                    Chauat Go เป็นเพียงสื่อกลางในการเชื่อมโยงผู้ใช้กับผู้ประกอบการ ข้อมูลราคาและคุณภาพสินค้าขึ้นอยู่กับผู้ขายโดยตรง โปรดตรวจสอบรายละเอียดกับผู้ขายก่อนชำระเงิน หากเกิดข้อพิพาท กรุณาติดต่อฝ่ายสนับสนุนภายใน 24 ชั่วโมง
                 </div>
 
                 <div class="detail-actions">
@@ -790,22 +805,17 @@
             
             currentMap = L.map('map-container').setView([USER_LOC.lat, USER_LOC.lng], 14);
             
-            // OpenStreetMap Tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19
             }).addTo(currentMap);
 
-            // Add All Markers initially? No, better to add specific ones or cluster.
-            // For demo, we'll just show user location and allow searching/placing pins.
-            
             updateUserMarker();
         }
 
         function updateUserMarker() {
             if (!currentMap) return;
             
-            // Remove existing user marker if any
             currentMap.eachLayer(layer => {
                 if (layer instanceof L.CircleMarker && layer.options.pane === 'markerPane' && layer.getRadius() === 8) {
                      currentMap.removeLayer(layer);
@@ -829,10 +839,8 @@
             setTimeout(() => {
                 if (!currentMap) initMap();
                 
-                // Clear previous route lines if needed (simple implementation)
                 currentMap.flyTo([lat, lng], 16);
                 
-                // Add Destination Marker
                 const destIcon = L.divIcon({
                     className: 'custom-div-icon',
                     html: `<div style="background-color:#FF6B35; width:30px; height:30px; border-radius:50%; border:3px solid white; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; box-shadow:0 2px 5px rgba(0,0,0,0.3);">📍</div>`,
@@ -842,10 +850,8 @@
                 
                 L.marker([lat, lng], {icon: destIcon}).addTo(currentMap).bindPopup(`<b>${name}</b>`).openPopup();
                 
-                // Draw Line
                 L.polyline([[USER_LOC.lat, USER_LOC.lng], [lat, lng]], {color: '#00A651', weight: 4, dashArray: '10, 10'}).addTo(currentMap);
                 
-                // Show Info Panel
                 const panel = document.getElementById('map-info-card');
                 const content = document.getElementById('map-info-content');
                 const dist = calcDistance(USER_LOC.lat, USER_LOC.lng, lat, lng);
@@ -871,7 +877,6 @@
         function locateUser() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(pos => {
-                    // Note: In real app, update USER_LOC global variable here
                     showToast("📍 พบตำแหน่งปัจจุบันแล้ว");
                     if(currentMap) currentMap.setView([pos.coords.latitude, pos.coords.longitude], 16);
                 }, err => {
@@ -891,7 +896,7 @@
         // =========================================
 
         function calcDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Radius of the earth in km
+            const R = 6371; 
             const dLat = deg2rad(lat2 - lat1);
             const dLon = deg2rad(lon2 - lon1);
             const a = 
@@ -899,7 +904,7 @@
                 Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
                 Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-            const d = R * c; // Distance in km
+            const d = R * c; 
             return d;
         }
 
