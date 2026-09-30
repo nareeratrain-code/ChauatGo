@@ -24,27 +24,72 @@
       "purpose": "any maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "หน้าแรก Chauat Go"
+    },
+    {
+      "src": "/screenshots/map.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "แผนที่ อ.ชะอวด"
+    },
+    {
+      "src": "/screenshots/order.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "สั่งอาหารและเรียกไรเดอร์"
+    },
+    {
+      "src": "/screenshots/search.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "ค้นหาสถานที่ 490+ แห่ง"
+    }
+  ],
   "shortcuts": [
     {
       "name": "สั่งอาหาร",
       "short_name": "อาหาร",
       "description": "สั่งอาหารจากร้านใกล้เคียง",
       "url": "/?action=order-food",
-      "icons": [{ "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjRkY2QjM1Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn42NPC90ZXh0Pjwvc3ZnPg==", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjRkY2QjM1Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn42NPC90ZXh0Pjwvc3ZnPg==",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "แผนที่",
       "short_name": "แผนที่",
       "description": "ดูแผนที่ อ.ชะอวด",
       "url": "/?action=map",
-      "icons": [{ "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjNEE5MEQ5Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn5ejvDwvdGV4dD48L3N2Zz4=", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjNEE5MEQ5Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn5ejvDwvdGV4dD48L3N2Zz4=",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "ส่งด่วน",
       "short_name": "ส่งด่วน",
       "description": "เรียกไรเดอร์ส่งของ",
       "url": "/?action=express",
-      "icons": [{ "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjRjNFNUY1Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPvCfk4Y8L3RleHQ+PC9zdmc+", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjRjNFNUY1Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPvCfk4Y8L3RleHQ+PC9zdmc+",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "prefer_related_applications": false
