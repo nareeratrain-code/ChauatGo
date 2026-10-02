@@ -1,177 +1,513 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Firebase Test</title>
+<title>Firebase Test - Chauat Go</title>
+
+<!-- Firebase SDK (Compat Version) -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+
 <style>
-body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; background: #f8f9fa; }
-h1 { color: #00A651; }
-button { padding: 12px 20px; margin: 5px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+  font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+  padding: 20px; 
+  max-width: 600px; 
+  margin: 0 auto; 
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+.container {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+h1 { 
+  color: #00A651; 
+  font-size: 32px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.subtitle { color: #666; margin-bottom: 20px; font-size: 14px; }
+
+.status { 
+  padding: 15px;
+  border-radius: 12px;
+  margin: 15px 0;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.status.loading { background: #fff3cd; color: #856404; }
+.status.success { background: #d4edda; color: #155724; }
+.status.error { background: #f8d7da; color: #721c24; }
+
+h3 { 
+  color: #333; 
+  margin: 25px 0 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #00A651;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+label { 
+  font-weight: 600; 
+  display: block; 
+  margin: 12px 0 6px;
+  color: #555;
+  font-size: 14px;
+}
+input { 
+  padding: 12px 15px; 
+  border: 2px solid #e0e0e0; 
+  border-radius: 10px; 
+  width: 100%; 
+  font-size: 15px;
+  transition: border-color 0.3s;
+}
+input:focus {
+  outline: none;
+  border-color: #00A651;
+}
+
+button { 
+  padding: 14px 24px; 
+  margin: 8px 5px 8px 0;
+  border: none; 
+  border-radius: 12px; 
+  cursor: pointer; 
+  font-size: 15px;
+  font-weight: 700;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+button:active {
+  transform: translateY(0);
+}
 .btn-green { background: #00A651; color: white; }
+.btn-green:hover { background: #008C45; }
 .btn-blue { background: #4285F4; color: white; }
+.btn-blue:hover { background: #3367D6; }
 .btn-gray { background: #f0f0f0; color: #333; }
-#result { margin-top: 20px; padding: 15px; border-radius: 8px; background: white; border: 1px solid #ddd; min-height: 50px; }
-.error { color: #e74c3c; font-weight: bold; }
-.success { color: #27ae60; font-weight: bold; }
-input { padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; box-sizing: border-box; font-size: 14px; }
-label { font-weight: bold; display: block; margin-top: 10px; }
+.btn-gray:hover { background: #e0e0e0; }
+.btn-google { background: #DB4437; color: white; }
+.btn-google:hover { background: #C5221F; }
+
+#result { 
+  margin-top: 25px; 
+  padding: 20px; 
+  border-radius: 12px; 
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  min-height: 80px;
+}
+.error { 
+  color: #e74c3c; 
+  font-weight: 600;
+  line-height: 1.6;
+}
+.success { 
+  color: #27ae60; 
+  font-weight: 600;
+  line-height: 1.6;
+}
+.error-code {
+  background: #ffebee;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 10px 0;
+  font-family: monospace;
+  font-size: 13px;
+  color: #c62828;
+}
+.success-box {
+  background: #e8f5e9;
+  padding: 15px;
+  border-radius: 10px;
+  border-left: 4px solid #4caf50;
+}
+.user-info {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+.user-info b { color: #00A651; }
+
+.divider {
+  margin: 20px 0;
+  text-align: center;
+  position: relative;
+}
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e0e0e0;
+}
+.divider span {
+  background: white;
+  padding: 0 15px;
+  position: relative;
+  color: #999;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  body { padding: 10px; }
+  .container { padding: 20px; }
+  h1 { font-size: 24px; }
+  button { width: 100%; margin: 5px 0; }
+}
 </style>
 </head>
 <body>
-<h1>🔥 Firebase Auth Test</h1>
-<p>ทดสอบระบบ Login/Signup ของ Chauat Go</p>
 
-<div id="status" style="padding:10px;background:#fff3cd;border-radius:8px;margin:10px 0;">⏳ กำลังโหลด Firebase...</div>
+<div class="container">
+  <h1> Firebase Auth Test</h1>
+  <div class="subtitle">ทดสอบระบบ Login/Signup ของ Chauat Go</div>
 
-<h3>📝 สมัครสมาชิก</h3>
-<label>ชื่อ-นามสกุล</label>
-<input type="text" id="signup-name" placeholder="ชื่อ" value="Test User">
-<label>อีเมล</label>
-<input type="email" id="signup-email" placeholder="อีเมล" value="testuser12345@gmail.com">
-<label>รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)</label>
-<input type="password" id="signup-password" placeholder="รหัสผ่าน" value="12345678">
-<button class="btn-green" onclick="testSignup()">✅ สมัครสมาชิก</button>
+  <div id="status" class="status loading">
+    <span>⏳</span>
+    <span>กำลังโหลด Firebase...</span>
+  </div>
 
-<h3> เข้าสู่ระบบ</h3>
-<label>อีเมล</label>
-<input type="email" id="login-email" placeholder="อีเมล" value="">
-<label>รหัสผ่าน</label>
-<input type="password" id="login-password" placeholder="รหัสผ่าน" value="">
-<button class="btn-blue" onclick="testLogin()">🔑 เข้าสู่ระบบ</button>
+  <!-- Signup Section -->
+  <h3>📝 สมัครสมาชิก</h3>
+  <label>ชื่อ-นามสกุล</label>
+  <input type="text" id="signup-name" placeholder="เช่น สมชาย ใจดี" value="Test User">
+  
+  <label>อีเมล</label>
+  <input type="email" id="signup-email" placeholder="example@gmail.com" value="testuser12345@gmail.com">
+  
+  <label>รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)</label>
+  <input type="password" id="signup-password" placeholder="••••••••" value="12345678">
+  
+  <button class="btn-green" onclick="testSignup()">
+    <span>✅</span>
+    <span>สมัครสมาชิก</span>
+  </button>
 
-<button class="btn-gray" onclick="testGoogle()"> Login ด้วย Google</button>
-<button class="btn-gray" onclick="testLogout()">🚪 Logout</button>
+  <div class="divider"><span>หรือ</span></div>
 
-<h3>📊 ผลลัพธ์</h3>
-<div id="result">รอการทดสอบ...</div>
+  <!-- Login Section -->
+  <h3>🔑 เข้าสู่ระบบ</h3>
+  <label>อีเมล</label>
+  <input type="email" id="login-email" placeholder="example@gmail.com" value="">
+  
+  <label>รหัสผ่าน</label>
+  <input type="password" id="login-password" placeholder="••••••••" value="">
+  
+  <button class="btn-blue" onclick="testLogin()">
+    <span>🔑</span>
+    <span>เข้าสู่ระบบ</span>
+  </button>
+
+  <button class="btn-google" onclick="testGoogle()">
+    <span>🔵</span>
+    <span>Login ด้วย Google</span>
+  </button>
+
+  <button class="btn-gray" onclick="testLogout()">
+    <span>🚪</span>
+    <span>Logout</span>
+  </button>
+
+  <!-- Result Section -->
+  <h3>📊 ผลลัพธ์</h3>
+  <div id="result">
+    <div style="color: #999; text-align: center; padding: 20px;">
+      รอการทดสอบ...
+    </div>
+  </div>
+</div>
 
 <script>
+// ===== FIREBASE CONFIG =====
 const firebaseConfig = {
-  apiKey: "AIzaSyB6PnikectfjjYfvo07VhpuxEIXQdJeASBM",
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
   projectId: "chauat-go-b9841",
   storageBucket: "chauat-go-b9841.firebasestorage.app",
   messagingSenderId: "282197694521",
-  appId: "1:282197694521:web:b6de0324410e0dedd815e8"
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
+  measurementId: "G-6E2QEFWK6P"
 };
 
-let app, auth, db;
+let app, auth, db, analytics;
 
+// Initialize Firebase
 try {
   app = firebase.initializeApp(firebaseConfig);
   auth = firebase.auth();
   db = firebase.firestore();
-  document.getElementById('status').innerHTML = '✅ Firebase โหลดสำเร็จ!';
-  document.getElementById('status').style.background = '#d4edda';
-  console.log('✅ Firebase initialized');
-} catch (e) {
-  document.getElementById('status').innerHTML = '❌ Firebase โหลดไม่สำเร็จ: ' + e.message;
-  document.getElementById('status').style.background = '#f8d7da';
-  console.error('❌ Firebase init error:', e);
+  analytics = firebase.analytics();
+  
+  document.getElementById('status').innerHTML = `
+    <span>✅</span>
+    <span>Firebase โหลดสำเร็จ!</span>
+  `;
+  document.getElementById('status').className = 'status success';
+  console.log('✅ Firebase initialized successfully');
+  console.log('Project ID:', firebaseConfig.projectId);
+} catch (error) {
+  document.getElementById('status').innerHTML = `
+    <span></span>
+    <span>Firebase โหลดไม่สำเร็จ: ${error.message}</span>
+  `;
+  document.getElementById('status').className = 'status error';
+  console.error('❌ Firebase initialization error:', error);
 }
 
-auth.onAuthStateChanged(user => {
+// Auth State Observer
+auth.onAuthStateChanged((user) => {
   if (user) {
     console.log(' User logged in:', user.email);
-    document.getElementById('status').innerHTML = '👤 Login แล้ว: ' + user.email;
-    document.getElementById('status').style.background = '#d4edda';
+    document.getElementById('status').innerHTML = `
+      <span>👤</span>
+      <span>Login แล้ว: ${user.email}</span>
+    `;
+    document.getElementById('status').className = 'status success';
+    
+    // Update login email field
+    document.getElementById('login-email').value = user.email;
   } else {
     console.log('👋 No user logged in');
+    document.getElementById('status').innerHTML = `
+      <span>⏳</span>
+      <span>ยังไม่ได้ Login</span>
+    `;
+    document.getElementById('status').className = 'status loading';
   }
 });
 
+// ===== SIGNUP FUNCTION =====
 async function testSignup() {
-  const name = document.getElementById('signup-name').value;
-  const email = document.getElementById('signup-email').value;
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   
-  document.getElementById('result').innerHTML = '⏳ กำลังสมัครสมาชิก...';
+  // Validation
+  if (!name) {
+    showResult('error', '⚠️ กรุณากรอกชื่อ-นามสกุล');
+    return;
+  }
+  if (!email) {
+    showResult('error', '⚠️ กรุณากรอกอีเมล');
+    return;
+  }
+  if (!password) {
+    showResult('error', '⚠️ กรุณากรอกรหัสผ่าน');
+    return;
+  }
+  if (password.length < 6) {
+    showResult('error', '⚠️ รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+    return;
+  }
+  
+  document.getElementById('result').innerHTML = `
+    <div style="color: #666; text-align: center; padding: 20px;">
+      ⏳ กำลังสมัครสมาชิก...
+    </div>
+  `;
   
   try {
     if (!auth) throw new Error('Auth not initialized');
     
+    // Create user
     const cred = await auth.createUserWithEmailAndPassword(email, password);
-    await cred.user.updateProfile({ displayName: name });
+    console.log('✅ User created:', cred.user.uid);
     
+    // Update profile
+    await cred.user.updateProfile({ displayName: name });
+    console.log('✅ Profile updated');
+    
+    // Save to Firestore
     await db.collection('users').doc(cred.user.uid).set({
       name: name,
       email: email,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      phone: '',
+      address: '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    console.log('✅ User data saved to Firestore');
     
-    document.getElementById('result').innerHTML = 
-      '<div class="success">✅ สมัครสมาชิกสำเร็จ!</div>' +
-      '<p><b>UID:</b> ' + cred.user.uid + '</p>' +
-      '<p><b>Email:</b> ' + cred.user.email + '</p>' +
-      '<p><b>Name:</b> ' + cred.user.displayName + '</p>';
+    showResult('success', `
+      <div class="success-box">
+        <div style="font-size: 20px; margin-bottom: 10px;">✅ สมัครสมาชิกสำเร็จ!</div>
+        <div class="user-info"><b>UID:</b> ${cred.user.uid}</div>
+        <div class="user-info"><b>Email:</b> ${cred.user.email}</div>
+        <div class="user-info"><b>Name:</b> ${cred.user.displayName}</div>
+        <div class="user-info"><b>Created:</b> ${new Date().toLocaleString('th-TH')}</div>
+      </div>
+    `);
+    
   } catch (error) {
-    console.error('Signup error:', error);
-    document.getElementById('result').innerHTML = 
-      '<div class="error">❌ Error Code: ' + error.code + '</div>' +
-      '<div class="error">Message: ' + error.message + '</div>' +
-      '<p>ดู Console (F12) สำหรับรายละเอียดเพิ่มเติม</p>';
+    console.error('❌ Signup error:', error);
+    showResult('error', `
+      <div class="error-code">
+        <b>❌ Error Code:</b> ${error.code}<br>
+        <b>Message:</b> ${error.message}
+      </div>
+      <div style="margin-top: 10px; color: #666; font-size: 13px;">
+        💡 ดู Console (F12) สำหรับรายละเอียดเพิ่มเติม
+      </div>
+    `);
   }
 }
 
+// ===== LOGIN FUNCTION =====
 async function testLogin() {
-  const email = document.getElementById('login-email').value;
+  const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   
-  document.getElementById('result').innerHTML = '⏳ กำลังเข้าสู่ระบบ...';
+  // Validation
+  if (!email) {
+    showResult('error', '⚠️ กรุณากรอกอีเมล');
+    return;
+  }
+  if (!password) {
+    showResult('error', '⚠️ กรุณากรอกรหัสผ่าน');
+    return;
+  }
+  
+  document.getElementById('result').innerHTML = `
+    <div style="color: #666; text-align: center; padding: 20px;">
+      ⏳ กำลังเข้าสู่ระบบ...
+    </div>
+  `;
   
   try {
     if (!auth) throw new Error('Auth not initialized');
     
     const cred = await auth.signInWithEmailAndPassword(email, password);
-    document.getElementById('result').innerHTML = 
-      '<div class="success">✅ เข้าสู่ระบบสำเร็จ!</div>' +
-      '<p><b>UID:</b> ' + cred.user.uid + '</p>' +
-      '<p><b>Email:</b> ' + cred.user.email + '</p>' +
-      '<p><b>Name:</b> ' + cred.user.displayName + '</p>';
+    console.log('✅ User logged in:', cred.user.uid);
+    
+    showResult('success', `
+      <div class="success-box">
+        <div style="font-size: 20px; margin-bottom: 10px;">✅ เข้าสู่ระบบสำเร็จ!</div>
+        <div class="user-info"><b>UID:</b> ${cred.user.uid}</div>
+        <div class="user-info"><b>Email:</b> ${cred.user.email}</div>
+        <div class="user-info"><b>Name:</b> ${cred.user.displayName || 'N/A'}</div>
+        <div class="user-info"><b>Last Login:</b> ${new Date().toLocaleString('th-TH')}</div>
+      </div>
+    `);
+    
   } catch (error) {
-    console.error('Login error:', error);
-    document.getElementById('result').innerHTML = 
-      '<div class="error">❌ Error Code: ' + error.code + '</div>' +
-      '<div class="error">Message: ' + error.message + '</div>';
+    console.error('❌ Login error:', error);
+    showResult('error', `
+      <div class="error-code">
+        <b>❌ Error Code:</b> ${error.code}<br>
+        <b>Message:</b> ${error.message}
+      </div>
+    `);
   }
 }
 
+// ===== GOOGLE LOGIN FUNCTION =====
 async function testGoogle() {
-  document.getElementById('result').innerHTML = '⏳ กำลังเปิด Google Login...';
+  document.getElementById('result').innerHTML = `
+    <div style="color: #666; text-align: center; padding: 20px;">
+       กำลังเปิด Google Login...
+    </div>
+  `;
   
   try {
     if (!auth) throw new Error('Auth not initialized');
     
     const provider = new firebase.auth.GoogleAuthProvider();
     const result = await auth.signInWithPopup(provider);
-    document.getElementById('result').innerHTML = 
-      '<div class="success">✅ Google Login สำเร็จ!</div>' +
-      '<p><b>UID:</b> ' + result.user.uid + '</p>' +
-      '<p><b>Email:</b> ' + result.user.email + '</p>' +
-      '<p><b>Name:</b> ' + result.user.displayName + '</p>';
+    console.log('✅ Google login success:', result.user.uid);
+    
+    // Save to Firestore if new user
+    const userRef = db.collection('users').doc(result.user.uid);
+    const doc = await userRef.get();
+    
+    if (!doc.exists) {
+      await userRef.set({
+        name: result.user.displayName,
+        email: result.user.email,
+        phone: result.user.phoneNumber || '',
+        photoURL: result.user.photoURL || '',
+        provider: 'google',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      console.log('✅ New Google user saved to Firestore');
+    }
+    
+    showResult('success', `
+      <div class="success-box">
+        <div style="font-size: 20px; margin-bottom: 10px;">✅ Google Login สำเร็จ!</div>
+        <div class="user-info"><b>UID:</b> ${result.user.uid}</div>
+        <div class="user-info"><b>Email:</b> ${result.user.email}</div>
+        <div class="user-info"><b>Name:</b> ${result.user.displayName}</div>
+        <div class="user-info"><b>Provider:</b> Google</div>
+      </div>
+    `);
+    
   } catch (error) {
-    console.error('Google login error:', error);
-    document.getElementById('result').innerHTML = 
-      '<div class="error">❌ Error Code: ' + error.code + '</div>' +
-      '<div class="error">Message: ' + error.message + '</div>';
+    console.error('❌ Google login error:', error);
+    showResult('error', `
+      <div class="error-code">
+        <b> Error Code:</b> ${error.code}<br>
+        <b>Message:</b> ${error.message}
+      </div>
+    `);
   }
 }
 
+// ===== LOGOUT FUNCTION =====
 async function testLogout() {
   try {
     await auth.signOut();
-    document.getElementById('result').innerHTML = '<div class="success">✅ Logout สำเร็จ!</div>';
-    document.getElementById('status').innerHTML = '👋 Logout แล้ว';
-    document.getElementById('status').style.background = '#fff3cd';
+    console.log('✅ User logged out');
+    showResult('success', `
+      <div style="text-align: center; color: #27ae60; font-weight: 600; padding: 20px;">
+        ✅ Logout สำเร็จ!
+      </div>
+    `);
   } catch (error) {
-    document.getElementById('result').innerHTML = '<div class="error">❌ Logout error: ' + error.message + '</div>';
+    console.error('❌ Logout error:', error);
+    showResult('error', `❌ Logout error: ${error.message}`);
+  }
+}
+
+// ===== HELPER FUNCTION =====
+function showResult(type, html) {
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = html;
+  
+  if (type === 'error') {
+    resultDiv.style.borderLeft = '4px solid #e74c3c';
+    resultDiv.style.background = '#ffebee';
+  } else {
+    resultDiv.style.borderLeft = '4px solid #27ae60';
+    resultDiv.style.background = '#e8f5e9';
   }
 }
 </script>
+
 </body>
 </html>
