@@ -22,7 +22,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js?v=3"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js?v=3"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js?v=3"></script>
-<!-- LINE Login SDK -->
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Sarabun',-apple-system,sans-serif}
@@ -53,12 +52,13 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 .food-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 14px}
 .food-card{background:white;border-radius:14px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.06);cursor:pointer;transition:0.2s}
 .food-card:active{transform:scale(0.97)}
-.food-img{width:100%;height:100px;position:relative;display:flex;align-items:center;justify-content:center;font-size:44px}
+.food-img{width:100%;height:100px;position:relative;display:flex;align-items:center;justify-content:center;font-size:44px;background:#f0f0f0;overflow:hidden}
+.food-img img{width:100%;height:100%;object-fit:cover;border-radius:14px 14px 0 0}
 .food-img.rest{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
 .food-img.cafe{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
 .food-img.shop{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)}
 .food-img.temple{background:linear-gradient(135deg,#FFD700 0%,#FFA500 100%)}
-.food-badge{position:absolute;top:8px;left:8px;background:#FF6B35;color:white;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700}
+.food-badge{position:absolute;top:8px;left:8px;background:#FF6B35;color:white;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;z-index:1}
 .food-info{padding:10px}
 .food-name{font-size:13px;font-weight:700;color:#222;margin-bottom:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
 .food-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:#888}
@@ -82,7 +82,8 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 .search-results.active{display:block}
 .search-result-item{background:white;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
 .search-result-item:active{background:#f5f5f5}
-.search-result-img{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+.search-result-img{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;overflow:hidden;background:#f0f0f0}
+.search-result-img img{width:100%;height:100%;object-fit:cover}
 .search-result-img.rest{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}
 .search-result-img.cafe{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
 .search-result-img.shop{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%)}
@@ -230,11 +231,11 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 
 <div class="loc-popup-overlay hidden" id="loc-popup-overlay">
 <div class="loc-popup-content">
-<div class="loc-icon-big"></div>
+<div class="loc-icon-big">📡</div>
 <h3>อนุญาตเข้าถึงตำแหน่ง</h3>
 <p>เพื่อคำนวณระยะทางและค่าส่งที่แม่นยำ<br>แอปจะขออนุญาตเข้าถึงตำแหน่ง GPS ของคุณ</p>
 <button class="loc-popup-btn loc-allow" onclick="requestLocation()">✅ อนุญาต</button>
-<button class="loc-popup-btn loc-skip" onclick="skipLocation()">⏭️ ข้ามไปก่อน</button>
+<button class="loc-popup-btn loc-skip" onclick="skipLocation()">️ ข้ามไปก่อน</button>
 </div>
 </div>
 
@@ -272,17 +273,16 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 <button class="btn-full btn-green" onclick="handleSignup()">✅ สมัครสมาชิก</button>
 </div>
 <div style="text-align:center;margin:20px 0;color:#999;font-size:13px">หรือ</div>
-<!-- ปุ่ม LINE Login -->
 <button class="btn-full" style="background:#06C755;color:white" onclick="loginWithLine()">💬 เข้าสู่ระบบด้วย LINE</button>
-<button class="btn-full" style="background:#4285F4;color:white" onclick="loginWithGoogle()"> เข้าสู่ระบบด้วย Google</button>
+<button class="btn-full" style="background:#4285F4;color:white" onclick="loginWithGoogle()">🔵 เข้าสู่ระบบด้วย Google</button>
 <button class="btn-full btn-gray" onclick="closeLoginModal()" style="margin-top:10px">❌ ยกเลิก</button>
 </div>
 </div>
 
 <div class="header">
 <div class="header-top">
-<div class="location-badge" onclick="showToast(' ตำแหน่ง: ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช')">
-<span style="font-size:16px">📍</span>
+<div class="location-badge" onclick="showToast('📍 ตำแหน่ง: ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช')">
+<span style="font-size:16px"></span>
 <div><div class="loc-text" id="loc-text-display">ต.ชะอวด</div><div class="loc-sub" id="loc-sub-display">อ.ชะอวด จ.นครศรีธรรมราช</div></div>
 </div>
 <div class="search-bar">
@@ -306,14 +306,14 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 </div>
 <div id="home-content">
 <div class="menu-grid">
-<div class="menu-item" onclick="openOrderForm('food')"><div class="menu-icon food">🍽️</div><div class="menu-label">อาหาร</div></div>
-<div class="menu-item" onclick="openOrderForm('shopping')"><div class="menu-icon shopping"></div><div class="menu-label">ของใช้</div></div>
+<div class="menu-item" onclick="openOrderForm('food')"><div class="menu-icon food">️</div><div class="menu-label">อาหาร</div></div>
+<div class="menu-item" onclick="openOrderForm('shopping')"><div class="menu-icon shopping">🛒</div><div class="menu-label">ของใช้</div></div>
 <div class="menu-item" onclick="openOrderForm('dinein')"><div class="menu-icon dinein">🍴</div><div class="menu-label">กินที่ร้าน</div></div>
 <div class="menu-item" onclick="openOrderForm('express')"><div class="menu-icon express">📦</div><div class="menu-label">ส่งด่วน</div></div>
 <div class="menu-item" onclick="filterCategory('travel')"><div class="menu-icon travel">🚗</div><div class="menu-label">เดินทาง</div></div>
-<div class="menu-item" onclick="openMapPage()"><div class="menu-icon map">️</div><div class="menu-label">แผนที่</div></div>
+<div class="menu-item" onclick="openMapPage()"><div class="menu-icon map">🗺️</div><div class="menu-label">แผนที่</div></div>
 </div>
-<div class="section-header"><div class="section-title">️ ร้านอาหารแนะนำ</div><div class="section-more" onclick="showAllCategories('restaurant')">ดูทั้งหมด ></div></div>
+<div class="section-header"><div class="section-title">🍽️ ร้านอาหารแนะนำ</div><div class="section-more" onclick="showAllCategories('restaurant')">ดูทั้งหมด ></div></div>
 <div class="food-grid" id="restaurant-grid"></div>
 <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more" onclick="showAllCategories('convenience')">ดูทั้งหมด ></div></div>
 <div class="food-grid" id="convenience-grid"></div>
@@ -330,14 +330,14 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 <div class="map-page" id="map-page">
 <div class="map-header-bar">
 <button class="map-back-btn" onclick="closeMapPage()">← กลับ</button>
-<h3>️ แผนที่ อ.ชะอวด</h3>
+<h3>🗺️ แผนที่ อ.ชะอวด</h3>
 </div>
 <div id="main-map"></div>
 <div class="tambon-list" id="tambon-list"><div style="font-weight:bold;font-size:13px;padding:5px 10px;color:#666;border-bottom:1px solid #eee;margin-bottom:5px">12 ตำบล อ.ชะอวด</div></div>
 <div class="map-controls">
 <button class="map-ctrl-btn" onclick="toggleTambonList()">📍 ตำบล</button>
 <button class="map-ctrl-btn" onclick="centerToUser()">🎯 ตำแหน่งฉัน</button>
-<button class="map-ctrl-btn" onclick="clearDestination()">️ ล้างหมุด</button>
+<button class="map-ctrl-btn" onclick="clearDestination()">🗑️ ล้างหมุด</button>
 <button class="map-ctrl-btn" onclick="showAllPlacesOnMap()">📌 ทั้งหมด</button>
 </div>
 <div class="map-info-panel" id="map-info-panel">
@@ -364,7 +364,7 @@ body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#33
 <div class="messages-tab" id="tab-messages">
 <div class="chat-card" onclick="openChat('สมชาย ใจดี')"><div class="chat-avatar">ส</div><div class="chat-info"><div class="chat-name">ไรเดอร์สมชาย ใจดี</div><div class="chat-last">ถึงหน้าร้านแล้วครับ เดี๋ยวผมเดินเข้าไปรับให้ครับ 🙏</div></div><div class="chat-meta"><div class="chat-time">14:32</div><div class="chat-unread">2</div></div></div>
 <div class="chat-card" onclick="openChat('วิชัย เร็วไว')"><div class="chat-avatar">ว</div><div class="chat-info"><div class="chat-name">ไรเดอร์วิชัย เร็วไว</div><div class="chat-last">รับทราบครับ อีกสักครู่ถึงครับ</div></div><div class="chat-meta"><div class="chat-time">12:15</div><div class="chat-unread">1</div></div></div>
-<div class="chat-card" onclick="openChat('ประเสริฐ ซิ่ง')"><div class="chat-avatar">ป</div><div class="chat-info"><div class="chat-name">ไรเดอร์ประเสริฐ ซิ่ง</div><div class="chat-last">คุณ: ขอบคุณครับ </div></div><div class="chat-meta"><div class="chat-time">เมื่อวาน</div></div></div>
+<div class="chat-card" onclick="openChat('ประเสริฐ ซิ่ง')"><div class="chat-avatar">ป</div><div class="chat-info"><div class="chat-name">ไรเดอร์ประเสริฐ ซิ่ง</div><div class="chat-last">คุณ: ขอบคุณครับ 🙏</div></div><div class="chat-meta"><div class="chat-time">เมื่อวาน</div></div></div>
 </div>
 
 <div class="bottom-nav">
@@ -421,7 +421,7 @@ function updateUIForLoggedInUser(user) {
   document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('user-display').style.display = 'inline-block';
   const displayName = user.displayName || user.email;
-  document.getElementById('user-display').innerText = ' ' + (displayName.length > 15 ? displayName.substring(0, 15) + '...' : displayName);
+  document.getElementById('user-display').innerText = '👤 ' + (displayName.length > 15 ? displayName.substring(0, 15) + '...' : displayName);
   document.getElementById('loc-sub-display').innerText = 'ยินดีต้อนรับ, ' + displayName;
 }
 
@@ -455,26 +455,15 @@ async function loginWithGoogle() {
   }
 }
 
-// ===== LINE LOGIN =====
 async function loginWithLine() {
   try {
     showToast('🔄 กำลังเชื่อมต่อกับ LINE...');
-    
     const channelId = LINE_CONFIG.channelId;
     const redirectUri = window.location.origin + '/?line_callback=1';
     const state = Math.random().toString(36).substr(2, 9);
-    
     sessionStorage.setItem('line_login_state', state);
-    
-    const lineLoginUrl = `https://access.line.me/oauth2/v2.1/authorize?` +
-      `response_type=code&` +
-      `client_id=${channelId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `state=${state}&` +
-      `scope=profile%20openid%20email`;
-    
+    const lineLoginUrl = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${channelId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=profile%20openid%20email`;
     window.location.href = lineLoginUrl;
-    
   } catch (error) {
     console.error('LINE Login error:', error);
     showToast('❌ LINE Login ไม่สำเร็จ');
@@ -486,42 +475,27 @@ async function handleLineCallback() {
   const code = urlParams.get('code');
   const state = urlParams.get('state');
   const savedState = sessionStorage.getItem('line_login_state');
-  
   if (code && state === savedState) {
     try {
-      showToast(' กำลังเข้าสู่ระบบด้วย LINE...');
-      
+      showToast('🔄 กำลังเข้าสู่ระบบด้วย LINE...');
       const tempEmail = `line_${code.substring(0, 12)}@line.local`;
       const tempPassword = 'Line' + code.substring(0, 10);
-      
       try {
         await auth.signInWithEmailAndPassword(tempEmail, tempPassword);
         showToast('✅ เข้าสู่ระบบด้วย LINE สำเร็จ!');
       } catch (loginError) {
         if (loginError.code === 'auth/user-not-found') {
           const userCredential = await auth.createUserWithEmailAndPassword(tempEmail, tempPassword);
-          await userCredential.user.updateProfile({ 
-            displayName: 'LINE User',
-            photoURL: null
-          });
+          await userCredential.user.updateProfile({ displayName: 'LINE User', photoURL: null });
           await db.collection('users').doc(userCredential.user.uid).set({
-            name: 'LINE User',
-            email: tempEmail,
-            phone: '',
-            address: 'ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช',
-            provider: 'line',
-            lineCode: code,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            name: 'LINE User', email: tempEmail, phone: '', address: 'ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช',
+            provider: 'line', lineCode: code, createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
           showToast('✅ สมัครสมาชิกด้วย LINE สำเร็จ!');
-        } else {
-          throw loginError;
-        }
+        } else { throw loginError; }
       }
-      
       window.history.replaceState({}, document.title, window.location.pathname);
       sessionStorage.removeItem('line_login_state');
-      
     } catch (error) {
       console.error('LINE callback error:', error);
       showToast('❌ ' + getAuthErrorMessage(error.code));
@@ -529,7 +503,6 @@ async function handleLineCallback() {
   }
 }
 
-// เช็ค LINE callback ตอนโหลดหน้า
 if (window.location.search.includes('code=')) {
   handleLineCallback();
 }
@@ -546,7 +519,7 @@ async function signupWithEmail(email, password, name) {
     showToast('✅ สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ ' + name);
     closeLoginModal();
   } catch (error) {
-    console.error('❌ Signup error:', error);
+    console.error(' Signup error:', error);
     showToast('❌ ' + getAuthErrorMessage(error.code));
   }
 }
@@ -630,475 +603,511 @@ const TAMBONS = [
 ];
 
 const PLACES = [
-{n:"All Me ชาดีมีเหล้า",lat:7.9463492,lng:99.9707955,c:"cafe",price:"50-120฿",img:"🍹",rating:4.2},
-{n:"Cafe.Lao",lat:7.9649201,lng:99.9951997,c:"cafe",price:"40-100฿",img:"☕",rating:4.3},
-{n:"Cameron Cafe",lat:7.9685043,lng:99.994887,c:"cafe",price:"40-120฿",img:"",rating:4.5},
-{n:"Dew Coffee Cha-uat",lat:7.9690861,lng:99.9943373,c:"cafe",price:"45-120฿",img:"",rating:4.8},
-{n:"Mr.VAN Ice Cream",lat:7.9821871,lng:99.9666483,c:"cafe",price:"30-80฿",img:"🍦",rating:4.4},
-{n:"กาแฟโบว์",lat:7.9821889,lng:99.9820569,c:"cafe",price:"35-90฿",img:"☕",rating:4.3},
-{n:"กินติม @ชะอวด",lat:7.9672812,lng:99.9970054,c:"cafe",price:"25-60฿",img:"🍦",rating:4.5},
-{n:"ข.ไข่คาเฟ่ ชะอวด",lat:7.9669234,lng:100.0233534,c:"cafe",price:"50-130฿",img:"",rating:4.3},
-{n:"คอชาเย็น(สาขา สภ.ชะอวด)",lat:7.9663835,lng:99.9981566,c:"cafe",price:"30-70฿",img:"🧋",rating:4.2},
-{n:"ชาช้าง หลาดชะอวด",lat:7.9673797,lng:99.9955824,c:"cafe",price:"35-80฿",img:"🍵",rating:4.4},
-{n:"ชาทรตะโหมดสาขาชะอวด",lat:7.9670326,lng:99.9959598,c:"cafe",price:"35-85฿",img:"🧋",rating:4.3},
-{n:"ชานมไข่มุกดอทคอม ชะอวด",lat:7.9681854,lng:99.9950467,c:"cafe",price:"30-75฿",img:"🧋",rating:4.2},
-{n:"ชาฮีโร่ HERO",lat:7.970075,lng:99.9977912,c:"cafe",price:"35-90฿",img:"🧋",rating:4.4},
-{n:"ชิลล์ - Chill",lat:7.9630355,lng:99.9984221,c:"cafe",price:"40-100฿",img:"🍹",rating:4.3},
-{n:"ชีวิตดี๊ดี",lat:7.9596369,lng:99.9605265,c:"cafe",price:"40-110฿",img:"☕",rating:4.5},
-{n:"ติดชาน้องนุช ต.ท่าประจะ",lat:7.9554994,lng:99.9632278,c:"cafe",price:"30-70฿",img:"🍵",rating:4.2},
-{n:"ท่าน้ำชา คาเฟ่",lat:7.9623699,lng:99.9963144,c:"cafe",price:"40-100฿",img:"",rating:4.6},
-{n:"นั่งเล่าหน้าบ้าน ณ ควนดินแดง",lat:7.9416481,lng:99.9643163,c:"cafe",price:"45-120฿",img:"☕",rating:4.4},
-{n:"บ้านลูกชุบ บนเนิน",lat:7.9670964,lng:100.0088697,c:"cafe",price:"35-90฿",img:"🍡",rating:4.3},
-{n:"บ้านเอ็มพิชซ่า",lat:7.9646423,lng:99.9901592,c:"cafe",price:"80-180฿",img:"🍕",rating:4.2},
-{n:"ป้ายยักคอชะอวด",lat:7.9751266,lng:99.9960417,c:"cafe",price:"35-85฿",img:"",rating:4.3},
-{n:"ภูซอนไอติมกระทิสด",lat:7.9254483,lng:100.0089881,c:"cafe",price:"25-60฿",img:"🍦",rating:4.5},
-{n:"ร้านกาแฟเศรษฐี ท่าเสม็ด",lat:7.9517624,lng:100.0105614,c:"cafe",price:"35-90฿",img:"☕",rating:4.2},
-{n:"ร้านคะวัน",lat:7.9592561,lng:99.9604253,c:"cafe",price:"40-100฿",img:"🍰",rating:4.3},
-{n:"ร้านชาพะยอม",lat:7.9608777,lng:100.005908,c:"cafe",price:"30-75฿",img:"🍵",rating:4.2},
-{n:"ร้านช้อนชาม.นครศรีธรรมราช",lat:7.9695261,lng:99.995251,c:"cafe",price:"35-85฿",img:"🍵",rating:4.3},
-{n:"ร้านธราธิป",lat:7.9676412,lng:99.9963438,c:"cafe",price:"40-100฿",img:"☕",rating:4.2},
-{n:"ร้านน้ำชาบังกด",lat:7.9648089,lng:99.9956764,c:"cafe",price:"25-60฿",img:"",rating:4.3},
-{n:"ร้านน้ำชาเจ๊อ้อย",lat:7.9649214,lng:99.9918854,c:"cafe",price:"25-60฿",img:"🍵",rating:4.2},
-{n:"ร้านน้ำน้องสาว",lat:7.9692367,lng:99.9965894,c:"cafe",price:"30-70฿",img:"",rating:4.3},
-{n:"ร้านน้ำน้องโอชิ",lat:7.9751241,lng:99.9632741,c:"cafe",price:"30-75฿",img:"",rating:4.2},
-{n:"ร้านน้ำอ้อย 3M",lat:7.9590977,lng:99.9564628,c:"cafe",price:"25-60฿",img:"🍹",rating:4.4},
-{n:"ร้านฟอร์ยู@ชะอวด",lat:7.9667841,lng:99.9984914,c:"cafe",price:"30-80฿",img:"🧋",rating:4.3},
-{n:"ร้านเพลินพุง'งง",lat:7.9363545,lng:100.0212613,c:"cafe",price:"40-110฿",img:"☕",rating:4.4},
-{n:"ร้านไอติมใจยักษ์",lat:7.9690185,lng:99.9979403,c:"cafe",price:"25-65฿",img:"🍦",rating:4.5},
-{n:"ลานชา สถานีคนง่วง",lat:7.9673556,lng:99.9955932,c:"cafe",price:"30-75฿",img:"🍵",rating:4.3},
-{n:"วรรณภาพร",lat:7.974785,lng:99.9634335,c:"cafe",price:"35-85฿",img:"☕",rating:4.2},
-{n:"หอมหวานชานม",lat:7.9668981,lng:100.0018463,c:"cafe",price:"30-80฿",img:"🧋",rating:4.3},
-{n:"อาณาจักรชา บ้านเนินแขก",lat:7.9641097,lng:99.9897522,c:"cafe",price:"30-75฿",img:"🍵",rating:4.2},
-{n:"โคกหนองนา ธนาคารอาหารสุขภาพ",lat:7.964849,lng:100.0164816,c:"cafe",price:"40-120฿",img:"🥗",rating:4.4},
-{n:"FIVE STARS",lat:7.9590838,lng:99.9639115,c:"restaurant",price:"45-120฿",img:"⭐",rating:4.1},
-{n:"Samu sushi สาขาชะอวด",lat:7.9705488,lng:99.9963399,c:"restaurant",price:"60-150฿",img:"🍣",rating:4.4},
-{n:"กระทะทอง หมูกะทะ",lat:7.9670749,lng:100.0027069,c:"restaurant",price:"150-300฿",img:"",rating:4.3},
-{n:"ก๋วยจั๊บน้ำข้นแม่น้องอัญชัน",lat:7.9670768,lng:100.0027459,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
-{n:"ก๋วยเตี๋ยวเรือ5",lat:7.9662886,lng:100.0104017,c:"restaurant",price:"35-60฿",img:"🍜",rating:4.4},
-{n:"ก๋วยเตี๋ยวเรือบนเนิน",lat:7.9672004,lng:100.0070046,c:"restaurant",price:"35-65฿",img:"",rating:4.3},
-{n:"ก๋วยเตี๋ยวเรือบ้านพ่อ@ท่าประจะ",lat:7.9612968,lng:99.9717433,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.5},
-{n:"ข้าวต้มโกยศ&จุ๊บจิ๊บ",lat:7.9696185,lng:99.994334,c:"restaurant",price:"40-100฿",img:"🍚",rating:4.3},
-{n:"ข้าวหน้าเป็ด ข้าวหมูอบ",lat:7.9688368,lng:99.9946618,c:"restaurant",price:"40-80฿",img:"🍚",rating:4.3},
-{n:"ข้าวแกงกิ้มเตี้ยน",lat:7.9652805,lng:99.9975557,c:"restaurant",price:"35-70฿",img:"",rating:4.4},
-{n:"ครัว ชานเมือง",lat:7.9643424,lng:99.9898984,c:"restaurant",price:"60-150฿",img:"🍽️",rating:4.3},
-{n:"ครัวขนมจีน คุณแม่",lat:7.9692451,lng:99.997884,c:"restaurant",price:"40-80฿",img:"",rating:4.6},
-{n:"ครัวต้นตอ",lat:8.0070983,lng:99.9797433,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.2},
-{n:"ครัวมะปราง",lat:7.9939983,lng:99.9615043,c:"restaurant",price:"50-130฿",img:"🍽️",rating:4.3},
-{n:"ครัวศรีเมือง",lat:7.9639176,lng:99.98905,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.2},
-{n:"ครัวอีสานใต้",lat:7.9711681,lng:99.963453,c:"restaurant",price:"50-130฿",img:"🌶️",rating:4.3},
-{n:"จำหน่ายลูกชิ้นทอดเจ๊กบ",lat:7.9675258,lng:99.9963719,c:"restaurant",price:"20-50฿",img:"🍢",rating:4.4},
-{n:"ชาบูบ้านแม่",lat:7.9623247,lng:99.9854726,c:"restaurant",price:"200-400฿",img:"🍲",rating:4.2},
-{n:"ซีแซ่บ กุ้งแช่น้ำปลาชะอวด",lat:7.9666804,lng:99.998424,c:"restaurant",price:"60-150฿",img:"🦐",rating:4.4},
-{n:"ณ ที่เดิม",lat:7.9643464,lng:99.9899005,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.3},
-{n:"ตามสั่งท่าเสม็ดเดลิเวอรี่",lat:7.9495929,lng:100.0152696,c:"restaurant",price:"40-100฿",img:"🍱",rating:4.2},
-{n:"ตู้กับข้าว @ชะอวด",lat:7.9704229,lng:99.9980995,c:"restaurant",price:"50-130฿",img:"🍱",rating:4.4},
-{n:"ทะเลดอง ชะอวด",lat:7.9666467,lng:99.9962655,c:"restaurant",price:"80-200฿",img:"",rating:4.4},
-{n:"บ้าน ยายเลี่ยน ตาถวิล",lat:7.9594066,lng:99.9637612,c:"restaurant",price:"50-120฿",img:"🏠",rating:4.3},
-{n:"บ้านขนมจีน ปุ้ย",lat:7.9877066,lng:99.9890172,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
-{n:"บ้านปัญจ-รส",lat:7.9841934,lng:99.9808577,c:"restaurant",price:"60-150฿",img:"🍽️",rating:4.4},
-{n:"ปังปิ้งเตาถ่านร้าน2ปัง",lat:7.9593949,lng:99.963404,c:"restaurant",price:"25-60฿",img:"🍞",rating:4.3},
-{n:"ร้าน ขายปลาแดดเดียว",lat:7.9713991,lng:100.002393,c:"restaurant",price:"50-120฿",img:"",rating:4.2},
-{n:"ร้าน ทุ่งนาคาราโอเกะ",lat:7.9620958,lng:99.9941764,c:"restaurant",price:"80-200฿",img:"🎤",rating:4.2},
-{n:"ร้านก๋วยจั๊บรสเด็ด",lat:7.9667677,lng:99.9988822,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.4},
-{n:"ร้านก๋วยเตี๋ยว เนื้อตุ่นเปื่อย",lat:7.9724311,lng:99.9959182,c:"restaurant",price:"40-90฿",img:"",rating:4.3},
-{n:"ร้านก๋วยเตี๋ยวน้องมรท่าเสม็ด",lat:7.9529883,lng:100.0102231,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.2},
-{n:"ร้านก๋วยเตี๋ยวสูตรโบราณ",lat:7.9548062,lng:100.0088371,c:"restaurant",price:"35-70฿",img:"",rating:4.5},
-{n:"ร้านขนมจีนบนเนิน",lat:7.9666807,lng:100.0104124,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.4},
-{n:"ร้านขนมจีนป้าสาว",lat:7.9647049,lng:99.9904454,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.3},
-{n:"ร้านขนมจีนยายจิตรตาพร",lat:7.9595442,lng:99.9695015,c:"restaurant",price:"35-75฿",img:"🍜",rating:4.4},
-{n:"ร้านข้าวมันไก่เจ๊นอม",lat:7.9519858,lng:100.0138437,c:"restaurant",price:"40-80฿",img:"🍛",rating:4.3},
-{n:"ร้านครัวคนเคร็ง",lat:7.972678,lng:99.9912826,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.2},
-{n:"ร้านชาบูเสียบไม้ice&c",lat:7.9639698,lng:99.9980227,c:"restaurant",price:"100-250฿",img:"",rating:4.3},
-{n:"ร้านปั่นแหลกบุฟเฟ่ต์ผลไม้",lat:7.968886,lng:99.997976,c:"restaurant",price:"40-100฿",img:"🥤",rating:4.4},
-{n:"ร้านป้าเอียดหมูกระทะบุฟเฟต์",lat:7.9726114,lng:99.9957222,c:"restaurant",price:"139฿",img:"🥩",rating:4.3},
-{n:"ร้านส้มตำป้าธรรม",lat:7.9666962,lng:100.0066603,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.4},
-{n:"ร้านส้มตำสะดุ้งmyเพลง",lat:7.9646839,lng:99.9951063,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
-{n:"ร้านหนมจีนน้าตุ้น",lat:7.9557042,lng:99.999855,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.5},
-{n:"ร้านหมูพวงรสเด็ด ชะอวด",lat:7.9649516,lng:99.9977638,c:"restaurant",price:"50-120฿",img:"🍖",rating:4.3},
-{n:"ร้านอาหารตารื่นยายแก้ว",lat:7.9456361,lng:99.9694289,c:"restaurant",price:"50-130฿",img:"🍽️",rating:4.4},
-{n:"ร้านอาหารนกน้อย",lat:7.9711658,lng:99.9926807,c:"restaurant",price:"50-120฿",img:"🏠",rating:4.2},
-{n:"ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์",lat:7.964281,lng:99.9970526,c:"restaurant",price:"100-250฿",img:"🥩",rating:4.3},
-{n:"ร้านอาหารโอเค",lat:7.967058,lng:99.9966538,c:"restaurant",price:"50-150฿",img:"🍽️",rating:4.2},
-{n:"ร้านแกงใต้และขนมไทยบ้านอิ่มเอม",lat:7.9666389,lng:99.9947637,c:"restaurant",price:"40-100฿",img:"🍛",rating:4.5},
-{n:"ร้านแต่แรก The old time",lat:7.9654721,lng:99.9944093,c:"restaurant",price:"50-130฿",img:"🍽️",rating:4.3},
-{n:"ร้านแฮปปี้ โฟล์ค ตำแซ่บ",lat:7.9631287,lng:99.9883002,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
-{n:"ลาบอุดร(หน้าสวนหย่อม)",lat:7.9662922,lng:99.9975223,c:"restaurant",price:"50-120฿",img:"🥗",rating:4.4},
-{n:"ลำภูหมูกะทะชะอวด",lat:7.985507,lng:99.989834,c:"restaurant",price:"150-300฿",img:"",rating:4.3},
-{n:"วารินทร์ ซาลาเปาทอด&ปาท่องโก๋",lat:7.9680305,lng:99.9952084,c:"restaurant",price:"20-50฿",img:"🥟",rating:4.4},
-{n:"สถานีของหรอย@ชะอวด",lat:7.9654112,lng:99.9905907,c:"restaurant",price:"50-130฿",img:"️",rating:4.3},
-{n:"สถานียำตำแซ่บ",lat:7.9704778,lng:99.9961367,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
-{n:"สลัดไข่มุก สาขาชะอวด",lat:7.9692051,lng:99.9981353,c:"restaurant",price:"50-120฿",img:"🥗",rating:4.3},
-{n:"สเต็กลุงอ้วน by เชฟปืน",lat:7.9725186,lng:99.9958096,c:"restaurant",price:"150-350฿",img:"🥩",rating:4.6},
-{n:"ส้มตำ เชลล์",lat:7.9696555,lng:99.9943106,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
-{n:"ส้มตำครกทอง",lat:7.9710256,lng:99.9931146,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.3},
-{n:"ส้มตำสองพี่น้อง ลาบอุบลฯ",lat:7.9640635,lng:99.9897116,c:"restaurant",price:"40-100฿",img:"",rating:4.4},
-{n:"หม่าล่าเฮงเฮง",lat:7.9637426,lng:99.9985664,c:"restaurant",price:"60-150฿",img:"🌶️",rating:4.2},
-{n:"หอยครก...หรอยยกนิ้ว",lat:7.9670202,lng:99.9983783,c:"restaurant",price:"40-100฿",img:"🦪",rating:4.3},
-{n:"อีสานพลัดถิ่น (บ้านไร่เนิน)",lat:7.9516409,lng:100.0225923,c:"restaurant",price:"50-130฿",img:"🌶️",rating:4.4},
-{n:"เจ๊สาห์หมูกระทะ",lat:7.9585347,lng:99.9849734,c:"restaurant",price:"150-300฿",img:"",rating:4.3},
-{n:"เจ๊หญิงผัดไทย หอยทอด",lat:7.9635936,lng:99.9980924,c:"restaurant",price:"40-80฿",img:"🍳",rating:4.5},
-{n:"เตี๋ยวตุ๋น หม้อไฟ INDY",lat:7.9605533,lng:99.9863734,c:"restaurant",price:"100-250฿",img:"🍲",rating:4.4},
-{n:"เมษา กาแฟ",lat:7.9646839,lng:99.9951063,c:"restaurant",price:"40-100฿",img:"☕",rating:4.3},
-{n:"เมามาย ชะอวด",lat:7.9938386,lng:99.9704377,c:"restaurant",price:"80-200฿",img:"🍻",rating:4.2},
-{n:"แม่พรขนมจีน",lat:7.9751241,lng:99.9632741,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
-{n:"แม่เพ็ญเครื่องแกง & ข้าวต้ม",lat:7.9646317,lng:99.9847939,c:"restaurant",price:"40-100฿",img:"🍲",rating:4.3},
-{n:"ไก่ทอดโอปป้า สาขาชะอวด",lat:7.9662091,lng:99.9930427,c:"restaurant",price:"50-120฿",img:"🍗",rating:4.3},
-{n:"ไก่โต้งข้าวมันไก่ไหหลำ",lat:7.9662262,lng:99.9929985,c:"restaurant",price:"40-80฿",img:"🍛",rating:4.4},
-{n:"ร้านเยี่ยมโอชา",lat:7.9648964,lng:99.9953573,c:"restaurant",price:"50-150฿",img:"🍛",rating:4.5},
-{n:"ชิปปิ้ง ชาบู&หมูกระทะ",lat:7.9659063,lng:99.9949039,c:"restaurant",price:"150-300฿",img:"🍲",rating:4.4},
-{n:"ร้านหนองคาย อาหารอิสาน",lat:7.9657836,lng:99.9922684,c:"restaurant",price:"50-120฿",img:"🌶️",rating:4.4},
-{n:"เต๋วเรือลานข่อย ณ ชะอวด",lat:7.9681891,lng:99.9959867,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
-{n:"Love Milk Cafe&Restaurant",lat:7.9659765,lng:99.9932246,c:"restaurant",price:"45-150฿",img:"🥛",rating:4.5},
-{n:"ปริ่มละมุล",lat:7.9866593,lng:99.9894992,c:"restaurant",price:"60-180฿",img:"🍰",rating:4.6},
-{n:"เหล่าเต๊ง Chauat",lat:7.9654603,lng:99.9943536,c:"restaurant",price:"40-120฿",img:"🍵",rating:4.4},
-{n:"วัดหมื่นระงับรังสรรค์",lat:7.967482,lng:100.0011391,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
-{n:"วัดโทสิทธิวารีน้อย (วัดบางน้อย)",lat:7.9443214,lng:100.0320631,c:"temple",price:"เปิดทุกวัน",img:"",rating:4.4},
-{n:"วัดบ่อน้ำดำ",lat:7.9238441,lng:99.9869303,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.6},
-{n:"วัดท่าเสม็ด",lat:7.9545473,lng:100.0079449,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
-{n:"วัดตะเคียนทอง",lat:7.9567803,lng:99.9704696,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.3},
-{n:"วัดศรีมาประสิทธ์",lat:7.963936,lng:99.9965192,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.7},
-{n:"วัดควนสมบูรณ์",lat:7.9718178,lng:99.9651773,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.4},
-{n:"วัดป่านาบน",lat:7.939721,lng:100.0263685,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
-{n:"วัดรักขิตวัน",lat:7.9780661,lng:99.9920701,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.6},
-{n:"วัดเลียบ",lat:7.9798026,lng:99.9701276,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.3},
-{n:"วัดดอนมะปราง",lat:7.9906917,lng:99.9609256,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
-{n:"สำนักวิมานแก้ว",lat:7.9617102,lng:99.985519,c:"temple",price:"เปิดทุกวัน",img:"🏯",rating:4.4},
-{n:"วัดท่าสะท้อน",lat:8.0000628,lng:100.0182942,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.7},
-{n:"วัดไทรหัวม้า",lat:7.9644527,lng:100.0356972,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
-{n:"วัดเขาพระทอง",lat:8.0250,lng:100.0400,c:"temple",price:"เปิดทุกวัน",img:"⛰️",rating:4.8},
-{n:"7-Eleven สาขา ท่าประจะ",lat:7.9590652,lng:99.9639528,c:"convenience",price:"24 ชม.",img:"",rating:4.3},
-{n:"7-Eleven สาขา PTTOR ชะอวด",lat:7.961493,lng:99.987406,c:"convenience",price:"24 ชม.",img:"",rating:4.2},
-{n:"7-Eleven สาขา ชะอวด",lat:7.9667964,lng:99.9967819,c:"convenience",price:"24 ชม.",img:"",rating:4.3},
-{n:"7-Eleven สาขา ชะอวด 2",lat:7.967021,lng:99.9964999,c:"convenience",price:"24 ชม.",img:"",rating:4.2},
-{n:"7-Eleven สาขา ถนนอรุณประชา",lat:7.96862,lng:99.9946493,c:"convenience",price:"24 ชม.",img:"🏪",rating:4.3},
-{n:"โลตัส โก เฟรช ชะอวด",lat:7.9670751,lng:99.9968295,c:"convenience",price:"7:00-22:00",img:"🛒",rating:4.4},
-{n:"KFC สาขาชะอวด",lat:7.9616453,lng:99.9875667,c:"convenience",price:"10:00-22:00",img:"🍗",rating:4.1},
-{n:"PTT Station ปตท.ชะอวด (น้ำมัน+EV)",lat:7.9616121,lng:99.9874856,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.3},
-{n:"PTT",lat:7.9713988,lng:99.9928366,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.2},
-{n:"Caltex",lat:7.968906,lng:99.994871,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.3},
-{n:"ปั๊มน้ำมัน PT (สาขาชะอวด 2)",lat:7.9727798,lng:99.9910928,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.1},
-{n:"Sukhothai Gas Stations",lat:7.972852,lng:99.991155,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.0},
-{n:"ปั๊มตราดาว เจ๊ยี่",lat:7.9686435,lng:99.9949754,c:"gas",price:"เปิด 24 ชม.",img:"⭐",rating:4.2},
-{n:"วีระพลปิโตรเลียม",lat:8.001079,lng:100.0024084,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.1},
-{n:"ปั้มน้ำมัน พี่แกน",lat:8.001674,lng:100.0023387,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.0},
-{n:"บ้านแม่ ทุ่งหัวพาน",lat:7.9417746,lng:100.0080005,c:"hotel",price:"400-800฿",img:"🏡",rating:4.3},
-{n:"โฮมสเตย์เรือนริมน้ำชะอวด",lat:7.963346,lng:100.0346649,c:"hotel",price:"500-1000฿",img:"",rating:4.5},
-{n:"บ้านพัก ขวัญแก้ว",lat:7.9694722,lng:99.9934722,c:"hotel",price:"350-700฿",img:"",rating:4.2},
-{n:"ทองขาวบ้านสวนรีสอร์ท",lat:7.9670818,lng:100.0232993,c:"hotel",price:"600-1200฿",img:"🌳",rating:4.4},
-{n:"เรือนกลางหลาด",lat:7.9828841,lng:99.9908841,c:"hotel",price:"600-1200฿",img:"🏠",rating:4.5},
-{n:"สวนพลู รีสอร์ต",lat:7.9644048,lng:99.9808742,c:"hotel",price:"400-900฿",img:"🌴",rating:4.3},
-{n:"มะปรางค์ เอสบี รีสอร์ท",lat:7.9924958,lng:99.962219,c:"hotel",price:"500-1000฿",img:"",rating:4.4},
-{n:"บ้านนายหัวชาม โฮมสเตย์",lat:8.0000644,lng:100.0165882,c:"hotel",price:"400-800฿",img:"🏡",rating:4.2},
-{n:"ธนาคารกรุงไทย สาขาชะอวด",lat:7.9678545,lng:99.9955985,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.2},
-{n:"ธนาคารออมสิน สาขาชะอวด",lat:7.9681554,lng:99.9966014,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.3},
-{n:"ธนาคารเพื่อการเกษตรฯ สาขาชะอวด",lat:7.9698444,lng:99.9937785,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.2},
-{n:"ธนาคารไทยพาณิชย์ สาขาชะอวด",lat:7.967917,lng:99.9954819,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.3},
-{n:"เงินติดล้อ สาขา ชะอวด",lat:7.9676908,lng:99.9953319,c:"bank",price:"จ-ส 9:00-18:00",img:"💰",rating:4.0},
-{n:"ศรีสวัสดิ์ เงินสดทันใจ (ท่าประจะ)",lat:7.961113,lng:99.987004,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:3.9},
-{n:"ศรีสวัสดิ์ เงินสดทันใจ (ชะอวด)",lat:7.9751241,lng:99.9632741,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:3.9},
-{n:"ศรีสวัสดิ์ เงินสดทันใจ (รพ.)",lat:7.9693057,lng:99.9963774,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:4.0},
-{n:"ศรีสวัสดิ์ เงินสดทันใจ (รร.)",lat:7.966608,lng:99.998516,c:"bank",price:"จ-ส 9:00-17:00",img:"",rating:3.9},
-{n:"สมหวัง เงินสั่งได้ สาขา ชะอวด",lat:7.961227,lng:99.987169,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:4.0},
-{n:"ห้างทองศักดิ์สุวรรณ2",lat:7.9658472,lng:99.9973143,c:"bank",price:"9:00-20:00",img:"",rating:4.3},
-{n:"เงินเทอร์โบ สาขาชะอวด",lat:7.9660515,lng:99.9922354,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:3.9},
-{n:"เงินไชโยสาขาชะอวด",lat:7.9673602,lng:99.9957658,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:4.0},
-{n:"Omsin Sakha Cha-uat Banks",lat:8.001079,lng:100.0024084,c:"bank",price:"จ-ศ 8:30-15:30",img:"",rating:4.2},
-{n:"โรงเรียนบ้านหนองหิน",lat:7.9405707,lng:99.9931927,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
-{n:"โรงเรียนบ้านห้วยโส",lat:7.9527034,lng:99.9797008,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.2},
-{n:"โรงเรียนวัดท่าเสม็ด",lat:7.9560129,lng:100.0067071,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.4},
-{n:"โรงเรียนบ้านชะอวด",lat:7.9641603,lng:100.0000337,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
-{n:"โรงเรียนชุมชนควนดินแดงมิตรภาพที่๓",lat:7.9402422,lng:99.9615976,c:"edu",price:"จ-ศ 7:00-16:00",img:"🏫",rating:4.5},
-{n:"โรงเรียนวัดควนสมบูรณ์",lat:7.9715566,lng:99.9663925,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.3},
-{n:"โรงเรียนวัดรักขิตวัน",lat:7.9776563,lng:99.992897,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.4},
-{n:"โรงเรียนวัดปากควน",lat:7.9627771,lng:100.0368423,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
-{n:"โรงเรียนบ้านบางน้อย",lat:7.951818,lng:100.0269177,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.2},
-{n:"โรงเรียนชะอวด",lat:7.969309,lng:99.9987471,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.4},
-{n:"โรงเรียนกุลวดีศึกษา",lat:7.9667757,lng:100.0036838,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.5},
-{n:"โรงเรียนชะอวดวิทยา",lat:7.9727688,lng:99.9956609,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.4},
-{n:"โรงเรียนวัดดอนมะปราง",lat:7.9910655,lng:99.9615524,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
-{n:"โรงเรียนวัดท่าสะท้อน",lat:8.0006006,lng:100.0178194,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.5},
-{n:"โรงเรียนชะอวดวิทยาคาร",lat:7.9712039,lng:100.0052213,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.5},
-{n:"โรงเรียนบ้านศาลาทวดทอง",lat:7.9767231,lng:100.0200571,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
-{n:"ศูนย์การศึกษาพิเศษฯ หน่วยบริการชะอวด",lat:7.9668154,lng:99.9987599,c:"edu",price:"จ-ศ 8:30-16:30",img:"♿",rating:4.4},
-{n:"ศูนย์เด็กเล็กอำเภอชะอวด",lat:7.9672741,lng:99.9994167,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.3},
-{n:"โรงเรียนอนุบาลลูกแก้ว",lat:7.968188,lng:99.99372,c:"edu",price:"จ-ศ 8:00-15:00",img:"🎓",rating:4.5},
-{n:"วิทยาลัยการอาชีพชะอวด",lat:7.9800,lng:100.0100,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.4},
-{n:"กศน.ตำบลท่าประจะ",lat:7.9732835,lng:99.9626224,c:"edu",price:"จ-ศ 9:00-17:00",img:"📚",rating:4.2},
-{n:"กศน.ตำบลท่าเสม็ด",lat:7.9569534,lng:100.0064912,c:"edu",price:"จ-ศ 9:00-17:00",img:"📚",rating:4.2},
-{n:"ครูออยสอนพิเศษ",lat:7.9674348,lng:99.9953067,c:"edu",price:"ตามนัด",img:"👩‍🏫",rating:4.5},
-{n:"ชมรมข้าราชการบำเหน็จบำนาญ",lat:7.9648176,lng:99.9989211,c:"edu",price:"จ-ศ 9:00-16:00",img:"👥",rating:4.1},
-{n:"ชะอวดติวเตอร์",lat:7.9689317,lng:99.9979594,c:"edu",price:"ตามนัด",img:"📖",rating:4.4},
-{n:"ชะอวดบุ๊คเซ็นเตอร์",lat:7.9645596,lng:99.989676,c:"edu",price:"8:00-20:00",img:"📚",rating:4.3},
-{n:"ร้านหนังสือพิมพ์จินตนา",lat:7.9670515,lng:99.9966782,c:"edu",price:"7:00-18:00",img:"📰",rating:4.2},
-{n:"ศูนย์การเรียนรู้(สวนมังคุด)",lat:7.92678,lng:99.9857367,c:"edu",price:"จ-ศ 9:00-16:00",img:"🥭",rating:4.3},
-{n:"ศูนย์การเรียนรู้ระดับตำบลชะอวด",lat:7.9783738,lng:100.0188994,c:"edu",price:"จ-ศ 9:00-16:00",img:"📚",rating:4.2},
-{n:"ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลชะอวด",lat:7.9672741,lng:99.9994167,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.4},
-{n:"ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลท่าประจะ",lat:7.9692849,lng:99.9648115,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.3},
-{n:"ศูนย์พัฒนาเด็กเล็กโรงเรียนวัดปากควน",lat:7.9641159,lng:100.0362609,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.3},
-{n:"สกร.ระดับอำเภอชะอวด",lat:7.9672545,lng:99.998667,c:"edu",price:"จ-ศ 8:30-16:30",img:"",rating:4.2},
-{n:"ห้องสมุดประชาชนอำเภอชะอวด",lat:7.967155,lng:99.998853,c:"edu",price:"จ-ศ 9:00-17:00",img:"📚",rating:4.3},
-{n:"ไก่การพิมพ์",lat:7.966144,lng:99.9925204,c:"edu",price:"8:00-17:00",img:"🖨️",rating:4.1},
-{n:"ศพก.อำเภอชะอวด",lat:7.927141,lng:99.985738,c:"edu",price:"จ-ศ 8:30-16:30",img:"🌾",rating:4.2},
-{n:"ศูนย์การเรียนชุมชนวิถีไท",lat:7.9947329,lng:100.02409,c:"edu",price:"จ-ศ 9:00-16:00",img:"📖",rating:4.3},
-{n:"ที่ว่าการอำเภอชะอวด",lat:7.9646,lng:99.9951,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏛️",rating:4.5},
-{n:"สถานีตำรวจภูธรชะอวด",lat:7.9652,lng:99.9958,c:"gov",price:"24 ชม.",img:"🚔",rating:4.3},
-{n:"เทศบาลตำบลชะอวด",lat:7.9620,lng:99.9935,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏢",rating:4.2},
-{n:"อบต ท่าเสม็ด",lat:7.9562142,lng:100.0087033,c:"gov",price:"จ-ศ 8:30-16:30",img:"",rating:4.1},
-{n:"อบต ท่าประจะ",lat:7.9720053,lng:99.9634295,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏢",rating:4.1},
-{n:"โรงพยาบาลชะอวด",lat:7.9813021,lng:99.9916658,c:"gov",price:"24 ชม.",img:"🏥",rating:4.3},
-{n:"ไปรษณีย์ไทย สาขาชะอวด",lat:7.968176,lng:99.9954555,c:"gov",price:"จ-ส 8:30-16:30",img:"📮",rating:4.2},
-{n:"ตลาดชะอวด",lat:7.9716912,lng:99.994021,c:"market",price:"6:00-18:00",img:"🏪",rating:4.2},
-{n:"ตลาดร่วมใจ ถนนคนเดิน",lat:7.964451,lng:99.998216,c:"market",price:"17:00-22:00",img:"️",rating:4.3},
-{n:"ตลาดสดชะอวด",lat:7.9652396,lng:99.9967148,c:"market",price:"5:00-12:00",img:"🥬",rating:4.1},
-{n:"Sod Station",lat:7.96422,lng:99.998431,c:"market",price:"7:00-20:00",img:"🛒",rating:4.0},
-{n:"Suriya Suanchan",lat:7.972753,lng:99.9964831,c:"market",price:"8:00-18:00",img:"🏪",rating:4.1},
-{n:"ขำขัน-khamkhan Coffe",lat:7.9668406,lng:100.0024617,c:"market",price:"7:00-18:00",img:"",rating:4.2},
-{n:"ทัศนีย์ซุปเปอร์มาร์ท",lat:7.9664986,lng:99.9958986,c:"market",price:"7:00-21:00",img:"🛒",rating:4.2},
-{n:"นาคปลัดฟาร์ม",lat:7.9657599,lng:99.9910369,c:"market",price:"7:00-18:00",img:"🥬",rating:4.1},
-{n:"ป้าวรรณหมูกระทะตลาดล่าง",lat:7.9632802,lng:99.9987252,c:"market",price:"17:00-23:00",img:"",rating:4.3},
-{n:"ร้านขายของเก่า สมยศ พาณิชย์",lat:7.965561,lng:99.9907325,c:"market",price:"8:00-17:00",img:"🏪",rating:3.9},
-{n:"ร้านน้องนกรองเท้ามือสอง",lat:7.9657094,lng:99.9949273,c:"market",price:"9:00-18:00",img:"👟",rating:4.0},
-{n:"ร้านผลไม้พี่เหน่ง ตลาดร่วมใจ",lat:7.9643638,lng:99.997856,c:"market",price:"7:00-18:00",img:"🍎",rating:4.2},
-{n:"ร้านผลไม้พี่เหน่ง ตลาดเปิดท้าย",lat:7.9663876,lng:99.9981715,c:"market",price:"17:00-22:00",img:"🍎",rating:4.1},
-{n:"ร้านพี่มร อมรทิพย์ ตลาดชะอวด",lat:7.9661596,lng:99.9970871,c:"market",price:"7:00-18:00",img:"🏪",rating:4.0},
-{n:"ร้านเครื่องปรุง ป้าสาวลุงชัย",lat:7.9717384,lng:99.9940567,c:"market",price:"7:00-17:00",img:"🧂",rating:4.2},
-{n:"ร้านแสงศรีพาณิชย์",lat:7.9661588,lng:99.9970885,c:"market",price:"7:00-18:00",img:"🏪",rating:4.1},
-{n:"วิสาหกิจชุมชนกลุ่มบูมมังคุด",lat:7.9394394,lng:99.9654572,c:"market",price:"8:00-17:00",img:"🥭",rating:4.3},
-{n:"สวนป่านาบุญ2 ชะอวด",lat:7.9870341,lng:99.997625,c:"market",price:"8:00-17:00",img:"🌳",rating:4.4},
-{n:"หนำหมอกาย",lat:7.9682669,lng:99.9950972,c:"market",price:"7:00-18:00",img:"🏪",rating:4.0},
-{n:"เช่าชุดเที่ยว By Endsind rental",lat:7.9399363,lng:99.9625732,c:"market",price:"9:00-18:00",img:"👗",rating:4.2},
-{n:"ไร่กลิ่นหอม",lat:7.9490232,lng:99.9846395,c:"market",price:"8:00-17:00",img:"🌸",rating:4.3},
-{n:"ท่องบ้านยวน",lat:7.9618215,lng:99.9560357,c:"tourist",price:"8:00-17:00",img:"🏞️",rating:4.5},
-{n:"สะพานโค้ง100ปีชะอวด",lat:7.9644,lng:99.9982,c:"tourist",price:"เปิดทุกวัน",img:"🌉",rating:4.6},
-{n:"หอนาฬิกาเทศบาลตำบลชะอวด",lat:7.9670053,lng:99.9973112,c:"tourist",price:"เปิดทุกวัน",img:"🕐",rating:4.2},
-{n:"ล่องแพบ้านวังอ่าง",lat:7.9025,lng:99.9225,c:"tourist",price:"8:00-17:00",img:"🛶",rating:4.5},
-{n:"ป่าพรุควนเคร็ง",lat:7.8850,lng:100.1150,c:"tourist",price:"8:00-17:00",img:"🌿",rating:4.6},
-{n:"น้ำตกวังหอน",lat:7.9000,lng:99.9150,c:"tourist",price:"8:00-17:00",img:"💧",rating:4.4},
-{n:"Ban Tungkhai",lat:7.99401,lng:99.9867609,c:"transport",price:"เปิดทุกวัน",img:"🚉",rating:4.0},
-{n:"Chauat Station",lat:7.965,lng:99.99833,c:"transport",price:"เปิดทุกวัน",img:"🚉",rating:4.1},
-{n:"ทางแยกชะอวด",lat:7.9667387,lng:99.9960237,c:"transport",price:"เปิดทุกวัน",img:"🛣️",rating:3.8},
-{n:"บ้านของสส.กฤต",lat:7.9420445,lng:99.9968167,c:"transport",price:"-",img:"🏠",rating:3.5},
-{n:"ร้านขนมปังปิ้งหอมโฉ",lat:7.9643131,lng:99.9980384,c:"health",price:"6:00-12:00",img:"🍞",rating:4.3},
-{n:"สำนักงานสาธารณสุขอำเภอชะอวด",lat:7.9641119,lng:99.9977083,c:"health",price:"จ-ศ 8:30-16:30",img:"🏥",rating:4.2},
-{n:"โรงพยาบาลชะอวด",lat:7.9813021,lng:99.9916658,c:"health",price:"24 ชม.",img:"🏥",rating:4.3},
-{n:"รพ.สต.บ้านควนสมบูรณ์",lat:7.9731338,lng:99.9634295,c:"health",price:"จ-ศ 8:30-16:30",img:"🏥",rating:4.1},
-{n:"FlashHomeเมืองใหม่",lat:7.9606922,lng:99.9861881,c:"postal",price:"8:00-20:00",img:"📦",rating:4.2},
-{n:"SPX Express สาขาสี่แยกบนเนิน",lat:7.9670161,lng:100.0076208,c:"postal",price:"8:00-20:00",img:"📦",rating:4.1},
-{n:"Shippop สาขาชะอวด",lat:7.9673865,lng:99.9955265,c:"postal",price:"8:00-18:00",img:"📦",rating:4.0},
-{n:"ไปรษณีย์ไทย สาขาชะอวด",lat:7.968176,lng:99.9954555,c:"postal",price:"จ-ส 8:30-16:30",img:"",rating:4.2},
-{n:"กลุมมังคุดเมืองใหม่ก้าวหน้า",lat:7.9596389,lng:99.9850833,c:"recreation",price:"-",img:"🥭",rating:4.2},
-{n:"กองทุนหมู่บ้าน บ้านสี่แยกโคกขันธ์",lat:7.961342,lng:99.9635418,c:"recreation",price:"จ-ศ 9:00-16:00",img:"🏘️",rating:4.0},
-{n:"ค่ายไก่ส.สิทธิชัย",lat:7.965189,lng:99.9969038,c:"recreation",price:"-",img:"",rating:4.3},
-{n:"ที่ทำการผู้ใหญ่บ้านเนินอินทร์แก้ว",lat:7.9784003,lng:100.0188892,c:"recreation",price:"จ-ศ 8:30-16:30",img:"🏘️",rating:4.1},
-{n:"สวนปาล์ม ผอ.อรอนงค์",lat:7.9312206,lng:100.0101695,c:"recreation",price:"-",img:"",rating:4.2},
-{n:"สวนป้านงค์",lat:7.9346763,lng:99.9903153,c:"recreation",price:"-",img:"🌳",rating:4.3},
-{n:"สวนผลไม้ บ้านมังสัง",lat:7.9478047,lng:99.9594238,c:"recreation",price:"-",img:"🍎",rating:4.2},
-{n:"สวนมังคุด คุณพ่อมนูญ",lat:7.9637895,lng:100.0285622,c:"recreation",price:"-",img:"🥭",rating:4.4},
-{n:"เกมส์",lat:7.951874,lng:100.0357781,c:"recreation",price:"10:00-22:00",img:"🎮",rating:4.0},
-{n:"A Coffee Bar",lat:7.9244411,lng:100.0005104,c:"shop",price:"8:00-20:00",img:"☕",rating:4.2},
-{n:"CP FreshMart",lat:7.9666366,lng:99.9954757,c:"shop",price:"7:00-22:00",img:"🛒",rating:4.3},
-{n:"Cozyday",lat:7.9688835,lng:99.9979628,c:"shop",price:"8:00-20:00",img:"☕",rating:4.3},
-{n:"GN FASHION",lat:7.9675874,lng:99.9963538,c:"shop",price:"9:00-20:00",img:"👗",rating:4.1},
-{n:"Indeed Tattoo @ ชะอวด",lat:7.9679936,lng:100.0026909,c:"shop",price:"10:00-20:00",img:"🎨",rating:4.4},
-{n:"Juicy ice สาขาชะอวด",lat:7.9668703,lng:100.0076342,c:"shop",price:"10:00-21:00",img:"🍦",rating:4.3},
-{n:"Kerry Express Parcel Service",lat:7.9659091,lng:99.992776,c:"shop",price:"8:00-20:00",img:"",rating:4.1},
-{n:"Mesa Coffee Roasters",lat:7.9671216,lng:100.0034409,c:"shop",price:"7:00-18:00",img:"☕",rating:4.4},
-{n:"Momocha สาขาชะอวด",lat:7.9683637,lng:99.9966894,c:"shop",price:"10:00-21:00",img:"🧋",rating:4.3},
-{n:"SB แบตเตอรี่เซอร์วิส ชะอวด",lat:7.9930373,lng:99.9632882,c:"shop",price:"8:00-18:00",img:"🔋",rating:4.1},
-{n:"Tattoo by kob",lat:7.9765007,lng:100.0018575,c:"shop",price:"10:00-20:00",img:"🎨",rating:4.4},
-{n:"กระจูด",lat:7.9474587,lng:100.0315216,c:"shop",price:"8:00-17:00",img:"🧺",rating:4.3},
-{n:"กระเป๋ากระจูดน้องมีตังค์",lat:7.966165,lng:100.0384609,c:"shop",price:"9:00-18:00",img:"👜",rating:4.4},
-{n:"กลุ่มมังคุดชะอวดพัฒนา",lat:7.9369912,lng:99.9713771,c:"shop",price:"8:00-17:00",img:"🥭",rating:4.2},
-{n:"กลุ่มแม่บ้านเกษตรกรบ้านเนินกลาง",lat:7.9664473,lng:99.9989433,c:"shop",price:"8:00-17:00",img:"👩‍🌾",rating:4.3},
-{n:"กะปะ(เจ้าเก่า)",lat:7.9751241,lng:99.9632741,c:"shop",price:"7:00-18:00",img:"",rating:4.1},
-{n:"กาแฟบ้านสวนพ่อ",lat:7.9650648,lng:99.9960414,c:"shop",price:"7:00-17:00",img:"☕",rating:4.3},
-{n:"กิจเจริญอะไหล่ยนต์",lat:7.9682661,lng:99.9950978,c:"shop",price:"8:00-18:00",img:"🔧",rating:4.2},
-{n:"กินเส้นเย็นตาโฟ",lat:7.980588,lng:99.9838749,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.4},
-{n:"ก๋วยเตี๋ยวทุ่งค่าย",lat:8.0052774,lng:99.9800295,c:"shop",price:"7:00-15:00",img:"",rating:4.3},
-{n:"ก๋วยเตี๋ยวโบราณป้าแบน",lat:7.9384267,lng:99.9862992,c:"shop",price:"7:00-14:00",img:"🍜",rating:4.5},
-{n:"คอมพิวเตอร์ ปริ้นเตอร์ ชะอวด",lat:7.9653003,lng:99.9904537,c:"shop",price:"9:00-18:00",img:"💻",rating:4.1},
-{n:"คิดอิเล็กทรอนิกส์",lat:7.9537965,lng:99.9793065,c:"shop",price:"8:00-20:00",img:"🔌",rating:4.6},
-{n:"จงรักฟาร์ม",lat:7.9669756,lng:99.9960383,c:"shop",price:"7:00-18:00",img:"",rating:4.2},
-{n:"จิระดาวเทียม",lat:7.9660923,lng:99.9922518,c:"shop",price:"8:00-18:00",img:"📡",rating:4.3},
-{n:"จิ๊บจิ๊บเทเลคอมชะอวด",lat:7.9660663,lng:99.9975462,c:"shop",price:"9:00-18:00",img:"",rating:4.2},
-{n:"ฉลองคอนกรีตบ้านไร่เนิน",lat:7.9512888,lng:100.0232375,c:"shop",price:"7:00-17:00",img:"🏗️",rating:4.1},
-{n:"ช.พรหมนิมิตวัสดุ",lat:7.961592,lng:99.9866635,c:"shop",price:"7:00-18:00",img:"",rating:4.2},
-{n:"ชะอวดการพิมพ์",lat:7.9665791,lng:99.9964458,c:"shop",price:"8:00-17:00",img:"🖨️",rating:4.1},
-{n:"ชะอวดค้าเหล็ก",lat:7.9746038,lng:99.9900184,c:"shop",price:"7:00-17:00",img:"🔩",rating:4.2},
-{n:"ชะอวดค้าไม้",lat:7.9859021,lng:99.9896265,c:"shop",price:"7:00-17:00",img:"🪵",rating:4.1},
-{n:"ชะอวดนานาวัสดุ",lat:7.9672967,lng:99.9971594,c:"shop",price:"7:00-18:00",img:"🧱",rating:4.2},
-{n:"ชะอวดรถยก 24ชม.",lat:7.9762937,lng:99.9937471,c:"shop",price:"24 ชม.",img:"🚛",rating:4.0},
-{n:"ชะอวดรับอัดสายไฮดรอลิค",lat:7.9610492,lng:99.9864779,c:"shop",price:"8:00-17:00",img:"",rating:4.1},
-{n:"ชะอวดแทรกเตอร์และอะไหล่ยนต์",lat:7.971146,lng:99.993145,c:"shop",price:"8:00-17:00",img:"🚜",rating:4.2},
-{n:"ชาคาร์ออดิโอ",lat:7.9678611,lng:99.9947721,c:"shop",price:"9:00-18:00",img:"🔊",rating:4.1},
-{n:"ชาลิสา",lat:8.0009563,lng:100.0035484,c:"shop",price:"8:00-17:00",img:"🍵",rating:4.2},
-{n:"ชำนาญวัสดุก่อสร้างสาขา2",lat:7.9625152,lng:99.9733502,c:"shop",price:"7:00-18:00",img:"🧱",rating:4.3},
-{n:"ชิปปิ้ง ชาบู&หมูกระทะ",lat:7.9659063,lng:99.9949039,c:"shop",price:"17:00-23:00",img:"🍲",rating:4.4},
-{n:"ซักผ้ายอดเหรียญ",lat:7.9571749,lng:100.0089802,c:"shop",price:"24 ชม.",img:"👕",rating:4.0},
-{n:"ซุปเปอร์ไอทีชะอวด",lat:7.9611246,lng:99.9870202,c:"shop",price:"9:00-20:00",img:"💻",rating:4.2},
-{n:"ณ บ้านเรา'Cafe @ชะอวด",lat:7.9678976,lng:99.9938578,c:"shop",price:"8:00-20:00",img:"",rating:4.4},
-{n:"ดาว อาหารตามสั่ง(ชะอวด)",lat:7.9678669,lng:99.9968779,c:"shop",price:"7:00-15:00",img:"🍱",rating:4.2},
-{n:"ดิ่งคาร์แคร์",lat:7.9372222,lng:99.992044,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
-{n:"ติ๋วมินิมาร์ทสาขาชะอวด",lat:7.969446,lng:99.9962909,c:"shop",price:"7:00-22:00",img:"🏪",rating:4.2},
-{n:"ทรัพย์ทองมาคาร์เซ็นเตอร์",lat:7.974756,lng:99.9898094,c:"shop",price:"8:00-18:00",img:"",rating:4.3},
-{n:"ทวีศักดิ์การช่าง (ครูอ้น)",lat:7.9719442,lng:99.992528,c:"shop",price:"8:00-17:00",img:"🔧",rating:4.4},
-{n:"ธนพลการพิมพ์",lat:7.96707,lng:99.996564,c:"shop",price:"8:00-17:00",img:"🖨️",rating:4.1},
-{n:"ธรรมรงค์แอร์และเพื่อนชะอวด",lat:7.9682327,lng:99.9951198,c:"shop",price:"8:00-18:00",img:"❄️",rating:4.2},
-{n:"ธิระศักดิ์ รับซื้อผลไม้",lat:7.9504847,lng:100.0107644,c:"shop",price:"7:00-17:00",img:"🍎",rating:4.1},
-{n:"น้ำดื่มฉลอง",lat:7.9513195,lng:100.0231269,c:"shop",price:"7:00-18:00",img:"💧",rating:4.2},
-{n:"บ. หนูทับการเกษตร",lat:7.9657711,lng:99.9917063,c:"shop",price:"7:00-17:00",img:"",rating:4.4},
-{n:"บจก.สมชัยค้าวัสดุ",lat:7.966656,lng:99.9965125,c:"shop",price:"7:00-17:00",img:"🏪",rating:4.2},
-{n:"บริษัท ชายการเกษตร จำกัด",lat:7.9658651,lng:99.9913734,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.1},
-{n:"บริษัท ตั้งใจกลการ สาขาชะอวด1",lat:7.9690475,lng:99.9947566,c:"shop",price:"8:00-17:00",img:"⚙️",rating:4.2},
-{n:"บริษัท ตั้งใจกลการ สาขาชะอวด2",lat:7.9663236,lng:99.997442,c:"shop",price:"8:00-17:00",img:"️",rating:4.2},
-{n:"บริษัท อีซูซุนครมอเตอร์เซลส์",lat:7.9572099,lng:99.9831465,c:"shop",price:"8:00-17:00",img:"🚗",rating:4.3},
-{n:"บริษัทเบาหวิวแคคตัสจำกัด",lat:7.9615073,lng:99.9937973,c:"shop",price:"9:00-17:00",img:"🌵",rating:4.4},
-{n:"บริษัทโมโตรถเกรดเอจำกัด",lat:7.9675627,lng:99.9954295,c:"shop",price:"8:00-17:00",img:"🏍️",rating:4.2},
-{n:"บาร์น้ำชา",lat:7.9659753,lng:99.9933271,c:"shop",price:"10:00-22:00",img:"🍵",rating:4.1},
-{n:"บ้าน",lat:7.9641007,lng:99.9956895,c:"shop",price:"-",img:"🏠",rating:4.0},
-{n:"บ้านฐานิตา",lat:7.9664899,lng:100.0045611,c:"shop",price:"-",img:"🏠",rating:4.2},
-{n:"บ้านต้นน้ำ",lat:7.962868,lng:99.998288,c:"shop",price:"8:00-20:00",img:"🏞️",rating:4.4},
-{n:"บ้านสวน โรงสี",lat:7.9820602,lng:99.9916192,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.1},
-{n:"บ้านส้องคาร์เซอร์วิส",lat:7.9758424,lng:99.9874156,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
-{n:"ปริ่มละมุล",lat:7.9866593,lng:99.9894992,c:"shop",price:"8:00-20:00",img:"🍰",rating:4.6},
-{n:"พงศ์ศักดิ์อะไหล่",lat:7.966812,lng:99.995588,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"พอเพียงเจริญยนต์",lat:7.967389,lng:99.99577,c:"shop",price:"8:00-17:00",img:"🚗",rating:4.1},
-{n:"พีพีโมบายชะอวด",lat:7.9656434,lng:99.9976052,c:"shop",price:"9:00-20:00",img:"📱",rating:4.2},
-{n:"ฟรายส์ชิค หิวโซ",lat:7.9682172,lng:99.996144,c:"shop",price:"10:00-22:00",img:"🍟",rating:4.1},
-{n:"ฟองน้ำ ฟิชชิ่ง",lat:7.9650404,lng:99.9954813,c:"shop",price:"8:00-18:00",img:"🎣",rating:4.2},
-{n:"ฟิน สเตชั่น",lat:7.9668991,lng:100.00902,c:"shop",price:"8:00-20:00",img:"⛽",rating:4.1},
-{n:"ยำเลย กะเทยชัวร์",lat:7.9466793,lng:100.0321721,c:"shop",price:"10:00-21:00",img:"🥗",rating:4.3},
-{n:"ยืนหนึ่งทุกอย่าง10บาท",lat:7.9629146,lng:99.9886005,c:"shop",price:"8:00-20:00",img:"🛍️",rating:4.0},
-{n:"ยุพา เบอเกอรี่ (YUPA Bakery)",lat:7.968226,lng:99.9949466,c:"shop",price:"7:00-18:00",img:"🥐",rating:4.4},
-{n:"รถยกชะอวดชะอวดรถยก24ชม.",lat:7.9764136,lng:99.9937492,c:"shop",price:"24 ชม.",img:"🚛",rating:4.0},
-{n:"รวมยาเภสัชชะอวด",lat:7.9670495,lng:99.9959625,c:"shop",price:"8:00-21:00",img:"",rating:4.3},
-{n:"รับอัดสายไฮดรอลิคชะอวด",lat:7.9653697,lng:99.9909332,c:"shop",price:"8:00-17:00",img:"🔧",rating:4.1},
-{n:"รัศมีคาราโอเกะ",lat:7.968056,lng:99.996966,c:"shop",price:"12:00-24:00",img:"🎤",rating:4.2},
-{n:"ร้าน ก.เกษตร",lat:7.965925,lng:99.9916897,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.2},
-{n:"ร้าน ก.ไก่",lat:7.9416754,lng:99.9642163,c:"shop",price:"7:00-17:00",img:"🐓",rating:4.1},
-{n:"ร้าน ธารา ชะอวด",lat:7.9664046,lng:99.9970031,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"ร้าน ป้าคองของชำ",lat:7.959416,lng:99.9678204,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้าน ลิขิตศิลป์",lat:7.9666387,lng:99.9954324,c:"shop",price:"8:00-17:00",img:"🎨",rating:4.3},
-{n:"ร้าน ส.เฟอร์นิช",lat:7.9643015,lng:99.9897614,c:"shop",price:"8:00-18:00",img:"🛋️",rating:4.2},
-{n:"ร้าน อ.สยามการไฟฟ้า",lat:7.9913677,lng:99.9602162,c:"shop",price:"8:00-18:00",img:"⚡",rating:4.3},
-{n:"ร้าน เท่ห์ที่ผม",lat:7.9417967,lng:99.9649284,c:"shop",price:"9:00-20:00",img:"💇",rating:4.2},
-{n:"ร้าน โอเค เครื่องนอน",lat:7.9662539,lng:99.9971589,c:"shop",price:"9:00-20:00",img:"️",rating:4.1},
-{n:"ร้านจิบแฟแลพาน",lat:7.9628229,lng:99.9983403,c:"shop",price:"8:00-20:00",img:"☕",rating:4.3},
-{n:"ร้านBuddy Barber 2",lat:7.9721503,lng:99.9945084,c:"shop",price:"9:00-20:00",img:"💈",rating:4.2},
-{n:"ร้านMalaeta มาแลตะ",lat:7.969358,lng:99.9945232,c:"shop",price:"10:00-21:00",img:"🍽️",rating:4.3},
-{n:"ร้านPorkshopหมีหมูสด",lat:7.9663689,lng:99.9948628,c:"shop",price:"7:00-18:00",img:"🐷",rating:4.2},
-{n:"ร้านกัญชา G.Green420OG",lat:7.9663914,lng:99.9917815,c:"shop",price:"10:00-20:00",img:"🌿",rating:4.0},
-{n:"ร้านกัญชาWocogloy420",lat:7.9685721,lng:99.9957211,c:"shop",price:"10:00-20:00",img:"🌿",rating:4.0},
-{n:"ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",lat:7.9705659,lng:99.9963424,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.3},
-{n:"ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",lat:7.9774353,lng:100.0042232,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.4},
-{n:"ร้านขาหมูน้องออชะอวด",lat:7.968951,lng:99.995472,c:"shop",price:"8:00-18:00",img:"🍖",rating:4.3},
-{n:"ร้านชะอวดเครื่องใช้ไฟฟ้า",lat:7.9677097,lng:99.996893,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"ร้านชะอวดโอเอ กรุ๊ป",lat:7.9369664,lng:99.9809185,c:"shop",price:"9:00-18:30",img:"💻",rating:3.3},
-{n:"ร้านซักอบผ้าหยอดเหรียญ",lat:7.9727137,lng:99.9916718,c:"shop",price:"24 ชม.",img:"👕",rating:4.0},
-{n:"ร้านซักอบรีด ท่าประจะ คุณบี",lat:7.9592208,lng:99.9634293,c:"shop",price:"8:00-18:00",img:"👕",rating:4.1},
-{n:"ร้านซ่อมนาฬิกาPS Time to Smile",lat:7.9706293,lng:99.9984979,c:"shop",price:"9:00-18:00",img:"⌚",rating:4.3},
-{n:"ร้านซ่อมมือถือ Love Phone",lat:7.9625546,lng:99.9954734,c:"shop",price:"9:00-20:00",img:"",rating:4.2},
-{n:"ร้านดอกไม้",lat:7.9679855,lng:100.0036496,c:"shop",price:"8:00-18:00",img:"💐",rating:4.3},
-{n:"ร้านดอกไม้ บูมโบว์ ฟลาวเวอร์",lat:7.9661577,lng:99.9923842,c:"shop",price:"8:00-18:00",img:"💐",rating:4.4},
-{n:"ร้านต้นขาม",lat:7.9670797,lng:100.0084077,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"ร้านท่านรอง คลองเกียบ",lat:7.981452,lng:99.983199,c:"shop",price:"8:00-18:00",img:"🍽️",rating:4.3},
-{n:"ร้านธงฟ้าประชารัฐ สวัสดิ์การค้า",lat:7.9522223,lng:100.0131292,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้านนิวแสงฟ้า",lat:7.9666013,lng:99.9958838,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
-{n:"ร้านน้องพรพันธุ์ไม้",lat:7.9821802,lng:99.9821234,c:"shop",price:"8:00-17:00",img:"🌱",rating:4.3},
-{n:"ร้านน้องโอมน้องออมการค้า",lat:7.9769632,lng:99.9941824,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้านน้องใบบัว",lat:7.9653202,lng:99.9954949,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"ร้านน้ำชา&ข้าวต้ม เกาเหลา",lat:7.9684229,lng:99.9952169,c:"shop",price:"6:00-15:00",img:"🍵",rating:4.3},
-{n:"ร้านน้ำชาจ่าหมาย",lat:7.968414,lng:99.9952188,c:"shop",price:"6:00-15:00",img:"",rating:4.2},
-{n:"ร้านน้ำหอม คาร์แคร์เซ็นเตอร์",lat:7.98947,lng:99.9862887,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.1},
-{n:"ร้านบ้านต่อผมชะอวด",lat:7.9788552,lng:100.0121912,c:"shop",price:"9:00-20:00",img:"💇",rating:4.3},
-{n:"ร้านป้าสาวเจริญการค้า",lat:7.9481078,lng:99.9628092,c:"shop",price:"7:00-18:00",img:"",rating:4.1},
-{n:"ร้านป้าไล (ของชำ,ขนมลา)",lat:7.9652729,lng:99.9955147,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.2},
-{n:"ร้านพรพรรณ-กรอบรูป",lat:7.967181,lng:100.004165,c:"shop",price:"9:00-18:00",img:"🖼️",rating:4.2},
-{n:"ร้านพระเครื่องเทพสยาม",lat:7.972115,lng:99.992315,c:"shop",price:"9:00-18:00",img:"",rating:4.3},
-{n:"ร้านพิมนารา",lat:7.9498413,lng:99.9752208,c:"shop",price:"10:30-21:00",img:"🍽️",rating:4.5},
-{n:"ร้านมายเดียร์โมบาย",lat:7.9650688,lng:99.9977525,c:"shop",price:"9:00-20:00",img:"📱",rating:4.2},
-{n:"ร้านมีสุข ของชำ",lat:7.9715976,lng:100.0015811,c:"shop",price:"7:00-20:00",img:"",rating:4.1},
-{n:"ร้านยงใจ",lat:7.9410329,lng:99.9656317,c:"shop",price:"8:00-18:00",img:"",rating:4.0},
-{n:"ร้านสมเจตน์ ( ชะอวด )",lat:8.001079,lng:100.0024084,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
-{n:"ร้านสมใจ(พี่เพ็ญ)",lat:7.9660122,lng:99.9971465,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้านสมใจ2",lat:7.9732734,lng:99.9911663,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้านสักช่างแจ็คสักลายชะอวด",lat:7.989631,lng:99.987916,c:"shop",price:"10:00-20:00",img:"",rating:4.3},
-{n:"ร้านสี เมืองทองเคหะภัณฑ์ชะอวด",lat:7.9717666,lng:99.9919556,c:"shop",price:"8:00-18:00",img:"🎨",rating:4.2},
-{n:"ร้านสุธรรมยานยนต์",lat:7.9670093,lng:99.996414,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
-{n:"ร้านสุธรรมยานยนต์ (อะไหล่)",lat:7.9674502,lng:99.9969574,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
-{n:"ร้านหนองคาย อาหารอิสาน",lat:7.9657836,lng:99.9922684,c:"shop",price:"8:00-20:00",img:"️",rating:4.4},
-{n:"ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",lat:7.962628,lng:99.9883982,c:"shop",price:"17:00-23:00",img:"🥩",rating:4.2},
-{n:"ร้านหัวไทรเฟอร์นิเจอร์",lat:7.9679619,lng:99.9955467,c:"shop",price:"9:00-18:00",img:"🛋️",rating:4.1},
-{n:"ร้านอัครไวนิล",lat:7.9687412,lng:99.9945534,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"ร้านอั๋นคอมพิวเตอร์",lat:7.9651646,lng:99.9958397,c:"shop",price:"9:00-18:00",img:"💻",rating:4.1},
-{n:"ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",lat:8.0030681,lng:99.9982724,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.2},
-{n:"ร้านอาหารนั่งเล่นชะอวด",lat:7.9687349,lng:99.9955717,c:"shop",price:"10:00-22:00",img:"️",rating:4.3},
-{n:"ร้านเครื่องเสียงแอนด์ซาวด์",lat:7.9933797,lng:99.9709374,c:"shop",price:"9:00-18:00",img:"🔊",rating:4.2},
-{n:"ร้านเจริญ",lat:7.9658759,lng:99.9975259,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้านเจียมรัตน์",lat:7.9664151,lng:99.9950503,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
-{n:"ร้านเตือนใจ สาขาชะอวด",lat:7.9701435,lng:99.994102,c:"shop",price:"8:00-20:00",img:"",rating:4.2},
-{n:"ร้านเท็น 2009",lat:7.96408,lng:99.9897567,c:"shop",price:"8:00-20:00",img:"🏪",rating:4.1},
-{n:"ร้านเพื่อนเด็ก",lat:7.9667586,lng:99.9969729,c:"shop",price:"9:00-20:00",img:"🧸",rating:4.3},
-{n:"ร้านเสริมสวย ครบวงจร",lat:7.9758431,lng:100.0025379,c:"shop",price:"9:00-20:00",img:"💇",rating:4.2},
-{n:"ร้านเอิร์นคอมพิวเตอร์",lat:7.9599783,lng:99.9707676,c:"shop",price:"9:00-18:00",img:"💻",rating:4.1},
-{n:"ร้านเอ็นวีกรุ๊ป",lat:7.9637188,lng:99.9887988,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.0},
-{n:"ร้านแกงน้องรัตน์",lat:7.9660722,lng:99.9937653,c:"shop",price:"7:00-15:00",img:"",rating:4.3},
-{n:"ร้านแยมการค้า",lat:7.9373533,lng:99.9921848,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.1},
-{n:"ร้านแว่นบิวตี้ฟูลสาขาชะอวด",lat:7.9667461,lng:99.997057,c:"shop",price:"9:00-20:00",img:"👓",rating:4.2},
-{n:"ร้านโปร ณ คอนแอร์ แอนด์เซอร์วิส",lat:7.9645868,lng:99.9903681,c:"shop",price:"8:00-18:00",img:"❄️",rating:4.3},
-{n:"ร้านไฟฟ้านายหมึก",lat:7.9667805,lng:99.9967046,c:"shop",price:"8:00-18:00",img:"⚡",rating:4.2},
-{n:"ร้านไร ชะอวด (เสื้อผ้า รองเท้า)",lat:7.9656011,lng:99.9950366,c:"shop",price:"9:00-20:00",img:"👗",rating:4.1},
-{n:"ลานชา ใต้ขาม",lat:7.93932,lng:99.9894971,c:"shop",price:"8:00-18:00",img:"",rating:4.4},
-{n:"ลานเทปาล์มสองพี่น้อง",lat:7.9749773,lng:100.0290413,c:"shop",price:"8:00-17:00",img:"🌴",rating:4.2},
-{n:"ว.ทรัพย์เกษตร",lat:7.9370309,lng:99.9814456,c:"shop",price:"7:30-17:30",img:"🌾",rating:4.0},
-{n:"สติ๊กเกอร์ชะอวด",lat:7.9692995,lng:99.9962469,c:"shop",price:"8:00-18:00",img:"🏷️",rating:4.1},
-{n:"สถานีตำแซ่บ",lat:7.9643083,lng:99.9984177,c:"shop",price:"10:00-21:00",img:"🥗",rating:4.2},
-{n:"สมยา พาณิชย์ & ชอการช่าง",lat:7.9505714,lng:99.9762045,c:"shop",price:"8:00-18:00",img:"🔧",rating:4.3},
-{n:"สหไพบูลย์",lat:7.9669158,lng:99.9973463,c:"shop",price:"8:00-18:00",img:"",rating:4.1},
-{n:"สาวมินิมาร์ท",lat:7.9751241,lng:99.9632741,c:"shop",price:"7:00-22:00",img:"🏪",rating:4.2},
-{n:"สำนักงานตัวแทน วิริยะประกันภัย",lat:7.9673134,lng:99.995566,c:"shop",price:"จ-ศ 8:30-17:00",img:"🛡️",rating:4.2},
-{n:"สิริโภชนา",lat:7.9676294,lng:99.9982468,c:"shop",price:"8:00-18:00",img:"🍽️",rating:4.3},
-{n:"สีกัน๐๐ไม้",lat:7.9667728,lng:100.0011909,c:"shop",price:"8:00-18:00",img:"🎨",rating:4.1},
-{n:"สุกัลยาผ้าม่าน",lat:7.970404,lng:99.9961778,c:"shop",price:"9:00-18:00",img:"🪟",rating:4.2},
-{n:"หจก.สิทธิ์ออโต้ไลท์ติ้ง",lat:7.9609565,lng:99.9869111,c:"shop",price:"8:00-18:00",img:"💡",rating:4.2},
-{n:"ห้างทองศุภัทรา",lat:7.946812,lng:99.9716833,c:"shop",price:"9:00-20:00",img:"🥇",rating:4.3},
-{n:"ห้างหุ้นส่วนจำกัด อุดมกิจโฮมซัพพลาย",lat:7.9672759,lng:99.995865,c:"shop",price:"8:00-18:00",img:"🏠",rating:4.2},
-{n:"อร่าม รับหลอมทอง ชะอวด",lat:7.9681359,lng:99.9962286,c:"shop",price:"9:00-17:00",img:"🥇",rating:4.1},
-{n:"อินทร์ศรีทองคาร์แคร์",lat:7.949173,lng:99.973833,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
-{n:"อ้ายเกลอ คาร์แคร์",lat:7.9760584,lng:99.9943639,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
-{n:"เจี๊ยวหอมอะไหล่ซิ่งชะอวด",lat:7.9693144,lng:100.0026773,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
-{n:"เชี่ยวชาญ การแว่น ชะอวด",lat:7.9676616,lng:99.9955794,c:"shop",price:"9:00-20:00",img:"",rating:4.3},
-{n:"เต๋วเรือลานข่อย ณ ชะอวด",lat:7.9681891,lng:99.9959867,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.5},
-{n:"เนื้อตุ๋นคุณพัฒน์",lat:7.9709583,lng:99.9962329,c:"shop",price:"8:00-20:00",img:"🥩",rating:4.4},
-{n:"เมษา กาแฟ (สาขา2)",lat:7.9671037,lng:100.003486,c:"shop",price:"7:00-18:00",img:"☕",rating:4.3},
-{n:"เรืองรินการเกษตร",lat:7.9706107,lng:99.9935979,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.2},
-{n:"เลอศักดิ์ แบตเตอรี่ชะอวด",lat:7.9609233,lng:99.9936178,c:"shop",price:"8:00-18:00",img:"🔋",rating:4.1},
-{n:"เวชพงษ์โอสก",lat:7.966812,lng:99.9969907,c:"shop",price:"8:00-20:00",img:"💊",rating:4.2},
-{n:"เหล่าเต๊ง Chauat",lat:7.9654603,lng:99.9943536,c:"shop",price:"10:00-22:00",img:"🍵",rating:4.4},
-{n:"เว่นท็อปเจริญสาขาชะอวด",lat:7.9674521,lng:99.9957602,c:"shop",price:"9:00-20:00",img:"",rating:4.3},
-{n:"แว่นตาพอเพียง",lat:7.9622953,lng:99.9880286,c:"shop",price:"9:00-20:00",img:"👓",rating:4.2},
-{n:"แฮปปี้โมบายชะอวด",lat:7.9675345,lng:99.9967919,c:"shop",price:"9:00-21:00",img:"📱",rating:4.2},
-{n:"โกดังมือถือ ชะอวด",lat:7.9665149,lng:99.9951063,c:"shop",price:"9:00-20:00",img:"📱",rating:4.1},
-{n:"โกเปรี้ยว แม็กซิ่ง ยาง",lat:7.9739973,lng:99.9906455,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
-{n:"โซนคอม",lat:7.9878118,lng:99.9888319,c:"shop",price:"9:00-20:00",img:"💻",rating:4.1},
-{n:"โต๊ะเครื่องแป้ง ชะอวด",lat:7.9670992,lng:99.9972553,c:"shop",price:"9:00-20:00",img:"💄",rating:4.2},
-{n:"โรงอิฐตั้งเจริญกุล",lat:7.9493223,lng:99.9739756,c:"shop",price:"7:00-17:00",img:"",rating:4.0},
-{n:"โรงอิฐว. อดุลย์ภัณฑ์",lat:7.989432,lng:99.978565,c:"shop",price:"7:00-17:00",img:"🧱",rating:4.0},
-{n:"โรงอิฐสมศักดิ์",lat:7.9787636,lng:99.9871513,c:"shop",price:"7:00-17:00",img:"🧱",rating:4.0},
-{n:"โรงอิฐเพชรทักสิน 3",lat:7.9916428,lng:99.9896513,c:"shop",price:"7:00-17:00",img:"🧱",rating:4.0},
-{n:"โรตีชะอวด หวานสั่งได้",lat:7.9670099,lng:99.9974378,c:"shop",price:"7:00-20:00",img:"🫓",rating:4.3},
-{n:"โลตัส โก เฟรช มินิ",lat:7.9670751,lng:99.9968295,c:"shop",price:"7:00-22:00",img:"",rating:4.4},
-{n:"ไทยรุ่ง ชะอวด",lat:7.9720844,lng:99.9961561,c:"shop",price:"8:00-20:00",img:"🏪",rating:4.2},
-{n:"ไร่ย่านาทราย",lat:7.9977282,lng:100.0004285,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.1}
+  // คาเฟ่ (มีรูปจริง)
+  {n:"ร้านหวานใจไอติม & พิซซ่าโคน",lat:7.9675,lng:99.9965,c:"cafe",price:"30-80฿",img:"images/wan-jai-icecream-pizza.jpg",rating:4.5},
+  {n:"Dew Coffee Cha-uat",lat:7.9690861,lng:99.9943373,c:"cafe",price:"45-120฿",img:"☕",rating:4.8},
+  {n:"ท่าน้ำชา คาเฟ่",lat:7.9623699,lng:99.9963144,c:"cafe",price:"40-100฿",img:"",rating:4.6},
+  {n:"ร้านไอติมใจยักษ์",lat:7.9690185,lng:99.9979403,c:"cafe",price:"25-65฿",img:"🍦",rating:4.5},
+  {n:"Cameron Cafe",lat:7.9685043,lng:99.994887,c:"cafe",price:"40-120฿",img:"☕",rating:4.5},
+  {n:"Cafe.Lao",lat:7.9649201,lng:99.9951997,c:"cafe",price:"40-100฿",img:"☕",rating:4.3},
+  {n:"Mr.VAN Ice Cream",lat:7.9821871,lng:99.9666483,c:"cafe",price:"30-80฿",img:"🍦",rating:4.4},
+  {n:"กาแฟโบว์",lat:7.9821889,lng:99.9820569,c:"cafe",price:"35-90฿",img:"☕",rating:4.3},
+  {n:"กินติม @ชะอวด",lat:7.9672812,lng:99.9970054,c:"cafe",price:"25-60฿",img:"🍦",rating:4.5},
+  {n:"ข.ไข่คาเฟ่ ชะอวด",lat:7.9669234,lng:100.0233534,c:"cafe",price:"50-130฿",img:"☕",rating:4.3},
+  {n:"คอชาเย็น(สาขา สภ.ชะอวด)",lat:7.9663835,lng:99.9981566,c:"cafe",price:"30-70฿",img:"🧋",rating:4.2},
+  {n:"ชาช้าง หลาดชะอวด",lat:7.9673797,lng:99.9955824,c:"cafe",price:"35-80฿",img:"🍵",rating:4.4},
+  {n:"ชาทรตะโหมดสาขาชะอวด",lat:7.9670326,lng:99.9959598,c:"cafe",price:"35-85฿",img:"🧋",rating:4.3},
+  {n:"ชานมไข่มุกดอทคอม ชะอวด",lat:7.9681854,lng:99.9950467,c:"cafe",price:"30-75฿",img:"🧋",rating:4.2},
+  {n:"ชาฮีโร่ HERO",lat:7.970075,lng:99.9977912,c:"cafe",price:"35-90฿",img:"🧋",rating:4.4},
+  {n:"ชิลล์ - Chill",lat:7.9630355,lng:99.9984221,c:"cafe",price:"40-100฿",img:"🍹",rating:4.3},
+  {n:"ชีวิตดี๊ดี",lat:7.9596369,lng:99.9605265,c:"cafe",price:"40-110฿",img:"☕",rating:4.5},
+  {n:"ติดชาน้องนุช ต.ท่าประจะ",lat:7.9554994,lng:99.9632278,c:"cafe",price:"30-70฿",img:"🍵",rating:4.2},
+  {n:"นั่งเล่าหน้าบ้าน ณ ควนดินแดง",lat:7.9416481,lng:99.9643163,c:"cafe",price:"45-120฿",img:"☕",rating:4.4},
+  {n:"บ้านลูกชุบ บนเนิน",lat:7.9670964,lng:100.0088697,c:"cafe",price:"35-90฿",img:"🍡",rating:4.3},
+  {n:"บ้านเอ็มพิชซ่า",lat:7.9646423,lng:99.9901592,c:"cafe",price:"80-180฿",img:"🍕",rating:4.2},
+  {n:"ป้ายยักคอชะอวด",lat:7.9751266,lng:99.9960417,c:"cafe",price:"35-85฿",img:"",rating:4.3},
+  {n:"ภูซอนไอติมกระทิสด",lat:7.9254483,lng:100.0089881,c:"cafe",price:"25-60฿",img:"🍦",rating:4.5},
+  {n:"ร้านกาแฟเศรษฐี ท่าเสม็ด",lat:7.9517624,lng:100.0105614,c:"cafe",price:"35-90฿",img:"☕",rating:4.2},
+  {n:"ร้านคะวัน",lat:7.9592561,lng:99.9604253,c:"cafe",price:"40-100฿",img:"🍰",rating:4.3},
+  {n:"ร้านชาพะยอม",lat:7.9608777,lng:100.005908,c:"cafe",price:"30-75฿",img:"🍵",rating:4.2},
+  {n:"ร้านช้อนชาม.นครศรีธรรมราช",lat:7.9695261,lng:99.995251,c:"cafe",price:"35-85฿",img:"🍵",rating:4.3},
+  {n:"ร้านธราธิป",lat:7.9676412,lng:99.9963438,c:"cafe",price:"40-100฿",img:"☕",rating:4.2},
+  {n:"ร้านน้ำชาบังกด",lat:7.9648089,lng:99.9956764,c:"cafe",price:"25-60฿",img:"🍵",rating:4.3},
+  {n:"ร้านน้ำชาเจ๊อ้อย",lat:7.9649214,lng:99.9918854,c:"cafe",price:"25-60฿",img:"🍵",rating:4.2},
+  {n:"ร้านน้ำน้องสาว",lat:7.9692367,lng:99.9965894,c:"cafe",price:"30-70฿",img:"🍵",rating:4.3},
+  {n:"ร้านน้ำน้องโอชิ",lat:7.9751241,lng:99.9632741,c:"cafe",price:"30-75฿",img:"",rating:4.2},
+  {n:"ร้านน้ำอ้อย 3M",lat:7.9590977,lng:99.9564628,c:"cafe",price:"25-60฿",img:"🍹",rating:4.4},
+  {n:"ร้านฟอร์ยู@ชะอวด",lat:7.9667841,lng:99.9984914,c:"cafe",price:"30-80฿",img:"🧋",rating:4.3},
+  {n:"ร้านเพลินพุง'งง",lat:7.9363545,lng:100.0212613,c:"cafe",price:"40-110฿",img:"☕",rating:4.4},
+  {n:"ลานชา สถานีคนง่วง",lat:7.9673556,lng:99.9955932,c:"cafe",price:"30-75฿",img:"🍵",rating:4.3},
+  {n:"วรรณภาพร",lat:7.974785,lng:99.9634335,c:"cafe",price:"35-85฿",img:"☕",rating:4.2},
+  {n:"หอมหวานชานม",lat:7.9668981,lng:100.0018463,c:"cafe",price:"30-80฿",img:"🧋",rating:4.3},
+  {n:"อาณาจักรชา บ้านเนินแขก",lat:7.9641097,lng:99.9897522,c:"cafe",price:"30-75฿",img:"🍵",rating:4.2},
+  {n:"โคกหนองนา ธนาคารอาหารสุขภาพ",lat:7.964849,lng:100.0164816,c:"cafe",price:"40-120฿",img:"🥗",rating:4.4},
+  
+  // ร้านอาหาร (มีรูปจริง)
+  {n:"สเต็กลุงอ้วน by เชฟปืน",lat:7.9725186,lng:99.9958096,c:"restaurant",price:"150-350฿",img:"images/steak-lung-uan.jpg",rating:4.6},
+  {n:"ขนมจีนลุงบ่าว",lat:7.9670,lng:99.9960,c:"restaurant",price:"40-80฿",img:"images/khanom-jeen-lung-bao.jpg",rating:4.4},
+  {n:"เจ๊หญิงผัดไทย หอยทอด",lat:7.9635936,lng:99.9980924,c:"restaurant",price:"40-80฿",img:"images/jay-ying-padthai.jpg",rating:4.5},
+  {n:"ข้าวขาหมูน้องออ",lat:7.968951,lng:99.995472,c:"restaurant",price:"50-120฿",img:"images/khao-kha-moo-nong-or.jpg",rating:4.3},
+  {n:"FIVE STARS",lat:7.9590838,lng:99.9639115,c:"restaurant",price:"45-120฿",img:"⭐",rating:4.1},
+  {n:"Samu sushi สาขาชะอวด",lat:7.9705488,lng:99.9963399,c:"restaurant",price:"60-150฿",img:"🍣",rating:4.4},
+  {n:"กระทะทอง หมูกะทะ",lat:7.9670749,lng:100.0027069,c:"restaurant",price:"150-300฿",img:"",rating:4.3},
+  {n:"ก๋วยจั๊บน้ำข้นแม่น้องอัญชัน",lat:7.9670768,lng:100.0027459,c:"restaurant",price:"40-80฿",img:"",rating:4.5},
+  {n:"ก๋วยเตี๋ยวเรือ5",lat:7.9662886,lng:100.0104017,c:"restaurant",price:"35-60฿",img:"🍜",rating:4.4},
+  {n:"ก๋วยเตี๋ยวเรือบนเนิน",lat:7.9672004,lng:100.0070046,c:"restaurant",price:"35-65฿",img:"🍜",rating:4.3},
+  {n:"ก๋วยเตี๋ยวเรือบ้านพ่อ@ท่าประจะ",lat:7.9612968,lng:99.9717433,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.5},
+  {n:"ข้าวต้มโกยศ&จุ๊บจิ๊บ",lat:7.9696185,lng:99.994334,c:"restaurant",price:"40-100฿",img:"",rating:4.3},
+  {n:"ข้าวหน้าเป็ด ข้าวหมูอบ",lat:7.9688368,lng:99.9946618,c:"restaurant",price:"40-80฿",img:"🍚",rating:4.3},
+  {n:"ข้าวแกงกิ้มเตี้ยน",lat:7.9652805,lng:99.9975557,c:"restaurant",price:"35-70฿",img:"🍛",rating:4.4},
+  {n:"ครัว ชานเมือง",lat:7.9643424,lng:99.9898984,c:"restaurant",price:"60-150฿",img:"🍽️",rating:4.3},
+  {n:"ครัวขนมจีน คุณแม่",lat:7.9692451,lng:99.997884,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.6},
+  {n:"ครัวต้นตอ",lat:8.0070983,lng:99.9797433,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.2},
+  {n:"ครัวมะปราง",lat:7.9939983,lng:99.9615043,c:"restaurant",price:"50-130฿",img:"️",rating:4.3},
+  {n:"ครัวศรีเมือง",lat:7.9639176,lng:99.98905,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.2},
+  {n:"ครัวอีสานใต้",lat:7.9711681,lng:99.963453,c:"restaurant",price:"50-130฿",img:"🌶️",rating:4.3},
+  {n:"จำหน่ายลูกชิ้นทอดเจ๊กบ",lat:7.9675258,lng:99.9963719,c:"restaurant",price:"20-50฿",img:"",rating:4.4},
+  {n:"ชาบูบ้านแม่",lat:7.9623247,lng:99.9854726,c:"restaurant",price:"200-400฿",img:"🍲",rating:4.2},
+  {n:"ซีแซ่บ กุ้งแช่น้ำปลาชะอวด",lat:7.9666804,lng:99.998424,c:"restaurant",price:"60-150฿",img:"",rating:4.4},
+  {n:"ณ ที่เดิม",lat:7.9643464,lng:99.9899005,c:"restaurant",price:"50-120฿",img:"🍽️",rating:4.3},
+  {n:"ตามสั่งท่าเสม็ดเดลิเวอรี่",lat:7.9495929,lng:100.0152696,c:"restaurant",price:"40-100฿",img:"🍱",rating:4.2},
+  {n:"ตู้กับข้าว @ชะอวด",lat:7.9704229,lng:99.9980995,c:"restaurant",price:"50-130฿",img:"🍱",rating:4.4},
+  {n:"ทะเลดอง ชะอวด",lat:7.9666467,lng:99.9962655,c:"restaurant",price:"80-200฿",img:"🦐",rating:4.4},
+  {n:"บ้าน ยายเลี่ยน ตาถวิล",lat:7.9594066,lng:99.9637612,c:"restaurant",price:"50-120฿",img:"🏠",rating:4.3},
+  {n:"บ้านขนมจีน ปุ้ย",lat:7.9877066,lng:99.9890172,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
+  {n:"บ้านปัญจ-รส",lat:7.9841934,lng:99.9808577,c:"restaurant",price:"60-150฿",img:"🍽️",rating:4.4},
+  {n:"ปังปิ้งเตาถ่านร้าน2ปัง",lat:7.9593949,lng:99.963404,c:"restaurant",price:"25-60฿",img:"🍞",rating:4.3},
+  {n:"ร้าน ขายปลาแดดเดียว",lat:7.9713991,lng:100.002393,c:"restaurant",price:"50-120฿",img:"🐟",rating:4.2},
+  {n:"ร้าน ทุ่งนาคาราโอเกะ",lat:7.9620958,lng:99.9941764,c:"restaurant",price:"80-200฿",img:"🎤",rating:4.2},
+  {n:"ร้านก๋วยจั๊บรสเด็ด",lat:7.9667677,lng:99.9988822,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.4},
+  {n:"ร้านก๋วยเตี๋ยว เนื้อตุ่นเปื่อย",lat:7.9724311,lng:99.9959182,c:"restaurant",price:"40-90฿",img:"🍜",rating:4.3},
+  {n:"ร้านก๋วยเตี๋ยวน้องมรท่าเสม็ด",lat:7.9529883,lng:100.0102231,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.2},
+  {n:"ร้านก๋วยเตี๋ยวสูตรโบราณ",lat:7.9548062,lng:100.0088371,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.5},
+  {n:"ร้านขนมจีนบนเนิน",lat:7.9666807,lng:100.0104124,c:"restaurant",price:"40-80฿",img:"",rating:4.4},
+  {n:"ร้านขนมจีนป้าสาว",lat:7.9647049,lng:99.9904454,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.3},
+  {n:"ร้านขนมจีนยายจิตรตาพร",lat:7.9595442,lng:99.9695015,c:"restaurant",price:"35-75฿",img:"🍜",rating:4.4},
+  {n:"ร้านข้าวมันไก่เจ๊นอม",lat:7.9519858,lng:100.0138437,c:"restaurant",price:"40-80฿",img:"🍛",rating:4.3},
+  {n:"ร้านครัวคนเคร็ง",lat:7.972678,lng:99.9912826,c:"restaurant",price:"50-120฿",img:"️",rating:4.2},
+  {n:"ร้านชาบูเสียบไม้ice&c",lat:7.9639698,lng:99.9980227,c:"restaurant",price:"100-250฿",img:"🍲",rating:4.3},
+  {n:"ร้านปั่นแหลกบุฟเฟ่ต์ผลไม้",lat:7.968886,lng:99.997976,c:"restaurant",price:"40-100฿",img:"🥤",rating:4.4},
+  {n:"ร้านป้าเอียดหมูกระทะบุฟเฟต์",lat:7.9726114,lng:99.9957222,c:"restaurant",price:"139฿",img:"🥩",rating:4.3},
+  {n:"ร้านส้มตำป้าธรรม",lat:7.9666962,lng:100.0066603,c:"restaurant",price:"40-100฿",img:"",rating:4.4},
+  {n:"ร้านส้มตำสะดุ้งmyเพลง",lat:7.9646839,lng:99.9951063,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
+  {n:"ร้านหนมจีนน้าตุ้น",lat:7.9557042,lng:99.999855,c:"restaurant",price:"35-70฿",img:"🍜",rating:4.5},
+  {n:"ร้านหมูพวงรสเด็ด ชะอวด",lat:7.9649516,lng:99.9977638,c:"restaurant",price:"50-120฿",img:"🍖",rating:4.3},
+  {n:"ร้านอาหารตารื่นยายแก้ว",lat:7.9456361,lng:99.9694289,c:"restaurant",price:"50-130฿",img:"🍽️",rating:4.4},
+  {n:"ร้านอาหารนกน้อย",lat:7.9711658,lng:99.9926807,c:"restaurant",price:"50-120฿",img:"🏠",rating:4.2},
+  {n:"ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์",lat:7.964281,lng:99.9970526,c:"restaurant",price:"100-250฿",img:"",rating:4.3},
+  {n:"ร้านอาหารโอเค",lat:7.967058,lng:99.9966538,c:"restaurant",price:"50-150฿",img:"️",rating:4.2},
+  {n:"ร้านแกงใต้และขนมไทยบ้านอิ่มเอม",lat:7.9666389,lng:99.9947637,c:"restaurant",price:"40-100฿",img:"🍛",rating:4.5},
+  {n:"ร้านแต่แรก The old time",lat:7.9654721,lng:99.9944093,c:"restaurant",price:"50-130฿",img:"️",rating:4.3},
+  {n:"ร้านแฮปปี้ โฟล์ค ตำแซ่บ",lat:7.9631287,lng:99.9883002,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
+  {n:"ลาบอุดร(หน้าสวนหย่อม)",lat:7.9662922,lng:99.9975223,c:"restaurant",price:"50-120฿",img:"🥗",rating:4.4},
+  {n:"ลำภูหมูกะทะชะอวด",lat:7.985507,lng:99.989834,c:"restaurant",price:"150-300฿",img:"🥩",rating:4.3},
+  {n:"วารินทร์ ซาลาเปาทอด&ปาท่องโก๋",lat:7.9680305,lng:99.9952084,c:"restaurant",price:"20-50฿",img:"🥟",rating:4.4},
+  {n:"สถานีของหรอย@ชะอวด",lat:7.9654112,lng:99.9905907,c:"restaurant",price:"50-130฿",img:"🍽️",rating:4.3},
+  {n:"สถานียำตำแซ่บ",lat:7.9704778,lng:99.9961367,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
+  {n:"สลัดไข่มุก สาขาชะอวด",lat:7.9692051,lng:99.9981353,c:"restaurant",price:"50-120฿",img:"🥗",rating:4.3},
+  {n:"ส้มตำ เชลล์",lat:7.9696555,lng:99.9943106,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.2},
+  {n:"ส้มตำครกทอง",lat:7.9710256,lng:99.9931146,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.3},
+  {n:"ส้มตำสองพี่น้อง ลาบอุบลฯ",lat:7.9640635,lng:99.9897116,c:"restaurant",price:"40-100฿",img:"🥗",rating:4.4},
+  {n:"หม่าล่าเฮงเฮง",lat:7.9637426,lng:99.9985664,c:"restaurant",price:"60-150฿",img:"🌶️",rating:4.2},
+  {n:"หอยครก...หรอยยกนิ้ว",lat:7.9670202,lng:99.9983783,c:"restaurant",price:"40-100฿",img:"🦪",rating:4.3},
+  {n:"อีสานพลัดถิ่น (บ้านไร่เนิน)",lat:7.9516409,lng:100.0225923,c:"restaurant",price:"50-130฿",img:"🌶️",rating:4.4},
+  {n:"เจ๊สาห์หมูกระทะ",lat:7.9585347,lng:99.9849734,c:"restaurant",price:"150-300฿",img:"🥩",rating:4.3},
+  {n:"เตี๋ยวตุ๋น หม้อไฟ INDY",lat:7.9605533,lng:99.9863734,c:"restaurant",price:"100-250฿",img:"🍲",rating:4.4},
+  {n:"เมษา กาแฟ",lat:7.9646839,lng:99.9951063,c:"restaurant",price:"40-100฿",img:"",rating:4.3},
+  {n:"เมามาย ชะอวด",lat:7.9938386,lng:99.9704377,c:"restaurant",price:"80-200฿",img:"🍻",rating:4.2},
+  {n:"แม่พรขนมจีน",lat:7.9751241,lng:99.9632741,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
+  {n:"แม่เพ็ญเครื่องแกง & ข้าวต้ม",lat:7.9646317,lng:99.9847939,c:"restaurant",price:"40-100฿",img:"",rating:4.3},
+  {n:"ไก่ทอดโอปป้า สาขาชะอวด",lat:7.9662091,lng:99.9930427,c:"restaurant",price:"50-120฿",img:"🍗",rating:4.3},
+  {n:"ไก่โต้งข้าวมันไก่ไหหลำ",lat:7.9662262,lng:99.9929985,c:"restaurant",price:"40-80฿",img:"",rating:4.4},
+  {n:"ร้านเยี่ยมโอชา",lat:7.9648964,lng:99.9953573,c:"restaurant",price:"50-150฿",img:"🍛",rating:4.5},
+  {n:"ชิปปิ้ง ชาบู&หมูกระทะ",lat:7.9659063,lng:99.9949039,c:"restaurant",price:"150-300฿",img:"🍲",rating:4.4},
+  {n:"ร้านหนองคาย อาหารอิสาน",lat:7.9657836,lng:99.9922684,c:"restaurant",price:"50-120฿",img:"️",rating:4.4},
+  {n:"เต๋วเรือลานข่อย ณ ชะอวด",lat:7.9681891,lng:99.9959867,c:"restaurant",price:"40-80฿",img:"🍜",rating:4.5},
+  {n:"Love Milk Cafe&Restaurant",lat:7.9659765,lng:99.9932246,c:"restaurant",price:"45-150฿",img:"🥛",rating:4.5},
+  {n:"ปริ่มละมุล",lat:7.9866593,lng:99.9894992,c:"restaurant",price:"60-180฿",img:"🍰",rating:4.6},
+  {n:"เหล่าเต๊ง Chauat",lat:7.9654603,lng:99.9943536,c:"restaurant",price:"40-120฿",img:"",rating:4.4},
+  
+  // วัด/ศาสนสถาน
+  {n:"วัดหมื่นระงับรังสรรค์",lat:7.967482,lng:100.0011391,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
+  {n:"วัดโทสิทธิวารีน้อย (วัดบางน้อย)",lat:7.9443214,lng:100.0320631,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.4},
+  {n:"วัดบ่อน้ำดำ",lat:7.9238441,lng:99.9869303,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.6},
+  {n:"วัดท่าเสม็ด",lat:7.9545473,lng:100.0079449,c:"temple",price:"เปิดทุกวัน",img:"",rating:4.5},
+  {n:"วัดตะเคียนทอง",lat:7.9567803,lng:99.9704696,c:"temple",price:"เปิดทุกวัน",img:"",rating:4.3},
+  {n:"วัดศรีมาประสิทธ์",lat:7.963936,lng:99.9965192,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.7},
+  {n:"วัดควนสมบูรณ์",lat:7.9718178,lng:99.9651773,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.4},
+  {n:"วัดป่านาบน",lat:7.939721,lng:100.0263685,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
+  {n:"วัดรักขิตวัน",lat:7.9780661,lng:99.9920701,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.6},
+  {n:"วัดเลียบ",lat:7.9798026,lng:99.9701276,c:"temple",price:"เปิดทุกวัน",img:"",rating:4.3},
+  {n:"วัดดอนมะปราง",lat:7.9906917,lng:99.9609256,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
+  {n:"สำนักวิมานแก้ว",lat:7.9617102,lng:99.985519,c:"temple",price:"เปิดทุกวัน",img:"🏯",rating:4.4},
+  {n:"วัดท่าสะท้อน",lat:8.0000628,lng:100.0182942,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.7},
+  {n:"วัดไทรหัวม้า",lat:7.9644527,lng:100.0356972,c:"temple",price:"เปิดทุกวัน",img:"🛕",rating:4.5},
+  {n:"วัดเขาพระทอง",lat:8.0250,lng:100.0400,c:"temple",price:"เปิดทุกวัน",img:"⛰️",rating:4.8},
+  
+  // ร้านสะดวกซื้อ (มีรูปจริง)
+  {n:"7-Eleven สาขา ถนนอรุณประชา",lat:7.96862,lng:99.9946493,c:"convenience",price:"24 ชม.",img:"images/7-eleven-arun-pracha.jpg",rating:4.3},
+  {n:"7-Eleven สาขา ท่าประจะ",lat:7.9590652,lng:99.9639528,c:"convenience",price:"24 ชม.",img:"🏪",rating:4.3},
+  {n:"7-Eleven สาขา PTTOR ชะอวด",lat:7.961493,lng:99.987406,c:"convenience",price:"24 ชม.",img:"🏪",rating:4.2},
+  {n:"7-Eleven สาขา ชะอวด",lat:7.9667964,lng:99.9967819,c:"convenience",price:"24 ชม.",img:"🏪",rating:4.3},
+  {n:"7-Eleven สาขา ชะอวด 2",lat:7.967021,lng:99.9964999,c:"convenience",price:"24 ชม.",img:"🏪",rating:4.2},
+  {n:"โลตัส โก เฟรช ชะอวด",lat:7.9670751,lng:99.9968295,c:"convenience",price:"7:00-22:00",img:"🛒",rating:4.4},
+  {n:"KFC สาขาชะอวด",lat:7.9616453,lng:99.9875667,c:"convenience",price:"10:00-22:00",img:"🍗",rating:4.1},
+  
+  // ปั๊มน้ำมัน
+  {n:"PTT Station ปตท.ชะอวด (น้ำมัน+EV)",lat:7.9616121,lng:99.9874856,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.3},
+  {n:"PTT",lat:7.9713988,lng:99.9928366,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.2},
+  {n:"Caltex",lat:7.968906,lng:99.994871,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.3},
+  {n:"ปั๊มน้ำมัน PT (สาขาชะอวด 2)",lat:7.9727798,lng:99.9910928,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.1},
+  {n:"Sukhothai Gas Stations",lat:7.972852,lng:99.991155,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.0},
+  {n:"ปั๊มตราดาว เจ๊ยี่",lat:7.9686435,lng:99.9949754,c:"gas",price:"เปิด 24 ชม.",img:"⭐",rating:4.2},
+  {n:"วีระพลปิโตรเลียม",lat:8.001079,lng:100.0024084,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.1},
+  {n:"ปั้มน้ำมัน พี่แกน",lat:8.001674,lng:100.0023387,c:"gas",price:"เปิด 24 ชม.",img:"⛽",rating:4.0},
+  
+  // ที่พัก (มีรูปจริง)
+  {n:"โรงแรมเฟื่องฟ้ารีสอร์ท",lat:7.9650,lng:99.9900,c:"hotel",price:"600-1200฿",img:"images/fueangfa-resort.jpg",rating:4.4},
+  {n:"บ้านแม่ ทุ่งหัวพาน",lat:7.9417746,lng:100.0080005,c:"hotel",price:"400-800฿",img:"🏡",rating:4.3},
+  {n:"โฮมสเตย์เรือนริมน้ำชะอวด",lat:7.963346,lng:100.0346649,c:"hotel",price:"500-1000฿",img:"🏡",rating:4.5},
+  {n:"บ้านพัก ขวัญแก้ว",lat:7.9694722,lng:99.9934722,c:"hotel",price:"350-700฿",img:"🏠",rating:4.2},
+  {n:"ทองขาวบ้านสวนรีสอร์ท",lat:7.9670818,lng:100.0232993,c:"hotel",price:"600-1200฿",img:"🌳",rating:4.4},
+  {n:"เรือนกลางหลาด",lat:7.9828841,lng:99.9908841,c:"hotel",price:"600-1200฿",img:"🏠",rating:4.5},
+  {n:"สวนพลู รีสอร์ต",lat:7.9644048,lng:99.9808742,c:"hotel",price:"400-900฿",img:"🌴",rating:4.3},
+  {n:"มะปรางค์ เอสบี รีสอร์ท",lat:7.9924958,lng:99.962219,c:"hotel",price:"500-1000฿",img:"🌺",rating:4.4},
+  {n:"บ้านนายหัวชาม โฮมสเตย์",lat:8.0000644,lng:100.0165882,c:"hotel",price:"400-800฿",img:"",rating:4.2},
+  
+  // ธนาคาร
+  {n:"ธนาคารกรุงไทย สาขาชะอวด",lat:7.9678545,lng:99.9955985,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.2},
+  {n:"ธนาคารออมสิน สาขาชะอวด",lat:7.9681554,lng:99.9966014,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.3},
+  {n:"ธนาคารเพื่อการเกษตรฯ สาขาชะอวด",lat:7.9698444,lng:99.9937785,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.2},
+  {n:"ธนาคารไทยพาณิชย์ สาขาชะอวด",lat:7.967917,lng:99.9954819,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.3},
+  {n:"เงินติดล้อ สาขา ชะอวด",lat:7.9676908,lng:99.9953319,c:"bank",price:"จ-ส 9:00-18:00",img:"💰",rating:4.0},
+  {n:"ศรีสวัสดิ์ เงินสดทันใจ (ท่าประจะ)",lat:7.961113,lng:99.987004,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:3.9},
+  {n:"ศรีสวัสดิ์ เงินสดทันใจ (ชะอวด)",lat:7.9751241,lng:99.9632741,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:3.9},
+  {n:"ศรีสวัสดิ์ เงินสดทันใจ (รพ.)",lat:7.9693057,lng:99.9963774,c:"bank",price:"จ-ส 9:00-17:00",img:"",rating:4.0},
+  {n:"ศรีสวัสดิ์ เงินสดทันใจ (รร.)",lat:7.966608,lng:99.998516,c:"bank",price:"จ-ส 9:00-17:00",img:"",rating:3.9},
+  {n:"สมหวัง เงินสั่งได้ สาขา ชะอวด",lat:7.961227,lng:99.987169,c:"bank",price:"จ-ส 9:00-17:00",img:"",rating:4.0},
+  {n:"ห้างทองศักดิ์สุวรรณ2",lat:7.9658472,lng:99.9973143,c:"bank",price:"9:00-20:00",img:"🥇",rating:4.3},
+  {n:"เงินเทอร์โบ สาขาชะอวด",lat:7.9660515,lng:99.9922354,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:3.9},
+  {n:"เงินไชโยสาขาชะอวด",lat:7.9673602,lng:99.9957658,c:"bank",price:"จ-ส 9:00-17:00",img:"💰",rating:4.0},
+  {n:"Omsin Sakha Cha-uat Banks",lat:8.001079,lng:100.0024084,c:"bank",price:"จ-ศ 8:30-15:30",img:"🏦",rating:4.2},
+  
+  // สถานศึกษา
+  {n:"โรงเรียนบ้านหนองหิน",lat:7.9405707,lng:99.9931927,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
+  {n:"โรงเรียนบ้านห้วยโส",lat:7.9527034,lng:99.9797008,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.2},
+  {n:"โรงเรียนวัดท่าเสม็ด",lat:7.9560129,lng:100.0067071,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.4},
+  {n:"โรงเรียนบ้านชะอวด",lat:7.9641603,lng:100.0000337,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
+  {n:"โรงเรียนชุมชนควนดินแดงมิตรภาพที่๓",lat:7.9402422,lng:99.9615976,c:"edu",price:"จ-ศ 7:00-16:00",img:"",rating:4.5},
+  {n:"โรงเรียนวัดควนสมบูรณ์",lat:7.9715566,lng:99.9663925,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
+  {n:"โรงเรียนวัดรักขิตวัน",lat:7.9776563,lng:99.992897,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.4},
+  {n:"โรงเรียนวัดปากควน",lat:7.9627771,lng:100.0368423,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
+  {n:"โรงเรียนบ้านบางน้อย",lat:7.951818,lng:100.0269177,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.2},
+  {n:"โรงเรียนชะอวด",lat:7.969309,lng:99.9987471,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.4},
+  {n:"โรงเรียนกุลวดีศึกษา",lat:7.9667757,lng:100.0036838,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.5},
+  {n:"โรงเรียนชะอวดวิทยา",lat:7.9727688,lng:99.9956609,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.4},
+  {n:"โรงเรียนวัดดอนมะปราง",lat:7.9910655,lng:99.9615524,c:"edu",price:"จ-ศ 8:00-16:00",img:"",rating:4.3},
+  {n:"โรงเรียนวัดท่าสะท้อน",lat:8.0006006,lng:100.0178194,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.5},
+  {n:"โรงเรียนชะอวดวิทยาคาร",lat:7.9712039,lng:100.0052213,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.5},
+  {n:"โรงเรียนบ้านศาลาทวดทอง",lat:7.9767231,lng:100.0200571,c:"edu",price:"จ-ศ 8:00-16:00",img:"🏫",rating:4.3},
+  {n:"ศูนย์การศึกษาพิเศษฯ หน่วยบริการชะอวด",lat:7.9668154,lng:99.9987599,c:"edu",price:"จ-ศ 8:30-16:30",img:"♿",rating:4.4},
+  {n:"ศูนย์เด็กเล็กอำเภอชะอวด",lat:7.9672741,lng:99.9994167,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.3},
+  {n:"โรงเรียนอนุบาลลูกแก้ว",lat:7.968188,lng:99.99372,c:"edu",price:"จ-ศ 8:00-15:00",img:"🎓",rating:4.5},
+  {n:"วิทยาลัยการอาชีพชะอวด",lat:7.9800,lng:100.0100,c:"edu",price:"จ-ศ 8:00-16:00",img:"🎓",rating:4.4},
+  {n:"กศน.ตำบลท่าประจะ",lat:7.9732835,lng:99.9626224,c:"edu",price:"จ-ศ 9:00-17:00",img:"📚",rating:4.2},
+  {n:"กศน.ตำบลท่าเสม็ด",lat:7.9569534,lng:100.0064912,c:"edu",price:"จ-ศ 9:00-17:00",img:"📚",rating:4.2},
+  {n:"ครูออยสอนพิเศษ",lat:7.9674348,lng:99.9953067,c:"edu",price:"ตามนัด",img:"👩🏫",rating:4.5},
+  {n:"ชมรมข้าราชการบำเหน็จบำนาญ",lat:7.9648176,lng:99.9989211,c:"edu",price:"จ-ศ 9:00-16:00",img:"👥",rating:4.1},
+  {n:"ชะอวดติวเตอร์",lat:7.9689317,lng:99.9979594,c:"edu",price:"ตามนัด",img:"",rating:4.4},
+  {n:"ชะอวดบุ๊คเซ็นเตอร์",lat:7.9645596,lng:99.989676,c:"edu",price:"8:00-20:00",img:"📚",rating:4.3},
+  {n:"ร้านหนังสือพิมพ์จินตนา",lat:7.9670515,lng:99.9966782,c:"edu",price:"7:00-18:00",img:"📰",rating:4.2},
+  {n:"ศูนย์การเรียนรู้(สวนมังคุด)",lat:7.92678,lng:99.9857367,c:"edu",price:"จ-ศ 9:00-16:00",img:"🥭",rating:4.3},
+  {n:"ศูนย์การเรียนรู้ระดับตำบลชะอวด",lat:7.9783738,lng:100.0188994,c:"edu",price:"จ-ศ 9:00-16:00",img:"📚",rating:4.2},
+  {n:"ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลชะอวด",lat:7.9672741,lng:99.9994167,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.4},
+  {n:"ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลท่าประจะ",lat:7.9692849,lng:99.9648115,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.3},
+  {n:"ศูนย์พัฒนาเด็กเล็กโรงเรียนวัดปากควน",lat:7.9641159,lng:100.0362609,c:"edu",price:"จ-ศ 8:00-16:00",img:"👶",rating:4.3},
+  {n:"สกร.ระดับอำเภอชะอวด",lat:7.9672545,lng:99.998667,c:"edu",price:"จ-ศ 8:30-16:30",img:"📚",rating:4.2},
+  {n:"ห้องสมุดประชาชนอำเภอชะอวด",lat:7.967155,lng:99.998853,c:"edu",price:"จ-ศ 9:00-17:00",img:"📚",rating:4.3},
+  {n:"ไก่การพิมพ์",lat:7.966144,lng:99.9925204,c:"edu",price:"8:00-17:00",img:"🖨️",rating:4.1},
+  {n:"ศพก.อำเภอชะอวด",lat:7.927141,lng:99.985738,c:"edu",price:"จ-ศ 8:30-16:30",img:"🌾",rating:4.2},
+  {n:"ศูนย์การเรียนชุมชนวิถีไท",lat:7.9947329,lng:100.02409,c:"edu",price:"จ-ศ 9:00-16:00",img:"",rating:4.3},
+  
+  // ราชการ
+  {n:"ที่ว่าการอำเภอชะอวด",lat:7.9646,lng:99.9951,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏛️",rating:4.5},
+  {n:"สถานีตำรวจภูธรชะอวด",lat:7.9652,lng:99.9958,c:"gov",price:"24 ชม.",img:"🚔",rating:4.3},
+  {n:"เทศบาลตำบลชะอวด",lat:7.9620,lng:99.9935,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏢",rating:4.2},
+  {n:"อบต ท่าเสม็ด",lat:7.9562142,lng:100.0087033,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏢",rating:4.1},
+  {n:"อบต ท่าประจะ",lat:7.9720053,lng:99.9634295,c:"gov",price:"จ-ศ 8:30-16:30",img:"🏢",rating:4.1},
+  {n:"โรงพยาบาลชะอวด",lat:7.9813021,lng:99.9916658,c:"gov",price:"24 ชม.",img:"",rating:4.3},
+  {n:"ไปรษณีย์ไทย สาขาชะอวด",lat:7.968176,lng:99.9954555,c:"gov",price:"จ-ส 8:30-16:30",img:"📮",rating:4.2},
+  
+  // ตลาด (มีรูปจริง)
+  {n:"Sod Station",lat:7.96422,lng:99.998431,c:"market",price:"7:00-20:00",img:"images/sod-station.jpg",rating:4.0},
+  {n:"ตลาดร่วมใจ ถนนคนเดิน",lat:7.964451,lng:99.998216,c:"market",price:"17:00-22:00",img:"🛍️",rating:4.3},
+  {n:"ตลาดชะอวด",lat:7.9716912,lng:99.994021,c:"market",price:"6:00-18:00",img:"🏪",rating:4.2},
+  {n:"ตลาดสดชะอวด",lat:7.9652396,lng:99.9967148,c:"market",price:"5:00-12:00",img:"🥬",rating:4.1},
+  {n:"Suriya Suanchan",lat:7.972753,lng:99.9964831,c:"market",price:"8:00-18:00",img:"🏪",rating:4.1},
+  {n:"ขำขัน-khamkhan Coffe",lat:7.9668406,lng:100.0024617,c:"market",price:"7:00-18:00",img:"☕",rating:4.2},
+  {n:"ทัศนีย์ซุปเปอร์มาร์ท",lat:7.9664986,lng:99.9958986,c:"market",price:"7:00-21:00",img:"🛒",rating:4.2},
+  {n:"นาคปลัดฟาร์ม",lat:7.9657599,lng:99.9910369,c:"market",price:"7:00-18:00",img:"🥬",rating:4.1},
+  {n:"ป้าวรรณหมูกระทะตลาดล่าง",lat:7.9632802,lng:99.9987252,c:"market",price:"17:00-23:00",img:"🥩",rating:4.3},
+  {n:"ร้านขายของเก่า สมยศ พาณิชย์",lat:7.965561,lng:99.9907325,c:"market",price:"8:00-17:00",img:"🏪",rating:3.9},
+  {n:"ร้านน้องนกรองเท้ามือสอง",lat:7.9657094,lng:99.9949273,c:"market",price:"9:00-18:00",img:"",rating:4.0},
+  {n:"ร้านผลไม้พี่เหน่ง ตลาดร่วมใจ",lat:7.9643638,lng:99.997856,c:"market",price:"7:00-18:00",img:"🍎",rating:4.2},
+  {n:"ร้านผลไม้พี่เหน่ง ตลาดเปิดท้าย",lat:7.9663876,lng:99.9981715,c:"market",price:"17:00-22:00",img:"🍎",rating:4.1},
+  {n:"ร้านพี่มร อมรทิพย์ ตลาดชะอวด",lat:7.9661596,lng:99.9970871,c:"market",price:"7:00-18:00",img:"🏪",rating:4.0},
+  {n:"ร้านเครื่องปรุง ป้าสาวลุงชัย",lat:7.9717384,lng:99.9940567,c:"market",price:"7:00-17:00",img:"🧂",rating:4.2},
+  {n:"ร้านแสงศรีพาณิชย์",lat:7.9661588,lng:99.9970885,c:"market",price:"7:00-18:00",img:"🏪",rating:4.1},
+  {n:"วิสาหกิจชุมชนกลุ่มบูมมังคุด",lat:7.9394394,lng:99.9654572,c:"market",price:"8:00-17:00",img:"🥭",rating:4.3},
+  {n:"สวนป่านาบุญ2 ชะอวด",lat:7.9870341,lng:99.997625,c:"market",price:"8:00-17:00",img:"🌳",rating:4.4},
+  {n:"หนำหมอกาย",lat:7.9682669,lng:99.9950972,c:"market",price:"7:00-18:00",img:"🏪",rating:4.0},
+  {n:"เช่าชุดเที่ยว By Endsind rental",lat:7.9399363,lng:99.9625732,c:"market",price:"9:00-18:00",img:"👗",rating:4.2},
+  {n:"ไร่กลิ่นหอม",lat:7.9490232,lng:99.9846395,c:"market",price:"8:00-17:00",img:"🌸",rating:4.3},
+  
+  // ท่องเที่ยว (มีรูปจริง)
+  {n:"อ่างเก็บน้ำห้วยน้ำใส",lat:7.9520,lng:99.9750,c:"tourist",price:"เปิดทุกวัน",img:"images/huai-nam-sai-reservoir.jpg",rating:4.7},
+  {n:"สวิสเซอร์แลนด์แดนชะอวด",lat:7.9700,lng:99.9850,c:"tourist",price:"เปิดทุกวัน",img:"images/switzerland-chauat.jpg",rating:4.8},
+  {n:"สะพานโค้ง100ปีชะอวด",lat:7.9644,lng:99.9982,c:"tourist",price:"เปิดทุกวัน",img:"🌉",rating:4.6},
+  {n:"หอนาฬิกาเทศบาลตำบลชะอวด",lat:7.9670053,lng:99.9973112,c:"tourist",price:"เปิดทุกวัน",img:"🕐",rating:4.2},
+  {n:"ล่องแพบ้านวังอ่าง",lat:7.9025,lng:99.9225,c:"tourist",price:"8:00-17:00",img:"🛶",rating:4.5},
+  {n:"ป่าพรุควนเคร็ง",lat:7.8850,lng:100.1150,c:"tourist",price:"8:00-17:00",img:"🌿",rating:4.6},
+  {n:"น้ำตกวังหอน",lat:7.9000,lng:99.9150,c:"tourist",price:"8:00-17:00",img:"",rating:4.4},
+  {n:"ท่องบ้านยวน",lat:7.9618215,lng:99.9560357,c:"tourist",price:"8:00-17:00",img:"🏞️",rating:4.5},
+  
+  // ขนส่ง
+  {n:"Ban Tungkhai",lat:7.99401,lng:99.9867609,c:"transport",price:"เปิดทุกวัน",img:"🚉",rating:4.0},
+  {n:"Chauat Station",lat:7.965,lng:99.99833,c:"transport",price:"เปิดทุกวัน",img:"🚉",rating:4.1},
+  {n:"ทางแยกชะอวด",lat:7.9667387,lng:99.9960237,c:"transport",price:"เปิดทุกวัน",img:"🛣️",rating:3.8},
+  {n:"บ้านของสส.กฤต",lat:7.9420445,lng:99.9968167,c:"transport",price:"-",img:"🏠",rating:3.5},
+  
+  // สาธารณสุข
+  {n:"ร้านขนมปังปิ้งหอมโฉ",lat:7.9643131,lng:99.9980384,c:"health",price:"6:00-12:00",img:"🍞",rating:4.3},
+  {n:"สำนักงานสาธารณสุขอำเภอชะอวด",lat:7.9641119,lng:99.9977083,c:"health",price:"จ-ศ 8:30-16:30",img:"🏥",rating:4.2},
+  {n:"โรงพยาบาลชะอวด",lat:7.9813021,lng:99.9916658,c:"health",price:"24 ชม.",img:"🏥",rating:4.3},
+  {n:"รพ.สต.บ้านควนสมบูรณ์",lat:7.9731338,lng:99.9634295,c:"health",price:"จ-ศ 8:30-16:30",img:"🏥",rating:4.1},
+  
+  // ไปรษณีย์
+  {n:"FlashHomeเมืองใหม่",lat:7.9606922,lng:99.9861881,c:"postal",price:"8:00-20:00",img:"📦",rating:4.2},
+  {n:"SPX Express สาขาสี่แยกบนเนิน",lat:7.9670161,lng:100.0076208,c:"postal",price:"8:00-20:00",img:"",rating:4.1},
+  {n:"Shippop สาขาชะอวด",lat:7.9673865,lng:99.9955265,c:"postal",price:"8:00-18:00",img:"📦",rating:4.0},
+  {n:"ไปรษณีย์ไทย สาขาชะอวด",lat:7.968176,lng:99.9954555,c:"postal",price:"จ-ส 8:30-16:30",img:"📮",rating:4.2},
+  
+  // สันทนาการ
+  {n:"กลุมมังคุดเมืองใหม่ก้าวหน้า",lat:7.9596389,lng:99.9850833,c:"recreation",price:"-",img:"🥭",rating:4.2},
+  {n:"กองทุนหมู่บ้าน บ้านสี่แยกโคกขันธ์",lat:7.961342,lng:99.9635418,c:"recreation",price:"จ-ศ 9:00-16:00",img:"🏘️",rating:4.0},
+  {n:"ค่ายไก่ส.สิทธิชัย",lat:7.965189,lng:99.9969038,c:"recreation",price:"-",img:"🐓",rating:4.3},
+  {n:"ที่ทำการผู้ใหญ่บ้านเนินอินทร์แก้ว",lat:7.9784003,lng:100.0188892,c:"recreation",price:"จ-ศ 8:30-16:30",img:"🏘️",rating:4.1},
+  {n:"สวนปาล์ม ผอ.อรอนงค์",lat:7.9312206,lng:100.0101695,c:"recreation",price:"-",img:"🌴",rating:4.2},
+  {n:"สวนป้านงค์",lat:7.9346763,lng:99.9903153,c:"recreation",price:"-",img:"🌳",rating:4.3},
+  {n:"สวนผลไม้ บ้านมังสัง",lat:7.9478047,lng:99.9594238,c:"recreation",price:"-",img:"",rating:4.2},
+  {n:"สวนมังคุด คุณพ่อมนูญ",lat:7.9637895,lng:100.0285622,c:"recreation",price:"-",img:"🥭",rating:4.4},
+  {n:"เกมส์",lat:7.951874,lng:100.0357781,c:"recreation",price:"10:00-22:00",img:"🎮",rating:4.0},
+  
+  // ร้านค้า (มีรูปจริง)
+  {n:"ร้านเจริญ",lat:7.9658759,lng:99.9975259,c:"shop",price:"8:00-18:00",img:"images/ran-charoen.jpg",rating:4.1},
+  {n:"A Coffee Bar",lat:7.9244411,lng:100.0005104,c:"shop",price:"8:00-20:00",img:"☕",rating:4.2},
+  {n:"CP FreshMart",lat:7.9666366,lng:99.9954757,c:"shop",price:"7:00-22:00",img:"",rating:4.3},
+  {n:"Cozyday",lat:7.9688835,lng:99.9979628,c:"shop",price:"8:00-20:00",img:"☕",rating:4.3},
+  {n:"GN FASHION",lat:7.9675874,lng:99.9963538,c:"shop",price:"9:00-20:00",img:"👗",rating:4.1},
+  {n:"Indeed Tattoo @ ชะอวด",lat:7.9679936,lng:100.0026909,c:"shop",price:"10:00-20:00",img:"🎨",rating:4.4},
+  {n:"Juicy ice สาขาชะอวด",lat:7.9668703,lng:100.0076342,c:"shop",price:"10:00-21:00",img:"🍦",rating:4.3},
+  {n:"Kerry Express Parcel Service",lat:7.9659091,lng:99.992776,c:"shop",price:"8:00-20:00",img:"📦",rating:4.1},
+  {n:"Mesa Coffee Roasters",lat:7.9671216,lng:100.0034409,c:"shop",price:"7:00-18:00",img:"☕",rating:4.4},
+  {n:"Momocha สาขาชะอวด",lat:7.9683637,lng:99.9966894,c:"shop",price:"10:00-21:00",img:"🧋",rating:4.3},
+  {n:"SB แบตเตอรี่เซอร์วิส ชะอวด",lat:7.9930373,lng:99.9632882,c:"shop",price:"8:00-18:00",img:"🔋",rating:4.1},
+  {n:"Tattoo by kob",lat:7.9765007,lng:100.0018575,c:"shop",price:"10:00-20:00",img:"🎨",rating:4.4},
+  {n:"กระจูด",lat:7.9474587,lng:100.0315216,c:"shop",price:"8:00-17:00",img:"🧺",rating:4.3},
+  {n:"กระเป๋ากระจูดน้องมีตังค์",lat:7.966165,lng:100.0384609,c:"shop",price:"9:00-18:00",img:"👜",rating:4.4},
+  {n:"กลุ่มมังคุดชะอวดพัฒนา",lat:7.9369912,lng:99.9713771,c:"shop",price:"8:00-17:00",img:"🥭",rating:4.2},
+  {n:"กลุ่มแม่บ้านเกษตรกรบ้านเนินกลาง",lat:7.9664473,lng:99.9989433,c:"shop",price:"8:00-17:00",img:"‍🌾",rating:4.3},
+  {n:"กะปะ(เจ้าเก่า)",lat:7.9751241,lng:99.9632741,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
+  {n:"กาแฟบ้านสวนพ่อ",lat:7.9650648,lng:99.9960414,c:"shop",price:"7:00-17:00",img:"☕",rating:4.3},
+  {n:"กิจเจริญอะไหล่ยนต์",lat:7.9682661,lng:99.9950978,c:"shop",price:"8:00-18:00",img:"🔧",rating:4.2},
+  {n:"กินเส้นเย็นตาโฟ",lat:7.980588,lng:99.9838749,c:"shop",price:"7:00-15:00",img:"",rating:4.4},
+  {n:"ก๋วยเตี๋ยวทุ่งค่าย",lat:8.0052774,lng:99.9800295,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.3},
+  {n:"ก๋วยเตี๋ยวโบราณป้าแบน",lat:7.9384267,lng:99.9862992,c:"shop",price:"7:00-14:00",img:"🍜",rating:4.5},
+  {n:"คอมพิวเตอร์ ปริ้นเตอร์ ชะอวด",lat:7.9653003,lng:99.9904537,c:"shop",price:"9:00-18:00",img:"",rating:4.1},
+  {n:"คิดอิเล็กทรอนิกส์",lat:7.9537965,lng:99.9793065,c:"shop",price:"8:00-20:00",img:"🔌",rating:4.6},
+  {n:"จงรักฟาร์ม",lat:7.9669756,lng:99.9960383,c:"shop",price:"7:00-18:00",img:"🐓",rating:4.2},
+  {n:"จิระดาวเทียม",lat:7.9660923,lng:99.9922518,c:"shop",price:"8:00-18:00",img:"📡",rating:4.3},
+  {n:"จิ๊บจิ๊บเทเลคอมชะอวด",lat:7.9660663,lng:99.9975462,c:"shop",price:"9:00-18:00",img:"",rating:4.2},
+  {n:"ฉลองคอนกรีตบ้านไร่เนิน",lat:7.9512888,lng:100.0232375,c:"shop",price:"7:00-17:00",img:"🏗️",rating:4.1},
+  {n:"ช.พรหมนิมิตวัสดุ",lat:7.961592,lng:99.9866635,c:"shop",price:"7:00-18:00",img:"🧱",rating:4.2},
+  {n:"ชะอวดการพิมพ์",lat:7.9665791,lng:99.9964458,c:"shop",price:"8:00-17:00",img:"🖨️",rating:4.1},
+  {n:"ชะอวดค้าเหล็ก",lat:7.9746038,lng:99.9900184,c:"shop",price:"7:00-17:00",img:"🔩",rating:4.2},
+  {n:"ชะอวดค้าไม้",lat:7.9859021,lng:99.9896265,c:"shop",price:"7:00-17:00",img:"🪵",rating:4.1},
+  {n:"ชะอวดนานาวัสดุ",lat:7.9672967,lng:99.9971594,c:"shop",price:"7:00-18:00",img:"🧱",rating:4.2},
+  {n:"ชะอวดรถยก 24ชม.",lat:7.9762937,lng:99.9937471,c:"shop",price:"24 ชม.",img:"🚛",rating:4.0},
+  {n:"ชะอวดรับอัดสายไฮดรอลิค",lat:7.9610492,lng:99.9864779,c:"shop",price:"8:00-17:00",img:"🔧",rating:4.1},
+  {n:"ชะอวดแทรกเตอร์และอะไหล่ยนต์",lat:7.971146,lng:99.993145,c:"shop",price:"8:00-17:00",img:"",rating:4.2},
+  {n:"ชาคาร์ออดิโอ",lat:7.9678611,lng:99.9947721,c:"shop",price:"9:00-18:00",img:"🔊",rating:4.1},
+  {n:"ชาลิสา",lat:8.0009563,lng:100.0035484,c:"shop",price:"8:00-17:00",img:"🍵",rating:4.2},
+  {n:"ชำนาญวัสดุก่อสร้างสาขา2",lat:7.9625152,lng:99.9733502,c:"shop",price:"7:00-18:00",img:"🧱",rating:4.3},
+  {n:"ชิปปิ้ง ชาบู&หมูกระทะ",lat:7.9659063,lng:99.9949039,c:"shop",price:"17:00-23:00",img:"🍲",rating:4.4},
+  {n:"ซักผ้ายอดเหรียญ",lat:7.9571749,lng:100.0089802,c:"shop",price:"24 ชม.",img:"👕",rating:4.0},
+  {n:"ซุปเปอร์ไอทีชะอวด",lat:7.9611246,lng:99.9870202,c:"shop",price:"9:00-20:00",img:"",rating:4.2},
+  {n:"ณ บ้านเรา'Cafe @ชะอวด",lat:7.9678976,lng:99.9938578,c:"shop",price:"8:00-20:00",img:"☕",rating:4.4},
+  {n:"ดาว อาหารตามสั่ง(ชะอวด)",lat:7.9678669,lng:99.9968779,c:"shop",price:"7:00-15:00",img:"🍱",rating:4.2},
+  {n:"ดิ่งคาร์แคร์",lat:7.9372222,lng:99.992044,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
+  {n:"ติ๋วมินิมาร์ทสาขาชะอวด",lat:7.969446,lng:99.9962909,c:"shop",price:"7:00-22:00",img:"🏪",rating:4.2},
+  {n:"ทรัพย์ทองมาคาร์เซ็นเตอร์",lat:7.974756,lng:99.9898094,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
+  {n:"ทวีศักดิ์การช่าง (ครูอ้น)",lat:7.9719442,lng:99.992528,c:"shop",price:"8:00-17:00",img:"🔧",rating:4.4},
+  {n:"ธนพลการพิมพ์",lat:7.96707,lng:99.996564,c:"shop",price:"8:00-17:00",img:"🖨️",rating:4.1},
+  {n:"ธรรมรงค์แอร์และเพื่อนชะอวด",lat:7.9682327,lng:99.9951198,c:"shop",price:"8:00-18:00",img:"❄️",rating:4.2},
+  {n:"ธิระศักดิ์ รับซื้อผลไม้",lat:7.9504847,lng:100.0107644,c:"shop",price:"7:00-17:00",img:"🍎",rating:4.1},
+  {n:"น้ำดื่มฉลอง",lat:7.9513195,lng:100.0231269,c:"shop",price:"7:00-18:00",img:"",rating:4.2},
+  {n:"บ. หนูทับการเกษตร",lat:7.9657711,lng:99.9917063,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.4},
+  {n:"บจก.สมชัยค้าวัสดุ",lat:7.966656,lng:99.9965125,c:"shop",price:"7:00-17:00",img:"🏪",rating:4.2},
+  {n:"บริษัท ชายการเกษตร จำกัด",lat:7.9658651,lng:99.9913734,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.1},
+  {n:"บริษัท ตั้งใจกลการ สาขาชะอวด1",lat:7.9690475,lng:99.9947566,c:"shop",price:"8:00-17:00",img:"⚙️",rating:4.2},
+  {n:"บริษัท ตั้งใจกลการ สาขาชะอวด2",lat:7.9663236,lng:99.997442,c:"shop",price:"8:00-17:00",img:"⚙️",rating:4.2},
+  {n:"บริษัท อีซูซุนครมอเตอร์เซลส์",lat:7.9572099,lng:99.9831465,c:"shop",price:"8:00-17:00",img:"🚗",rating:4.3},
+  {n:"บริษัทเบาหวิวแคคตัสจำกัด",lat:7.9615073,lng:99.9937973,c:"shop",price:"9:00-17:00",img:"🌵",rating:4.4},
+  {n:"บริษัทโมโตรถเกรดเอจำกัด",lat:7.9675627,lng:99.9954295,c:"shop",price:"8:00-17:00",img:"🏍️",rating:4.2},
+  {n:"บาร์น้ำชา",lat:7.9659753,lng:99.9933271,c:"shop",price:"10:00-22:00",img:"🍵",rating:4.1},
+  {n:"บ้าน",lat:7.9641007,lng:99.9956895,c:"shop",price:"-",img:"",rating:4.0},
+  {n:"บ้านฐานิตา",lat:7.9664899,lng:100.0045611,c:"shop",price:"-",img:"🏠",rating:4.2},
+  {n:"บ้านต้นน้ำ",lat:7.962868,lng:99.998288,c:"shop",price:"8:00-20:00",img:"️",rating:4.4},
+  {n:"บ้านสวน โรงสี",lat:7.9820602,lng:99.9916192,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.1},
+  {n:"บ้านส้องคาร์เซอร์วิส",lat:7.9758424,lng:99.9874156,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
+  {n:"ปริ่มละมุล",lat:7.9866593,lng:99.9894992,c:"shop",price:"8:00-20:00",img:"🍰",rating:4.6},
+  {n:"พงศ์ศักดิ์อะไหล่",lat:7.966812,lng:99.995588,c:"shop",price:"8:00-18:00",img:"🔧",rating:4.2},
+  {n:"พอเพียงเจริญยนต์",lat:7.967389,lng:99.99577,c:"shop",price:"8:00-17:00",img:"🚗",rating:4.1},
+  {n:"พีพีโมบายชะอวด",lat:7.9656434,lng:99.9976052,c:"shop",price:"9:00-20:00",img:"📱",rating:4.2},
+  {n:"ฟรายส์ชิค หิวโซ",lat:7.9682172,lng:99.996144,c:"shop",price:"10:00-22:00",img:"🍟",rating:4.1},
+  {n:"ฟองน้ำ ฟิชชิ่ง",lat:7.9650404,lng:99.9954813,c:"shop",price:"8:00-18:00",img:"🎣",rating:4.2},
+  {n:"ฟิน สเตชั่น",lat:7.9668991,lng:100.00902,c:"shop",price:"8:00-20:00",img:"⛽",rating:4.1},
+  {n:"ยำเลย กะเทยชัวร์",lat:7.9466793,lng:100.0321721,c:"shop",price:"10:00-21:00",img:"🥗",rating:4.3},
+  {n:"ยืนหนึ่งทุกอย่าง10บาท",lat:7.9629146,lng:99.9886005,c:"shop",price:"8:00-20:00",img:"🛍️",rating:4.0},
+  {n:"ยุพา เบอเกอรี่ (YUPA Bakery)",lat:7.968226,lng:99.9949466,c:"shop",price:"7:00-18:00",img:"🥐",rating:4.4},
+  {n:"รถยกชะอวดชะอวดรถยก24ชม.",lat:7.9764136,lng:99.9937492,c:"shop",price:"24 ชม.",img:"🚛",rating:4.0},
+  {n:"รวมยาเภสัชชะอวด",lat:7.9670495,lng:99.9959625,c:"shop",price:"8:00-21:00",img:"💊",rating:4.3},
+  {n:"รับอัดสายไฮดรอลิคชะอวด",lat:7.9653697,lng:99.9909332,c:"shop",price:"8:00-17:00",img:"🔧",rating:4.1},
+  {n:"รัศมีคาราโอเกะ",lat:7.968056,lng:99.996966,c:"shop",price:"12:00-24:00",img:"",rating:4.2},
+  {n:"ร้าน ก.เกษตร",lat:7.965925,lng:99.9916897,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.2},
+  {n:"ร้าน ก.ไก่",lat:7.9416754,lng:99.9642163,c:"shop",price:"7:00-17:00",img:"🐓",rating:4.1},
+  {n:"ร้าน ธารา ชะอวด",lat:7.9664046,lng:99.9970031,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
+  {n:"ร้าน ป้าคองของชำ",lat:7.959416,lng:99.9678204,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
+  {n:"ร้าน ลิขิตศิลป์",lat:7.9666387,lng:99.9954324,c:"shop",price:"8:00-17:00",img:"🎨",rating:4.3},
+  {n:"ร้าน ส.เฟอร์นิช",lat:7.9643015,lng:99.9897614,c:"shop",price:"8:00-18:00",img:"🛋️",rating:4.2},
+  {n:"ร้าน อ.สยามการไฟฟ้า",lat:7.9913677,lng:99.9602162,c:"shop",price:"8:00-18:00",img:"⚡",rating:4.3},
+  {n:"ร้าน เท่ห์ที่ผม",lat:7.9417967,lng:99.9649284,c:"shop",price:"9:00-20:00",img:"💇",rating:4.2},
+  {n:"ร้าน โอเค เครื่องนอน",lat:7.9662539,lng:99.9971589,c:"shop",price:"9:00-20:00",img:"️",rating:4.1},
+  {n:"ร้านจิบแฟแลพาน",lat:7.9628229,lng:99.9983403,c:"shop",price:"8:00-20:00",img:"☕",rating:4.3},
+  {n:"ร้านBuddy Barber 2",lat:7.9721503,lng:99.9945084,c:"shop",price:"9:00-20:00",img:"💈",rating:4.2},
+  {n:"ร้านMalaeta มาแลตะ",lat:7.969358,lng:99.9945232,c:"shop",price:"10:00-21:00",img:"🍽️",rating:4.3},
+  {n:"ร้านPorkshopหมีหมูสด",lat:7.9663689,lng:99.9948628,c:"shop",price:"7:00-18:00",img:"",rating:4.2},
+  {n:"ร้านกัญชา G.Green420OG",lat:7.9663914,lng:99.9917815,c:"shop",price:"10:00-20:00",img:"",rating:4.0},
+  {n:"ร้านกัญชาWocogloy420",lat:7.9685721,lng:99.9957211,c:"shop",price:"10:00-20:00",img:"🌿",rating:4.0},
+  {n:"ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",lat:7.9705659,lng:99.9963424,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.3},
+  {n:"ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",lat:7.9774353,lng:100.0042232,c:"shop",price:"7:00-15:00",img:"",rating:4.4},
+  {n:"ร้านขาหมูน้องออชะอวด",lat:7.968951,lng:99.995472,c:"shop",price:"8:00-18:00",img:"🍖",rating:4.3},
+  {n:"ร้านชะอวดเครื่องใช้ไฟฟ้า",lat:7.9677097,lng:99.996893,c:"shop",price:"8:00-18:00",img:"📺",rating:4.2},
+  {n:"ร้านชะอวดโอเอ กรุ๊ป",lat:7.9369664,lng:99.9809185,c:"shop",price:"9:00-18:30",img:"",rating:3.3},
+  {n:"ร้านซักอบผ้าหยอดเหรียญ",lat:7.9727137,lng:99.9916718,c:"shop",price:"24 ชม.",img:"",rating:4.0},
+  {n:"ร้านซักอบรีด ท่าประจะ คุณบี",lat:7.9592208,lng:99.9634293,c:"shop",price:"8:00-18:00",img:"👕",rating:4.1},
+  {n:"ร้านซ่อมนาฬิกาPS Time to Smile",lat:7.9706293,lng:99.9984979,c:"shop",price:"9:00-18:00",img:"",rating:4.3},
+  {n:"ร้านซ่อมมือถือ Love Phone",lat:7.9625546,lng:99.9954734,c:"shop",price:"9:00-20:00",img:"📱",rating:4.2},
+  {n:"ร้านดอกไม้",lat:7.9679855,lng:100.0036496,c:"shop",price:"8:00-18:00",img:"💐",rating:4.3},
+  {n:"ร้านดอกไม้ บูมโบว์ ฟลาวเวอร์",lat:7.9661577,lng:99.9923842,c:"shop",price:"8:00-18:00",img:"💐",rating:4.4},
+  {n:"ร้านต้นขาม",lat:7.9670797,lng:100.0084077,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
+  {n:"ร้านท่านรอง คลองเกียบ",lat:7.981452,lng:99.983199,c:"shop",price:"8:00-18:00",img:"🍽️",rating:4.3},
+  {n:"ร้านธงฟ้าประชารัฐ สวัสดิ์การค้า",lat:7.9522223,lng:100.0131292,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
+  {n:"ร้านนิวแสงฟ้า",lat:7.9666013,lng:99.9958838,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
+  {n:"ร้านน้องพรพันธุ์ไม้",lat:7.9821802,lng:99.9821234,c:"shop",price:"8:00-17:00",img:"🌱",rating:4.3},
+  {n:"ร้านน้องโอมน้องออมการค้า",lat:7.9769632,lng:99.9941824,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.1},
+  {n:"ร้านน้องใบบัว",lat:7.9653202,lng:99.9954949,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
+  {n:"ร้านน้ำชา&ข้าวต้ม เกาเหลา",lat:7.9684229,lng:99.9952169,c:"shop",price:"6:00-15:00",img:"",rating:4.3},
+  {n:"ร้านน้ำชาจ่าหมาย",lat:7.968414,lng:99.9952188,c:"shop",price:"6:00-15:00",img:"🍵",rating:4.2},
+  {n:"ร้านน้ำหอม คาร์แคร์เซ็นเตอร์",lat:7.98947,lng:99.9862887,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.1},
+  {n:"ร้านบ้านต่อผมชะอวด",lat:7.9788552,lng:100.0121912,c:"shop",price:"9:00-20:00",img:"",rating:4.3},
+  {n:"ร้านป้าสาวเจริญการค้า",lat:7.9481078,lng:99.9628092,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
+  {n:"ร้านป้าไล (ของชำ,ขนมลา)",lat:7.9652729,lng:99.9955147,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.2},
+  {n:"ร้านพรพรรณ-กรอบรูป",lat:7.967181,lng:100.004165,c:"shop",price:"9:00-18:00",img:"🖼️",rating:4.2},
+  {n:"ร้านพระเครื่องเทพสยาม",lat:7.972115,lng:99.992315,c:"shop",price:"9:00-18:00",img:"📿",rating:4.3},
+  {n:"ร้านพิมนารา",lat:7.9498413,lng:99.9752208,c:"shop",price:"10:30-21:00",img:"🍽️",rating:4.5},
+  {n:"ร้านมายเดียร์โมบาย",lat:7.9650688,lng:99.9977525,c:"shop",price:"9:00-20:00",img:"📱",rating:4.2},
+  {n:"ร้านมีสุข ของชำ",lat:7.9715976,lng:100.0015811,c:"shop",price:"7:00-20:00",img:"",rating:4.1},
+  {n:"ร้านยงใจ",lat:7.9410329,lng:99.9656317,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.0},
+  {n:"ร้านสมเจตน์ ( ชะอวด )",lat:8.001079,lng:100.0024084,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
+  {n:"ร้านสมใจ(พี่เพ็ญ)",lat:7.9660122,lng:99.9971465,c:"shop",price:"7:00-18:00",img:"",rating:4.1},
+  {n:"ร้านสมใจ2",lat:7.9732734,lng:99.9911663,c:"shop",price:"7:00-18:00",img:"🏪",rating:4.1},
+  {n:"ร้านสักช่างแจ็คสักลายชะอวด",lat:7.989631,lng:99.987916,c:"shop",price:"10:00-20:00",img:"🎨",rating:4.3},
+  {n:"ร้านสี เมืองทองเคหะภัณฑ์ชะอวด",lat:7.9717666,lng:99.9919556,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
+  {n:"ร้านสุธรรมยานยนต์",lat:7.9670093,lng:99.996414,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
+  {n:"ร้านสุธรรมยานยนต์ (อะไหล่)",lat:7.9674502,lng:99.9969574,c:"shop",price:"8:00-18:00",img:"️",rating:4.2},
+  {n:"ร้านหนองคาย อาหารอิสาน",lat:7.9657836,lng:99.9922684,c:"shop",price:"8:00-20:00",img:"🌶️",rating:4.4},
+  {n:"ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",lat:7.962628,lng:99.9883982,c:"shop",price:"17:00-23:00",img:"🥩",rating:4.2},
+  {n:"ร้านหัวไทรเฟอร์นิเจอร์",lat:7.9679619,lng:99.9955467,c:"shop",price:"9:00-18:00",img:"🛋️",rating:4.1},
+  {n:"ร้านอัครไวนิล",lat:7.9687412,lng:99.9945534,c:"shop",price:"8:00-18:00",img:"",rating:4.2},
+  {n:"ร้านอั๋นคอมพิวเตอร์",lat:7.9651646,lng:99.9958397,c:"shop",price:"9:00-18:00",img:"💻",rating:4.1},
+  {n:"ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",lat:8.0030681,lng:99.9982724,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.2},
+  {n:"ร้านอาหารนั่งเล่นชะอวด",lat:7.9687349,lng:99.9955717,c:"shop",price:"10:00-22:00",img:"🍽️",rating:4.3},
+  {n:"ร้านเครื่องเสียงแอนด์ซาวด์",lat:7.9933797,lng:99.9709374,c:"shop",price:"9:00-18:00",img:"🔊",rating:4.2},
+  {n:"ร้านเจียมรัตน์",lat:7.9664151,lng:99.9950503,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.2},
+  {n:"ร้านเตือนใจ สาขาชะอวด",lat:7.9701435,lng:99.994102,c:"shop",price:"8:00-20:00",img:"🏪",rating:4.2},
+  {n:"ร้านเท็น 2009",lat:7.96408,lng:99.9897567,c:"shop",price:"8:00-20:00",img:"🏪",rating:4.1},
+  {n:"ร้านเพื่อนเด็ก",lat:7.9667586,lng:99.9969729,c:"shop",price:"9:00-20:00",img:"",rating:4.3},
+  {n:"ร้านเสริมสวย ครบวงจร",lat:7.9758431,lng:100.0025379,c:"shop",price:"9:00-20:00",img:"💇",rating:4.2},
+  {n:"ร้านเอิร์นคอมพิวเตอร์",lat:7.9599783,lng:99.9707676,c:"shop",price:"9:00-18:00",img:"",rating:4.1},
+  {n:"ร้านเอ็นวีกรุ๊ป",lat:7.9637188,lng:99.9887988,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.0},
+  {n:"ร้านแกงน้องรัตน์",lat:7.9660722,lng:99.9937653,c:"shop",price:"7:00-15:00",img:"🍛",rating:4.3},
+  {n:"ร้านแยมการค้า",lat:7.9373533,lng:99.9921848,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.1},
+  {n:"ร้านแว่นบิวตี้ฟูลสาขาชะอวด",lat:7.9667461,lng:99.997057,c:"shop",price:"9:00-20:00",img:"",rating:4.2},
+  {n:"ร้านโปร ณ คอนแอร์ แอนด์เซอร์วิส",lat:7.9645868,lng:99.9903681,c:"shop",price:"8:00-18:00",img:"❄️",rating:4.3},
+  {n:"ร้านไฟฟ้านายหมึก",lat:7.9667805,lng:99.9967046,c:"shop",price:"8:00-18:00",img:"⚡",rating:4.2},
+  {n:"ร้านไร ชะอวด (เสื้อผ้า รองเท้า)",lat:7.9656011,lng:99.9950366,c:"shop",price:"9:00-20:00",img:"👗",rating:4.1},
+  {n:"ลานชา ใต้ขาม",lat:7.93932,lng:99.9894971,c:"shop",price:"8:00-18:00",img:"🍵",rating:4.4},
+  {n:"ลานเทปาล์มสองพี่น้อง",lat:7.9749773,lng:100.0290413,c:"shop",price:"8:00-17:00",img:"",rating:4.2},
+  {n:"ว.ทรัพย์เกษตร",lat:7.9370309,lng:99.9814456,c:"shop",price:"7:30-17:30",img:"🌾",rating:4.0},
+  {n:"สติ๊กเกอร์ชะอวด",lat:7.9692995,lng:99.9962469,c:"shop",price:"8:00-18:00",img:"🏷️",rating:4.1},
+  {n:"สถานีตำแซ่บ",lat:7.9643083,lng:99.9984177,c:"shop",price:"10:00-21:00",img:"🥗",rating:4.2},
+  {n:"สมยา พาณิชย์ & ชอการช่าง",lat:7.9505714,lng:99.9762045,c:"shop",price:"8:00-18:00",img:"🔧",rating:4.3},
+  {n:"สหไพบูลย์",lat:7.9669158,lng:99.9973463,c:"shop",price:"8:00-18:00",img:"🏪",rating:4.1},
+  {n:"สาวมินิมาร์ท",lat:7.9751241,lng:99.9632741,c:"shop",price:"7:00-22:00",img:"🏪",rating:4.2},
+  {n:"สำนักงานตัวแทน วิริยะประกันภัย",lat:7.9673134,lng:99.995566,c:"shop",price:"จ-ศ 8:30-17:00",img:"️",rating:4.2},
+  {n:"สิริโภชนา",lat:7.9676294,lng:99.9982468,c:"shop",price:"8:00-18:00",img:"🍽️",rating:4.3},
+  {n:"สีกัน๐๐ไม้",lat:7.9667728,lng:100.0011909,c:"shop",price:"8:00-18:00",img:"🎨",rating:4.1},
+  {n:"สุกัลยาผ้าม่าน",lat:7.970404,lng:99.9961778,c:"shop",price:"9:00-18:00",img:"🪟",rating:4.2},
+  {n:"หจก.สิทธิ์ออโต้ไลท์ติ้ง",lat:7.9609565,lng:99.9869111,c:"shop",price:"8:00-18:00",img:"💡",rating:4.2},
+  {n:"ห้างทองศุภัทรา",lat:7.946812,lng:99.9716833,c:"shop",price:"9:00-20:00",img:"🥇",rating:4.3},
+  {n:"ห้างหุ้นส่วนจำกัด อุดมกิจโฮมซัพพลาย",lat:7.9672759,lng:99.995865,c:"shop",price:"8:00-18:00",img:"🏠",rating:4.2},
+  {n:"อร่าม รับหลอมทอง ชะอวด",lat:7.9681359,lng:99.9962286,c:"shop",price:"9:00-17:00",img:"🥇",rating:4.1},
+  {n:"อินทร์ศรีทองคาร์แคร์",lat:7.949173,lng:99.973833,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.2},
+  {n:"อ้ายเกลอ คาร์แคร์",lat:7.9760584,lng:99.9943639,c:"shop",price:"8:00-18:00",img:"🚗",rating:4.3},
+  {n:"เจี๊ยวหอมอะไหล่ซิ่งชะอวด",lat:7.9693144,lng:100.0026773,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
+  {n:"เชี่ยวชาญ การแว่น ชะอวด",lat:7.9676616,lng:99.9955794,c:"shop",price:"9:00-20:00",img:"👓",rating:4.3},
+  {n:"เต๋วเรือลานข่อย ณ ชะอวด",lat:7.9681891,lng:99.9959867,c:"shop",price:"7:00-15:00",img:"🍜",rating:4.5},
+  {n:"เนื้อตุ๋นคุณพัฒน์",lat:7.9709583,lng:99.9962329,c:"shop",price:"8:00-20:00",img:"🥩",rating:4.4},
+  {n:"เมษา กาแฟ (สาขา2)",lat:7.9671037,lng:100.003486,c:"shop",price:"7:00-18:00",img:"☕",rating:4.3},
+  {n:"เรืองรินการเกษตร",lat:7.9706107,lng:99.9935979,c:"shop",price:"7:00-17:00",img:"🌾",rating:4.2},
+  {n:"เลอศักดิ์ แบตเตอรี่ชะอวด",lat:7.9609233,lng:99.9936178,c:"shop",price:"8:00-18:00",img:"🔋",rating:4.1},
+  {n:"เวชพงษ์โอสก",lat:7.966812,lng:99.9969907,c:"shop",price:"8:00-20:00",img:"",rating:4.2},
+  {n:"เหล่าเต๊ง Chauat",lat:7.9654603,lng:99.9943536,c:"shop",price:"10:00-22:00",img:"🍵",rating:4.4},
+  {n:"เว่นท็อปเจริญสาขาชะอวด",lat:7.9674521,lng:99.9957602,c:"shop",price:"9:00-20:00",img:"👓",rating:4.3},
+  {n:"แว่นตาพอเพียง",lat:7.9622953,lng:99.9880286,c:"shop",price:"9:00-20:00",img:"👓",rating:4.2},
+  {n:"แฮปปี้โมบายชะอวด",lat:7.9675345,lng:99.9967919,c:"shop",price:"9:00-21:00",img:"📱",rating:4.2},
+  {n:"โกดังมือถือ ชะอวด",lat:7.9665149,lng:99.9951063,c:"shop",price:"9:00-20:00",img:"📱",rating:4.1},
+  {n:"โกเปรี้ยว แม็กซิ่ง ยาง",lat:7.9739973,lng:99.9906455,c:"shop",price:"8:00-18:00",img:"🏍️",rating:4.2},
+  {n:"โซนคอม",lat:7.9878118,lng:99.9888319,c:"shop",price:"9:00-20:00",img:"",rating:4.1},
+  {n:"โต๊ะเครื่องแป้ง ชะอวด",lat:7.9670992,lng:99.9972553,c:"shop",price:"9:00-20:00",img:"💄",rating:4.2},
+  {n:"โรงอิฐตั้งเจริญกุล",lat:7.9493223,lng:99.9739756,c:"shop",price:"7:00-17:00",img:"🧱",rating:4.0},
+  {n:"โรงอิฐว. อดุลย์ภัณฑ์",lat:7.989432,lng:99.978565,c:"shop",price:"7:00-17:00",img:"",rating:4.0},
+  {n:"โรงอิฐสมศักดิ์",lat:7.9787636,lng:99.9871513,c:"shop",price:"7:00-17:00",img:"🧱",rating:4.0},
+  {n:"โรงอิฐเพชรทักสิน 3",lat:7.9916428,lng:99.9896513,c:"shop",price:"7:00-17:00",img:"🧱",rating:4.0},
+  {n:"โรตีชะอวด หวานสั่งได้",lat:7.9670099,lng:99.9974378,c:"shop",price:"7:00-20:00",img:"🫓",rating:4.3},
+  {n:"โลตัส โก เฟรช มินิ",lat:7.9670751,lng:99.9968295,c:"shop",price:"7:00-22:00",img:"",rating:4.4},
+  {n:"ไทยรุ่ง ชะอวด",lat:7.9720844,lng:99.9961561,c:"shop",price:"8:00-20:00",img:"🏪",rating:4.2},
+  {n:"ไร่ย่านาทราย",lat:7.9977282,lng:100.0004285,c:"shop",price:"7:00-17:00",img:"",rating:4.1}
 ];
 
 let mainMap = null, destinationMarker = null, userMarker = null, placeMarkers = [], tambonMarkers = [], currentDestination = null, routeLine = null, orders = [], orderIdCounter = 1, currentOrderDraft = null;
 
 const RIDERS = [
-  { name: "สมชาย ใจดี", vehicle: "🛵 Honda PCX • 1กข-1234", rating: 4.9, trips: 1247, avatar: "ส" },
-  { name: "วิชัย เร็วไว", vehicle: "️ Yamaha NMAX • 2ขค-5678", rating: 4.8, trips: 892, avatar: "ว" },
+  { name: "สมชาย ใจดี", vehicle: " Honda PCX • 1กข-1234", rating: 4.9, trips: 1247, avatar: "ส" },
+  { name: "วิชัย เร็วไว", vehicle: "🏍️ Yamaha NMAX • 2ขค-5678", rating: 4.8, trips: 892, avatar: "ว" },
   { name: "ประเสริฐ ซิ่ง", vehicle: "🛵 Honda Scoopy • 3คฆ-9012", rating: 4.7, trips: 654, avatar: "ป" },
-  { name: "มานพ ขยัน", vehicle: "️ Yamaha Filano • 4งจ-3456", rating: 4.9, trips: 1580, avatar: "ม" },
+  { name: "มานพ ขยัน", vehicle: "🏍️ Yamaha Filano • 4งจ-3456", rating: 4.9, trips: 1580, avatar: "ม" },
   { name: "ธีระ ปลอดภัย", vehicle: "🛵 Honda Click • 5จฉ-7890", rating: 4.6, trips: 423, avatar: "ธ" }
 ];
 
@@ -1122,7 +1131,7 @@ function calcFare(dist) {
 }
 
 function requestLocation() {
-  if (!navigator.geolocation) { showToast('️ เบราว์เซอร์ไม่รองรับ GPS'); closeLocPopup(); return; }
+  if (!navigator.geolocation) { showToast('⚠️ เบราว์เซอร์ไม่รองรับ GPS'); closeLocPopup(); return; }
   showToast('📡 กำลังขออนุญาตเข้าถึงตำแหน่ง...');
   navigator.geolocation.getCurrentPosition(
     (position) => {
@@ -1162,16 +1171,22 @@ function createCard(p, type) {
   const dist = formatDist(p.dist);
   const badges = ['ลด 10%', 'ลด 15%', 'ลด 20%', ''];
   const badge = badges[Math.floor(Math.random() * badges.length)];
-  return `<div class="food-card" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="food-img ${type}">${p.img}${badge ? `<div class="food-badge">${badge}</div>` : ''}</div><div class="food-info"><div class="food-name">${p.n}</div><div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div><div class="food-price">${p.price}</div></div></div>`;
+  
+  // เช็คว่าเป็นรูปจริงหรือ emoji
+  const imgContent = p.img.startsWith('images/') 
+    ? `<img src="${p.img}" alt="${p.n}" loading="lazy">`
+    : p.img;
+  
+  return `<div class="food-card" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="food-img ${type}">${imgContent}${badge ? `<div class="food-badge">${badge}</div>` : ''}</div><div class="food-info"><div class="food-name">${p.n}</div><div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span> ${dist}</span></div><div class="food-price">${p.price}</div></div></div>`;
 }
 
 function openDetail(name, cat, dist, price, rating, lat, lng) {
   const catLabel = {restaurant:'ร้านอาหาร', convenience:'ร้านสะดวกซื้อ', cafe:'คาเฟ่', temple:'วัด/ศาสนสถาน', edu:'สถานศึกษา', gas:'ปั๊มน้ำมัน', hotel:'ที่พัก', bank:'ธนาคาร', gov:'ราชการ', market:'ตลาด', tourist:'ท่องเที่ยว', shop:'ร้านค้า', recreation:'สันทนาการ', transport:'ขนส่ง', health:'สาธารณสุข', postal:'ไปรษณีย์'}[cat] || cat;
-  const iconMap = {restaurant:'️', convenience:'🏪', cafe:'☕', temple:'🛕', edu:'', gas:'⛽', hotel:'', bank:'🏦', gov:'️', market:'🛒', tourist:'🌴', shop:'🏬', recreation:'🎯', transport:'🚌', health:'🏥', postal:'📮'};
+  const iconMap = {restaurant:'🍽️', convenience:'🏪', cafe:'☕', temple:'🛕', edu:'🎓', gas:'⛽', hotel:'🏨', bank:'🏦', gov:'🏛️', market:'🛒', tourist:'🌴', shop:'🏬', recreation:'🎯', transport:'🚌', health:'🏥', postal:'📮'};
   const canOrderRider = (cat === 'restaurant' || cat === 'cafe');
   document.getElementById('modal-body').innerHTML = `
     <div style="text-align:center; margin-bottom:20px;">
-      <div style="font-size:60px;">${iconMap[cat] || ''}</div>
+      <div style="font-size:60px;">${iconMap[cat] || '📍'}</div>
       <div style="font-size:20px; font-weight:bold; margin-top:10px;">${name}</div>
       <div style="font-size:13px; color:#888; margin-top:5px;">${catLabel} • ⭐ ${rating}</div>
       <div style="font-size:14px; color:#00A651; font-weight:600; margin-top:5px;">📍 ${dist}</div>
@@ -1182,7 +1197,7 @@ function openDetail(name, cat, dist, price, rating, lat, lng) {
     </div>
     <button class="btn-full btn-green" onclick="pinAsDestination(${lat}, ${lng}, '${name.replace(/'/g, "\\'")}', '${cat}')">📍 ปักหมุดเป็นปลายทาง</button>
     ${canOrderRider ? `<button class="btn-full btn-orange" onclick="callRiderToPlace('${name.replace(/'/g, "\\'")}', ${lat}, ${lng}, '${cat}')">🛵 เรียกไรเดอร์ไปที่นี่</button>` : ''}
-    <button class="btn-full btn-blue" onclick="openMapAndPin(${lat}, ${lng}, '${name.replace(/'/g, "\\'")}')">️ ดูบนแผนที่</button>
+    <button class="btn-full btn-blue" onclick="openMapAndPin(${lat}, ${lng}, '${name.replace(/'/g, "\\'")}')">🗺️ ดูบนแผนที่</button>
     <button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>
   `;
   document.getElementById('modal').classList.add('active');
@@ -1203,9 +1218,10 @@ function doSearch(query) {
   container.innerHTML = '<div style="padding:10px 0; font-size:14px; color:#666; font-weight:600;">พบ ' + results.length + ' สถานที่</div>' + 
     results.map(p => {
       const dist = formatDist(p.dist);
-      const catLabel = {restaurant:'🍽️ ร้านอาหาร', convenience:'🏪 ร้านสะดวกซื้อ', cafe:' คาเฟ่', temple:'🛕 วัด/ศาสนสถาน', edu:'🎓 การศึกษา', gas:'⛽ ปั๊มน้ำมัน', hotel:'🏨 ที่พัก', bank:'🏦 ธนาคาร', gov:'🏛️ ราชการ', market:'🛒 ตลาด', tourist:' ท่องเที่ยว', shop:'🏬 ร้านค้า', recreation:'🎯 สันทนาการ', transport:'🚌 ขนส่ง', health:' สาธารณสุข', postal:'📮 ไปรษณีย์'}[p.c] || p.c;
+      const catLabel = {restaurant:'🍽️ ร้านอาหาร', convenience:'🏪 ร้านสะดวกซื้อ', cafe:'☕ คาเฟ่', temple:'🛕 วัด/ศาสนสถาน', edu:'🎓 การศึกษา', gas:'⛽ ปั๊มน้ำมัน', hotel:'🏨 ที่พัก', bank:' ธนาคาร', gov:'🏛️ ราชการ', market:'🛒 ตลาด', tourist:'🌴 ท่องเที่ยว', shop:'🏬 ร้านค้า', recreation:'🎯 สันทนาการ', transport:'🚌 ขนส่ง', health:' สาธารณสุข', postal:'📮 ไปรษณีย์'}[p.c] || p.c;
       const imgClass = p.c === 'restaurant' ? 'rest' : p.c === 'cafe' ? 'cafe' : p.c === 'temple' ? 'temple' : 'shop';
-      return `<div class="search-result-item" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="search-result-img ${imgClass}">${p.img}</div><div style="flex:1; min-width: 0;"><div style="font-weight:700; font-size:14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.n}</div><div style="font-size:12px; color:#888;">${catLabel} • 📍 ${dist}</div><div style="font-size:12px; color:#00A651; font-weight:600;">${p.price}</div></div></div>`;
+      const imgContent = p.img.startsWith('images/') ? `<img src="${p.img}" alt="${p.n}" style="width:100%;height:100%;object-fit:cover;">` : p.img;
+      return `<div class="search-result-item" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="search-result-img ${imgClass}">${imgContent}</div><div style="flex:1; min-width: 0;"><div style="font-weight:700; font-size:14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.n}</div><div style="font-size:12px; color:#888;">${catLabel} •  ${dist}</div><div style="font-size:12px; color:#00A651; font-weight:600;">${p.price}</div></div></div>`;
     }).join('');
 }
 
@@ -1213,7 +1229,7 @@ function filterCategory(cat) {
   const categoryMap = {
     'food': { label: '🍽️ อาหารและเครื่องดื่ม', categories: ['restaurant', 'cafe'] },
     'shopping': { label: '🛒 ของใช้และร้านค้า', categories: ['shop', 'convenience'] },
-    'dinein': { label: '🍴 กินที่ร้าน', categories: ['restaurant'] },
+    'dinein': { label: ' กินที่ร้าน', categories: ['restaurant'] },
     'express': { label: ' ส่งด่วน', categories: ['restaurant', 'cafe', 'convenience'] },
     'travel': { label: '🚗 เดินทางและขนส่ง', categories: ['transport', 'gas'] },
     'map': { label: '🗺️ แผนที่และท่องเที่ยว', categories: ['tourist', 'temple'] }
@@ -1233,7 +1249,8 @@ function filterCategory(cat) {
     grid.innerHTML = allItems.map(p => {
       const dist = formatDist(p.dist);
       const type = p.c === 'restaurant' ? 'rest' : p.c === 'cafe' ? 'cafe' : p.c === 'temple' ? 'temple' : 'shop';
-      return `<div class="food-card" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="food-img ${type}">${p.img}</div><div class="food-info"><div class="food-name">${p.n}</div><div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div><div class="food-price">${p.price}</div></div></div>`;
+      const imgContent = p.img.startsWith('images/') ? `<img src="${p.img}" alt="${p.n}" loading="lazy">` : p.img;
+      return `<div class="food-card" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="food-img ${type}">${imgContent}</div><div class="food-info"><div class="food-name">${p.n}</div><div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div><div class="food-price">${p.price}</div></div></div>`;
     }).join('');
   }
   document.getElementById('home-content').classList.add('hidden');
@@ -1244,16 +1261,17 @@ function filterCategory(cat) {
 function closeCategoryView() { document.getElementById('category-view').classList.remove('active'); document.getElementById('home-content').classList.remove('hidden'); }
 
 function showAllCategories(category) {
-  const categoryLabels = { 'restaurant': '🍽️ ร้านอาหารทั้งหมด', 'convenience': ' ร้านสะดวกซื้อทั้งหมด', 'cafe': '☕ คาเฟ่ทั้งหมด' };
+  const categoryLabels = { 'restaurant': '🍽️ ร้านอาหารทั้งหมด', 'convenience': '🏪 ร้านสะดวกซื้อทั้งหมด', 'cafe': '☕ คาเฟ่ทั้งหมด' };
   document.getElementById('category-title').innerText = categoryLabels[category] || 'ทั้งหมด';
   const items = PLACES.filter(p => p.c === category).map(p => ({...p, dist: calcDist(USER_LOC.lat, USER_LOC.lng, p.lat, p.lng)})).sort((a,b) => a.dist - b.dist);
   const grid = document.getElementById('category-grid');
-  if (items.length === 0) { grid.innerHTML = '<div class="empty-state"><div class="icon"></div><div>ไม่มีข้อมูล</div></div>'; }
+  if (items.length === 0) { grid.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>ไม่มีข้อมูล</div></div>'; }
   else {
     const type = category === 'restaurant' ? 'rest' : category === 'cafe' ? 'cafe' : 'shop';
     grid.innerHTML = items.map(p => {
       const dist = formatDist(p.dist);
-      return `<div class="food-card" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="food-img ${type}">${p.img}</div><div class="food-info"><div class="food-name">${p.n}</div><div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div><div class="food-price">${p.price}</div></div></div>`;
+      const imgContent = p.img.startsWith('images/') ? `<img src="${p.img}" alt="${p.n}" loading="lazy">` : p.img;
+      return `<div class="food-card" onclick="openDetail('${p.n.replace(/'/g,"\\'")}', '${p.c}', '${dist}', '${p.price}', ${p.rating}, ${p.lat}, ${p.lng})"><div class="food-img ${type}">${imgContent}</div><div class="food-info"><div class="food-name">${p.n}</div><div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div><div class="food-price">${p.price}</div></div></div>`;
     }).join('');
   }
   document.getElementById('home-content').classList.add('hidden');
@@ -1264,10 +1282,10 @@ function showAllCategories(category) {
 function openOrderForm(type) {
   if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'); showLoginModal(); return; }
   const configs = {
-    food: { title: '🍽️ สั่งอาหาร', icon: '🍽️', subtitle: 'เลือกร้านอาหารและพิมพ์รายการอาหาร', placeholder: 'เช่น ข้าวมันไก่ 1 จาน, น้ำเปล่า 1 ขวด...', label: '📝 รายการอาหาร', priceLabel: '💰 ยอดค่าอาหารโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 150', btnText: '📋 สรุปรายการและค่าส่ง', btnClass: 'btn-orange' },
-    shopping: { title: ' ซื้อของใช้', icon: '🛒', subtitle: 'พิมพ์รายการสินค้าที่ต้องการให้ซื้อ', placeholder: 'เช่น น้ำดื่ม 6 ขวด, ขนมปัง 2 ถุง...', label: '📝 รายการสินค้า', priceLabel: '💰 ยอดค่าสินค้าโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 200', btnText: '📋 สรุปรายการและค่าส่ง', btnClass: 'btn-orange' },
-    dinein: { title: ' กินที่ร้าน', icon: '🍴', subtitle: 'เลือกร้านอาหารสำหรับนั่งกิน', placeholder: 'เช่น โต๊ะ 4 คน, ต้องการที่นั่งริมหน้าต่าง...', label: '📝 ความต้องการพิเศษ', priceLabel: '💰 งบประมาณโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 500', btnText: '📋 สรุปและจองโต๊ะ', btnClass: 'btn-orange' },
-    express: { title: '📦 ส่งด่วน', icon: '📦', subtitle: 'กรอกรายละเอียดพัสดุที่จะส่ง', placeholder: 'เช่น เอกสารสำคัญ, กล่องขนาดกลาง...', label: ' รายละเอียดพัสดุ', priceLabel: '️ น้ำหนักโดยประมาณ (กก.)', pricePlaceholder: 'เช่น 2', btnText: ' สรุปค่าส่ง', btnClass: 'btn-orange' }
+    food: { title: '🍽️ สั่งอาหาร', icon: '️', subtitle: 'เลือกร้านอาหารและพิมพ์รายการอาหาร', placeholder: 'เช่น ข้าวมันไก่ 1 จาน, น้ำเปล่า 1 ขวด...', label: '📝 รายการอาหาร', priceLabel: '💰 ยอดค่าอาหารโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 150', btnText: '📋 สรุปรายการและค่าส่ง', btnClass: 'btn-orange' },
+    shopping: { title: '🛒 ซื้อของใช้', icon: '🛒', subtitle: 'พิมพ์รายการสินค้าที่ต้องการให้ซื้อ', placeholder: 'เช่น น้ำดื่ม 6 ขวด, ขนมปัง 2 ถุง...', label: '📝 รายการสินค้า', priceLabel: '💰 ยอดค่าสินค้าโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 200', btnText: '📋 สรุปรายการและค่าส่ง', btnClass: 'btn-orange' },
+    dinein: { title: '🍴 กินที่ร้าน', icon: '🍴', subtitle: 'เลือกร้านอาหารสำหรับนั่งกิน', placeholder: 'เช่น โต๊ะ 4 คน, ต้องการที่นั่งริมหน้าต่าง...', label: '📝 ความต้องการพิเศษ', priceLabel: '💰 งบประมาณโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 500', btnText: '📋 สรุปและจองโต๊ะ', btnClass: 'btn-orange' },
+    express: { title: '📦 ส่งด่วน', icon: '📦', subtitle: 'กรอกรายละเอียดพัสดุที่จะส่ง', placeholder: 'เช่น เอกสารสำคัญ, กล่องขนาดกลาง...', label: '📝 รายละเอียดพัสดุ', priceLabel: '⚖️ น้ำหนักโดยประมาณ (กก.)', pricePlaceholder: 'เช่น 2', btnText: '📋 สรุปค่าส่ง', btnClass: 'btn-orange' }
   };
   const config = configs[type];
   if (!config) return;
@@ -1278,10 +1296,10 @@ function openOrderForm(type) {
       <div class="of-title">${config.title}</div>
       <div class="of-sub">${config.subtitle}</div>
     </div>
-    <div class="form-group"><label>🏪 เลือกร้าน/สถานที่ต้นทาง</label><select id="of-place-select"><option value="">-- เลือกสถานที่ --</option>${getPlacesForType(type).map(p => `<option value="${p.n}">${p.n} (${p.price})</option>`).join('')}</select></div>
+    <div class="form-group"><label> เลือกร้าน/สถานที่ต้นทาง</label><select id="of-place-select"><option value="">-- เลือกสถานที่ --</option>${getPlacesForType(type).map(p => `<option value="${p.n}">${p.n} (${p.price})</option>`).join('')}</select></div>
     <div class="form-group"><label>${config.label}</label><textarea id="of-items" placeholder="${config.placeholder}" rows="4"></textarea></div>
     <div class="form-group"><label>${config.priceLabel}</label><input type="number" id="of-price" placeholder="${config.pricePlaceholder}" min="0"></div>
-    <div class="form-group"><label>🏠 ที่อยู่ปลายทาง (คุณ)</label><input type="text" id="of-address" placeholder="เช่น บ้านเลขที่ 123 ต.ชะอวด..." value="ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช"></div>
+    <div class="form-group"><label> ที่อยู่ปลายทาง (คุณ)</label><input type="text" id="of-address" placeholder="เช่น บ้านเลขที่ 123 ต.ชะอวด..." value="ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช"></div>
     <div class="form-group"><label>📝 หมายเหตุเพิ่มเติม (ไม่บังคับ)</label><textarea id="of-note" placeholder="เช่น ไม่ใส่ผัก, เผ็ดน้อย, ส่งด่วน..." rows="2"></textarea></div>
     <button class="btn-full ${config.btnClass}" onclick="goToOrderSummary()"> ${config.btnText} →</button>
     <button class="btn-full btn-gray" onclick="closeModal()">ยกเลิก</button>
@@ -1304,17 +1322,17 @@ function goToOrderSummary() {
   const price = parseFloat(document.getElementById('of-price').value) || 0;
   const address = document.getElementById('of-address').value.trim();
   const note = document.getElementById('of-note').value.trim();
-  if (!placeName) { showToast('️ กรุณาเลือกร้าน/สถานที่'); return; }
-  if (!items) { showToast('️ กรุณากรอกรายการ'); return; }
-  if (!address) { showToast('️ กรุณากรอกที่อยู่ปลายทาง'); return; }
+  if (!placeName) { showToast('⚠️ กรุณาเลือกร้าน/สถานที่'); return; }
+  if (!items) { showToast('⚠️ กรุณากรอกรายการ'); return; }
+  if (!address) { showToast('⚠️ กรุณากรอกที่อยู่ปลายทาง'); return; }
   const place = PLACES.find(p => p.n === placeName);
   if (!place) { showToast('⚠️ ไม่พบสถานที่'); return; }
   const dist = calcDist(USER_LOC.lat, USER_LOC.lng, place.lat, place.lng);
   const fare = calcFare(dist);
   const total = price + fare.total + 10;
   const timeMin = Math.max(3, Math.ceil(dist * 4));
-  const typeLabels = { food: '🍽️ สั่งอาหาร', shopping: ' ซื้อของใช้', dinein: ' กินที่ร้าน', express: '📦 ส่งด่วน' };
-  const itemLabels = { food: '📝 รายการอาหาร', shopping: ' รายการสินค้า', dinein: '📝 ความต้องการพิเศษ', express: '📝 รายละเอียดพัสดุ' };
+  const typeLabels = { food: '🍽️ สั่งอาหาร', shopping: '🛒 ซื้อของใช้', dinein: '🍴 กินที่ร้าน', express: '📦 ส่งด่วน' };
+  const itemLabels = { food: '📝 รายการอาหาร', shopping: '📝 รายการสินค้า', dinein: '📝 ความต้องการพิเศษ', express: '📝 รายละเอียดพัสดุ' };
   const priceLabels = { food: '💰 ค่าอาหาร', shopping: '💰 ค่าสินค้า', dinein: '💰 งบประมาณ', express: '⚖️ น้ำหนัก' };
   const priceUnits = { food: '฿', shopping: '฿', dinein: '฿', express: 'กก.' };
   currentOrderDraft = { ...draft, placeName, place, items, price, address, note, dist, fare, total, timeMin };
@@ -1352,7 +1370,7 @@ async function confirmOrderAndCallRider() {
   if (!draft) return;
   if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'); showLoginModal(); return; }
   closeModal();
-  showToast('🔍 กำลังค้นหาไรเดอร์...');
+  showToast(' กำลังค้นหาไรเดอร์...');
   const rider = RIDERS[Math.floor(Math.random() * RIDERS.length)];
   const totalWithService = draft.total + 10;
   const newOrder = {
@@ -1389,14 +1407,14 @@ function initMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19, minZoom: 10 }).addTo(mainMap);
   L.control.scale({ imperial: false }).addTo(mainMap);
   const userIcon = L.divIcon({ className: 'custom-user-marker', html: '<div style="background:#4A90D9; color:white; border:3px solid white; border-radius:50%; width:24px; height:24px; box-shadow:0 2px 8px rgba(74,144,217,0.5);"></div>', iconSize: [24, 24], iconAnchor: [12, 12] });
-  userMarker = L.marker([USER_LOC.lat, USER_LOC.lng], { icon: userIcon }).addTo(mainMap).bindPopup('<b> ตำแหน่งของคุณ</b><br>ต.ชะอวด อ.ชะอวด');
+  userMarker = L.marker([USER_LOC.lat, USER_LOC.lng], { icon: userIcon }).addTo(mainMap).bindPopup('<b>📍 ตำแหน่งของคุณ</b><br>ต.ชะอวด อ.ชะอวด');
   TAMBONS.forEach((t, idx) => {
     const tambonIcon = L.divIcon({ className: 'custom-tambon-marker', html: `<div style="background:#FF6B35; color:white; border:3px solid white; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold;">${idx + 1}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
     const marker = L.marker([t.lat, t.lng], { icon: tambonIcon }).addTo(mainMap).bindPopup(`<b>${t.name}</b><br>${t.desc}<br><button onclick="setDestinationFromMap(${t.lat}, ${t.lng}, '${t.name.replace(/'/g, "\\'")}', 'tambon')" style="background:#00A651; color:white; border:none; padding:6px 12px; border-radius:8px; margin-top:8px; cursor:pointer;">📍 ตั้งเป็นปลายทาง</button>`);
     tambonMarkers.push(marker);
   });
   const importantPlaces = PLACES.filter(p => ['temple', 'edu', 'gov', 'health', 'tourist', 'hotel', 'gas', 'bank', 'market'].includes(p.c));
-  const catIcons = { temple: '🛕', edu: '🏫', gov: '️', health: '🏥', tourist: '🌴', hotel: '', gas: '⛽', bank: '🏦', market: '' };
+  const catIcons = { temple: '🛕', edu: '🏫', gov: '🏛️', health: '🏥', tourist: '🌴', hotel: '', gas: '⛽', bank: '🏦', market: '' };
   const catColors = { temple: '#FFD700', edu: '#43e97b', gov: '#667eea', health: '#ff6b6b', tourist: '#11998e', hotel: '#a18cd1', gas: '#fa709a', bank: '#30cfd0', market: '#ff9a9e' };
   importantPlaces.forEach(p => {
     const color = catColors[p.c] || '#00A651';
@@ -1431,7 +1449,7 @@ function setDestination(lat, lng, name, category) {
   updateMapInfoPanel(lat, lng, name, category);
   drawRoute(lat, lng);
   document.getElementById('map-info-panel').classList.add('active');
-  showToast(`📍 ตั้ง "${name}" เป็นปลายทางแล้ว`);
+  showToast(` ตั้ง "${name}" เป็นปลายทางแล้ว`);
 }
 
 function setDestinationFromMap(lat, lng, name, category) { mainMap.closePopup(); setDestination(lat, lng, name, category); }
@@ -1462,7 +1480,7 @@ function updateMapInfoPanel(lat, lng, name, category) {
 }
 
 function callRiderFromMap() {
-  if (!currentUser) { showToast('️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return; }
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return; }
   if (!currentDestination) { showToast('⚠️ ยังไม่ได้ตั้งปลายทาง'); return; }
   const { lat, lng, name, category } = currentDestination;
   const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
@@ -1493,7 +1511,7 @@ function navigateToDestination() {
   const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
   const timeMin = Math.max(2, Math.ceil(dist * 4));
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-  showToast(` กำลังนำทางไป ${name} (${formatDist(dist)}, ~${timeMin} นาที)`);
+  showToast(`🧭 กำลังนำทางไป ${name} (${formatDist(dist)}, ~${timeMin} นาที)`);
   setTimeout(() => { window.open(googleMapsUrl, '_blank'); }, 500);
 }
 
@@ -1502,7 +1520,7 @@ function clearDestination() {
   if (routeLine) { mainMap.removeLayer(routeLine); routeLine = null; }
   currentDestination = null;
   document.getElementById('map-info-panel').classList.remove('active');
-  showToast('️ ล้างปลายทางแล้ว');
+  showToast('🗑️ ล้างปลายทางแล้ว');
 }
 
 function centerToUser() { mainMap.setView([USER_LOC.lat, USER_LOC.lng], 16); userMarker.openPopup(); showToast('🎯 กลับไปตำแหน่งปัจจุบัน'); }
@@ -1513,7 +1531,7 @@ function showAllPlacesOnMap() {
   tambonMarkers.forEach(m => bounds.extend(m.getLatLng()));
   bounds.extend([USER_LOC.lat, USER_LOC.lng]);
   mainMap.fitBounds(bounds, { padding: [50, 50] });
-  showToast(`📌 แสดงสถานที่ทั้งหมด ${placeMarkers.length + tambonMarkers.length} แห่ง`);
+  showToast(` แสดงสถานที่ทั้งหมด ${placeMarkers.length + tambonMarkers.length} แห่ง`);
 }
 
 function updateOrdersBadge() { document.getElementById('orders-badge').innerText = orders.filter(o => o.status !== 'done').length; }
@@ -1533,9 +1551,9 @@ function renderOrders() {
 }
 
 function renderOrderCard(order, statusClass) {
-  const icons = { searching: '🛵', pending: '📦', done: '✅' };
-  const typeIcons = { food: '️', shopping: '🛒', dinein: '🍴', express: '', map: '🗺️' };
-  const statusLabels = { searching: ' กำลังค้นหาไรเดอร์...', pending: '⏸️ รอไรเดอร์รับงาน', done: '✅ ส่งแล้ว' };
+  const icons = { searching: '🛵', pending: '', done: '✅' };
+  const typeIcons = { food: '🍽️', shopping: '🛒', dinein: '', express: '📦', map: '🗺️' };
+  const statusLabels = { searching: '⏳ กำลังค้นหาไรเดอร์...', pending: '⏸️ รอไรเดอร์รับงาน', done: '✅ ส่งแล้ว' };
   const timeStr = order.createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const typeIcon = typeIcons[order.type] || '📦';
   return `
@@ -1558,7 +1576,7 @@ function showOrderDetail(orderId) {
   if (!order) return;
   const timeStr = order.createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const dateStr = order.createdAt.toLocaleDateString('th-TH');
-  const typeLabels = { food: '🍽️ สั่งอาหาร', shopping: '🛒 ซื้อของใช้', dinein: '🍴 กินที่ร้าน', express: '📦 ส่งด่วน', map: '️ จากแผนที่' };
+  const typeLabels = { food: '️ สั่งอาหาร', shopping: '🛒 ซื้อของใช้', dinein: '🍴 กินที่ร้าน', express: '📦 ส่งด่วน', map: '🗺️ จากแผนที่' };
   document.getElementById('modal-body').innerHTML = `
     <div style="text-align:center; margin-bottom:20px;">
       <div style="font-size:50px;">📋</div>
@@ -1573,9 +1591,9 @@ function showOrderDetail(orderId) {
       ${order.note ? `<div style="font-size:12px; color:#888; margin-top:8px; margin-bottom:4px;">📝 หมายเหตุ</div><div style="font-size:13px;">${order.note}</div>` : ''}
     </div>
     <div style="background:#f8f9fa; padding:15px; border-radius:12px; margin-bottom:15px;">
-      <div style="font-size:12px; color:#888; margin-bottom:4px;"> ปลายทาง</div>
+      <div style="font-size:12px; color:#888; margin-bottom:4px;">🏠 ปลายทาง</div>
       <div style="font-size:14px; font-weight:600;">${order.address}</div>
-      <div style="font-size:12px; color:#888; margin-top:8px;"> ${order.distStr} • ⏱️ ~${order.timeMin} นาที</div>
+      <div style="font-size:12px; color:#888; margin-top:8px;">📍 ${order.distStr} • ⏱️ ~${order.timeMin} นาที</div>
     </div>
     <div class="summary-box" style="margin-bottom:15px;">
       <div class="summary-row"><span class="label">💰 ค่าสินค้า/อาหาร</span><span class="value">${order.price > 0 ? order.price.toFixed(0) + '฿' : '-'}</span></div>
@@ -1734,8 +1752,8 @@ const installText = document.getElementById('install-text');
 
 function getInstallInstructions() {
   const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/.test(ua)) return ' <b>iOS Safari:</b><br>1. กดปุ่ม "แชร์" (⬆️) ด้านล่าง<br>2. เลือก "เพิ่มไปยังหน้าจอโฮม"<br>3. กด "เพิ่ม"';
-  else if (/Android/.test(ua)) return ' <b>Android Chrome:</b><br>1. กดเมนู ⋮ มุมขวาบน<br>2. เลือก "ติดตั้งแอป" หรือ "Add to Home screen"<br>3. กด "ติดตั้ง"';
+  if (/iPhone|iPad|iPod/.test(ua)) return '📱 <b>iOS Safari:</b><br>1. กดปุ่ม "แชร์" (⬆️) ด้านล่าง<br>2. เลือก "เพิ่มไปยังหน้าจอโฮม"<br>3. กด "เพิ่ม"';
+  else if (/Android/.test(ua)) return '🤖 <b>Android Chrome:</b><br>1. กดเมนู ⋮ มุมขวาบน<br>2. เลือก "ติดตั้งแอป" หรือ "Add to Home screen"<br>3. กด "ติดตั้ง"';
   else return '💻 <b>Desktop Chrome/Edge:</b><br>1. กดไอคอน ⬇️ ติดตั้ง ที่ address bar<br>2. กด "ติดตั้ง"';
 }
 
@@ -1782,8 +1800,8 @@ window.addEventListener('load', () => {
   else if (action === 'express') setTimeout(() => openOrderForm('express'), 500);
 });
 
-window.addEventListener('online', () => { showToast('🟢 กลับมาออนไลน์แล้ว'); document.getElementById('offline-banner').classList.remove('active'); document.body.style.opacity = '1'; });
-window.addEventListener('offline', () => { showToast(' ออฟไลน์ - แสดงข้อมูลจากแคช'); document.getElementById('offline-banner').classList.add('active'); document.body.style.opacity = '0.95'; });
+window.addEventListener('online', () => { showToast(' กลับมาออนไลน์แล้ว'); document.getElementById('offline-banner').classList.remove('active'); document.body.style.opacity = '1'; });
+window.addEventListener('offline', () => { showToast('🔴 ออฟไลน์ - แสดงข้อมูลจากแคช'); document.getElementById('offline-banner').classList.add('active'); document.body.style.opacity = '0.95'; });
 if (!navigator.onLine) document.getElementById('offline-banner').classList.add('active');
 
 window.onload = function() { console.log('App loaded'); renderCards(); renderOrders(); checkPDPA(); };
