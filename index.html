@@ -1,3 +1,1811 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Chauat Go</title>
+<meta name="theme-color" content="#00A651">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chauat Go">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Chauat Go">
+<meta name="description" content="แอปค้นหาสถานที่และสั่งอาหาร อ.ชะอวด">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon.svg">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Sarabun',-apple-system,sans-serif}
+html,body{width:100%;overflow-x:hidden}
+body{background:#f8f9fa;max-width:480px;margin:0 auto;min-height:100vh;color:#333;padding-bottom:75px}
+.header{background:#00A651;padding:14px;position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;gap:10px;width:100%}
+.location-badge{background:rgba(255,255,255,.25);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:6px;flex-shrink:0;cursor:pointer}
+.location-badge .loc-text{color:#fff;font-size:11px;font-weight:600;line-height:1.2}
+.location-badge .loc-sub{color:rgba(255,255,255,.85);font-size:9px}
+.search-bar{flex:1;background:#fff;border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);min-width:0;overflow:hidden}
+.search-bar input{border:none;outline:none;font-size:14px;flex:1;color:#666;background:transparent;min-width:0;width:100%}
+.header-auth-row{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px}
+.header-auth-row:empty{display:none}
+#install-btn{display:none;background:rgba(255,255,255,.95);color:#00A651;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+#auth-btns{display:flex;gap:8px;align-items:center}
+#login-btn{background:rgba(255,255,255,.95);color:#00A651;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer}
+#logout-btn{display:none;background:rgba(255,255,255,.95);color:#FF6B35;border:none;padding:8px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer}
+#user-display{display:none;color:#fff;font-size:12px;font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:16px 12px;background:#fff;margin-bottom:8px}
+.menu-item{text-align:center;cursor:pointer;padding:10px 4px;border-radius:14px;transition:.2s;user-select:none}
+.menu-item:active{background:#f0f0f0;transform:scale(.96)}
+.menu-icon{width:62px;height:62px;margin:0 auto 7px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px}
+.menu-icon.food{background:#FFF3E0}.menu-icon.shopping{background:#E3F2FD}.menu-icon.dinein{background:#FCE4EC}.menu-icon.express{background:#F3E5F5}.menu-icon.travel{background:#E8F5E9}.menu-icon.map{background:#FFF8E1}
+.menu-label{font-size:13px;color:#444;font-weight:700}
+.section-header{padding:14px 12px 10px;display:flex;justify-content:space-between;align-items:center}
+.section-title{font-size:17px;font-weight:bold;color:#222;display:flex;align-items:center;gap:6px}
+.section-more{color:#00A651;font-size:13px;cursor:pointer;font-weight:700}
+.food-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 14px}
+.food-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06);cursor:pointer;transition:.2s}
+.food-card:active{transform:scale(.97)}
+.food-img{width:100%;height:120px;position:relative;display:flex;align-items:center;justify-content:center;font-size:44px;background:#f0f0f0;overflow:hidden}
+.food-img img{width:100%;height:100%;object-fit:cover;display:block}
+.food-img.rest{background:linear-gradient(135deg,#667eea,#764ba2)}
+.food-img.cafe{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.food-img.shop{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+.food-img.temple{background:linear-gradient(135deg,#FFD700,#FFA500)}
+.food-badge{position:absolute;top:8px;left:8px;background:#FF6B35;color:#fff;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;z-index:1}
+.food-info{padding:10px}
+.food-name{font-size:13px;font-weight:700;color:#222;margin-bottom:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
+.food-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:#888}
+.food-rating{color:#FFA500;font-weight:600}
+.food-price{font-size:12px;color:#00A651;font-weight:700;margin-top:4px}
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;display:grid;grid-template-columns:repeat(3,1fr);padding:8px 0 12px;box-shadow:0 -2px 10px rgba(0,0,0,.08);z-index:99;border-top:1px solid #eee}
+.nav-item{text-align:center;padding:6px;cursor:pointer}
+.nav-item.active .nav-icon-wrap{color:#00A651}
+.nav-item.active .nav-label{color:#00A651;font-weight:700}
+.nav-icon-wrap{font-size:26px;color:#999;margin-bottom:2px;position:relative;display:inline-block}
+.nav-badge{position:absolute;top:-5px;right:-10px;background:#E91E63;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:bold;padding:0 4px}
+.nav-label{font-size:11px;color:#999}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 24px;border-radius:25px;font-size:14px;z-index:3000;display:none;max-width:90%;text-align:center}
+.toast.active{display:block;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:flex-end}
+.modal-overlay.active{display:flex}
+.modal-content{background:#fff;width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:25px;max-height:90vh;overflow-y:auto;animation:slideUp .3s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.search-results{padding:0 12px 15px;display:none}
+.search-results.active{display:block}
+.search-result-item{background:#fff;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.search-result-item:active{background:#f5f5f5}
+.search-result-img{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;overflow:hidden;background:#f0f0f0}
+.search-result-img img{width:100%;height:100%;object-fit:cover}
+.search-result-img.rest{background:linear-gradient(135deg,#667eea,#764ba2)}
+.search-result-img.cafe{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.search-result-img.shop{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+.search-result-img.temple{background:linear-gradient(135deg,#FFD700,#FFA500)}
+.category-view{display:none;padding:0 12px 15px}
+.category-view.active{display:block}
+.map-page{display:none;position:fixed;inset:0;background:#fff;z-index:500;flex-direction:column}
+.map-page.active{display:flex}
+.map-header-bar{background:#00A651;color:#fff;padding:12px 15px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.1);z-index:501}
+.map-header-bar h3{font-size:16px;font-weight:700;flex:1}
+.map-back-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+#main-map{flex:1;width:100%;height:100%;z-index:500}
+.map-controls{position:absolute;bottom:90px;left:15px;right:15px;z-index:502;display:flex;gap:8px;flex-wrap:wrap}
+.map-ctrl-btn{background:#fff;border:none;padding:8px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);display:flex;align-items:center;gap:5px}
+.map-info-panel{position:absolute;bottom:85px;left:10px;right:10px;z-index:502;background:#fff;border-radius:16px;padding:15px;box-shadow:0 4px 20px rgba(0,0,0,.15);display:none;max-height:300px;overflow-y:auto}
+.map-info-panel.active{display:block}
+.map-info-title{font-size:16px;font-weight:bold;color:#333;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.map-info-sub{font-size:13px;color:#666;margin-bottom:5px}
+.map-info-sub strong{color:#00A651}
+.map-info-cost{background:#FFF3E0;padding:10px;border-radius:10px;margin:10px 0;border-left:4px solid #FF6B35}
+.map-info-cost .cost-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.map-info-cost .cost-total{display:flex;justify-content:space-between;font-size:16px;font-weight:bold;color:#00A651;padding-top:6px;border-top:1px solid #FFB74D;margin-top:4px}
+.map-info-actions{display:flex;gap:8px;margin-top:10px}
+.map-info-btn{flex:1;padding:12px;border-radius:12px;border:none;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.map-info-btn.primary{background:#00A651;color:#fff}
+.map-info-btn.call-rider{background:#FF6B35;color:#fff}
+.map-info-btn.secondary{background:#f0f0f0;color:#666}
+.tambon-list{position:absolute;top:70px;right:10px;z-index:502;background:#fff;border-radius:12px;padding:10px;box-shadow:0 2px 10px rgba(0,0,0,.1);max-height:300px;overflow-y:auto;display:none;width:180px}
+.tambon-list.active{display:block}
+.tambon-item{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px}
+.tambon-item:hover{background:#f0f0f0}
+.tambon-dot{width:8px;height:8px;border-radius:50%;background:#FF6B35}
+.orders-tab,.messages-tab{padding:15px;display:none}
+.orders-tab.active,.messages-tab.active{display:block}
+.order-section-title{font-size:14px;font-weight:700;color:#666;margin:15px 0 10px;display:flex;align-items:center;gap:6px}
+.order-section-title:first-child{margin-top:0}
+.order-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);display:flex;gap:12px;cursor:pointer;border-left:4px solid #00A651}
+.order-card:active{background:#f9f9f9}
+.order-card.searching{border-left-color:#4A90D9;animation:pulse 1.5s infinite}
+.order-card.pending{border-left-color:#FF6B35}
+.order-card.done{border-left-color:#00A651}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.order-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.order-icon.searching{background:#E3F2FD}.order-icon.pending{background:#FFF3E0}.order-icon.done{background:#E8F5E9}
+.order-info{flex:1;min-width:0}
+.order-title{font-weight:700;font-size:14px;color:#222;margin-bottom:3px}
+.order-detail{font-size:12px;color:#888}
+.order-status{font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;margin-top:5px;display:inline-block}
+.order-status.pending{background:#FFF3E0;color:#E65100}
+.order-status.searching{background:#E3F2FD;color:#1565C0}
+.order-status.done{background:#E8F5E9;color:#2E7D32}
+.order-price-tag{color:#FF6B35;font-weight:bold;font-size:14px;margin-top:4px}
+.chat-card{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;display:flex;gap:12px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+.chat-card:active{background:#f9f9f9}
+.chat-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;font-weight:bold;flex-shrink:0}
+.chat-info{flex:1;min-width:0}
+.chat-name{font-weight:700;font-size:14px;color:#222;margin-bottom:3px}
+.chat-last{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-meta{text-align:right;flex-shrink:0}
+.chat-time{font-size:11px;color:#aaa;margin-bottom:4px}
+.chat-unread{background:#E91E63;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:bold;margin-left:auto;padding:0 4px}
+.empty-state{text-align:center;padding:40px 20px;color:#999}
+.empty-state .icon{font-size:50px;margin-bottom:10px}
+#home-content.hidden{display:none}
+.order-form-header{text-align:center;margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #eee}
+.order-form-header .of-icon{font-size:50px;margin-bottom:8px}
+.order-form-header .of-title{font-size:20px;font-weight:bold;color:#333}
+.order-form-header .of-sub{font-size:13px;color:#888;margin-top:4px}
+.form-group{margin-bottom:15px}
+.form-group label{display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:6px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:12px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;outline:none;transition:border-color .3s;font-family:inherit}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#00A651}
+.form-group textarea{resize:vertical;min-height:80px}
+.summary-box{background:#f8f9fa;border-radius:12px;padding:15px;margin:15px 0}
+.summary-row{display:flex;justify-content:space-between;padding:6px 0;font-size:14px}
+.summary-row.total{border-top:2px solid #00A651;margin-top:8px;padding-top:10px;font-size:18px;font-weight:bold;color:#00A651}
+.summary-row .label{color:#666}
+.summary-row .value{font-weight:600}
+.btn-full{width:100%;padding:14px;border-radius:12px;border:none;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-full:disabled{opacity:.6;cursor:not-allowed}
+.btn-green{background:#00A651;color:#fff}.btn-orange{background:#FF6B35;color:#fff}.btn-blue{background:#4A90D9;color:#fff}.btn-gray{background:#f5f5f5;color:#666}
+.rider-found-box{background:#E8F5E9;border-radius:12px;padding:12px;margin-bottom:15px;display:flex;align-items:center;gap:12px;border-left:4px solid #00A651}
+.rider-found-box .rf-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;font-weight:bold;flex-shrink:0}
+.rider-found-box .rf-info{flex:1}
+.rider-found-box .rf-name{font-weight:bold;font-size:14px;color:#2E7D32}
+.rider-found-box .rf-vehicle{font-size:12px;color:#666}
+.rider-found-box .rf-rating{font-size:12px;color:#FFA500}
+.pdpa-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.pdpa-overlay.hidden{display:none}
+.pdpa-content{background:#fff;border-radius:20px;padding:25px;width:100%;max-width:400px;text-align:center;animation:slideUp .4s}
+.pdpa-content .pdpa-icon{font-size:60px;margin-bottom:10px}
+.pdpa-content h3{font-size:20px;margin-bottom:10px;color:#333;font-weight:800}
+.pdpa-content p{font-size:13px;color:#666;line-height:1.6;margin-bottom:15px;text-align:left}
+.pdpa-content a{color:#00A651;text-decoration:underline;font-weight:600}
+.pdpa-btn{width:100%;padding:14px;border-radius:12px;border:none;font-weight:700;font-size:15px;cursor:pointer;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.pdpa-accept{background:#00A651;color:#fff}.pdpa-accept:active{background:#008C45}
+.pdpa-read{background:#f0f0f0;color:#666}
+.loc-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px}
+.loc-popup-overlay.hidden{display:none}
+.loc-popup-content{background:#fff;border-radius:20px;padding:25px;width:100%;max-width:380px;text-align:center;animation:slideUp .4s}
+.loc-popup-content .loc-icon-big{font-size:60px;margin-bottom:10px}
+.loc-popup-content h3{font-size:18px;margin-bottom:8px;color:#333;font-weight:800}
+.loc-popup-content p{font-size:13px;color:#666;line-height:1.5;margin-bottom:20px}
+.loc-popup-btn{width:100%;padding:14px;border-radius:12px;border:none;font-weight:700;font-size:15px;cursor:pointer;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.loc-allow{background:#1565C0;color:#fff}.loc-allow:active{background:#0D47A1}
+.loc-skip{background:#f0f0f0;color:#666}
+#install-modal .modal-content{text-align:center}
+#install-confirm-btn{background:linear-gradient(135deg,#00A651,#008C45);box-shadow:0 4px 12px rgba(0,166,81,.3)}
+.legal-footer{background:#f8f9fa;padding:20px 15px;text-align:center;border-top:1px solid #eee;margin-top:20px}
+.legal-footer .dbd-mark{width:80px;height:80px;background:#e0e0e0;border-radius:8px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#666;border:1px dashed #999}
+.legal-footer .links{font-size:12px;color:#00A651;margin-bottom:10px}
+.legal-footer .links a{color:#00A651;text-decoration:none;margin:0 5px}
+.legal-footer .copyright{font-size:11px;color:#999}
+.rider-disclaimer{background:#FFF3E0;border:1px solid #FFE0B2;border-radius:12px;padding:12px;margin-top:15px;font-size:12px;color:#E65100;line-height:1.4}
+.offline-banner{display:none;position:fixed;top:0;left:0;right:0;background:#FF6B35;color:#fff;text-align:center;padding:8px;font-size:13px;font-weight:600;z-index:9999}
+.offline-banner.active{display:block}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js?v=4"></script>
+</head>
+<body>
+<div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ - แสดงข้อมูลจากแคช</div>
+<div class="toast" id="toast"></div>
+
+<div class="pdpa-overlay hidden" id="pdpa-overlay">
+  <div class="pdpa-content">
+    <div class="pdpa-icon">🛡️</div>
+    <h3>ยินดีต้อนรับสู่ Chauat Go</h3>
+    <p>แอปพลิเคชัน Chauat Go ใช้คุกกี้และเก็บรวบรวมข้อมูลส่วนบุคคล (เช่น ชื่อ, เบอร์โทรศัพท์, ที่อยู่, พิกัด GPS) เพื่อวัตถุประสงค์ในการให้บริการจัดส่งอาหารและสินค้า<br><br>เราปฏิบัติตาม <a href="#">พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)</a> อย่างเคร่งครัด ข้อมูลของคุณจะถูกเก็บรักษาอย่างปลอดภัยและจะไม่ถูกเปิดเผยแก่บุคคลที่สามโดยไม่ได้รับอนุญาต</p>
+    <button class="pdpa-btn pdpa-accept" onclick="acceptPDPA()">✅ ยอมรับและใช้งานต่อ</button>
+    <button class="pdpa-btn pdpa-read" onclick="window.open('https://www.mdes.go.th','_blank')">📖 อ่านนโยบายฉบับเต็ม</button>
+  </div>
+</div>
+
+<div class="loc-popup-overlay hidden" id="loc-popup-overlay">
+  <div class="loc-popup-content">
+    <div class="loc-icon-big">📡</div>
+    <h3>อนุญาตเข้าถึงตำแหน่ง</h3>
+    <p>เพื่อคำนวณระยะทางและค่าส่งที่แม่นยำ<br>แอปจะขออนุญาตเข้าถึงตำแหน่ง GPS ของคุณ</p>
+    <button class="loc-popup-btn loc-allow" onclick="requestLocation()">✅ อนุญาต</button>
+    <button class="loc-popup-btn loc-skip" onclick="skipLocation()">⏭️ ข้ามไปก่อน</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="install-modal" onclick="if(event.target===this)closeInstallModal()">
+  <div class="modal-content">
+    <div style="font-size:60px;margin-bottom:10px">📱</div>
+    <h2 style="font-size:20px;margin-bottom:10px">ติดตั้ง Chauat Go</h2>
+    <p style="color:#666;margin-bottom:20px;font-size:14px">เพิ่มแอป Chauat Go ลงหน้าจอมือถือของคุณ</p>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:20px;text-align:left;font-size:13px">
+      <strong>วิธีติดตั้ง:</strong><br><span id="install-text"></span>
+    </div>
+    <button class="btn-full btn-green" onclick="triggerInstall()" id="install-confirm-btn" style="display:none">✅ ติดตั้งเลย</button>
+    <button class="btn-full btn-gray" onclick="closeInstallModal()">❌ ไว้ก่อน</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="login-modal" onclick="if(event.target===this)closeLoginModal()">
+  <div class="modal-content" style="max-width:400px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:60px;margin-bottom:10px">🔐</div>
+      <h2 style="font-size:22px;margin-bottom:5px">เข้าสู่ระบบ Chauat Go</h2>
+      <p style="color:#888;font-size:13px">ล็อกอินเพื่อสั่งซื้อและติดตามออเดอร์</p>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:12px;border:none;background:#00A651;color:white;border-radius:12px;font-weight:700;cursor:pointer">เข้าสู่ระบบ</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;padding:12px;border:none;background:#f0f0f0;color:#666;border-radius:12px;font-weight:700;cursor:pointer">สมัครสมาชิก</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>📧 อีเมล</label><input type="email" id="login-email" placeholder="example@email.com"></div>
+      <div class="form-group"><label>🔒 รหัสผ่าน</label><input type="password" id="login-password" placeholder="••••••••"></div>
+      <button class="btn-full btn-green" onclick="handleLogin()">🔑 เข้าสู่ระบบ</button>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group"><label>👤 ชื่อ-นามสกุล</label><input type="text" id="signup-name" placeholder="สมชาย ใจดี"></div>
+      <div class="form-group"><label>📧 อีเมล</label><input type="email" id="signup-email" placeholder="example@email.com"></div>
+      <div class="form-group"><label>🔒 รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)</label><input type="password" id="signup-password" placeholder="••••••••"></div>
+      <button class="btn-full btn-green" onclick="handleSignup()">✅ สมัครสมาชิก</button>
+    </div>
+    <div style="text-align:center;margin:20px 0;color:#999;font-size:13px">หรือ</div>
+    <button class="btn-full" style="background:#06C755;color:white" onclick="loginWithLine()">💬 เข้าสู่ระบบด้วย LINE</button>
+    <button class="btn-full" style="background:#4285F4;color:white" onclick="loginWithGoogle()">🔵 เข้าสู่ระบบด้วย Google</button>
+    <button class="btn-full btn-gray" onclick="closeLoginModal()" style="margin-top:10px">❌ ยกเลิก</button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="location-badge" onclick="showToast('📍 ตำแหน่ง: ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช')">
+      <span style="font-size:16px">📍</span>
+      <div>
+        <div class="loc-text" id="loc-text-display">ต.ชะอวด</div>
+        <div class="loc-sub" id="loc-sub-display">อ.ชะอวด จ.นครศรีธรรมราช</div>
+      </div>
+    </div>
+    <div class="search-bar">
+      <span style="font-size:18px">🔍</span>
+      <input type="text" id="search-input" placeholder="ค้นหาใน Chauat Go..." oninput="doSearch(this.value)">
+    </div>
+  </div>
+  <div class="header-auth-row">
+    <button id="install-btn" onclick="showInstallModal()">⬇️ ติดตั้งแอป</button>
+    <div id="auth-btns">
+      <button id="login-btn" onclick="showLoginModal()">🔑 เข้าสู่ระบบ</button>
+      <span id="user-display"></span>
+      <button id="logout-btn" onclick="handleLogout()">🚪 ออก</button>
+    </div>
+  </div>
+</div>
+
+<div id="tab-home">
+  <div class="search-results" id="search-results"></div>
+  <div class="category-view" id="category-view">
+    <div class="section-header" style="padding-left:0">
+      <div class="section-title" id="category-title">หมวดหมู่</div>
+      <div class="section-more" onclick="closeCategoryView()">✕ ปิด</div>
+    </div>
+    <div class="food-grid" id="category-grid"></div>
+  </div>
+  <div id="home-content">
+    <div class="menu-grid">
+      <div class="menu-item" onclick="openOrderForm('food')"><div class="menu-icon food">🍽️</div><div class="menu-label">อาหาร</div></div>
+      <div class="menu-item" onclick="openOrderForm('shopping')"><div class="menu-icon shopping">🛒</div><div class="menu-label">ของใช้</div></div>
+      <div class="menu-item" onclick="openOrderForm('dinein')"><div class="menu-icon dinein">🍴</div><div class="menu-label">กินที่ร้าน</div></div>
+      <div class="menu-item" onclick="openOrderForm('express')"><div class="menu-icon express">📦</div><div class="menu-label">ส่งด่วน</div></div>
+      <div class="menu-item" onclick="filterCategory('travel')"><div class="menu-icon travel">🚗</div><div class="menu-label">เดินทาง</div></div>
+      <div class="menu-item" onclick="openMapPage()"><div class="menu-icon map">🗺️</div><div class="menu-label">แผนที่</div></div>
+    </div>
+    <div class="section-header">
+      <div class="section-title">🍽️ ร้านอาหารแนะนำ</div>
+      <div class="section-more" onclick="showAllCategories('restaurant')">ดูทั้งหมด ></div>
+    </div>
+    <div class="food-grid" id="restaurant-grid"></div>
+    <div class="section-header">
+      <div class="section-title">🏪 ร้านสะดวกซื้อ</div>
+      <div class="section-more" onclick="showAllCategories('convenience')">ดูทั้งหมด ></div>
+    </div>
+    <div class="food-grid" id="convenience-grid"></div>
+    <div class="section-header">
+      <div class="section-title">☕ คาเฟ่</div>
+      <div class="section-more" onclick="showAllCategories('cafe')">ดูทั้งหมด ></div>
+    </div>
+    <div class="food-grid" id="cafe-grid"></div>
+    <div class="legal-footer" id="legal-footer" style="display:none">
+      <div class="dbd-mark">[DBD<br>Registered]</div>
+      <div class="links"><a href="#">เงื่อนไขการใช้งาน</a> | <a href="#">นโยบายความเป็นส่วนตัว</a> | <a href="#">ติดต่อเรา / ร้องเรียน</a></div>
+      <div class="copyright">© 2024 Chauat Go. สงวนลิขสิทธิ์.<br>ผู้ให้บริการตัวกลางทางอิเล็กทรอนิกส์ (e-Service Provider)</div>
+    </div>
+  </div>
+</div>
+
+<div class="map-page" id="map-page">
+  <div class="map-header-bar">
+    <button class="map-back-btn" onclick="closeMapPage()">← กลับ</button>
+    <h3>🗺️ แผนที่ อ.ชะอวด</h3>
+  </div>
+  <div id="main-map"></div>
+  <div class="tambon-list" id="tambon-list">
+    <div style="font-weight:bold;font-size:13px;padding:5px 10px;color:#666;border-bottom:1px solid #eee;margin-bottom:5px">12 ตำบล อ.ชะอวด</div>
+  </div>
+  <div class="map-controls">
+    <button class="map-ctrl-btn" onclick="toggleTambonList()">📍 ตำบล</button>
+    <button class="map-ctrl-btn" onclick="centerToUser()">🎯 ตำแหน่งฉัน</button>
+    <button class="map-ctrl-btn" onclick="clearDestination()">🗑️ ล้างหมุด</button>
+    <button class="map-ctrl-btn" onclick="showAllPlacesOnMap()">📌 ทั้งหมด</button>
+  </div>
+  <div class="map-info-panel" id="map-info-panel">
+    <div class="map-info-title" id="map-info-title">📍 ปลายทาง</div>
+    <div id="map-info-content"></div>
+    <div class="map-info-actions">
+      <button class="map-info-btn call-rider" onclick="callRiderFromMap()">🛵 เรียกไรเดอร์</button>
+      <button class="map-info-btn primary" onclick="navigateToDestination()">🧭 นำทาง</button>
+      <button class="map-info-btn secondary" onclick="clearDestination()">✕</button>
+    </div>
+  </div>
+</div>
+
+<div class="orders-tab" id="tab-orders">
+  <div class="order-section-title">🔍 กำลังค้นหาไรเดอร์</div><div id="searching-orders"></div>
+  <div class="order-section-title">⏸️ รอดำเนินการ</div><div id="pending-orders"></div>
+  <div class="order-section-title">✅ งานที่เสร็จแล้ว</div><div id="done-orders"></div>
+  <div id="empty-orders" style="display:none"><div class="empty-state"><div class="icon">📋</div><div>ยังไม่มีรายการ</div></div></div>
+</div>
+
+<div class="messages-tab" id="tab-messages">
+  <div class="chat-card" onclick="openChat('สมชาย ใจดี')">
+    <div class="chat-avatar">ส</div>
+    <div class="chat-info"><div class="chat-name">ไรเดอร์สมชาย ใจดี</div><div class="chat-last">ถึงหน้าร้านแล้วครับ เดี๋ยวผมเดินเข้าไปรับให้ครับ 🙏</div></div>
+    <div class="chat-meta"><div class="chat-time">14:32</div><div class="chat-unread">2</div></div>
+  </div>
+  <div class="chat-card" onclick="openChat('วิชัย เร็วไว')">
+    <div class="chat-avatar">ว</div>
+    <div class="chat-info"><div class="chat-name">ไรเดอร์วิชัย เร็วไว</div><div class="chat-last">รับทราบครับ อีกสักครู่ถึงครับ</div></div>
+    <div class="chat-meta"><div class="chat-time">12:15</div><div class="chat-unread">1</div></div>
+  </div>
+  <div class="chat-card" onclick="openChat('ประเสริฐ ซิ่ง')">
+    <div class="chat-avatar">ป</div>
+    <div class="chat-info"><div class="chat-name">ไรเดอร์ประเสริฐ ซิ่ง</div><div class="chat-last">คุณ: ขอบคุณครับ 🙏</div></div>
+    <div class="chat-meta"><div class="chat-time">เมื่อวาน</div></div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="switchTab('home',this)"><div class="nav-icon-wrap">🏠</div><div class="nav-label">หน้าแรก</div></div>
+  <div class="nav-item" onclick="switchTab('orders',this)"><div class="nav-icon-wrap">📋<span class="nav-badge" id="orders-badge">0</span></div><div class="nav-label">รายการ</div></div>
+  <div class="nav-item" onclick="switchTab('messages',this)"><div class="nav-icon-wrap">💬<span class="nav-badge">3</span></div><div class="nav-label">ข้อความ</div></div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content" id="modal-body"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// รูปแบบ: [ชื่อ, lat, lng, หมวด, ราคา/เวลา, รูป(images/... หรือ emoji), rating]
+const PLACE_CATS = {r:'restaurant',f:'cafe',c:'convenience',m:'market',t:'tourist',h:'hotel',s:'shop',w:'temple',g:'gas',b:'bank',e:'edu',o:'gov',x:'transport',l:'health',p:'postal',y:'recreation'};
+const PLACES_RAW = [
+// ร้านอาหาร (4 ร้านแรกมีรูปจริง)
+["สเต็กลุงอ้วน by เชฟปืน",7.9725186,99.9958096,'r',"150-350฿","images/steak-lung-uan.jpg",4.6],
+["ขนมจีนลุงบ่าว",7.9670,99.9960,'r',"40-80฿","images/khanom-jeen-lung-bao.jpg",4.4],
+["เจ๊หญิงผัดไทย หอยทอด",7.9635936,99.9980924,'r',"40-80฿","images/jay-ying-padthai.jpg",4.5],
+["ข้าวขาหมูน้องออ",7.968951,99.995472,'r',"50-120฿","images/khao-kha-moo-nong-or.jpg",4.3],
+["FIVE STARS",7.9590838,99.9639115,'r',"45-120฿","⭐",4.1],
+["Samu sushi สาขาชะอวด",7.9705488,99.9963399,'r',"60-150฿","🍣",4.4],
+["กระทะทอง หมูกะทะ",7.9670749,100.0027069,'r',"150-300฿","",4.3],
+["ก๋วยจั๊บน้ำข้นแม่น้องอัญชัน",7.9670768,100.0027459,'r',"40-80฿","",4.5],
+["ก๋วยเตี๋ยวเรือ5",7.9662886,100.0104017,'r',"35-60฿","",4.4],
+["ก๋วยเตี๋ยวเรือบนเนิน",7.9672004,100.0070046,'r',"35-65฿","🍜",4.3],
+["ก๋วยเตี๋ยวเรือบ้านพ่อ@ท่าประจะ",7.9612968,99.9717433,'r',"35-70฿","🍜",4.5],
+["ข้าวต้มโกยศ&จุ๊บจิ๊บ",7.9696185,99.994334,'r',"40-100฿","🍚",4.3],
+["ข้าวหน้าเป็ด ข้าวหมูอบ",7.9688368,99.9946618,'r',"40-80฿","🍚",4.3],
+["ข้าวแกงกิ้มเตี้ยน",7.9652805,99.9975557,'r',"35-70฿","🍛",4.4],
+["ครัว ชานเมือง",7.9643424,99.9898984,'r',"60-150฿","🍽️",4.3],
+["ครัวขนมจีน คุณแม่",7.9692451,99.997884,'r',"40-80฿","",4.6],
+["ครัวต้นตอ",8.0070983,99.9797433,'r',"50-120฿","🍽️",4.2],
+["ครัวมะปราง",7.9939983,99.9615043,'r',"50-130฿","🍽️",4.3],
+["ครัวศรีเมือง",7.9639176,99.98905,'r',"50-120฿","🍽️",4.2],
+["ครัวอีสานใต้",7.9711681,99.963453,'r',"50-130฿","🌶️",4.3],
+["จำหน่ายลูกชิ้นทอดเจ๊กบ",7.9675258,99.9963719,'r',"20-50฿","",4.4],
+["ชาบูบ้านแม่",7.9623247,99.9854726,'r',"200-400฿","🍲",4.2],
+["ซีแซ่บ กุ้งแช่น้ำปลาชะอวด",7.9666804,99.998424,'r',"60-150฿","🦐",4.4],
+["ณ ที่เดิม",7.9643464,99.9899005,'r',"50-120฿","",4.3],
+["ตามสั่งท่าเสม็ดเดลิเวอรี่",7.9495929,100.0152696,'r',"40-100฿","🍱",4.2],
+["ตู้กับข้าว @ชะอวด",7.9704229,99.9980995,'r',"50-130฿","",4.4],
+["ทะเลดอง ชะอวด",7.9666467,99.9962655,'r',"80-200฿","🦐",4.4],
+["บ้าน ยายเลี่ยน ตาถวิล",7.9594066,99.9637612,'r',"50-120฿","🏠",4.3],
+["บ้านขนมจีน ปุ้ย",7.9877066,99.9890172,'r',"40-80฿","🍜",4.5],
+["บ้านปัญจ-รส",7.9841934,99.9808577,'r',"60-150฿","🍽️",4.4],
+["ปังปิ้งเตาถ่านร้าน2ปัง",7.9593949,99.963404,'r',"25-60฿","🍞",4.3],
+["ร้าน ขายปลาแดดเดียว",7.9713991,100.002393,'r',"50-120฿","",4.2],
+["ร้าน ทุ่งนาคาราโอเกะ",7.9620958,99.9941764,'r',"80-200฿","🎤",4.2],
+["ร้านก๋วยจั๊บรสเด็ด",7.9667677,99.9988822,'r',"40-80฿","🍜",4.4],
+["ร้านก๋วยเตี๋ยว เนื้อตุ่นเปื่อย",7.9724311,99.9959182,'r',"40-90฿","",4.3],
+["ร้านก๋วยเตี๋ยวน้องมรท่าเสม็ด",7.9529883,100.0102231,'r',"35-70฿","",4.2],
+["ร้านก๋วยเตี๋ยวสูตรโบราณ",7.9548062,100.0088371,'r',"35-70฿","🍜",4.5],
+["ร้านขนมจีนบนเนิน",7.9666807,100.0104124,'r',"40-80฿","",4.4],
+["ร้านขนมจีนป้าสาว",7.9647049,99.9904454,'r',"35-70฿","🍜",4.3],
+["ร้านขนมจีนยายจิตรตาพร",7.9595442,99.9695015,'r',"35-75฿","🍜",4.4],
+["ร้านข้าวมันไก่เจ๊นอม",7.9519858,100.0138437,'r',"40-80฿","🍛",4.3],
+["ร้านครัวคนเคร็ง",7.972678,99.9912826,'r',"50-120฿","🍽️",4.2],
+["ร้านชาบูเสียบไม้ice&c",7.9639698,99.9980227,'r',"100-250฿","🍲",4.3],
+["ร้านปั่นแหลกบุฟเฟ่ต์ผลไม้",7.968886,99.997976,'r',"40-100฿","🥤",4.4],
+["ร้านป้าเอียดหมูกระทะบุฟเฟต์",7.9726114,99.9957222,'r',"139฿","",4.3],
+["ร้านส้มตำป้าธรรม",7.9666962,100.0066603,'r',"40-100฿","🥗",4.4],
+["ร้านส้มตำสะดุ้งmyเพลง",7.9646839,99.9951063,'r',"40-100฿","🥗",4.2],
+["ร้านหนมจีนน้าตุ้น",7.9557042,99.999855,'r',"35-70฿","🍜",4.5],
+["ร้านหมูพวงรสเด็ด ชะอวด",7.9649516,99.9977638,'r',"50-120฿","🍖",4.3],
+["ร้านอาหารตารื่นยายแก้ว",7.9456361,99.9694289,'r',"50-130฿","",4.4],
+["ร้านอาหารนกน้อย",7.9711658,99.9926807,'r',"50-120฿","",4.2],
+["ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์",7.964281,99.9970526,'r',"100-250฿","🥩",4.3],
+["ร้านอาหารโอเค",7.967058,99.9966538,'r',"50-150฿","",4.2],
+["ร้านแกงใต้และขนมไทยบ้านอิ่มเอม",7.9666389,99.9947637,'r',"40-100฿","🍛",4.5],
+["ร้านแต่แรก The old time",7.9654721,99.9944093,'r',"50-130฿","🍽️",4.3],
+["ร้านแฮปปี้ โฟล์ค ตำแซ่บ",7.9631287,99.9883002,'r',"40-100฿","🥗",4.2],
+["ลาบอุดร(หน้าสวนหย่อม)",7.9662922,99.9975223,'r',"50-120฿","",4.4],
+["ลำภูหมูกะทะชะอวด",7.985507,99.989834,'r',"150-300฿","",4.3],
+["วารินทร์ ซาลาเปาทอด&ปาท่องโก๋",7.9680305,99.9952084,'r',"20-50฿","🥟",4.4],
+["สถานีของหรอย@ชะอวด",7.9654112,99.9905907,'r',"50-130฿","🍽️",4.3],
+["สถานียำตำแซ่บ",7.9704778,99.9961367,'r',"40-100฿","🥗",4.2],
+["สลัดไข่มุก สาขาชะอวด",7.9692051,99.9981353,'r',"50-120฿","🥗",4.3],
+["ส้มตำ เชลล์",7.9696555,99.9943106,'r',"40-100฿","",4.2],
+["ส้มตำครกทอง",7.9710256,99.9931146,'r',"40-100฿","🥗",4.3],
+["ส้มตำสองพี่น้อง ลาบอุบลฯ",7.9640635,99.9897116,'r',"40-100฿","🥗",4.4],
+["หม่าล่าเฮงเฮง",7.9637426,99.9985664,'r',"60-150฿","🌶️",4.2],
+["หอยครก...หรอยยกนิ้ว",7.9670202,99.9983783,'r',"40-100฿","🦪",4.3],
+["อีสานพลัดถิ่น (บ้านไร่เนิน)",7.9516409,100.0225923,'r',"50-130฿","🌶️",4.4],
+["เจ๊สาห์หมูกระทะ",7.9585347,99.9849734,'r',"150-300฿","",4.3],
+["เตี๋ยวตุ๋น หม้อไฟ INDY",7.9605533,99.9863734,'r',"100-250฿","🍲",4.4],
+["เมษา กาแฟ",7.9646839,99.9951063,'r',"40-100฿","",4.3],
+["เมามาย ชะอวด",7.9938386,99.9704377,'r',"80-200฿","🍻",4.2],
+["แม่พรขนมจีน",7.9751241,99.9632741,'r',"40-80฿","🍜",4.5],
+["แม่เพ็ญเครื่องแกง & ข้าวต้ม",7.9646317,99.9847939,'r',"40-100฿","🍲",4.3],
+["ไก่ทอดโอปป้า สาขาชะอวด",7.9662091,99.9930427,'r',"50-120฿","🍗",4.3],
+["ไก่โต้งข้าวมันไก่ไหหลำ",7.9662262,99.9929985,'r',"40-80฿","🍛",4.4],
+["ร้านเยี่ยมโอชา",7.9648964,99.9953573,'r',"50-150฿","🍛",4.5],
+["ชิปปิ้ง ชาบู&หมูกระทะ",7.9659063,99.9949039,'r',"150-300฿","🍲",4.4],
+["ร้านหนองคาย อาหารอิสาน",7.9657836,99.9922684,'r',"50-120฿","🌶️",4.4],
+["เต๋วเรือลานข่อย ณ ชะอวด",7.9681891,99.9959867,'r',"40-80฿","🍜",4.5],
+["Love Milk Cafe&Restaurant",7.9659765,99.9932246,'r',"45-150฿","🥛",4.5],
+["ปริ่มละมุล",7.9866593,99.9894992,'r',"60-180฿","🍰",4.6],
+["เหล่าเต๊ง Chauat",7.9654603,99.9943536,'r',"40-120฿","🍵",4.4],
+// คาเฟ่ (ร้านแรกมีรูปจริง)
+["ร้านหวานใจไอติม & พิซซ่าโคน",7.9675,99.9965,'f',"30-80฿","images/wan-jai-icecream-pizza.jpg",4.5],
+["Dew Coffee Cha-uat",7.9690861,99.9943373,'f',"45-120฿","☕",4.8],
+["Cafe.Lao",7.9649201,99.9951997,'f',"40-100฿","☕",4.3],
+["Cameron Cafe",7.9685043,99.994887,'f',"40-120฿","",4.5],
+["Mr.VAN Ice Cream",7.9821871,99.9666483,'f',"30-80฿","🍦",4.4],
+["กาแฟโบว์",7.9821889,99.9820569,'f',"35-90฿","☕",4.3],
+["กินติม @ชะอวด",7.9672812,99.9970054,'f',"25-60฿","🍦",4.5],
+["ข.ไข่คาเฟ่ ชะอวด",7.9669234,100.0233534,'f',"50-130฿","",4.3],
+["คอชาเย็น(สาขา สภ.ชะอวด)",7.9663835,99.9981566,'f',"30-70฿","🧋",4.2],
+["ชาช้าง หลาดชะอวด",7.9673797,99.9955824,'f',"35-80฿","🍵",4.4],
+["ชาทรตะโหมดสาขาชะอวด",7.9670326,99.9959598,'f',"35-85฿","🧋",4.3],
+["ชานมไข่มุกดอทคอม ชะอวด",7.9681854,99.9950467,'f',"30-75฿","🧋",4.2],
+["ชาฮีโร่ HERO",7.970075,99.9977912,'f',"35-90฿","🧋",4.4],
+["ชิลล์ - Chill",7.9630355,99.9984221,'f',"40-100฿","🍹",4.3],
+["ชีวิตดี๊ดี",7.9596369,99.9605265,'f',"40-110฿","☕",4.5],
+["ติดชาน้องนุช ต.ท่าประจะ",7.9554994,99.9632278,'f',"30-70฿","🧋",4.2],
+["ท่าน้ำชา คาเฟ่",7.9623699,99.9963144,'f',"40-100฿","☕",4.6],
+["นั่งเล่าหน้าบ้าน ณ ควนดินแดง",7.9416481,99.9643163,'f',"45-120฿","☕",4.4],
+["บ้านลูกชุบ บนเนิน",7.9670964,100.0088697,'f',"35-90฿","🍡",4.3],
+["บ้านเอ็มพิชซ่า",7.9646423,99.9901592,'f',"80-180฿","🍕",4.2],
+["ป้ายยักคอชะอวด",7.9751266,99.9960417,'f',"35-85฿","",4.3],
+["ภูซอนไอติมกระทิสด",7.9254483,100.0089881,'f',"25-60฿","🍦",4.5],
+["ร้านกาแฟเศรษฐี ท่าเสม็ด",7.9517624,100.0105614,'f',"35-90฿","☕",4.2],
+["ร้านคะวัน",7.9592561,99.9604253,'f',"40-100฿","🍰",4.3],
+["ร้านชาพะยอม",7.9608777,100.005908,'f',"30-75฿","🍵",4.2],
+["ร้านช้อนชาม.นครศรีธรรมราช",7.9695261,99.995251,'f',"35-85฿","",4.3],
+["ร้านธราธิป",7.9676412,99.9963438,'f',"40-100฿","☕",4.2],
+["ร้านน้ำชาบังกด",7.9648089,99.9956764,'f',"25-60฿","🍵",4.3],
+["ร้านน้ำชาเจ๊อ้อย",7.9649214,99.9918854,'f',"25-60฿","🍵",4.2],
+["ร้านน้ำน้องสาว",7.9692367,99.9965894,'f',"30-70฿","🍵",4.3],
+["ร้านน้ำน้องโอชิ",7.9751241,99.9632741,'f',"30-75฿","🍵",4.2],
+["ร้านน้ำอ้อย 3M",7.9590977,99.9564628,'f',"25-60฿","🥤",4.4],
+["ร้านฟอร์ยู@ชะอวด",7.9667841,99.9984914,'f',"30-80฿","🧋",4.3],
+["ร้านเพลินพุง'งง",7.9363545,100.0212613,'f',"40-110฿","",4.4],
+["ร้านไอติมใจยักษ์",7.9690185,99.9979403,'f',"25-65฿","🍦",4.5],
+["ลานชา สถานีคนง่วง",7.9673556,99.9955932,'f',"30-75฿","🍵",4.3],
+["วรรณภาพร",7.974785,99.9634335,'f',"35-85฿","☕",4.2],
+["หอมหวานชานม",7.9668981,100.0018463,'f',"30-80฿","🧋",4.3],
+["อาณาจักรชา บ้านเนินแขก",7.9641097,99.9897522,'f',"30-75฿","🍵",4.2],
+["โคกหนองนา ธนาคารอาหารสุขภาพ",7.964849,100.0164816,'f',"40-120฿","🥗",4.4],
+// ร้านสะดวกซื้อ / ตลาด
+["7-Eleven สาขา ถนนอรุณประชา",7.96862,99.9946493,'c',"24 ชม.","images/7-eleven-arun-pracha.jpg",4.3],
+["7-Eleven สาขา ท่าประจะ",7.9590652,99.9639528,'c',"24 ชม.","🏪",4.3],
+["7-Eleven สาขา PTTOR ชะอวด",7.961493,99.987406,'c',"24 ชม.","🏪",4.2],
+["7-Eleven สาขา ชะอวด",7.9667964,99.9967819,'c',"24 ชม.","🏪",4.3],
+["7-Eleven สาขา ชะอวด 2",7.967021,99.9964999,'c',"24 ชม.","🏪",4.2],
+["โลตัส โก เฟรช ชะอวด",7.9670751,99.9968295,'c',"7:00-22:00","🛒",4.4],
+["KFC สาขาชะอวด",7.9616453,99.9875667,'c',"10:00-22:00","🍗",4.1],
+["Sod Station",7.96422,99.998431,'m',"7:00-20:00","images/sod-station.jpg",4.0],
+["ตลาดชะอวด",7.9716912,99.994021,'m',"6:00-18:00","🏪",4.2],
+["ตลาดร่วมใจ ถนนคนเดิน",7.964451,99.998216,'m',"17:00-22:00","🛍️",4.3],
+["ตลาดสดชะอวด",7.9652396,99.9967148,'m',"5:00-12:00","🥬",4.1],
+// ท่องเที่ยว
+["อ่างเก็บน้ำห้วยน้ำใส",7.9520,99.9750,'t',"เปิดทุกวัน","images/huai-nam-sai-reservoir.jpg",4.7],
+["สวิสเซอร์แลนด์แดนชะอวด",7.9700,99.9850,'t',"เปิดทุกวัน","images/switzerland-chauat.jpg",4.8],
+["สะพานโค้ง100ปีชะอวด",7.9644,99.9982,'t',"เปิดทุกวัน","🌉",4.6],
+["หอนาฬิกาเทศบาลตำบลชะอวด",7.9670053,99.9973112,'t',"เปิดทุกวัน","🕐",4.2],
+["ล่องแพบ้านวังอ่าง",7.9025,99.9225,'t',"8:00-17:00","🛶",4.5],
+["ป่าพรุควนเคร็ง",7.8850,100.1150,'t',"8:00-17:00","🌿",4.6],
+["น้ำตกวังหอน",7.9000,99.9150,'t',"8:00-17:00","💧",4.4],
+["ท่องบ้านยวน",7.9618215,99.9560357,'t',"8:00-17:00","🏞️",4.5],
+// ที่พัก
+["โรงแรมเฟื่องฟ้ารีสอร์ท",7.9650,99.9900,'h',"600-1200฿","images/fueangfa-resort.jpg",4.4],
+["บ้านแม่ ทุ่งหัวพาน",7.9417746,100.0080005,'h',"400-800฿","🏡",4.3],
+["โฮมสเตย์เรือนริมน้ำชะอวด",7.963346,100.0346649,'h',"500-1000฿","",4.5],
+["บ้านพัก ขวัญแก้ว",7.9694722,99.9934722,'h',"350-700฿","🏠",4.2],
+["ทองขาวบ้านสวนรีสอร์ท",7.9670818,100.0232993,'h',"600-1200฿","🌳",4.4],
+["เรือนกลางหลาด",7.9828841,99.9908841,'h',"600-1200฿","🏠",4.5],
+["สวนพลู รีสอร์ต",7.9644048,99.9808742,'h',"400-900฿","",4.3],
+["มะปรางค์ เอสบี รีสอร์ท",7.9924958,99.962219,'h',"500-1000฿","🌺",4.4],
+["บ้านนายหัวชาม โฮมสเตย์",8.0000644,100.0165882,'h',"400-800฿","",4.2],
+// ร้านค้า
+["ร้านเจริญ",7.9658759,99.9975259,'s',"8:00-18:00","images/ran-charoen.jpg",4.1],
+["A Coffee Bar",7.9244411,100.0005104,'s',"8:00-20:00","☕",4.2],
+["CP FreshMart",7.9666366,99.9954757,'s',"7:00-22:00","🛒",4.3],
+["Cozyday",7.9688835,99.9979628,'s',"8:00-20:00","☕",4.3],
+["GN FASHION",7.9675874,99.9963538,'s',"9:00-20:00","👗",4.1],
+["Indeed Tattoo @ ชะอวด",7.9679936,100.0026909,'s',"10:00-20:00","🎨",4.4],
+["Juicy ice สาขาชะอวด",7.9668703,100.0076342,'s',"10:00-21:00","🍦",4.3],
+["Kerry Express Parcel Service",7.9659091,99.992776,'s',"8:00-20:00","📦",4.1],
+["Mesa Coffee Roasters",7.9671216,100.0034409,'s',"7:00-18:00","☕",4.4],
+["Momocha สาขาชะอวด",7.9683637,99.9966894,'s',"10:00-21:00","🧋",4.3],
+["SB แบตเตอรี่เซอร์วิส ชะอวด",7.9930373,99.9632882,'s',"8:00-18:00","🔋",4.1],
+["Tattoo by kob",7.9765007,100.0018575,'s',"10:00-20:00","🎨",4.4],
+["กระจูด",7.9474587,100.0315216,'s',"8:00-17:00","🧺",4.3],
+["กระเป๋ากระจูดน้องมีตังค์",7.966165,100.0384609,'s',"9:00-18:00","👜",4.4],
+["กลุ่มมังคุดชะอวดพัฒนา",7.9369912,99.9713771,'s',"8:00-17:00","🥭",4.2],
+["กลุ่มแม่บ้านเกษตรกรบ้านเนินกลาง",7.9664473,99.9989433,'s',"8:00-17:00","",4.3],
+["กะปะ(เจ้าเก่า)",7.9751241,99.9632741,'s',"7:00-18:00","",4.1],
+["กาแฟบ้านสวนพ่อ",7.9650648,99.9960414,'s',"7:00-17:00","☕",4.3],
+["กิจเจริญอะไหล่ยนต์",7.9682661,99.9950978,'s',"8:00-18:00","🔧",4.2],
+["กินเส้นเย็นตาโฟ",7.980588,99.9838749,'s',"7:00-15:00","🍜",4.4],
+["ก๋วยเตี๋ยวทุ่งค่าย",8.0052774,99.9800295,'s',"7:00-15:00","🍜",4.3],
+["ก๋วยเตี๋ยวโบราณป้าแบน",7.9384267,99.9862992,'s',"7:00-14:00","🍜",4.5],
+["คอมพิวเตอร์ ปริ้นเตอร์ ชะอวด",7.9653003,99.9904537,'s',"9:00-18:00","💻",4.1],
+["คิดอิเล็กทรอนิกส์",7.9537965,99.9793065,'s',"8:00-20:00","🔌",4.6],
+["จงรักฟาร์ม",7.9669756,99.9960383,'s',"7:00-18:00","🐓",4.2],
+["จิระดาวเทียม",7.9660923,99.9922518,'s',"8:00-18:00","📡",4.3],
+["จิ๊บจิ๊บเทเลคอมชะอวด",7.9660663,99.9975462,'s',"9:00-18:00","📱",4.2],
+["ฉลองคอนกรีตบ้านไร่เนิน",7.9512888,100.0232375,'s',"7:00-17:00","🏗️",4.1],
+["ช.พรหมนิมิตวัสดุ",7.961592,99.9866635,'s',"7:00-18:00","🧱",4.2],
+["ชะอวดการพิมพ์",7.9665791,99.9964458,'s',"8:00-17:00","🖨️",4.1],
+["ชะอวดค้าเหล็ก",7.9746038,99.9900184,'s',"7:00-17:00","🔩",4.2],
+["ชะอวดค้าไม้",7.9859021,99.9896265,'s',"7:00-17:00","🪵",4.1],
+["ชะอวดนานาวัสดุ",7.9672967,99.9971594,'s',"7:00-18:00","🧱",4.2],
+["ชะอวดรถยก 24ชม.",7.9762937,99.9937471,'s',"24 ชม.","🚛",4.0],
+["ชะอวดรับอัดสายไฮดรอลิค",7.9610492,99.9864779,'s',"8:00-17:00","🔧",4.1],
+["ชะอวดแทรกเตอร์และอะไหล่ยนต์",7.971146,99.993145,'s',"8:00-17:00","🚜",4.2],
+["ชาคาร์ออดิโอ",7.9678611,99.9947721,'s',"9:00-18:00","🔊",4.1],
+["ชาลิสา",8.0009563,100.0035484,'s',"8:00-17:00","🍵",4.2],
+["ชำนาญวัสดุก่อสร้างสาขา2",7.9625152,99.9733502,'s',"7:00-18:00","🧱",4.3],
+["ซักผ้ายอดเหรียญ",7.9571749,100.0089802,'s',"24 ชม.","👕",4.0],
+["ซุปเปอร์ไอทีชะอวด",7.9611246,99.9870202,'s',"9:00-20:00","💻",4.2],
+["ณ บ้านเรา'Cafe @ชะอวด",7.9678976,99.9938578,'s',"8:00-20:00","☕",4.4],
+["ดาว อาหารตามสั่ง(ชะอวด)",7.9678669,99.9968779,'s',"7:00-15:00","🍱",4.2],
+["ดิ่งคาร์แคร์",7.9372222,99.992044,'s',"8:00-18:00","🚗",4.3],
+["ติ๋วมินิมาร์ทสาขาชะอวด",7.969446,99.9962909,'s',"7:00-22:00","🏪",4.2],
+["ทรัพย์ทองมาคาร์เซ็นเตอร์",7.974756,99.9898094,'s',"8:00-18:00","🚗",4.3],
+["ทวีศักดิ์การช่าง (ครูอ้น)",7.9719442,99.992528,'s',"8:00-17:00","🔧",4.4],
+["ธนพลการพิมพ์",7.96707,99.996564,'s',"8:00-17:00","🖨️",4.1],
+["ธรรมรงค์แอร์และเพื่อนชะอวด",7.9682327,99.9951198,'s',"8:00-18:00","❄️",4.2],
+["ธิระศักดิ์ รับซื้อผลไม้",7.9504847,100.0107644,'s',"7:00-17:00","🍎",4.1],
+["น้ำดื่มฉลอง",7.9513195,100.0231269,'s',"7:00-18:00","💧",4.2],
+["บ. หนูทับการเกษตร",7.9657711,99.9917063,'s',"7:00-17:00","🌾",4.4],
+["บจก.สมชัยค้าวัสดุ",7.966656,99.9965125,'s',"7:00-17:00","🏪",4.2],
+["บริษัท ชายการเกษตร จำกัด",7.9658651,99.9913734,'s',"7:00-17:00","🌾",4.1],
+["บริษัท ตั้งใจกลการ สาขาชะอวด1",7.9690475,99.9947566,'s',"8:00-17:00","⚙️",4.2],
+["บริษัท ตั้งใจกลการ สาขาชะอวด2",7.9663236,99.997442,'s',"8:00-17:00","⚙️",4.2],
+["บริษัท อีซูซุนครมอเตอร์เซลส์",7.9572099,99.9831465,'s',"8:00-17:00","🚗",4.3],
+["บริษัทเบาหวิวแคคตัสจำกัด",7.9615073,99.9937973,'s',"9:00-17:00","🌵",4.4],
+["บริษัทโมโตรถเกรดเอจำกัด",7.9675627,99.9954295,'s',"8:00-17:00","🏍️",4.2],
+["บาร์น้ำชา",7.9659753,99.9933271,'s',"10:00-22:00","🍵",4.1],
+["บ้าน",7.9641007,99.9956895,'s',"-","🏠",4.0],
+["บ้านฐานิตา",7.9664899,100.0045611,'s',"-","🏠",4.2],
+["บ้านต้นน้ำ",7.962868,99.998288,'s',"8:00-20:00","🏞️",4.4],
+["บ้านสวน โรงสี",7.9820602,99.9916192,'s',"7:00-17:00","🌾",4.1],
+["บ้านส้องคาร์เซอร์วิส",7.9758424,99.9874156,'s',"8:00-18:00","🚗",4.3],
+["พงศ์ศักดิ์อะไหล่",7.966812,99.995588,'s',"8:00-18:00","🔧",4.2],
+["พอเพียงเจริญยนต์",7.967389,99.99577,'s',"8:00-17:00","🚗",4.1],
+["พีพีโมบายชะอวด",7.9656434,99.9976052,'s',"9:00-20:00","📱",4.2],
+["ฟรายส์ชิค หิวโซ",7.9682172,99.996144,'s',"10:00-22:00","🍟",4.1],
+["ฟองน้ำ ฟิชชิ่ง",7.9650404,99.9954813,'s',"8:00-18:00","🎣",4.2],
+["ฟิน สเตชั่น",7.9668991,100.00902,'s',"8:00-20:00","⛽",4.1],
+["ยำเลย กะเทยชัวร์",7.9466793,100.0321721,'s',"10:00-21:00","🥗",4.3],
+["ยืนหนึ่งทุกอย่าง10บาท",7.9629146,99.9886005,'s',"8:00-20:00","🛍️",4.0],
+["ยุพา เบอเกอรี่ (YUPA Bakery)",7.968226,99.9949466,'s',"7:00-18:00","🥐",4.4],
+["รถยกชะอวดชะอวดรถยก24ชม.",7.9764136,99.9937492,'s',"24 ชม.","🚛",4.0],
+["รวมยาเภสัชชะอวด",7.9670495,99.9959625,'s',"8:00-21:00","💊",4.3],
+["รับอัดสายไฮดรอลิคชะอวด",7.9653697,99.9909332,'s',"8:00-17:00","🔧",4.1],
+["รัศมีคาราโอเกะ",7.968056,99.996966,'s',"12:00-24:00","🎤",4.2],
+["ร้าน ก.เกษตร",7.965925,99.9916897,'s',"7:00-17:00","🌾",4.2],
+["ร้าน ก.ไก่",7.9416754,99.9642163,'s',"7:00-17:00","🐓",4.1],
+["ร้าน ธารา ชะอวด",7.9664046,99.9970031,'s',"8:00-18:00","🏪",4.2],
+["ร้าน ป้าคองของชำ",7.959416,99.9678204,'s',"7:00-18:00","🏪",4.1],
+["ร้าน ลิขิตศิลป์",7.9666387,99.9954324,'s',"8:00-17:00","🎨",4.3],
+["ร้าน ส.เฟอร์นิช",7.9643015,99.9897614,'s',"8:00-18:00","🛋️",4.2],
+["ร้าน อ.สยามการไฟฟ้า",7.9913677,99.9602162,'s',"8:00-18:00","⚡",4.3],
+["ร้าน เท่ห์ที่ผม",7.9417967,99.9649284,'s',"9:00-20:00","💇",4.2],
+["ร้าน โอเค เครื่องนอน",7.9662539,99.9971589,'s',"9:00-20:00","🛏️",4.1],
+["ร้านจิบแฟแลพาน",7.9628229,99.9983403,'s',"8:00-20:00","☕",4.3],
+["ร้านBuddy Barber 2",7.9721503,99.9945084,'s',"9:00-20:00","💈",4.2],
+["ร้านMalaeta มาแลตะ",7.969358,99.9945232,'s',"10:00-21:00","🍽️",4.3],
+["ร้านPorkshopหมีหมูสด",7.9663689,99.9948628,'s',"7:00-18:00","🐷",4.2],
+["ร้านกัญชา G.Green420OG",7.9663914,99.9917815,'s',"10:00-20:00","🌿",4.0],
+["ร้านกัญชาWocogloy420",7.9685721,99.9957211,'s',"10:00-20:00","🌿",4.0],
+["ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",7.9705659,99.9963424,'s',"7:00-15:00","🍜",4.3],
+["ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",7.9774353,100.0042232,'s',"7:00-15:00","🍜",4.4],
+["ร้านชะอวดเครื่องใช้ไฟฟ้า",7.9677097,99.996893,'s',"8:00-18:00","📺",4.2],
+["ร้านชะอวดโอเอ กรุ๊ป",7.9369664,99.9809185,'s',"9:00-18:30","💻",3.3],
+["ร้านซักอบผ้าหยอดเหรียญ",7.9727137,99.9916718,'s',"24 ชม.","👕",4.0],
+["ร้านซักอบรีด ท่าประจะ คุณบี",7.9592208,99.9634293,'s',"8:00-18:00","👕",4.1],
+["ร้านซ่อมนาฬิกาPS Time to Smile",7.9706293,99.9984979,'s',"9:00-18:00","⌚",4.3],
+["ร้านซ่อมมือถือ Love Phone",7.9625546,99.9954734,'s',"9:00-20:00","📱",4.2],
+["ร้านดอกไม้",7.9679855,100.0036496,'s',"8:00-18:00","💐",4.3],
+["ร้านดอกไม้ บูมโบว์ ฟลาวเวอร์",7.9661577,99.9923842,'s',"8:00-18:00","💐",4.4],
+["ร้านต้นขาม",7.9670797,100.0084077,'s',"8:00-18:00","🌳",4.2],
+["ร้านท่านรอง คลองเกียบ",7.981452,99.983199,'s',"8:00-18:00","🍽️",4.3],
+["ร้านธงฟ้าประชารัฐ สวัสดิ์การค้า",7.9522223,100.0131292,'s',"7:00-18:00","🏪",4.1],
+["ร้านนิวแสงฟ้า",7.9666013,99.9958838,'s',"8:00-18:00","🏪",4.2],
+["ร้านน้องพรพันธุ์ไม้",7.9821802,99.9821234,'s',"8:00-17:00","🌱",4.3],
+["ร้านน้องโอมน้องออมการค้า",7.9769632,99.9941824,'s',"8:00-18:00","🏪",4.1],
+["ร้านน้องใบบัว",7.9653202,99.9954949,'s',"8:00-18:00","🏪",4.2],
+["ร้านน้ำชา&ข้าวต้ม เกาเหลา",7.9684229,99.9952169,'s',"6:00-15:00","🍵",4.3],
+["ร้านน้ำชาจ่าหมาย",7.968414,99.9952188,'s',"6:00-15:00","🍵",4.2],
+["ร้านน้ำหอม คาร์แคร์เซ็นเตอร์",7.98947,99.9862887,'s',"8:00-18:00","🚗",4.1],
+["ร้านบ้านต่อผมชะอวด",7.9788552,100.0121912,'s',"9:00-20:00","💇",4.3],
+["ร้านป้าสาวเจริญการค้า",7.9481078,99.9628092,'s',"7:00-18:00","🏪",4.1],
+["ร้านป้าไล (ของชำ,ขนมลา)",7.9652729,99.9955147,'s',"7:00-18:00","🏪",4.2],
+["ร้านพรพรรณ-กรอบรูป",7.967181,100.004165,'s',"9:00-18:00","🖼️",4.2],
+["ร้านพระเครื่องเทพสยาม",7.972115,99.992315,'s',"9:00-18:00","📿",4.3],
+["ร้านพิมนารา",7.9498413,99.9752208,'s',"10:30-21:00","🍽️",4.5],
+["ร้านมายเดียร์โมบาย",7.9650688,99.9977525,'s',"9:00-20:00","📱",4.2],
+["ร้านมีสุข ของชำ",7.9715976,100.0015811,'s',"7:00-20:00","🏪",4.1],
+["ร้านยงใจ",7.9410329,99.9656317,'s',"8:00-18:00","🏪",4.0],
+["ร้านสมเจตน์ ( ชะอวด )",8.001079,100.0024084,'s',"8:00-18:00","🏪",4.2],
+["ร้านสมใจ(พี่เพ็ญ)",7.9660122,99.9971465,'s',"7:00-18:00","🏪",4.1],
+["ร้านสมใจ2",7.9732734,99.9911663,'s',"7:00-18:00","🏪",4.1],
+["ร้านสักช่างแจ็คสักลายชะอวด",7.989631,99.987916,'s',"10:00-20:00","🎨",4.3],
+["ร้านสี เมืองทองเคหะภัณฑ์ชะอวด",7.9717666,99.9919556,'s',"8:00-18:00","🎨",4.2],
+["ร้านสุธรรมยานยนต์",7.9670093,99.996414,'s',"8:00-18:00","🏍️",4.2],
+["ร้านสุธรรมยานยนต์ (อะไหล่)",7.9674502,99.9969574,'s',"8:00-18:00","🏍️",4.2],
+["ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",7.962628,99.9883982,'s',"17:00-23:00","🥩",4.2],
+["ร้านหัวไทรเฟอร์นิเจอร์",7.9679619,99.9955467,'s',"9:00-18:00","🛋️",4.1],
+["ร้านอัครไวนิล",7.9687412,99.9945534,'s',"8:00-18:00","🎨",4.2],
+["ร้านอั๋นคอมพิวเตอร์",7.9651646,99.9958397,'s',"9:00-18:00","💻",4.1],
+["ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",8.0030681,99.9982724,'s',"7:00-15:00","🍜",4.2],
+["ร้านอาหารนั่งเล่นชะอวด",7.9687349,99.9955717,'s',"10:00-22:00","🍽️",4.3],
+["ร้านเครื่องเสียงแอนด์ซาวด์",7.9933797,99.9709374,'s',"9:00-18:00","🔊",4.2],
+["ร้านเจียมรัตน์",7.9664151,99.9950503,'s',"8:00-18:00","🏪",4.2],
+["ร้านเตือนใจ สาขาชะอวด",7.9701435,99.994102,'s',"8:00-20:00","🏪",4.2],
+["ร้านเท็น 2009",7.96408,99.9897567,'s',"8:00-20:00","🏪",4.1],
+["ร้านเพื่อนเด็ก",7.9667586,99.9969729,'s',"9:00-20:00","🧸",4.3],
+["ร้านเสริมสวย ครบวงจร",7.9758431,100.0025379,'s',"9:00-20:00","💇",4.2],
+["ร้านเอิร์นคอมพิวเตอร์",7.9599783,99.9707676,'s',"9:00-18:00","💻",4.1],
+["ร้านเอ็นวีกรุ๊ป",7.9637188,99.9887988,'s',"8:00-18:00","🏪",4.0],
+["ร้านแกงน้องรัตน์",7.9660722,99.9937653,'s',"7:00-15:00","🍛",4.3],
+["ร้านแยมการค้า",7.9373533,99.9921848,'s',"8:00-18:00","🏪",4.1],
+["ร้านแว่นบิวตี้ฟูลสาขาชะอวด",7.9667461,99.997057,'s',"9:00-20:00","👓",4.2],
+["ร้านโปร ณ คอนแอร์ แอนด์เซอร์วิส",7.9645868,99.9903681,'s',"8:00-18:00","❄️",4.3],
+["ร้านไฟฟ้านายหมึก",7.9667805,99.9967046,'s',"8:00-18:00","⚡",4.2],
+["ร้านไร ชะอวด (เสื้อผ้า รองเท้า)",7.9656011,99.9950366,'s',"9:00-20:00","👗",4.1],
+["ลานชา ใต้ขาม",7.93932,99.9894971,'s',"8:00-18:00","🍵",4.4],
+["ลานเทปาล์มสองพี่น้อง",7.9749773,100.0290413,'s',"8:00-17:00","🌴",4.2],
+["ว.ทรัพย์เกษตร",7.9370309,99.9814456,'s',"7:30-17:30","🌾",4.0],
+["สติ๊กเกอร์ชะอวด",7.9692995,99.9962469,'s',"8:00-18:00","🏷️",4.1],
+["สถานีตำแซ่บ",7.9643083,99.9984177,'s',"10:00-21:00","🥗",4.2],
+["สมยา พาณิชย์ & ชอการช่าง",7.9505714,99.9762045,'s',"8:00-18:00","🔧",4.3],
+["สหไพบูลย์",7.9669158,99.9973463,'s',"8:00-18:00","🏪",4.1],
+["สาวมินิมาร์ท",7.9751241,99.9632741,'s',"7:00-22:00","🏪",4.2],
+["สำนักงานตัวแทน วิริยะประกันภัย",7.9673134,99.995566,'s',"จ-ศ 8:30-17:00","🛡️",4.2],
+["สิริโภชนา",7.9676294,99.9982468,'s',"8:00-18:00","🍽️",4.3],
+["สีกัน๐ไม้",7.9667728,100.0011909,'s',"8:00-18:00","🎨",4.1],
+["สุกัลยาผ้าม่าน",7.970404,99.9961778,'s',"9:00-18:00","🪟",4.2],
+["หจก.สิทธิ์ออโต้ไลท์ติ้ง",7.9609565,99.9869111,'s',"8:00-18:00","💡",4.2],
+["ห้างทองศุภัทรา",7.946812,99.9716833,'s',"9:00-20:00","🥇",4.3],
+["ห้างหุ้นส่วนจำกัด อุดมกิจโฮมซัพพลาย",7.9672759,99.995865,'s',"8:00-18:00","🏠",4.2],
+["อร่าม รับหลอมทอง ชะอวด",7.9681359,99.9962286,'s',"9:00-17:00","🥇",4.1],
+["อินทร์ศรีทองคาร์แคร์",7.949173,99.973833,'s',"8:00-18:00","🚗",4.2],
+["อ้ายเกลอ คาร์แคร์",7.9760584,99.9943639,'s',"8:00-18:00","🚗",4.3],
+["เจี๊ยวหอมอะไหล่ซิ่งชะอวด",7.9693144,100.0026773,'s',"8:00-18:00","🏍️",4.2],
+["เชี่ยวชาญ การแว่น ชะอวด",7.9676616,99.9955794,'s',"9:00-20:00","👓",4.3],
+["เนื้อตุ๋นคุณพัฒน์",7.9709583,99.9962329,'s',"8:00-20:00","🥩",4.4],
+["เมษา กาแฟ (สาขา2)",7.9671037,100.003486,'s',"7:00-18:00","☕",4.3],
+["เรืองรินการเกษตร",7.9706107,99.9935979,'s',"7:00-17:00","🌾",4.2],
+["เลอศักดิ์ แบตเตอรี่ชะอวด",7.9609233,99.9936178,'s',"8:00-18:00","🔋",4.1],
+["เวชพงษ์โอสก",7.966812,99.9969907,'s',"8:00-20:00","💊",4.2],
+["เว่นท็อปเจริญสาขาชะอวด",7.9674521,99.9957602,'s',"9:00-20:00","👓",4.3],
+["แว่นตาพอเพียง",7.9622953,99.9880286,'s',"9:00-20:00","👓",4.2],
+["แฮปปี้โมบายชะอวด",7.9675345,99.9967919,'s',"9:00-21:00","📱",4.2],
+["โกดังมือถือ ชะอวด",7.9665149,99.9951063,'s',"9:00-20:00","📱",4.1],
+["โกเปรี้ยว แม็กซิ่ง ยาง",7.9739973,99.9906455,'s',"8:00-18:00","🏍️",4.2],
+["โซนคอม",7.9878118,99.9888319,'s',"9:00-20:00","💻",4.1],
+["โต๊ะเครื่องแป้ง ชะอวด",7.9670992,99.9972553,'s',"9:00-20:00","💄",4.2],
+["โรงอิฐตั้งเจริญกุล",7.9493223,99.9739756,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐว. อดุลย์ภัณฑ์",7.989432,99.978565,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐสมศักดิ์",7.9787636,99.9871513,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐเพชรทักสิน 3",7.9916428,99.9896513,'s',"7:00-17:00","🧱",4.0],
+["โรตีชะอวด หวานสั่งได้",7.9670099,99.9974378,'s',"7:00-20:00","🫓",4.3],
+["ไทยรุ่ง ชะอวด",7.9720844,99.9961561,'s',"8:00-20:00","🏪",4.2],
+["ไร่ย่านาทราย",7.9977282,100.0004285,'s',"7:00-17:00","🌾",4.1],
+// วัด
+["วัดหมื่นระงับรังสรรค์",7.967482,100.0011391,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดโทสิทธิวารีน้อย (วัดบางน้อย)",7.9443214,100.0320631,'w',"เปิดทุกวัน","🛕",4.4],
+["วัดบ่อน้ำดำ",7.9238441,99.9869303,'w',"เปิดทุกวัน","🛕",4.6],
+["วัดท่าเสม็ด",7.9545473,100.0079449,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดตะเคียนทอง",7.9567803,99.9704696,'w',"เปิดทุกวัน","🛕",4.3],
+["วัดศรีมาประสิทธ์",7.963936,99.9965192,'w',"เปิดทุกวัน","🛕",4.7],
+["วัดควนสมบูรณ์",7.9718178,99.9651773,'w',"เปิดทุกวัน","🛕",4.4],
+["วัดป่านาบน",7.939721,100.0263685,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดรักขิตวัน",7.9780661,99.9920701,'w',"เปิดทุกวัน","🛕",4.6],
+["วัดเลียบ",7.9798026,99.9701276,'w',"เปิดทุกวัน","🛕",4.3],
+["วัดดอนมะปราง",7.9906917,99.9609256,'w',"เปิดทุกวัน","🛕",4.5],
+["สำนักวิมานแก้ว",7.9617102,99.985519,'w',"เปิดทุกวัน","🏯",4.4],
+["วัดท่าสะท้อน",8.0000628,100.0182942,'w',"เปิดทุกวัน","🛕",4.7],
+["วัดไทรหัวม้า",7.9644527,100.0356972,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดเขาพระทอง",8.0250,100.0400,'w',"เปิดทุกวัน","⛰️",4.8],
+// ปั๊มน้ำมัน
+["PTT Station ปตท.ชะอวด (น้ำมัน+EV)",7.9616121,99.9874856,'g',"เปิด 24 ชม.","⛽",4.3],
+["PTT",7.9713988,99.9928366,'g',"เปิด 24 ชม.","⛽",4.2],
+["Caltex",7.968906,99.994871,'g',"เปิด 24 ชม.","⛽",4.3],
+["ปั๊มน้ำมัน PT (สาขาชะอวด 2)",7.9727798,99.9910928,'g',"เปิด 24 ชม.","⛽",4.1],
+["Sukhothai Gas Stations",7.972852,99.991155,'g',"เปิด 24 ชม.","⛽",4.0],
+["ปั๊มตราดาว เจ๊ยี่",7.9686435,99.9949754,'g',"เปิด 24 ชม.","⭐",4.2],
+["วีระพลปิโตรเลียม",8.001079,100.0024084,'g',"เปิด 24 ชม.","⛽",4.1],
+["ปั้มน้ำมัน พี่แกน",8.001674,100.0023387,'g',"เปิด 24 ชม.","⛽",4.0],
+// ธนาคาร/การเงิน
+["ธนาคารกรุงไทย สาขาชะอวด",7.9678545,99.9955985,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["ธนาคารออมสิน สาขาชะอวด",7.9681554,99.9966014,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+["ธนาคารเพื่อการเกษตรฯ สาขาชะอวด",7.9698444,99.9937785,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["ธนาคารไทยพาณิชย์ สาขาชะอวด",7.967917,99.9954819,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+["เงินติดล้อ สาขา ชะอวด",7.9676908,99.9953319,'b',"จ-ส 9:00-18:00","💰",4.0],
+["ศรีสวัสดิ์ เงินสดทันใจ (ท่าประจะ)",7.961113,99.987004,'b',"จ-ส 9:00-17:00","💰",3.9],
+["ศรีสวัสดิ์ เงินสดทันใจ (ชะอวด)",7.9751241,99.9632741,'b',"จ-ส 9:00-17:00","💰",3.9],
+["ศรีสวัสดิ์ เงินสดทันใจ (รพ.)",7.9693057,99.9963774,'b',"จ-ส 9:00-17:00","💰",4.0],
+["ศรีสวัสดิ์ เงินสดทันใจ (รร.)",7.966608,99.998516,'b',"จ-ส 9:00-17:00","💰",3.9],
+["สมหวัง เงินสั่งได้ สาขา ชะอวด",7.961227,99.987169,'b',"จ-ส 9:00-17:00","💰",4.0],
+["ห้างทองศักดิ์สุวรรณ2",7.9658472,99.9973143,'b',"9:00-20:00","🥇",4.3],
+["เงินเทอร์โบ สาขาชะอวด",7.9660515,99.9922354,'b',"จ-ส 9:00-17:00","💰",3.9],
+["เงินไชโยสาขาชะอวด",7.9673602,99.9957658,'b',"จ-ส 9:00-17:00","💰",4.0],
+["Omsin Sakha Cha-uat Banks",8.001079,100.0024084,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+// สถานศึกษา
+["โรงเรียนบ้านหนองหิน",7.9405707,99.9931927,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนบ้านห้วยโส",7.9527034,99.9797008,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+["โรงเรียนวัดท่าเสม็ด",7.9560129,100.0067071,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนบ้านชะอวด",7.9641603,100.0000337,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนชุมชนควนดินแดงมิตรภาพที่๓",7.9402422,99.9615976,'e',"จ-ศ 7:00-16:00","🏫",4.5],
+["โรงเรียนวัดควนสมบูรณ์",7.9715566,99.9663925,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนวัดรักขิตวัน",7.9776563,99.992897,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนวัดปากควน",7.9627771,100.0368423,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนบ้านบางน้อย",7.951818,100.0269177,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+["โรงเรียนชะอวด",7.969309,99.9987471,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนกุลวดีศึกษา",7.9667757,100.0036838,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนชะอวดวิทยา",7.9727688,99.9956609,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนวัดดอนมะปราง",7.9910655,99.9615524,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนวัดท่าสะท้อน",8.0006006,100.0178194,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนชะอวดวิทยาคาร",7.9712039,100.0052213,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนบ้านศาลาทวดทอง",7.9767231,100.0200571,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["ศูนย์การศึกษาพิเศษฯ หน่วยบริการชะอวด",7.9668154,99.9987599,'e',"จ-ศ 8:30-16:30","♿",4.4],
+["ศูนย์เด็กเล็กอำเภอชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["โรงเรียนอนุบาลลูกแก้ว",7.968188,99.99372,'e',"จ-ศ 8:00-15:00","🎓",4.5],
+["วิทยาลัยการอาชีพชะอวด",7.9800,100.0100,'e',"จ-ศ 8:00-16:00","🎓",4.4],
+["กศน.ตำบลท่าประจะ",7.9732835,99.9626224,'e',"จ-ศ 9:00-17:00","📚",4.2],
+["กศน.ตำบลท่าเสม็ด",7.9569534,100.0064912,'e',"จ-ศ 9:00-17:00","📚",4.2],
+["ครูออยสอนพิเศษ",7.9674348,99.9953067,'e',"ตามนัด","👩‍🏫",4.5],
+["ชมรมข้าราชการบำเหน็จบำนาญ",7.9648176,99.9989211,'e',"จ-ศ 9:00-16:00","🏛️",4.1],
+["ชะอวดติวเตอร์",7.9689317,99.9979594,'e',"ตามนัด","📖",4.4],
+["ชะอวดบุ๊คเซ็นเตอร์",7.9645596,99.989676,'e',"8:00-20:00","📚",4.3],
+["ร้านหนังสือพิมพ์จินตนา",7.9670515,99.9966782,'e',"7:00-18:00","📰",4.2],
+["ศูนย์การเรียนรู้(สวนมังคุด)",7.92678,99.9857367,'e',"จ-ศ 9:00-16:00","🥭",4.3],
+["ศูนย์การเรียนรู้ระดับตำบลชะอวด",7.9783738,100.0188994,'e',"จ-ศ 9:00-16:00","📚",4.2],
+["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.4],
+["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลท่าประจะ",7.9692849,99.9648115,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["ศูนย์พัฒนาเด็กเล็กโรงเรียนวัดปากควน",7.9641159,100.0362609,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["สกร.ระดับอำเภอชะอวด",7.9672545,99.998667,'e',"จ-ศ 8:30-16:30","📚",4.2],
+["ห้องสมุดประชาชนอำเภอชะอวด",7.967155,99.998853,'e',"จ-ศ 9:00-17:00","📚",4.3],
+["ไก่การพิมพ์",7.966144,99.9925204,'e',"8:00-17:00","🖨️",4.1],
+["ศพก.อำเภอชะอวด",7.927141,99.985738,'e',"จ-ศ 8:30-16:30","🌾",4.2],
+["ศูนย์การเรียนชุมชนวิถีไท",7.9947329,100.02409,'e',"จ-ศ 9:00-16:00","📖",4.3],
+// ราชการ / ขนส่ง / สาธารณสุข / ไปรษณีย์ / สันทนาการ
+["ที่ว่าการอำเภอชะอวด",7.9646,99.9951,'o',"จ-ศ 8:30-16:30","🏛️",4.5],
+["สถานีตำรวจภูธรชะอวด",7.9652,99.9958,'o',"24 ชม.","🚔",4.3],
+["เทศบาลตำบลชะอวด",7.9620,99.9935,'o',"จ-ศ 8:30-16:30","🏢",4.2],
+["อบต ท่าเสม็ด",7.9562142,100.0087033,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+["อบต ท่าประจะ",7.9720053,99.9634295,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+["โรงพยาบาลชะอวด",7.9813021,99.9916658,'o',"24 ชม.","🏥",4.3],
+["Ban Tungkhai",7.99401,99.9867609,'x',"เปิดทุกวัน","🚉",4.0],
+["Chauat Station",7.965,99.99833,'x',"เปิดทุกวัน","🚉",4.1],
+["ทางแยกชะอวด",7.9667387,99.9960237,'x',"เปิดทุกวัน","🛣️",3.8],
+["บ้านของสส.กฤต",7.9420445,99.9968167,'x',"-","🏠",3.5],
+["ร้านขนมปังปิ้งหอมโฉ",7.9643131,99.9980384,'l',"6:00-12:00","🍞",4.3],
+["สำนักงานสาธารณสุขอำเภอชะอวด",7.9641119,99.9977083,'l',"จ-ศ 8:30-16:30","🏥",4.2],
+["รพ.สต.บ้านควนสมบูรณ์",7.9731338,99.9634295,'l',"จ-ศ 8:30-16:30","🏥",4.1],
+["FlashHomeเมืองใหม่",7.9606922,99.9861881,'p',"8:00-20:00","📦",4.2],
+["SPX Express สาขาสี่แยกบนเนิน",7.9670161,100.0076208,'p',"8:00-20:00","📦",4.1],
+["Shippop สาขาชะอวด",7.9673865,99.9955265,'p',"8:00-18:00","📦",4.0],
+["ไปรษณีย์ไทย สาขาชะอวด",7.968176,99.9954555,'p',"จ-ส 8:30-16:30","📮",4.2],
+["กลุมมังคุดเมืองใหม่ก้าวหน้า",7.9596389,99.9850833,'y',"-","🥭",4.2],
+["กองทุนหมู่บ้าน บ้านสี่แยกโคกขันธ์",7.961342,99.9635418,'y',"จ-ศ 9:00-16:00","🏘️",4.0],
+["ค่ายไก่ส.สิทธิชัย",7.965189,99.9969038,'y',"-","🐓",4.3],
+["ที่ทำการผู้ใหญ่บ้านเนินอินทร์แก้ว",7.9784003,100.0188892,'y',"จ-ศ 8:30-16:30","🏘️",4.1],
+["สวนปาล์ม ผอ.อรอนงค์",7.9312206,100.0101695,'y',"-","🌴",4.2],
+["สวนป้านงค์",7.9346763,99.9903153,'y',"-","🌳",4.3],
+["สวนผลไม้ บ้านมังสัง",7.9478047,99.9594238,'y',"-","🍎",4.2],
+["สวนมังคุด คุณพ่อมนูญ",7.9637895,100.0285622,'y',"-","🥭",4.4],
+["เกมส์",7.951874,100.0357781,'y',"10:00-22:00","🎮",4.0]
+];
+const PLACES = PLACES_RAW.map(a => ({ n: a[0], lat: a[1], lng: a[2], c: PLACE_CATS[a[3]], price: a[4], img: a[5], rating: a[6] }));
+</script>
+<script>
+// ===== CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
+  measurementId: "G-6E2QEFWK6P"
+};
+const LINE_CONFIG = {
+  channelId: "2011841585",
+  // URL ของ Cloud Function ที่แลก code -> LINE token -> Firebase custom token (ต้องสร้างเอง)
+  authEndpoint: ""
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+
+// ===== HELPERS =====
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// escape สำหรับ JS string context (ใช้ใน onclick="fn('...')")
+function jsStr(s) {
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('active');
+  setTimeout(() => t.classList.remove('active'), 2500);
+}
+function store(key, val) { try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; } }
+
+// ===== AUTH =====
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  if (user) {
+    updateUIForLoggedInUser(user);
+    subscribeToUserOrders();
+  } else {
+    updateUIForLoggedOutUser();
+    unsubscribeOrders();
+    orders = [];
+    renderOrders();
+    updateOrdersBadge();
+  }
+});
+
+function updateUIForLoggedInUser(user) {
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('logout-btn').style.display = 'block';
+  const name = user.displayName || user.email || 'ผู้ใช้';
+  const ud = document.getElementById('user-display');
+  ud.style.display = 'inline-block';
+  ud.innerText = '👤 ' + (name.length > 20 ? name.substring(0, 20) + '...' : name);
+  document.getElementById('loc-sub-display').innerText = 'ยินดีต้อนรับ, ' + name;
+}
+function updateUIForLoggedOutUser() {
+  document.getElementById('login-btn').style.display = 'block';
+  document.getElementById('logout-btn').style.display = 'none';
+  document.getElementById('user-display').style.display = 'none';
+  document.getElementById('loc-sub-display').innerText = 'อ.ชะอวด จ.นครศรีธรรมราช';
+}
+
+function getAuthErrorMessage(code) {
+  return ({
+    'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
+    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+    'auth/email-already-in-use': 'อีเมลนี้ถูกใช้แล้ว',
+    'auth/weak-password': 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร',
+    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง',
+    'auth/popup-closed-by-user': 'ยกเลิกการเข้าสู่ระบบ',
+    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'auth/network-request-failed': 'ไม่สามารถเชื่อมต่อเครือข่ายได้'
+  })[code] || 'เกิดข้อผิดพลาด: ' + code;
+}
+
+async function loginWithEmail(email, password) {
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    showToast('✅ เข้าสู่ระบบสำเร็จ!');
+    closeLoginModal();
+  } catch (e) { showToast('❌ ' + getAuthErrorMessage(e.code)); }
+}
+async function loginWithGoogle() {
+  try {
+    await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    showToast('✅ เข้าสู่ระบบด้วย Google สำเร็จ!');
+    closeLoginModal();
+  } catch (e) { showToast('❌ ' + getAuthErrorMessage(e.code)); }
+}
+
+// LINE Login: ฝั่งเว็บส่งเฉพาะ code ไปให้เซิร์ฟเวอร์แลก token แล้วรับ Firebase custom token กลับมา
+function loginWithLine() {
+  const state = crypto.getRandomValues(new Uint32Array(4)).join('-');
+  try { sessionStorage.setItem('line_login_state', state); } catch (e) {}
+  const redirectUri = window.location.origin + window.location.pathname + '?line_callback=1';
+  window.location.href = 'https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=' +
+    LINE_CONFIG.channelId + '&redirect_uri=' + encodeURIComponent(redirectUri) +
+    '&state=' + state + '&scope=profile%20openid%20email';
+}
+async function handleLineCallback() {
+  const p = new URLSearchParams(window.location.search);
+  const code = p.get('code'), state = p.get('state');
+  let saved = null;
+  try { saved = sessionStorage.getItem('line_login_state'); } catch (e) {}
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if (!code || !state || state !== saved) { showToast('❌ LINE Login ไม่ถูกต้อง'); return; }
+  if (!LINE_CONFIG.authEndpoint) { showToast('⚠️ ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์ LINE Login'); return; }
+  try {
+    showToast('🔄 กำลังเข้าสู่ระบบด้วย LINE...');
+    const redirectUri = window.location.origin + window.location.pathname + '?line_callback=1';
+    const res = await fetch(LINE_CONFIG.authEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirectUri })
+    });
+    if (!res.ok) throw new Error('auth failed');
+    const { customToken } = await res.json();
+    await auth.signInWithCustomToken(customToken);
+    try { sessionStorage.removeItem('line_login_state'); } catch (e) {}
+    showToast('✅ เข้าสู่ระบบด้วย LINE สำเร็จ!');
+  } catch (e) { showToast('❌ LINE Login ไม่สำเร็จ'); }
+}
+if (new URLSearchParams(window.location.search).has('line_callback')) handleLineCallback();
+
+async function signupWithEmail(email, password, name) {
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    await cred.user.updateProfile({ displayName: name });
+    await db.collection('users').doc(cred.user.uid).set({
+      name, email, phone: '',
+      address: 'ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    updateUIForLoggedInUser(auth.currentUser);
+    showToast('✅ สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ ' + name);
+    closeLoginModal();
+  } catch (e) { showToast('❌ ' + getAuthErrorMessage(e.code)); }
+}
+async function handleLogout() {
+  try {
+    unsubscribeOrders();
+    await auth.signOut();
+    orders = [];
+    renderOrders();
+    updateOrdersBadge();
+    showToast('👋 ออกจากระบบแล้ว');
+  } catch (e) { showToast('❌ ออกจากระบบไม่สำเร็จ'); }
+}
+function showLoginModal() {
+  switchAuthTab('login');
+  document.getElementById('login-modal').classList.add('active');
+}
+function closeLoginModal() { document.getElementById('login-modal').classList.remove('active'); }
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = isLogin ? 'none' : 'block';
+  const on = document.getElementById(isLogin ? 'tab-login' : 'tab-signup');
+  const off = document.getElementById(isLogin ? 'tab-signup' : 'tab-login');
+  on.style.background = '#00A651'; on.style.color = 'white';
+  off.style.background = '#f0f0f0'; off.style.color = '#666';
+}
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return showToast('⚠️ กรุณากรอกอีเมลและรหัสผ่าน');
+  await loginWithEmail(email, password);
+}
+async function handleSignup() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  if (!name || !email || !password) return showToast('⚠️ กรุณากรอกข้อมูลให้ครบ');
+  if (password.length < 6) return showToast('⚠️ รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+  await signupWithEmail(email, password, name);
+}
+
+// ===== FIRESTORE ORDERS =====
+async function saveOrderToFirestore(o) {
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'); showLoginModal(); return false; }
+  try {
+    const ref = await db.collection('orders').add({
+      userId: currentUser.uid,
+      userName: currentUser.displayName || currentUser.email || '',
+      userEmail: currentUser.email || '',
+      type: o.type, title: o.title, items: o.items, price: o.price,
+      fare: o.fare, serviceFee: o.serviceFee, total: o.total,
+      distance: o.distance, address: o.address, note: o.note,
+      rider: o.rider, status: o.status,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    o.id = ref.id;
+    return true;
+  } catch (e) {
+    console.error(e);
+    showToast('❌ บันทึกออเดอร์ไม่สำเร็จ');
+    return false;
+  }
+}
+
+// ===== REALTIME ORDERS (onSnapshot) =====
+let ordersUnsubscribe = null;
+function subscribeToUserOrders() {
+  if (!currentUser) return;
+  unsubscribeOrders();
+  try {
+    ordersUnsubscribe = db.collection('orders')
+      .where('userId', '==', currentUser.uid)
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .onSnapshot(snap => {
+        orders = snap.docs.map(d => {
+          const x = d.data();
+          const dist = x.distance || 0;
+          return {
+            id: d.id, type: x.type || 'food', title: x.title || '', items: x.items || '',
+            price: x.price || 0, fare: x.fare || 0, serviceFee: x.serviceFee || 10, total: x.total || 0,
+            distance: dist, distStr: formatDist(dist), timeMin: Math.max(3, Math.ceil(dist * 4)),
+            address: x.address || '', note: x.note || '', rider: x.rider || null,
+            status: x.status || 'done',
+            createdAt: x.createdAt ? x.createdAt.toDate() : new Date()
+          };
+        });
+        renderOrders();
+        updateOrdersBadge();
+      }, err => {
+        console.error('[orders snapshot]', err);
+        if (err && (err.code === 'failed-precondition' || /index/i.test(err.message || ''))) {
+          showToast('⚠️ ต้องสร้าง Firestore Index (userId + createdAt) ก่อน');
+        } else {
+          showToast('⚠️ ไม่สามารถโหลดรายการออเดอร์ได้');
+        }
+      });
+  } catch (e) {
+    console.error('[orders subscribe]', e);
+    showToast('⚠️ ไม่สามารถติดตามออเดอร์ได้');
+  }
+}
+function unsubscribeOrders() {
+  if (ordersUnsubscribe) {
+    try { ordersUnsubscribe(); } catch (e) {}
+    ordersUnsubscribe = null;
+  }
+}
+
+// ===== DATA =====
+const USER_LOC = { lat: 7.9620, lng: 99.9940, granted: false };
+
+const TAMBONS = [
+  { name: "ต.ชะอวด", lat: 7.9646, lng: 99.9951, desc: "ศูนย์กลางอำเภอ" },
+  { name: "ต.ท่าประจะ", lat: 7.9590, lng: 99.9640, desc: "ทิศตะวันตก" },
+  { name: "ต.ท่าเสม็ด", lat: 7.9545, lng: 100.0067, desc: "ทิศตะวันออก" },
+  { name: "ต.เคร็ง", lat: 7.8850, lng: 100.1150, desc: "ป่าพรุควนเคร็ง" },
+  { name: "ต.ควนหนองหงส์", lat: 8.0105, lng: 99.9505, desc: "ทิศเหนือ" },
+  { name: "ต.บ้านตูล", lat: 7.9230, lng: 99.9710, desc: "ทิศใต้" },
+  { name: "ต.วังอ่าง", lat: 7.9010, lng: 99.9210, desc: "ล่องแพบ้านวังอ่าง" },
+  { name: "ต.เขาพระทอง", lat: 8.0250, lng: 100.0400, desc: "วัดเขาพระทอง" },
+  { name: "ต.นางหลง", lat: 7.9244, lng: 100.0005, desc: "ทิศตะวันออกเฉียงใต้" },
+  { name: "ต.ไม้เสียบ", lat: 8.0710, lng: 99.9105, desc: "ทิศตะวันตกเฉียงเหนือ" },
+  { name: "ต.เกาะขันธ์", lat: 7.9370, lng: 99.9714, desc: "ทิศตะวันตกเฉียงใต้" },
+  { name: "ต.ท่าสะท้อน", lat: 7.9452, lng: 99.9602, desc: "วัดท่าสะท้อน" }
+];
+
+// ให้ทุกสถานที่มี id (index) ใช้อ้างอิงแทนการส่งชื่อผ่าน onclick
+PLACES.forEach((p, i) => { p.id = i; });
+
+const CAT_LABEL = {
+  restaurant: 'ร้านอาหาร', convenience: 'ร้านสะดวกซื้อ', cafe: 'คาเฟ่', temple: 'วัด/ศาสนสถาน',
+  edu: 'สถานศึกษา', gas: 'ปั๊มน้ำมัน', hotel: 'ที่พัก', bank: 'ธนาคาร', gov: 'ราชการ',
+  market: 'ตลาด', tourist: 'ท่องเที่ยว', shop: 'ร้านค้า', recreation: 'สันทนาการ',
+  transport: 'ขนส่ง', health: 'สาธารณสุข', postal: 'ไปรษณีย์'
+};
+const CAT_ICON = {
+  restaurant: '🍽️', convenience: '🏪', cafe: '☕', temple: '🛕', edu: '🎓', gas: '⛽',
+  hotel: '🏨', bank: '🏦', gov: '🏛️', market: '🛒', tourist: '🌴', shop: '🏬',
+  recreation: '🎯', transport: '🚌', health: '🏥', postal: '📮'
+};
+const RIDERS = [
+  { name: "สมชาย ใจดี", vehicle: "🛵 Honda PCX • 1กข-1234", rating: 4.9, trips: 1247, avatar: "ส" },
+  { name: "วิชัย เร็วไว", vehicle: "🛵 Yamaha NMAX • 2ขค-5678", rating: 4.8, trips: 892, avatar: "ว" },
+  { name: "ประเสริฐ ซิ่ง", vehicle: "🛵 Honda Scoopy • 3คฆ-9012", rating: 4.7, trips: 654, avatar: "ป" },
+  { name: "มานพ ขยัน", vehicle: "🏍️ Yamaha Filano • 4งจ-3456", rating: 4.9, trips: 1580, avatar: "ม" },
+  { name: "ธีระ ปลอดภัย", vehicle: "🛵 Honda Click • 5จฉ-7890", rating: 4.6, trips: 423, avatar: "ธ" }
+];
+const BADGES = ['ลด 10%', 'ลด 15%', 'ลด 20%', 'ลด 25%', '', '', ''];
+
+let mainMap = null, destinationMarker = null, userMarker = null, routeLine = null;
+let placeMarkers = [], tambonMarkers = [];
+let currentDestination = null, currentOrderDraft = null;
+let orders = [], orderIdCounter = 1, orderSubmitting = false;
+
+// ===== CALC =====
+function calcDist(lat1, lon1, lat2, lon2) {
+  const R = 6371, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function formatDist(km) {
+  return `${Math.max(0.1, km).toFixed(1)} กม.`;   // แสดงเป็น กม. เสมอ เช่น 1.2 กม.
+}
+function calcFare(dist) {
+  const base = 30, perKm = 15;
+  const extra = Math.max(0, Math.ceil((dist - 1) * perKm));
+  return { base, extra, total: base + extra };
+}
+// ร้านที่มีรูปจริง (img ขึ้นต้นด้วย images/) อยู่บนสุดของแต่ละลิสต์ ที่เหลือเรียงตามระยะทาง
+function hasPhoto(p) { return !!(p.img && p.img.startsWith('images/')); }
+function withDist(list) {
+  return list.map(p => ({ ...p, dist: calcDist(USER_LOC.lat, USER_LOC.lng, p.lat, p.lng) }))
+    .sort((a, b) => (hasPhoto(b) - hasPhoto(a)) || (a.dist - b.dist));
+}
+function typeClass(c) { return c === 'restaurant' ? 'rest' : c === 'cafe' ? 'cafe' : c === 'temple' ? 'temple' : 'shop'; }
+function imgHtml(p) {
+  if (p.img && p.img.startsWith('images/'))
+    return `<img src="${esc(p.img)}" alt="${esc(p.n)}" loading="lazy" onerror="this.style.display='none'">`;
+  return esc(p.img || CAT_ICON[p.c] || '📍');
+}
+
+// ===== LOCATION =====
+function applyLocation(pos) {
+  USER_LOC.lat = pos.coords.latitude;
+  USER_LOC.lng = pos.coords.longitude;
+  USER_LOC.granted = true;
+  document.getElementById('loc-text-display').innerText = 'ต.ชะอวด';
+  document.getElementById('loc-sub-display').innerText =
+    `📍 ${USER_LOC.lat.toFixed(4)}, ${USER_LOC.lng.toFixed(4)}`;
+  if (userMarker && mainMap) userMarker.setLatLng([USER_LOC.lat, USER_LOC.lng]);
+  renderCards();
+}
+function requestLocation() {
+  if (!navigator.geolocation) { showToast('⚠️ เบราว์เซอร์ไม่รองรับ GPS'); closeLocPopup(); return; }
+  showToast('📡 กำลังขออนุญาตเข้าถึงตำแหน่ง...');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      applyLocation(pos);
+      store('chauatgo_location_granted', 'true');
+      if (mainMap) mainMap.setView([USER_LOC.lat, USER_LOC.lng], 15);
+      closeLocPopup();
+      showToast('✅ อนุญาตเข้าถึงตำแหน่งสำเร็จ!');
+    },
+    err => {
+      showToast(({1: '⚠️ คุณปฏิเสธการเข้าถึงตำแหน่ง', 2: '⚠️ ตำแหน่งไม่พร้อมใช้งาน', 3: '⏱️ หมดเวลาในการขอตำแหน่ง'})[err.code] || '⚠️ ไม่สามารถเข้าถึงตำแหน่งได้');
+      closeLocPopup();
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+function skipLocation() { store('chauatgo_location_granted', 'false'); closeLocPopup(); showToast('⏭️ ข้ามการอนุญาตตำแหน่ง'); }
+function closeLocPopup() { document.getElementById('loc-popup-overlay').classList.add('hidden'); }
+
+// ===== CARDS / LISTS =====
+function createCard(p, type) {
+  const dist = formatDist(p.dist);
+  const badge = BADGES[p.id % BADGES.length];
+  return `<div class="food-card" onclick="openDetail(${p.id})">
+    <div class="food-img ${type}">${imgHtml(p)}${badge ? `<div class="food-badge">${badge}</div>` : ''}</div>
+    <div class="food-info">
+      <div class="food-name">${esc(p.n)}</div>
+      <div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div>
+      <div class="food-price">${esc(p.price || 'สอบถาม')}</div>
+    </div>
+  </div>`;
+}
+function renderCards() {
+  const top = (c, n) => withDist(PLACES.filter(p => p.c === c)).slice(0, n);
+  document.getElementById('restaurant-grid').innerHTML = top('restaurant', 4).map(p => createCard(p, 'rest')).join('');
+  document.getElementById('convenience-grid').innerHTML = top('convenience', 2).map(p => createCard(p, 'shop')).join('');
+  document.getElementById('cafe-grid').innerHTML = top('cafe', 2).map(p => createCard(p, 'cafe')).join('');
+}
+function showListView(title, items) {
+  document.getElementById('category-title').innerText = title;
+  document.getElementById('category-grid').innerHTML = items.length
+    ? items.map(p => createCard(p, typeClass(p.c))).join('')
+    : '<div class="empty-state"><div class="icon">📭</div><div>ไม่มีข้อมูล</div></div>';
+  document.getElementById('home-content').classList.add('hidden');
+  document.getElementById('category-view').classList.add('active');
+  window.scrollTo(0, 0);
+}
+function filterCategory(cat) {
+  const map = {
+    travel: { label: '🚗 เดินทางและขนส่ง', cats: ['transport', 'gas'] }
+  };
+  const cfg = map[cat];
+  if (!cfg) return;
+  const items = withDist(PLACES.filter(p => cfg.cats.includes(p.c)));
+  showListView(`${cfg.label} (${items.length})`, items);
+}
+function showAllCategories(category) {
+  const labels = { restaurant: '🍽️ ร้านอาหารทั้งหมด', convenience: '🏪 ร้านสะดวกซื้อทั้งหมด', cafe: '☕ คาเฟ่ทั้งหมด' };
+  showListView(labels[category] || 'ทั้งหมด', withDist(PLACES.filter(p => p.c === category)));
+}
+function closeCategoryView() {
+  document.getElementById('category-view').classList.remove('active');
+  document.getElementById('home-content').classList.remove('hidden');
+}
+
+function doSearch(query) {
+  const box = document.getElementById('search-results');
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) { box.classList.remove('active'); box.innerHTML = ''; return; }
+  const results = withDist(PLACES.filter(p => p.n.toLowerCase().includes(q)));
+  box.classList.add('active');
+  if (!results.length) {
+    box.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><div>ไม่พบผลลัพธ์สำหรับ "${esc(query)}"</div></div>`;
+    return;
+  }
+  box.innerHTML = `<div style="padding:10px 0;font-size:14px;color:#666;font-weight:600">พบ ${results.length} สถานที่</div>` +
+    results.map(p => `<div class="search-result-item" onclick="openDetail(${p.id})">
+      <div class="search-result-img ${typeClass(p.c)}">${imgHtml(p)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.n)}</div>
+        <div style="font-size:12px;color:#888">${CAT_ICON[p.c] || ''} ${CAT_LABEL[p.c] || esc(p.c)} • 📍 ${formatDist(p.dist)}</div>
+        <div style="font-size:12px;color:#00A651;font-weight:600">${esc(p.price || 'สอบถาม')}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ===== DETAIL =====
+function openDetail(id) {
+  const p = PLACES[id];
+  if (!p) return;
+  const dist = formatDist(calcDist(USER_LOC.lat, USER_LOC.lng, p.lat, p.lng));
+  const canRider = p.c === 'restaurant' || p.c === 'cafe';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:60px">${CAT_ICON[p.c] || '📍'}</div>
+      <div style="font-size:20px;font-weight:bold;margin-top:10px">${esc(p.n)}</div>
+      <div style="font-size:13px;color:#888;margin-top:5px">${CAT_LABEL[p.c] || esc(p.c)} • ⭐ ${p.rating}</div>
+      <div style="font-size:14px;color:#00A651;font-weight:600;margin-top:5px">📍 ${dist}</div>
+    </div>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#888">ราคา/เวลา</span><strong style="color:#00A651">${esc(p.price || 'สอบถาม')}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:#888">ระยะทางจากคุณ</span><strong>${dist}</strong></div>
+    </div>
+    <button class="btn-full btn-green" onclick="pinAsDestination(${p.id})">📍 ปักหมุดเป็นปลายทาง</button>
+    ${canRider ? `<button class="btn-full btn-orange" onclick="callRiderToPlace(${p.id})">🛵 เรียกไรเดอร์ไปที่นี่</button>` : ''}
+    <button class="btn-full btn-blue" onclick="pinAsDestination(${p.id})">🗺️ ดูบนแผนที่</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function whenMapReady(fn) {
+  openMapPage();
+  const t = setInterval(() => { if (mainMap) { clearInterval(t); fn(); } }, 100);
+}
+function pinAsDestination(id) {
+  const p = PLACES[id];
+  closeModal();
+  whenMapReady(() => { mainMap.setView([p.lat, p.lng], 16); setDestination(p.lat, p.lng, p.n, p.c); });
+}
+function callRiderToPlace(id) {
+  const p = PLACES[id];
+  closeModal();
+  whenMapReady(() => { setDestination(p.lat, p.lng, p.n, p.c); callRiderFromMap(); });
+}
+
+// ===== ORDER FORM =====
+const ORDER_CONFIGS = {
+  food: { title: '🍽️ สั่งอาหาร', icon: '🍽️', subtitle: 'เลือกร้านอาหารและพิมพ์รายการอาหาร', placeholder: 'เช่น ข้าวมันไก่ 1 จาน, น้ำเปล่า 1 ขวด...', label: '📝 รายการอาหาร', priceLabel: '💰 ยอดค่าอาหารโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 150', btnText: '📋 สรุปรายการและค่าส่ง', summary: '🍽️ สั่งอาหาร', unit: '฿', pl: '💰 ค่าอาหาร' },
+  shopping: { title: '🛒 ซื้อของใช้', icon: '🛒', subtitle: 'พิมพ์รายการสินค้าที่ต้องการให้ซื้อ', placeholder: 'เช่น น้ำดื่ม 6 ขวด, ขนมปัง 2 ถุง...', label: '📝 รายการสินค้า', priceLabel: '💰 ยอดค่าสินค้าโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 200', btnText: '📋 สรุปรายการและค่าส่ง', summary: '🛒 ซื้อของใช้', unit: '฿', pl: '💰 ค่าสินค้า' },
+  dinein: { title: '🍴 กินที่ร้าน', icon: '🍴', subtitle: 'เลือกร้านอาหารสำหรับนั่งกิน', placeholder: 'เช่น โต๊ะ 4 คน, ต้องการที่นั่งริมหน้าต่าง...', label: '📝 ความต้องการพิเศษ', priceLabel: '💰 งบประมาณโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 500', btnText: '📋 สรุปและจองโต๊ะ', summary: '🍴 กินที่ร้าน', unit: '฿', pl: '💰 งบประมาณ' },
+  express: { title: '📦 ส่งด่วน', icon: '📦', subtitle: 'กรอกรายละเอียดพัสดุที่จะส่ง', placeholder: 'เช่น เอกสารสำคัญ, กล่องขนาดกลาง...', label: '📝 รายละเอียดพัสดุ', priceLabel: '⚖️ น้ำหนักโดยประมาณ (กก.)', pricePlaceholder: 'เช่น 2', btnText: '📋 สรุปค่าส่ง', summary: '📦 ส่งด่วน', unit: 'กก.', pl: '⚖️ น้ำหนัก' }
+};
+const TYPE_ICON = { food: '🍽️', shopping: '🛒', dinein: '🍴', express: '📦', map: '🗺️' };
+
+function getPlacesForType(type) {
+  const cats = type === 'food' || type === 'dinein' ? ['restaurant', 'cafe']
+    : type === 'shopping' ? ['convenience', 'shop', 'market']
+    : ['convenience', 'shop', 'market', 'restaurant', 'cafe', 'postal'];
+  return withDist(PLACES.filter(p => cats.includes(p.c)));
+}
+
+function openOrderForm(type) {
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'); showLoginModal(); return; }
+  const cfg = ORDER_CONFIGS[type];
+  if (!cfg) return;
+  currentOrderDraft = { type };
+  document.getElementById('modal-body').innerHTML = `
+    <div class="order-form-header">
+      <div class="of-icon">${cfg.icon}</div><div class="of-title">${cfg.title}</div><div class="of-sub">${cfg.subtitle}</div>
+    </div>
+    <div class="form-group"><label>🏪 เลือกร้าน/สถานที่ต้นทาง</label>
+      <select id="of-place-select"><option value="">-- เลือกสถานที่ --</option>
+      ${getPlacesForType(type).map(p => `<option value="${p.id}">${esc(p.n)} (${esc(p.price || 'สอบถาม')})</option>`).join('')}</select></div>
+    <div class="form-group"><label>${cfg.label}</label><textarea id="of-items" placeholder="${cfg.placeholder}" rows="4"></textarea></div>
+    <div class="form-group"><label>${cfg.priceLabel}</label><input type="number" id="of-price" placeholder="${cfg.pricePlaceholder}" min="0"></div>
+    <div class="form-group"><label>🏠 ที่อยู่ปลายทาง (คุณ)</label><input type="text" id="of-address" value="ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช"></div>
+    <div class="form-group"><label>📝 หมายเหตุเพิ่มเติม (ไม่บังคับ)</label><textarea id="of-note" placeholder="เช่น ไม่ใส่ผัก, เผ็ดน้อย, ส่งด่วน..." rows="2"></textarea></div>
+    <button class="btn-full btn-orange" onclick="goToOrderSummary()">${cfg.btnText} →</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ยกเลิก</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+function goToOrderSummary() {
+  const draft = currentOrderDraft;
+  if (!draft) return;
+  const cfg = ORDER_CONFIGS[draft.type];
+  const placeId = document.getElementById('of-place-select').value;
+  const items = document.getElementById('of-items').value.trim();
+  const price = Math.max(0, parseFloat(document.getElementById('of-price').value) || 0);
+  const address = document.getElementById('of-address').value.trim();
+  const note = document.getElementById('of-note').value.trim();
+  if (placeId === '') return showToast('⚠️ กรุณาเลือกร้าน/สถานที่');
+  if (!items) return showToast('⚠️ กรุณากรอกรายการ');
+  if (!address) return showToast('⚠️ กรุณากรอกที่อยู่ปลายทาง');
+  const place = PLACES[+placeId];
+  if (!place) return showToast('⚠️ ไม่พบสถานที่');
+
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, place.lat, place.lng);
+  const fare = calcFare(dist);
+  const goods = draft.type === 'express' ? 0 : price;   // ส่งด่วนกรอกน้ำหนัก ไม่ใช่เงิน
+  const total = goods + fare.total + 10;
+  const timeMin = Math.max(3, Math.ceil(dist * 4));
+  currentOrderDraft = { ...draft, placeName: place.n, items, price, address, note, dist, fare, total, timeMin };
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="order-form-header"><div class="of-icon">📋</div><div class="of-title">สรุปรายการสั่งซื้อ</div><div class="of-sub">${cfg.summary}</div></div>
+    <div style="background:#f8f9fa;padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#888">🏪 ต้นทาง</div>
+      <div style="font-weight:bold;font-size:14px">${esc(place.n)}</div>
+      <div style="font-size:12px;color:#666">📍 ${formatDist(dist)} • ~${timeMin} นาที</div>
+    </div>
+    <div style="background:#f8f9fa;padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#888">${cfg.label}</div>
+      <div style="font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(items)}</div>
+    </div>
+    <div style="background:#f8f9fa;padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#888">🏠 ปลายทาง</div>
+      <div style="font-size:14px">${esc(address)}</div>
+      ${note ? `<div style="font-size:12px;color:#888;margin-top:6px">📝 ${esc(note)}</div>` : ''}
+    </div>
+    <div class="summary-box">
+      <div class="summary-row"><span class="label">${cfg.pl}</span><span class="value">${price > 0 ? price.toFixed(0) + cfg.unit : '-'}</span></div>
+      <div class="summary-row"><span class="label">🚩 ค่าส่ง (พื้นฐาน 0-1 กม.)</span><span class="value">${fare.base}฿</span></div>
+      <div class="summary-row"><span class="label">📏 ค่าระยะทางเพิ่ม (${Math.max(0, dist - 1).toFixed(2)} กม. × 15฿)</span><span class="value">${fare.extra}฿</span></div>
+      <div class="summary-row"><span class="label">🛵 ค่าบริการแพลตฟอร์ม</span><span class="value">10฿</span></div>
+      <div class="summary-row total"><span>💰 รวมทั้งหมด</span><span>${total.toFixed(0)}฿</span></div>
+    </div>
+    <div style="background:#FFF3E0;padding:12px;border-radius:12px;margin-bottom:15px;border:1px solid #FFE0B2">
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#E65100;cursor:pointer">
+        <input type="checkbox" id="order-pdpa-consent" style="margin-top:3px;accent-color:#E65100">
+        <span>ฉันยอมรับ <a href="#" style="color:#E65100;text-decoration:underline">เงื่อนไขการใช้งาน</a> และ <a href="#" style="color:#E65100;text-decoration:underline">นโยบายความเป็นส่วนตัว (PDPA)</a> รวมถึงเข้าใจว่าข้อมูลการติดต่อจะถูกส่งต่อให้ไรเดอร์เพื่อวัตถุประสงค์ในการจัดส่งเท่านั้น</span>
+      </label>
+    </div>
+    <button id="confirm-order-btn" class="btn-full btn-green" onclick="confirmOrderWithPDPA()">✅ ยืนยันการสั่งซื้อ</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">❌ ยกเลิก</button>`;
+}
+function confirmOrderWithPDPA() {
+  if (!document.getElementById('order-pdpa-consent').checked) return showToast('⚠️ กรุณายอมรับเงื่อนไข');
+  confirmOrderAndCallRider();
+}
+
+async function confirmOrderAndCallRider() {
+  if (orderSubmitting) return;
+  const d = currentOrderDraft;
+  if (!d || !d.fare) return;
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'); showLoginModal(); return; }
+
+  orderSubmitting = true;
+  const btn = document.getElementById('confirm-order-btn');
+  if (btn) {
+    btn.dataset.originalLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⏳ กำลังบันทึก...';
+  }
+  showToast('🔍 กำลังค้นหาไรเดอร์...');
+
+  const order = {
+    id: 'local-' + orderIdCounter++, type: d.type, title: d.placeName, items: d.items,
+    price: d.price, fare: d.fare.total, serviceFee: 10, total: d.total,
+    distance: d.dist, distStr: formatDist(d.dist), timeMin: d.timeMin,
+    address: d.address, note: d.note,
+    rider: RIDERS[Math.floor(Math.random() * RIDERS.length)],
+    status: 'searching', createdAt: new Date()
+  };
+  const ok = await saveOrderToFirestore(order);
+  orderSubmitting = false;
+
+  if (ok) {
+    // onSnapshot จะอัพเดต orders เอง — ไม่ต้อง unshift เอง
+    closeModal();
+    switchTab('orders', document.querySelectorAll('.nav-item')[1]);
+    showToast('✅ สั่งซื้อสำเร็จ! ไรเดอร์กำลังมา');
+  } else {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalLabel || '✅ ยืนยันการสั่งซื้อ';
+    }
+    showToast('❌ สั่งซื้อไม่สำเร็จ กรุณาลองใหม่');
+  }
+}
+
+// ===== MAP =====
+function openMapPage() {
+  document.getElementById('map-page').classList.add('active');
+  document.body.style.paddingBottom = '0';
+  setTimeout(() => { if (!mainMap) initMap(); else mainMap.invalidateSize(); }, 100);
+}
+function closeMapPage() {
+  document.getElementById('map-page').classList.remove('active');
+  document.body.style.paddingBottom = '75px';
+}
+
+function initMap() {
+  mainMap = L.map('main-map', { center: [USER_LOC.lat, USER_LOC.lng], zoom: 14, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, minZoom: 10 }).addTo(mainMap);
+  L.control.attribution({ prefix: false }).addAttribution('© OpenStreetMap').addTo(mainMap);
+  L.control.scale({ imperial: false }).addTo(mainMap);
+
+  userMarker = L.marker([USER_LOC.lat, USER_LOC.lng], {
+    icon: L.divIcon({
+      className: 'custom-user-marker',
+      html: '<div style="background:#4A90D9;border:3px solid white;border-radius:50%;width:24px;height:24px;box-shadow:0 2px 8px rgba(74,144,217,.5)"></div>',
+      iconSize: [24, 24], iconAnchor: [12, 12]
+    })
+  }).addTo(mainMap).bindPopup('<b>📍 ตำแหน่งของคุณ</b>');
+
+  const popupBtn = fn => `<button onclick="${fn}" style="background:#00A651;color:white;border:none;padding:6px 12px;border-radius:8px;margin-top:8px;cursor:pointer">📍 ตั้งเป็นปลายทาง</button>`;
+
+  TAMBONS.forEach((t, i) => {
+    const m = L.marker([t.lat, t.lng], {
+      icon: L.divIcon({
+        className: 'custom-tambon-marker',
+        html: `<div style="background:#FF6B35;color:white;border:3px solid white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold">${i + 1}</div>`,
+        iconSize: [32, 32], iconAnchor: [16, 16]
+      })
+    }).addTo(mainMap).bindPopup(`<b>${esc(t.name)}</b><br>${esc(t.desc)}<br>${popupBtn(`pickTambon(${i})`)}`);
+    tambonMarkers.push(m);
+  });
+
+  const colors = { temple: '#FFD700', edu: '#43e97b', gov: '#667eea', health: '#ff6b6b', tourist: '#11998e', hotel: '#a18cd1', gas: '#fa709a', bank: '#30cfd0', market: '#ff9a9e' };
+  PLACES.filter(p => colors[p.c]).forEach(p => {
+    const m = L.marker([p.lat, p.lng], {
+      icon: L.divIcon({
+        className: 'custom-place-marker',
+        html: `<div style="background:${colors[p.c]};color:white;border:3px solid white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px">${CAT_ICON[p.c]}</div>`,
+        iconSize: [28, 28], iconAnchor: [14, 14]
+      })
+    }).addTo(mainMap).bindPopup(`<b>${esc(p.n)}</b><br>⭐ ${p.rating} • ${esc(p.price || 'สอบถาม')}<br>${popupBtn(`pickPlace(${p.id})`)}`);
+    placeMarkers.push(m);
+  });
+
+  mainMap.on('click', e => setDestination(e.latlng.lat, e.latlng.lng, 'จุดที่เลือกบนแผนที่', 'custom'));
+
+  const list = document.getElementById('tambon-list');
+  TAMBONS.forEach((t, i) => {
+    const item = document.createElement('div');
+    item.className = 'tambon-item';
+    item.innerHTML = `<div class="tambon-dot"></div><span>${i + 1}. ${esc(t.name)}</span>`;
+    item.onclick = () => { mainMap.setView([t.lat, t.lng], 16); tambonMarkers[i].openPopup(); toggleTambonList(); };
+    list.appendChild(item);
+  });
+}
+function pickPlace(id) { const p = PLACES[id]; mainMap.closePopup(); setDestination(p.lat, p.lng, p.n, p.c); }
+function pickTambon(i) { const t = TAMBONS[i]; mainMap.closePopup(); setDestination(t.lat, t.lng, t.name, 'tambon'); }
+
+function setDestination(lat, lng, name, category) {
+  if (!mainMap) return;
+  if (destinationMarker) mainMap.removeLayer(destinationMarker);
+  destinationMarker = L.marker([lat, lng], {
+    draggable: true,
+    icon: L.divIcon({
+      className: 'custom-destination-marker',
+      html: '<div style="background:#E91E63;color:white;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);width:36px;height:36px;display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg)">📍</span></div>',
+      iconSize: [36, 36], iconAnchor: [18, 36]
+    })
+  }).addTo(mainMap);
+  destinationMarker.on('dragend', e => {
+    const pos = e.target.getLatLng();
+    currentDestination = { lat: pos.lat, lng: pos.lng, name, category };
+    updateMapInfoPanel(pos.lat, pos.lng, name);
+    drawRoute(pos.lat, pos.lng);
+  });
+  currentDestination = { lat, lng, name, category };
+  updateMapInfoPanel(lat, lng, name);
+  drawRoute(lat, lng);
+  document.getElementById('map-info-panel').classList.add('active');
+  showToast(`📍 ตั้ง "${name}" เป็นปลายทางแล้ว`);
+}
+function drawRoute(lat, lng) {
+  if (routeLine) mainMap.removeLayer(routeLine);
+  routeLine = L.polyline([[USER_LOC.lat, USER_LOC.lng], [lat, lng]], { color: '#00A651', weight: 5, opacity: 0.8, dashArray: '10, 10' }).addTo(mainMap);
+  mainMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+}
+function updateMapInfoPanel(lat, lng, name) {
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
+  const fare = calcFare(dist);
+  document.getElementById('map-info-title').innerHTML = `📍 ปลายทาง: ${esc(name)}`;
+  document.getElementById('map-info-content').innerHTML = `
+    <div class="map-info-sub">ระยะทาง: <strong>${formatDist(dist)}</strong></div>
+    <div class="map-info-sub">เวลาโดยประมาณ: <strong>${Math.max(2, Math.ceil(dist * 4))} นาที</strong></div>
+    <div class="map-info-sub">พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+    <div class="map-info-cost">
+      <div class="cost-row"><span>🚩 ค่าเริ่มต้น (0-1 กม.)</span><span>${fare.base}฿</span></div>
+      <div class="cost-row"><span>📏 ค่าระยะทางเพิ่ม (${Math.max(0, dist - 1).toFixed(2)} กม. × 15฿)</span><span>${fare.extra}฿</span></div>
+      <div class="cost-row"><span>🛵 ค่าบริการไรเดอร์</span><span>10฿</span></div>
+      <div class="cost-total"><span>💰 รวมทั้งหมด</span><span>${fare.total + 10}฿</span></div>
+    </div>`;
+}
+async function callRiderFromMap() {
+  if (orderSubmitting) return;
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return; }
+  if (!currentDestination) return showToast('⚠️ ยังไม่ได้ตั้งปลายทาง');
+
+  const { lat, lng, name } = currentDestination;
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
+  const fare = calcFare(dist);
+  const order = {
+    id: 'local-' + orderIdCounter++, type: 'map', title: name, items: 'ปลายทางจากแผนที่',
+    price: 0, fare: fare.total, serviceFee: 10, total: fare.total + 10,
+    distance: dist, distStr: formatDist(dist), timeMin: Math.max(2, Math.ceil(dist * 4)),
+    address: name, note: '', rider: RIDERS[Math.floor(Math.random() * RIDERS.length)],
+    status: 'searching', createdAt: new Date()
+  };
+
+  orderSubmitting = true;
+  showToast('🔍 กำลังเรียกไรเดอร์...');
+  const ok = await saveOrderToFirestore(order);
+  orderSubmitting = false;
+
+  if (!ok) { showToast('❌ เรียกไรเดอร์ไม่สำเร็จ กรุณาลองใหม่'); return; }
+  closeMapPage();
+  switchTab('orders', document.querySelectorAll('.nav-item')[1]);
+  showToast(`✅ เรียกไรเดอร์สำเร็จ! ไปที่ "${name}"`);
+}
+function navigateToDestination() {
+  if (!currentDestination) return showToast('⚠️ ยังไม่ได้ตั้งปลายทาง');
+  const { lat, lng, name } = currentDestination;
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
+  showToast(`🧭 กำลังนำทางไป ${name} (${formatDist(dist)})`);
+  setTimeout(() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank'), 500);
+}
+function clearDestination() {
+  if (mainMap) {
+    if (destinationMarker) mainMap.removeLayer(destinationMarker);
+    if (routeLine) mainMap.removeLayer(routeLine);
+  }
+  destinationMarker = routeLine = currentDestination = null;
+  document.getElementById('map-info-panel').classList.remove('active');
+  showToast('🗑️ ล้างปลายทางแล้ว');
+}
+function centerToUser() {
+  if (!mainMap) return;
+  mainMap.setView([USER_LOC.lat, USER_LOC.lng], 16);
+  userMarker.openPopup();
+}
+function toggleTambonList() { document.getElementById('tambon-list').classList.toggle('active'); }
+function showAllPlacesOnMap() {
+  if (!mainMap) return;
+  const b = L.latLngBounds([[USER_LOC.lat, USER_LOC.lng]]);
+  placeMarkers.concat(tambonMarkers).forEach(m => b.extend(m.getLatLng()));
+  mainMap.fitBounds(b, { padding: [50, 50] });
+  showToast(`📌 แสดงสถานที่ทั้งหมด ${placeMarkers.length + tambonMarkers.length} แห่ง`);
+}
+
+// ===== ORDERS UI =====
+function updateOrdersBadge() {
+  document.getElementById('orders-badge').innerText = orders.filter(o => o.status !== 'done').length;
+}
+function renderOrders() {
+  const groups = { searching: 'searching-orders', pending: 'pending-orders', done: 'done-orders' };
+  Object.entries(groups).forEach(([status, id]) => {
+    document.getElementById(id).innerHTML = orders.filter(o => o.status === status).map(o => renderOrderCard(o, status)).join('');
+  });
+  document.getElementById('empty-orders').style.display = orders.length ? 'none' : 'block';
+}
+function renderOrderCard(o, cls) {
+  const icons = { searching: '🛵', pending: '📦', done: '✅' };
+  const labels = { searching: '⏳ กำลังค้นหาไรเดอร์...', pending: '⏸️ รอไรเดอร์รับงาน', done: '✅ ส่งแล้ว' };
+  const time = o.createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const items = String(o.items);
+  return `<div class="order-card ${cls}" onclick="showOrderDetail('${jsStr(o.id)}')">
+    <div class="order-icon ${cls}">${icons[cls]}</div>
+    <div class="order-info">
+      <div class="order-title">${TYPE_ICON[o.type] || '📦'} ${esc(o.title)}</div>
+      <div class="order-detail">📍 ${o.distStr} • ค่าส่ง ${o.fare}฿ + บริการ ${o.serviceFee}฿</div>
+      <div class="order-detail">🕐 ${time} • ${esc(items.substring(0, 30))}${items.length > 30 ? '...' : ''}</div>
+      ${o.rider ? `<div class="order-detail">🛵 ${esc(o.rider.name)} • ⭐${o.rider.rating}</div>` : ''}
+      <div class="order-price-tag">💰 รวม ${o.total}฿</div>
+      <span class="order-status ${cls}">${labels[cls]}</span>
+    </div>
+  </div>`;
+}
+function showOrderDetail(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) return;
+  const fare = calcFare(o.distance);
+  const date = o.createdAt.toLocaleDateString('th-TH');
+  const time = o.createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const labels = { food: '🍽️ สั่งอาหาร', shopping: '🛒 ซื้อของใช้', dinein: '🍴 กินที่ร้าน', express: '📦 ส่งด่วน', map: '🗺️ จากแผนที่' };
+  const riderName = o.rider ? o.rider.name : 'ไรเดอร์';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:50px">📋</div>
+      <div style="font-size:20px;font-weight:bold;margin-top:10px">ออเดอร์ ${esc(String(o.id).slice(-6).toUpperCase())}</div>
+      <div style="font-size:13px;color:#888;margin-top:5px">${labels[o.type] || 'ออเดอร์'} • ${date} ${time}</div>
+    </div>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:15px">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">🏪 ต้นทาง/จุดหมาย</div>
+      <div style="font-weight:bold;font-size:15px;margin-bottom:8px">${esc(o.title)}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px">📝 รายการ</div>
+      <div style="font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(o.items)}</div>
+      ${o.note ? `<div style="font-size:12px;color:#888;margin-top:8px;margin-bottom:4px">📝 หมายเหตุ</div><div style="font-size:13px">${esc(o.note)}</div>` : ''}
+    </div>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:15px">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">🏠 ปลายทาง</div>
+      <div style="font-size:14px;font-weight:600">${esc(o.address)}</div>
+      <div style="font-size:12px;color:#888;margin-top:8px">📍 ${o.distStr} • ⏱️ ~${o.timeMin} นาที</div>
+    </div>
+    <div class="summary-box" style="margin-bottom:15px">
+      <div class="summary-row"><span class="label">💰 ค่าสินค้า/อาหาร</span><span class="value">${o.type !== 'express' && o.price > 0 ? Number(o.price).toFixed(0) + '฿' : '-'}</span></div>
+      <div class="summary-row"><span class="label">🚩 ค่าส่ง (พื้นฐาน)</span><span class="value">${fare.base}฿</span></div>
+      <div class="summary-row"><span class="label">📏 ค่าระยะทางเพิ่ม</span><span class="value">${fare.extra}฿</span></div>
+      <div class="summary-row"><span class="label">🛵 ค่าบริการ</span><span class="value">${o.serviceFee}฿</span></div>
+      <div class="summary-row total"><span>💰 รวมทั้งหมด</span><span>${o.total}฿</span></div>
+    </div>
+    ${o.rider ? `
+    <div class="rider-found-box">
+      <div class="rf-avatar">${esc(o.rider.avatar)}</div>
+      <div class="rf-info"><div class="rf-name">${esc(o.rider.name)}</div><div class="rf-vehicle">${esc(o.rider.vehicle)}</div>
+      <div class="rf-rating">⭐ ${o.rider.rating} • 📦 ${o.rider.trips} เที่ยว</div></div>
+    </div>
+    <div class="rider-disclaimer">⚠️ ไรเดอร์เป็น <b>คู่สัญญาอิสระ (Independent Contractor)</b> ไม่ใช่พนักงานประจำของแพลตฟอร์ม แพลตฟอร์มแนะนำให้ไรเดอร์มีประกันภัยอุบัติเหตุส่วนบุคคลขณะปฏิบัติงาน</div>` : ''}
+    <button class="btn-full btn-green" onclick="closeModal();openChat('${jsStr(riderName)}')">💬 แชทกับไรเดอร์</button>
+    <button class="btn-full btn-blue" onclick="closeModal();openMapFromOrder('${jsStr(o.id)}')">🗺️ ดูบนแผนที่</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+function openMapFromOrder(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  const p = o && PLACES.find(x => x.n === o.title);
+  if (p) pinAsDestination(p.id);
+  else whenMapReady(() => mainMap.setView([USER_LOC.lat, USER_LOC.lng], 14));
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-home').style.display = tab === 'home' ? 'block' : 'none';
+  document.getElementById('tab-orders').classList.toggle('active', tab === 'orders');
+  document.getElementById('tab-messages').classList.toggle('active', tab === 'messages');
+  if (tab === 'home') {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').classList.remove('active');
+    document.getElementById('search-results').innerHTML = '';
+    closeCategoryView();
+  }
+  if (tab === 'orders') renderOrders();
+  window.scrollTo(0, 0);
+}
+
+// ข้อความตัวอย่าง (ยังไม่ใช่ระบบแชทจริง)
+function openChat(riderName) {
+  const name = riderName || 'ไรเดอร์';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;font-size:28px;color:white;font-weight:bold;margin:0 auto 10px">${esc(name[0])}</div>
+      <div style="font-size:18px;font-weight:bold">${esc(name)}</div>
+      <div style="font-size:13px;color:#888">ไรเดอร์ Chauat Go</div>
+    </div>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:15px;min-height:200px">
+      <div style="background:white;padding:10px 14px;border-radius:12px;margin-bottom:10px;max-width:80%;font-size:14px">สวัสดีครับ ผม ${esc(name)} กำลังเดินทางไปรับครับ 🛵</div>
+      <div style="background:#00A651;color:white;padding:10px 14px;border-radius:12px;margin-bottom:10px;max-width:80%;margin-left:auto;font-size:14px">ขอบคุณครับ มาถึงเมื่อไหร่ครับ?</div>
+      <div style="background:white;padding:10px 14px;border-radius:12px;margin-bottom:10px;max-width:80%;font-size:14px">อีกประมาณ 5 นาทีครับ 🙏</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input type="text" placeholder="พิมพ์ข้อความ..." style="flex:1;padding:12px;border:1px solid #ddd;border-radius:20px;outline:none;font-size:14px">
+      <button style="width:44px;height:44px;border-radius:50%;background:#00A651;color:white;border:none;font-size:18px;cursor:pointer">➤</button>
+    </div>
+    <button class="btn-full btn-gray" style="margin-top:15px" onclick="closeModal()">ปิด</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+// ===== PDPA =====
+function checkPDPA() {
+  if (!store('chauatgo_pdpa_consent')) {
+    document.getElementById('pdpa-overlay').classList.remove('hidden');
+  } else {
+    document.getElementById('pdpa-overlay').classList.add('hidden');
+    document.getElementById('legal-footer').style.display = 'block';
+    checkLocationPopup();
+  }
+}
+function acceptPDPA() {
+  store('chauatgo_pdpa_consent', 'true');
+  document.getElementById('pdpa-overlay').classList.add('hidden');
+  document.getElementById('legal-footer').style.display = 'block';
+  showToast('✅ ยอมรับนโยบายความเป็นส่วนตัวเรียบร้อยแล้ว');
+  setTimeout(checkLocationPopup, 500);
+}
+function checkLocationPopup() {
+  const g = store('chauatgo_location_granted');
+  if (g === null) { document.getElementById('loc-popup-overlay').classList.remove('hidden'); return; }
+  document.getElementById('loc-popup-overlay').classList.add('hidden');
+  if (g === 'true' && navigator.geolocation)
+    navigator.geolocation.getCurrentPosition(applyLocation, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+}
+
+// ===== PWA =====
+let deferredPrompt = null;
+const installBtn = document.getElementById('install-btn');
+const installModal = document.getElementById('install-modal');
+const installConfirmBtn = document.getElementById('install-confirm-btn');
+
+function getInstallInstructions() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua)) return '📱 <b>iOS Safari:</b><br>1. กดปุ่ม "แชร์" (⬆️) ด้านล่าง<br>2. เลือก "เพิ่มไปยังหน้าจอโฮม"<br>3. กด "เพิ่ม"';
+  if (/Android/.test(ua)) return '🤖 <b>Android Chrome:</b><br>1. กดเมนู ⋮ มุมขวาบน<br>2. เลือก "ติดตั้งแอป" หรือ "Add to Home screen"<br>3. กด "ติดตั้ง"';
+  return '💻 <b>Desktop Chrome/Edge:</b><br>1. กดไอคอน ⬇️ ติดตั้ง ที่ address bar<br>2. กด "ติดตั้ง"';
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; installBtn.style.display = 'block'; });
+function showInstallModal() {
+  document.getElementById('install-text').innerHTML = getInstallInstructions();
+  installConfirmBtn.style.display = deferredPrompt ? 'flex' : 'none';
+  installModal.classList.add('active');
+}
+async function triggerInstall() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') { showToast('✅ ติดตั้งสำเร็จ!'); installBtn.style.display = 'none'; }
+  deferredPrompt = null;
+  closeInstallModal();
+}
+function closeInstallModal() { installModal.classList.remove('active'); }
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing;
+        w.addEventListener('statechange', () => {
+          if (w.state === 'installed' && navigator.serviceWorker.controller) showToast('🔄 มีเวอร์ชันใหม่! รีเฟรชเพื่ออัพเดท');
+        });
+      });
+    }).catch(err => console.warn('[PWA] SW failed', err));
+  });
+}
+
+window.addEventListener('online', () => { showToast('🟢 กลับมาออนไลน์แล้ว'); document.getElementById('offline-banner').classList.remove('active'); });
+window.addEventListener('offline', () => { showToast('🔴 ออฟไลน์ - แสดงข้อมูลจากแคช'); document.getElementById('offline-banner').classList.add('active'); });
+
+window.addEventListener('load', () => {
   if (!navigator.onLine) document.getElementById('offline-banner').classList.add('active');
   renderCards();
   renderOrders();
