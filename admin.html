@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Chauat Go — Admin</title>
+<meta name="theme-color" content="#00A651">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;min-height:100vh;font-family:'Sarabun',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#1a1a1a}
+button{font-family:inherit;cursor:pointer;border:none;background:none}
+input{font-family:inherit}
+
+/* ===== LOGIN ===== */
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#00A651,#008C45)}
+.login-card{background:#fff;border-radius:24px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
+.login-icon{font-size:64px;margin-bottom:8px}
+.login-card h1{font-size:22px;font-weight:800;color:#1a1a1a;margin-bottom:4px}
+.login-card p{font-size:13px;color:#888;margin-bottom:24px}
+.login-card input{width:100%;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;font-size:15px;margin-bottom:12px;outline:none;transition:.2s}
+.login-card input:focus{border-color:#00A651}
+.login-card button[type=submit]{width:100%;padding:14px;border-radius:12px;background:#00A651;color:#fff;font-weight:700;font-size:15px;transition:.15s}
+.login-card button[type=submit]:active{background:#008C45;transform:scale(.98)}
+.login-card button[type=submit]:disabled{opacity:.6;cursor:not-allowed}
+#login-error{color:#E53935;font-size:13px;margin-top:12px;min-height:18px}
+.login-hint{margin-top:20px;font-size:11px;color:#aaa;line-height:1.5}
+
+/* ===== HEADER ===== */
+header{background:#00A651;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+header h1{font-size:16px;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.2);padding:6px 12px;border-radius:20px;font-size:12px;max-width:180px}
+.user-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-chip button{color:#fff;font-size:12px;font-weight:700;padding:0 4px}
+
+/* ===== LAYOUT ===== */
+.container{max-width:900px;margin:0 auto;padding:16px}
+
+/* ===== STATS ===== */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:600px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04);position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.stat.searching::before{background:#4A90D9}
+.stat.pending::before{background:#FF6B35}
+.stat.done::before{background:#00A651}
+.stat.revenue::before{background:#FFA500}
+.stat-num{font-size:24px;font-weight:800;color:#1a1a1a;line-height:1}
+.stat-label{font-size:11px;color:#888;margin-top:6px;font-weight:600}
+
+/* ===== FILTERS ===== */
+.filters{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.filters::-webkit-scrollbar{display:none}
+.filter{padding:9px 16px;border-radius:20px;background:#fff;color:#666;font-size:13px;font-weight:700;white-space:nowrap;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.filter.active{background:#00A651;color:#fff;box-shadow:0 2px 8px rgba(0,166,81,.3)}
+
+/* ===== TOOLBAR ===== */
+.toolbar{display:flex;gap:8px;margin-bottom:14px}
+.toolbar input{flex:1;padding:11px 14px;border:2px solid #e8e8e8;border-radius:12px;font-size:14px;outline:none;background:#fff;transition:.15s;min-width:0}
+.toolbar input:focus{border-color:#00A651}
+.icon-btn{width:44px;height:44px;border-radius:12px;background:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:.15s;flex-shrink:0}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.muted{opacity:.4}
+
+/* ===== ORDER CARD ===== */
+.order-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;gap:12px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+.order-card:active{background:#f9f9f9;transform:scale(.995)}
+.order-card.is-new{animation:flashNew 2s ease-out}
+@keyframes flashNew{0%,100%{box-shadow:0 2px 8px rgba(0,0,0,.04)}50%{box-shadow:0 0 0 3px rgba(74,144,217,.4)}}
+.order-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.order-card[data-status=searching]::before{background:#4A90D9}
+.order-card[data-status=pending]::before{background:#FF6B35}
+.order-card[data-status=done]::before{background:#00A651}
+.order-card[data-status=cancelled]::before{background:#bbb}
+.order-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;background:#f5f5f5}
+.order-body{flex:1;min-width:0}
+.order-title{font-size:14px;font-weight:800;color:#1a1a1a;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.order-title .new-tag{background:#4A90D9;color:#fff;font-size:9px;padding:2px 6px;border-radius:6px;font-weight:800;letter-spacing:.5px}
+.order-line{font-size:12px;color:#888;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order-line strong{color:#1a1a1a;font-weight:700}
+.order-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.order-total{font-size:15px;font-weight:800;color:#FF6B35}
+.status-badge{font-size:10px;padding:4px 10px;border-radius:10px;font-weight:800}
+.status-badge.searching{background:#E3F2FD;color:#1565C0}
+.status-badge.pending{background:#FFF3E0;color:#E65100}
+.status-badge.done{background:#E8F5E9;color:#2E7D32}
+.status-badge.cancelled{background:#f0f0f0;color:#777}
+
+/* ===== EMPTY ===== */
+.empty{text-align:center;padding:60px 20px;color:#999}
+.empty .icon{font-size:60px;margin-bottom:12px;opacity:.5}
+
+/* ===== MODAL ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:flex-end}
+.modal-overlay.active{display:flex}
+.modal-content{background:#fff;width:100%;max-width:600px;border-radius:24px 24px 0 0;padding:24px;max-height:90vh;overflow-y:auto;animation:slideUp .25s ease-out}
+@media(min-width:600px){.modal-overlay{align-items:center;padding:20px}.modal-content{border-radius:24px;max-height:85vh}}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Detail modal */
+.detail-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px}
+.detail-head h2{font-size:18px;font-weight:800;color:#1a1a1a;line-height:1.3}
+.detail-head .order-id{font-size:11px;color:#aaa;font-family:monospace;margin-top:2px}
+.close-x{width:32px;height:32px;border-radius:50%;background:#f0f0f0;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+.detail-section{background:#f8f9fa;border-radius:12px;padding:14px;margin-bottom:12px}
+.detail-section h4{font-size:11px;color:#888;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.detail-section .value{font-size:14px;color:#1a1a1a;line-height:1.5;word-break:break-word}
+.detail-section .value.mono{font-family:monospace;font-size:12px}
+.detail-section .value.strong{font-weight:700;font-size:15px}
+
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-mini{background:#fff;padding:10px 12px;border-radius:10px}
+.detail-mini .k{font-size:10px;color:#999;font-weight:700;margin-bottom:2px}
+.detail-mini .v{font-size:14px;color:#1a1a1a;font-weight:700}
+
+.cost-list{background:#fff;border-radius:12px;padding:12px;margin-bottom:12px}
+.cost-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;color:#666}
+.cost-row.total{border-top:1px solid #eee;margin-top:6px;padding-top:10px;font-size:16px;font-weight:800;color:#00A651}
+.cost-row.total span:first-child{color:#1a1a1a}
+
+/* Action buttons */
+.actions-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:16px}
+@media(min-width:500px){.actions-grid.two{grid-template-columns:1fr 1fr}}
+.action-btn{padding:14px;border-radius:12px;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.action-btn:active{transform:scale(.98)}
+.action-btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-green{background:#00A651;color:#fff}
+.btn-orange{background:#FF6B35;color:#fff}
+.btn-blue{background:#4A90D9;color:#fff}
+.btn-red{background:#fff;color:#E53935;border:2px solid #ffcdd2}
+.btn-gray{background:#f0f0f0;color:#666}
+
+/* Rider picker */
+.rider-picker{background:#fff;border-radius:12px;padding:8px;margin-bottom:12px;border:1px solid #eee}
+.rider-option{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;cursor:pointer;transition:.15s}
+.rider-option:active{background:#f5f5f5}
+.rider-option.selected{background:#E8F5E9;border:1px solid #00A651}
+.rider-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;flex-shrink:0}
+.rider-info{flex:1;min-width:0}
+.rider-name{font-size:13px;font-weight:800;color:#1a1a1a}
+.rider-detail{font-size:11px;color:#888;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:3000;opacity:0;pointer-events:none;transition:.25s;max-width:90%;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:#00A651}
+.toast.error{background:#E53935}
+
+/* ===== BOTTOM BAR (mobile) ===== */
+.bottom-pad{height:30px}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js?v=4"></script>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-icon">🛡️</div>
+    <h1>Chauat Go Admin</h1>
+    <p>สำหรับผู้ดูแลระบบเท่านั้น</p>
+    <form onsubmit="handleLogin(event)">
+      <input type="email" id="login-email" placeholder="อีเมลผู้ดูแล" required autocomplete="email">
+      <input type="password" id="login-password" placeholder="รหัสผ่าน" required autocomplete="current-password">
+      <button type="submit" id="login-submit">🔓 เข้าสู่ระบบ</button>
+      <div id="login-error"></div>
+    </form>
+    <div class="login-hint">
+      ถ้ายังไม่มีสิทธิ์ — สมัครในแอปหลักก่อน<br>
+      แล้วแจ้งผู้พัฒนาสร้างเอกสาร <code>admins/{UID}</code> ใน Firestore
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" style="display:none">
+  <header>
+    <h1>🛡️ Chauat Go Admin</h1>
+    <div class="user-chip">
+      <span id="user-email">—</span>
+      <button onclick="handleLogout()" title="ออกจากระบบ">ออก</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Stats -->
+    <section class="stats">
+      <div class="stat searching">
+        <div class="stat-num" id="stat-searching">0</div>
+        <div class="stat-label">🔍 รอไรเดอร์</div>
+      </div>
+      <div class="stat pending">
+        <div class="stat-num" id="stat-pending">0</div>
+        <div class="stat-label">🛵 กำลังส่ง</div>
+      </div>
+      <div class="stat done">
+        <div class="stat-num" id="stat-done">0</div>
+        <div class="stat-label">✅ เสร็จวันนี้</div>
+      </div>
+      <div class="stat revenue">
+        <div class="stat-num" id="stat-revenue">0฿</div>
+        <div class="stat-label">💰 รายได้วันนี้</div>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <nav class="filters">
+      <button class="filter active" data-filter="all" onclick="setFilter('all')">ทั้งหมด</button>
+      <button class="filter" data-filter="searching" onclick="setFilter('searching')">🔍 รอไรเดอร์</button>
+      <button class="filter" data-filter="pending" onclick="setFilter('pending')">🛵 กำลังส่ง</button>
+      <button class="filter" data-filter="done" onclick="setFilter('done')">✅ เสร็จ</button>
+      <button class="filter" data-filter="cancelled" onclick="setFilter('cancelled')">✕ ยกเลิก</button>
+    </nav>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="ค้นหา: ชื่อลูกค้า / ร้าน / รายการ" oninput="renderOrders()">
+      <button class="icon-btn" id="sound-btn" onclick="toggleSound()" title="เปิด/ปิดเสียงแจ้งเตือน">🔔</button>
+    </div>
+
+    <!-- Orders -->
+    <main id="orders-list"></main>
+    <div id="empty-state" class="empty" style="display:none">
+      <div class="icon">📭</div>
+      <div>ไม่มีออเดอร์ในหมวดนี้</div>
+    </div>
+    <div class="bottom-pad"></div>
+  </div>
+</div>
+
+<!-- ===================== DETAIL MODAL ===================== -->
+<div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-content" id="detail-body"></div>
+</div>
+
+<!-- ===================== TOAST ===================== -->
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================================================================
+//  Chauat Go — Admin Panel
+//  จัดการออเดอร์แบบเรียลไทม์ผ่าน Firestore onSnapshot
+// =====================================================================
+
+// ===== CONFIG (ตรงกับ index.html) =====
+const firebaseConfig = {
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
+  measurementId: "G-6E2QEFWK6P"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// เปิด offline cache
+db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+  if (err.code === 'failed-precondition') console.warn('[Admin] persistence: multiple tabs');
+  else if (err.code === 'unimplemented') console.warn('[Admin] persistence: not supported');
+});
+
+// ===== RIDERS (ตรงกับ index.html) =====
+const RIDERS = [
+  { name: "สมชาย ใจดี",    vehicle: "🛵 Honda PCX • 1กข-1234",    rating: 4.9, trips: 1247, avatar: "ส" },
+  { name: "วิชัย เร็วไว",    vehicle: "🛵 Yamaha NMAX • 2ขค-5678",   rating: 4.8, trips: 892,  avatar: "ว" },
+  { name: "ประเสริฐ ซิ่ง",   vehicle: "🛵 Honda Scoopy • 3คฆ-9012",  rating: 4.7, trips: 654,  avatar: "ป" },
+  { name: "มานพ ขยัน",      vehicle: "🏍️ Yamaha Filano • 4งจ-3456", rating: 4.9, trips: 1580, avatar: "ม" },
+  { name: "ธีระ ปลอดภัย",   vehicle: "🛵 Honda Click • 5จฉ-7890",   rating: 4.6, trips: 423,  avatar: "ธ" }
+];
+
+const TYPE_ICON = { food:'🍽️', shopping:'🛒', dinein:'🍴', express:'📦', map:'🗺️' };
+const TYPE_LABEL = { food:'สั่งอาหาร', shopping:'ซื้อของ', dinein:'กินที่ร้าน', express:'ส่งด่วน', map:'จากแผนที่' };
+const STATUS_LABEL = { searching:'รอไรเดอร์', pending:'กำลังส่ง', done:'เสร็จสิ้น', cancelled:'ยกเลิก' };
+
+// ===== STATE =====
+let currentUser = null;
+let allOrders = [];
+let currentFilter = 'all';
+let soundEnabled = true;
+let unsubscribeOrders = null;
+let seenOrderIds = new Set();
+let currentDetailId = null;
+let selectedRiderIdx = -1;
+
+// =====================================================================
+//  AUTH
+// =====================================================================
+auth.onAuthStateChanged(async user => {
+  if (!user) { showLogin(); return; }
+
+  // ตรวจสิทธิ์: ต้องมีเอกสาร admins/{uid} ใน Firestore
+  try {
+    const snap = await db.collection('admins').doc(user.uid).get();
+    if (!snap.exists) {
+      await auth.signOut();
+      showLoginError('❌ บัญชีนี้ไม่มีสิทธิ์เข้าถึง Admin Panel');
+      showLogin();
+      return;
+    }
+  } catch (e) {
+    console.error('[admin check]', e);
+    await auth.signOut();
+    showLoginError('⚠️ ตรวจสอบสิทธิ์ไม่สำเร็จ — ลองใหม่');
+    showLogin();
+    return;
+  }
+
+  // เป็น admin
+  currentUser = user;
+  document.getElementById('user-email').textContent = user.email || user.uid.slice(0, 8);
+  showApp();
+  subscribeOrders();
+});
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-submit');
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  showLoginError('');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    // onAuthStateChanged จะจัดการต่อ
+  } catch (err) {
+    showLoginError(mapAuthError(err.code));
+    btn.disabled = false;
+    btn.textContent = '🔓 เข้าสู่ระบบ';
+  }
+}
+
+async function handleLogout() {
+  if (!confirm('ออกจากระบบ?')) return;
+  if (unsubscribeOrders) { unsubscribeOrders(); unsubscribeOrders = null; }
+  await auth.signOut();
+  allOrders = [];
+  seenOrderIds.clear();
+}
+
+function mapAuthError(code) {
+  return ({
+    'auth/user-not-found': 'ไม่พบอีเมลนี้',
+    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป ลองใหม่ภายหลัง',
+    'auth/network-request-failed': 'ไม่มีการเชื่อมต่อเครือข่าย'
+  })[code] || 'เข้าสู่ระบบไม่สำเร็จ (' + code + ')';
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const btn = document.getElementById('login-submit');
+  btn.disabled = false;
+  btn.textContent = '🔓 เข้าสู่ระบบ';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+function showLoginError(msg) {
+  document.getElementById('login-error').textContent = msg || '';
+}
+
+// =====================================================================
+//  REALTIME ORDERS
+// =====================================================================
+function subscribeOrders() {
+  if (unsubscribeOrders) unsubscribeOrders();
+
+  unsubscribeOrders = db.collection('orders')
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .onSnapshot(snap => {
+      const prevIds = new Set(allOrders.map(o => o.id));
+      allOrders = snap.docs.map(d => {
+        const x = d.data();
+        return {
+          id: d.id,
+          ...x,
+          createdAt: x.createdAt ? x.createdAt.toDate() : new Date()
+        };
+      });
+
+      // ตรวจออเดอร์ใหม่ที่ยังไม่เคยเห็น + เป็น searching
+      let hasNew = false;
+      allOrders.forEach(o => {
+        if (o.status === 'searching' && !seenOrderIds.has(o.id) && seenOrderIds.size > 0) {
+          hasNew = true;
+        }
+        seenOrderIds.add(o.id);
+      });
+      if (hasNew && soundEnabled) playBeep();
+
+      renderStats();
+      renderOrders();
+    }, err => {
+      console.error('[admin orders]', err);
+      if (err.code === 'permission-denied') {
+        showToast('⚠️ ไม่มีสิทธิ์อ่านออเดอร์ — ตรวจสอบ Firestore Rules', 'error');
+      } else {
+        showToast('⚠️ โหลดออเดอร์ไม่สำเร็จ', 'error');
+      }
+    });
+}
+
+// =====================================================================
+//  STATS
+// =====================================================================
+function renderStats() {
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const searching = allOrders.filter(o => o.status === 'searching').length;
+  const pending = allOrders.filter(o => o.status === 'pending').length;
+  const doneToday = allOrders.filter(o =>
+    o.status === 'done' && o.createdAt >= today
+  );
+  const revenue = doneToday.reduce((s, o) => s + (Number(o.total) || 0), 0);
+
+  document.getElementById('stat-searching').textContent = searching;
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-done').textContent = doneToday.length;
+  document.getElementById('stat-revenue').textContent = revenue.toLocaleString('th-TH') + '฿';
+}
+
+// =====================================================================
+//  ORDER LIST
+// =====================================================================
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === f);
+  });
+  renderOrders();
+}
+
+function renderOrders() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const list = document.getElementById('orders-list');
+
+  const filtered = allOrders.filter(o => {
+    if (currentFilter !== 'all' && o.status !== currentFilter) return false;
+    if (!q) return true;
+    return (
+      (o.userName || '').toLowerCase().includes(q) ||
+      (o.userEmail || '').toLowerCase().includes(q) ||
+      (o.title || '').toLowerCase().includes(q) ||
+      (o.items || '').toLowerCase().includes(q) ||
+      (o.address || '').toLowerCase().includes(q)
+    );
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '';
+    document.getElementById('empty-state').style.display = 'block';
+    return;
+  }
+  document.getElementById('empty-state').style.display = 'none';
+
+  const now = Date.now();
+  list.innerHTML = filtered.map(o => {
+    const isNew = o.status === 'searching' && (now - o.createdAt.getTime() < 5 * 60 * 1000);
+    const time = o.createdAt.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+    const date = o.createdAt.toLocaleDateString('th-TH', {day:'2-digit', month:'short'});
+    const items = String(o.items || '');
+    const riderLine = o.rider ? `🛵 ${escHtml(o.rider.name)}` : '';
+
+    return `
+      <div class="order-card ${isNew ? 'is-new' : ''}" data-status="${o.status}" onclick="openDetail('${o.id}')">
+        <div class="order-icon">${TYPE_ICON[o.type] || '📦'}</div>
+        <div class="order-body">
+          <div class="order-title">
+            ${escHtml(o.title || '—')}
+            ${isNew ? '<span class="new-tag">ใหม่</span>' : ''}
+          </div>
+          <div class="order-line">👤 <strong>${escHtml(o.userName || o.userEmail || 'ผู้ใช้')}</strong></div>
+          <div class="order-line">🕐 ${date} ${time} • ${o.distance ? Number(o.distance).toFixed(1) : '0'} กม.</div>
+          <div class="order-line">📝 ${escHtml(items.slice(0, 40))}${items.length > 40 ? '…' : ''}</div>
+          ${riderLine ? `<div class="order-line">${riderLine}</div>` : ''}
+          <div class="order-footer">
+            <div class="order-total">💰 ${Number(o.total || 0)}฿</div>
+            <span class="status-badge ${o.status}">${STATUS_LABEL[o.status] || o.status}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// =====================================================================
+//  DETAIL MODAL
+// =====================================================================
+function openDetail(orderId) {
+  currentDetailId = orderId;
+  selectedRiderIdx = -1;
+  renderDetail();
+  document.getElementById('detail-modal').classList.add('active');
+}
+function closeDetail() {
+  document.getElementById('detail-modal').classList.remove('active');
+  currentDetailId = null;
+}
+
+function renderDetail() {
+  const o = allOrders.find(x => x.id === currentDetailId);
+  if (!o) { closeDetail(); return; }
+
+  const body = document.getElementById('detail-body');
+  const date = o.createdAt.toLocaleDateString('th-TH', {day:'2-digit', month:'long', year:'numeric'});
+  const time = o.createdAt.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+  const shortId = o.id.slice(-6).toUpperCase();
+
+  // ปุ่มตามสถานะ
+  let actions = '';
+  if (o.status === 'searching') {
+    actions = `
+      <button class="action-btn btn-orange" onclick="openRiderPicker()">🛵 มอบหมายไรเดอร์</button>
+      <button class="action-btn btn-red" onclick="cancelOrder('${o.id}')">✕ ยกเลิกออเดอร์</button>`;
+  } else if (o.status === 'pending') {
+    actions = `
+      <button class="action-btn btn-green" onclick="markDone('${o.id}')">✅ ส่งสำเร็จ</button>
+      <button class="action-btn btn-blue" onclick="openRiderPicker()">🔄 เปลี่ยนไรเดอร์</button>
+      <button class="action-btn btn-red" onclick="cancelOrder('${o.id}')">✕ ยกเลิกออเดอร์</button>`;
+  } else if (o.status === 'done') {
+    actions = `
+      <button class="action-btn btn-gray" onclick="closeDetail()">ปิด</button>`;
+  } else if (o.status === 'cancelled') {
+    actions = `
+      <button class="action-btn btn-blue" onclick="reopenOrder('${o.id}')">♻️ เปิดใหม่</button>
+      <button class="action-btn btn-gray" onclick="closeDetail()">ปิด</button>`;
+  }
+
+  body.innerHTML = `
+    <div class="detail-head">
+      <div>
+        <h2>${escHtml(o.title || '—')}</h2>
+        <div class="order-id">#${shortId} • ${date} ${time}</div>
+      </div>
+      <button class="close-x" onclick="closeDetail()">✕</button>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <span class="status-badge ${o.status}" style="font-size:12px;padding:6px 14px">
+        ${STATUS_LABEL[o.status] || o.status}
+      </span>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-mini"><div class="k">ประเภท</div><div class="v">${TYPE_ICON[o.type]||'📦'} ${TYPE_LABEL[o.type]||o.type}</div></div>
+      <div class="detail-mini"><div class="k">รวมเงิน</div><div class="v" style="color:#FF6B35">${Number(o.total||0)}฿</div></div>
+    </div>
+
+    <div style="height:10px"></div>
+
+    <div class="detail-section">
+      <h4>👤 ลูกค้า</h4>
+      <div class="value strong">${escHtml(o.userName || '—')}</div>
+      ${o.userEmail ? `<div class="value" style="font-size:12px;color:#888;margin-top:4px">${escHtml(o.userEmail)}</div>` : ''}
+    </div>
+
+    <div class="detail-section">
+      <h4>📝 รายการ</h4>
+      <div class="value" style="white-space:pre-wrap">${escHtml(o.items || '—')}</div>
+    </div>
+
+    <div class="detail-section">
+      <h4>🏠 ที่อยู่ปลายทาง</h4>
+      <div class="value">${escHtml(o.address || '—')}</div>
+      ${o.distance ? `<div class="value" style="font-size:12px;color:#888;margin-top:6px">📍 ${Number(o.distance).toFixed(2)} กม. • ⏱️ ~${Math.max(3, Math.ceil(o.distance*4))} นาที</div>` : ''}
+    </div>
+
+    ${o.note ? `
+    <div class="detail-section">
+      <h4>📌 หมายเหตุ</h4>
+      <div class="value">${escHtml(o.note)}</div>
+    </div>` : ''}
+
+    <div class="cost-list">
+      <div class="cost-row"><span>💰 ค่าสินค้า</span><span>${o.price ? Number(o.price).toFixed(0) + '฿' : '-'}</span></div>
+      <div class="cost-row"><span>🚩 ค่าส่ง</span><span>${o.fare || 0}฿</span></div>
+      <div class="cost-row"><span>🛵 ค่าบริการ</span><span>${o.serviceFee || 10}฿</span></div>
+      <div class="cost-row total"><span>รวม</span><span>${Number(o.total||0)}฿</span></div>
+    </div>
+
+    ${o.rider ? `
+    <div class="detail-section" style="background:#E8F5E9">
+      <h4>🛵 ไรเดอร์ที่มอบหมาย</h4>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+        <div class="rider-avatar">${escHtml(o.rider.avatar || '?')}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:14px">${escHtml(o.rider.name)}</div>
+          <div style="font-size:12px;color:#666;margin-top:2px">${escHtml(o.rider.vehicle || '')}</div>
+          <div style="font-size:12px;color:#FFA500;margin-top:2px">⭐ ${o.rider.rating || '—'}</div>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <div id="rider-picker-slot"></div>
+
+    <div class="actions-grid">${actions}</div>
+    <div style="height:10px"></div>
+    <button class="action-btn btn-gray" onclick="closeDetail()">ปิด</button>
+  `;
+}
+
+// =====================================================================
+//  RIDER PICKER
+// =====================================================================
+function openRiderPicker() {
+  const slot = document.getElementById('rider-picker-slot');
+  const current = allOrders.find(x => x.id === currentDetailId)?.rider;
+
+  slot.innerHTML = `
+    <div style="margin-top:14px;margin-bottom:6px;font-size:13px;font-weight:800;color:#1a1a1a">
+      เลือกไรเดอร์
+    </div>
+    <div class="rider-picker">
+      ${RIDERS.map((r, i) => {
+        const isCurrent = current && current.name === r.name;
+        return `
+          <div class="rider-option ${isCurrent ? 'selected' : ''}" onclick="pickRider(${i})" data-idx="${i}">
+            <div class="rider-avatar">${r.avatar}</div>
+            <div class="rider-info">
+              <div class="rider-name">${escHtml(r.name)} ${isCurrent ? '✓' : ''}</div>
+              <div class="rider-detail">${escHtml(r.vehicle)} • ⭐ ${r.rating} • ${r.trips} เที่ยว</div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+    <div class="actions-grid two">
+      <button class="action-btn btn-green" onclick="confirmRider()">✅ ยืนยันมอบหมาย</button>
+      <button class="action-btn btn-gray" onclick="document.getElementById('rider-picker-slot').innerHTML=''">ยกเลิก</button>
+    </div>
+  `;
+  // scroll ไปที่ picker
+  setTimeout(() => slot.scrollIntoView({behavior:'smooth', block:'start'}), 100);
+}
+
+function pickRider(idx) {
+  selectedRiderIdx = idx;
+  document.querySelectorAll('.rider-option').forEach(el => {
+    el.classList.toggle('selected', Number(el.dataset.idx) === idx);
+  });
+}
+
+async function confirmRider() {
+  if (selectedRiderIdx < 0) {
+    showToast('⚠️ กรุณาเลือกไรเดอร์ก่อน', 'error');
+    return;
+  }
+  const rider = RIDERS[selectedRiderIdx];
+  await updateOrder(currentDetailId, {
+    rider: { ...rider },
+    status: 'pending',
+    assignedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, `✅ มอบหมายให้ ${rider.name}`);
+}
+
+// =====================================================================
+//  ORDER ACTIONS
+// =====================================================================
+async function updateOrder(orderId, updates, successMsg) {
+  if (!currentUser) return;
+  try {
+    await db.collection('orders').doc(orderId).update(updates);
+    showToast(successMsg || '✅ อัพเดตสำเร็จ', 'success');
+    closeDetail();
+  } catch (e) {
+    console.error('[update order]', e);
+    if (e.code === 'permission-denied') {
+      showToast('❌ ไม่มีสิทธิ์แก้ไข — ตรวจสอบ Firestore Rules', 'error');
+    } else {
+      showToast('❌ อัพเดตไม่สำเร็จ', 'error');
+    }
+  }
+}
+
+async function markDone(orderId) {
+  if (!confirm('ยืนยันว่าส่งสำเร็จแล้ว?')) return;
+  await updateOrder(orderId, {
+    status: 'done',
+    completedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, '✅ ปิดออเดอร์แล้ว');
+}
+
+async function cancelOrder(orderId) {
+  if (!confirm('ยืนยันยกเลิกออเดอร์นี้?\nลูกค้าจะไม่เห็นออเดอร์ในรายการ')) return;
+  await updateOrder(orderId, {
+    status: 'cancelled',
+    cancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, '✕ ยกเลิกออเดอร์แล้ว');
+}
+
+async function reopenOrder(orderId) {
+  await updateOrder(orderId, {
+    status: 'searching',
+    reopenedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, '♻️ เปิดออเดอร์ใหม่แล้ว');
+}
+
+// =====================================================================
+//  SOUND
+// =====================================================================
+let audioCtx = null;
+function playBeep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(660, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.35);
+  } catch (e) { /* silent */ }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('sound-btn');
+  btn.textContent = soundEnabled ? '🔔' : '🔕';
+  btn.classList.toggle('muted', !soundEnabled);
+  if (soundEnabled) {
+    // ปลุก audio context หลัง user gesture
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    playBeep();
+  }
+  showToast(soundEnabled ? '🔔 เปิดเสียงแจ้งเตือน' : '🔕 ปิดเสียงแจ้งเตือน');
+}
+
+// =====================================================================
+//  TOAST
+// =====================================================================
+let toastTimer = null;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 2500);
+}
+
+// =====================================================================
+//  UTILS
+// =====================================================================
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// =====================================================================
+//  AUTO-REFRESH TIME DISPLAY ทุก 60 วินาที
+// =====================================================================
+setInterval(() => { if (allOrders.length) renderOrders(); }, 60000);
+</script>
+</body>
+</html>
