@@ -11,28 +11,45 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;min-height:100vh;font-family:'Sarabun',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#1a1a1a;overscroll-behavior-y:contain}
 button{font-family:inherit;cursor:pointer;border:none;background:none}
-input{font-family:inherit}
-#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#FF6B35,#E55A2B)}
-.login-card{background:#fff;border-radius:24px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center}
-.login-icon{font-size:64px;margin-bottom:8px}
+input,select{font-family:inherit}
+
+/* ===== LOGIN ===== */
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#FF6B35,#E55A2B);overflow-y:auto}
+.login-card{background:#fff;border-radius:24px;padding:28px 24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;margin:auto}
+.login-icon{font-size:56px;margin-bottom:8px}
 .login-card h1{font-size:22px;font-weight:800;margin-bottom:4px}
-.login-card p{font-size:13px;color:#888;margin-bottom:24px}
-.login-card input{width:100%;padding:14px 16px;border:2px solid #e0e0e0;border-radius:12px;font-size:15px;margin-bottom:12px;outline:none}
-.login-card input:focus{border-color:#FF6B35}
-.login-card button[type=submit]{width:100%;padding:14px;border-radius:12px;background:#FF6B35;color:#fff;font-weight:700;font-size:15px}
-.login-card button[type=submit]:disabled{opacity:.6}
-#login-error{color:#E53935;font-size:13px;margin-top:12px;min-height:18px}
-.login-hint{margin-top:20px;font-size:11px;color:#aaa;line-height:1.5}
+.login-card p{font-size:13px;color:#888;margin-bottom:20px}
+.auth-tabs{display:flex;gap:8px;margin-bottom:20px;background:#f5f5f5;padding:4px;border-radius:14px}
+.auth-tab{flex:1;padding:10px;border-radius:10px;font-weight:700;font-size:13px;color:#888;transition:.15s}
+.auth-tab.active{background:#fff;color:#FF6B35;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.form-field{margin-bottom:12px;text-align:left}
+.form-field label{display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px}
+.form-field input,.form-field select{width:100%;padding:12px 14px;border:2px solid #e0e0e0;border-radius:12px;font-size:14px;outline:none;transition:.15s;background:#fff}
+.form-field input:focus,.form-field select:focus{border-color:#FF6B35}
+.form-field .hint{font-size:11px;color:#999;margin-top:3px}
+.btn-primary{width:100%;padding:14px;border-radius:12px;background:#FF6B35;color:#fff;font-weight:800;font-size:15px;margin-top:6px}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+#login-error{color:#E53935;font-size:13px;margin-top:12px;min-height:18px;text-align:center}
+.login-hint{margin-top:16px;font-size:11px;color:#aaa;line-height:1.5;text-align:center}
+
+/* ===== HEADER ===== */
 header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.1)}
 .header-info{flex:1;min-width:0}
 .header-info .name{font-size:15px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .header-info .status{font-size:11px;opacity:.9;margin-top:2px}
-.online-toggle{background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.4);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.online-toggle{background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.4);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:.15s}
 .online-toggle.online{background:#fff;color:#00A651;border-color:#fff}
+.online-toggle:disabled{opacity:.5;cursor:not-allowed}
 .online-toggle .dot{width:8px;height:8px;border-radius:50%;background:#ffcdd2}
 .online-toggle.online .dot{background:#00A651;box-shadow:0 0 0 3px rgba(0,166,81,.3);animation:pulseDot 1.5s infinite}
 @keyframes pulseDot{0%,100%{box-shadow:0 0 0 3px rgba(0,166,81,.3)}50%{box-shadow:0 0 0 8px rgba(0,166,81,0)}}
 .menu-btn{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+
+/* ===== PENDING BANNER ===== */
+.pending-banner{background:#FFF3E0;color:#E65100;padding:12px 16px;font-size:13px;font-weight:700;text-align:center;border-bottom:2px solid #FFB74D;display:none}
+.pending-banner.show{display:block}
+
+/* ===== LAYOUT ===== */
 .container{max-width:600px;margin:0 auto;padding:14px}
 .section-title{font-size:13px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px;display:flex;align-items:center;justify-content:space-between}
 .section-title:first-child{margin-top:0}
@@ -41,6 +58,8 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 .stat-box{background:#fff;border-radius:14px;padding:12px 8px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.04)}
 .stat-box .num{font-size:20px;font-weight:800;color:#FF6B35;line-height:1}
 .stat-box .lbl{font-size:10px;color:#888;font-weight:700;margin-top:4px}
+
+/* ===== ORDER CARD ===== */
 .order-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.05);position:relative;overflow:hidden}
 .order-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#FF6B35}
 .order-card.pending::before{background:#FF6B35}
@@ -67,8 +86,8 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 .money-row .amt{font-size:18px;font-weight:800;color:#FF6B35}
 .actions-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}
 .actions-grid.two{grid-template-columns:1fr 1fr}
-.action-btn{padding:14px;border-radius:12px;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
-.action-btn:disabled{opacity:.5}
+.action-btn{padding:14px;border-radius:12px;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;transition:.15s}
+.action-btn:active{transform:scale(.97)}
 .btn-orange{background:#FF6B35;color:#fff}
 .btn-green{background:#00A651;color:#fff}
 .btn-blue{background:#4A90D9;color:#fff}
@@ -76,12 +95,19 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 .btn-gray{background:#f0f0f0;color:#666}
 .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .quick-btn{padding:12px;border-radius:12px;background:#f5f5f5;color:#555;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;border:none}
+.quick-btn:active{background:#eee}
+
+/* ===== EMPTY ===== */
 .empty{text-align:center;padding:50px 20px;color:#999}
 .empty .icon{font-size:56px;margin-bottom:12px;opacity:.5}
 .empty h3{font-size:16px;color:#666;margin-bottom:6px}
 .empty p{font-size:13px;color:#999;line-height:1.5}
+
+/* ===== OFFLINE BANNER ===== */
 .offline-bar{position:fixed;top:0;left:0;right:0;background:#E53935;color:#fff;text-align:center;padding:8px;font-size:12px;font-weight:700;z-index:200;display:none}
 .offline-bar.show{display:block}
+
+/* ===== BOTTOM SHEET ===== */
 .sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:flex-end}
 .sheet-overlay.active{display:flex}
 .sheet{background:#fff;width:100%;max-width:600px;border-radius:24px 24px 0 0;padding:24px;max-height:85vh;overflow-y:auto}
@@ -91,9 +117,15 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 .sheet-item .lbl{font-size:13px;font-weight:700;color:#1a1a1a;flex:1}
 .sheet-item .sub{font-size:11px;color:#888;margin-top:2px}
 .close-sheet{width:100%;padding:14px;border-radius:12px;background:#f0f0f0;color:#666;font-weight:800;font-size:14px;margin-top:12px}
-.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:3000;opacity:0;pointer-events:none;transition:.25s;max-width:90%;text-align:center}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:24px;font-size:13px;font-weight:600;z-index:3000;opacity:0;pointer-events:none;transition:.25s;max-width:90%;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.25)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.success{background:#00A651}.toast.error{background:#E53935}.toast.info{background:#4A90D9}
+.toast.success{background:#00A651}
+.toast.error{background:#E53935}
+.toast.info{background:#4A90D9}
+
+/* ===== NEW JOB POPUP ===== */
 .new-job-popup{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2500;display:none;align-items:center;justify-content:center;padding:20px}
 .new-job-popup.active{display:flex}
 .new-job-card{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:400px;text-align:center}
@@ -110,22 +142,72 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js?v=4"></script>
 </head>
 <body>
+
 <div class="offline-bar" id="offline-bar">🔴 ออฟไลน์ — รอการเชื่อมต่อ</div>
+
+<!-- ===================== LOGIN / SIGNUP ===================== -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-icon">🛵</div>
     <h1>Chauat Go Rider</h1>
-    <p>สำหรับไรเดอร์เท่านั้น</p>
-    <form onsubmit="handleLogin(event)">
-      <input type="email" id="login-email" placeholder="อีเมลไรเดอร์" required>
-      <input type="password" id="login-password" placeholder="รหัสผ่าน" required>
-      <button type="submit" id="login-submit">🔓 เข้าสู่ระบบ</button>
+    <p id="login-subtitle">สำหรับไรเดอร์เท่านั้น</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">สมัครเป็นไรเดอร์</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="form-login" onsubmit="handleLogin(event)">
+      <div class="form-field">
+        <label>📧 อีเมล</label>
+        <input type="email" id="login-email" placeholder="rider@example.com" required autocomplete="email">
+      </div>
+      <div class="form-field">
+        <label>🔒 รหัสผ่าน</label>
+        <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" id="login-submit">🔓 เข้าสู่ระบบ</button>
+    </form>
+
+    <!-- SIGNUP FORM -->
+    <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
+      <div class="form-field">
+        <label>👤 ชื่อ-นามสกุล *</label>
+        <input type="text" id="su-name" placeholder="สมชาย ใจดี" required maxlength="100">
+      </div>
+      <div class="form-field">
+        <label>📱 เบอร์โทรศัพท์ *</label>
+        <input type="tel" id="su-phone" placeholder="0812345678" required maxlength="20">
+        <div class="hint">ใช้ติดต่อลูกค้าและแอดมิน</div>
+      </div>
+      <div class="form-field">
+        <label>🛵 ยี่ห้อรถ / ทะเบียน *</label>
+        <input type="text" id="su-vehicle" placeholder="Honda PCX • 1กข-1234" required maxlength="200">
+      </div>
+      <div class="form-field">
+        <label>📧 อีเมล *</label>
+        <input type="email" id="su-email" placeholder="rider@example.com" required autocomplete="email">
+      </div>
+      <div class="form-field">
+        <label>🔒 รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)</label>
+        <input type="password" id="su-password" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="form-field">
+        <label>🔒 ยืนยันรหัสผ่าน *</label>
+        <input type="password" id="su-password2" placeholder="••••••••" required minlength="6">
+      </div>
+      <button type="submit" class="btn-primary" id="signup-submit">✅ สมัครเป็นไรเดอร์</button>
       <div id="login-error"></div>
     </form>
-    <div class="login-hint">ยังไม่มีบัญชี? สมัครในแอปหลักก่อน แล้วแจ้งแอดมินเพิ่มใน collection <code>riders</code></div>
+
+    <div class="login-hint" id="login-hint">
+      🔐 หลังสมัครแล้ว แอดมินจะต้องอนุมัติก่อน<br>จึงจะเริ่มรับงานได้
+    </div>
   </div>
 </div>
 
+<!-- ===================== APP ===================== -->
 <div id="app" style="display:none">
   <header>
     <div class="header-info">
@@ -137,19 +219,32 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
     </button>
     <button class="menu-btn" onclick="openMenu()">☰</button>
   </header>
+
+  <div class="pending-banner" id="pending-banner">
+    ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>ยังไม่สามารถเปิดรับงานได้
+  </div>
+
   <div class="container">
     <div class="stats-row">
       <div class="stat-box"><div class="num" id="stat-active">0</div><div class="lbl">งานที่รับไว้</div></div>
       <div class="stat-box"><div class="num" id="stat-done">0</div><div class="lbl">ส่งสำเร็จวันนี้</div></div>
       <div class="stat-box"><div class="num" id="stat-earn">0฿</div><div class="lbl">รายได้วันนี้</div></div>
     </div>
+
     <div class="section-title">🔔 งานใหม่รอรับ <span class="section-count" id="cnt-new">0</span></div>
     <div id="new-jobs"></div>
+
     <div class="section-title">🛵 งานที่กำลังทำ <span class="section-count" id="cnt-active">0</span></div>
     <div id="active-jobs"></div>
+
     <div class="section-title">✅ ประวัติวันนี้ <span class="section-count" id="cnt-done">0</span></div>
     <div id="done-jobs"></div>
-    <div id="empty-all" class="empty" style="display:none"><div class="icon">🛵</div><h3>ยังไม่มีงาน</h3><p>เปิดสถานะ "ออนไลน์" เพื่อรับงานใหม่</p></div>
+
+    <div id="empty-all" class="empty" style="display:none">
+      <div class="icon">🛵</div>
+      <h3>ยังไม่มีงาน</h3>
+      <p id="empty-msg">เปิดสถานะ "ออนไลน์" เพื่อรับงานใหม่</p>
+    </div>
     <div style="height:40px"></div>
   </div>
 </div>
@@ -170,9 +265,20 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 <div class="sheet-overlay" id="menu-sheet" onclick="if(event.target===this)closeMenu()">
   <div class="sheet">
     <h2>เมนู</h2>
-    <div class="sheet-item" onclick="showMyInfo()"><div class="ico">👤</div><div style="flex:1"><div class="lbl">ข้อมูลของฉัน</div><div class="sub">ดูโปรไฟล์และสถิติ</div></div><div>›</div></div>
-    <div class="sheet-item" onclick="showTodayStats()"><div class="ico">📊</div><div style="flex:1"><div class="lbl">รายได้วันนี้</div><div class="sub">สรุปงานและรายรับ</div></div><div>›</div></div>
-    <div class="sheet-item" onclick="handleRiderLogout()" style="background:#fff5f5"><div class="ico">🚪</div><div style="flex:1"><div class="lbl" style="color:#E53935">ออกจากระบบ</div></div></div>
+    <div class="sheet-item" onclick="showMyInfo()">
+      <div class="ico">👤</div>
+      <div style="flex:1"><div class="lbl">ข้อมูลของฉัน</div><div class="sub">ดูโปรไฟล์และสถิติ</div></div>
+      <div>›</div>
+    </div>
+    <div class="sheet-item" onclick="showTodayStats()">
+      <div class="ico">📊</div>
+      <div style="flex:1"><div class="lbl">รายได้วันนี้</div><div class="sub">สรุปงานและรายรับ</div></div>
+      <div>›</div>
+    </div>
+    <div class="sheet-item" onclick="handleRiderLogout()" style="background:#fff5f5">
+      <div class="ico">🚪</div>
+      <div style="flex:1"><div class="lbl" style="color:#E53935">ออกจากระบบ</div></div>
+    </div>
     <button class="close-sheet" onclick="closeMenu()">ปิด</button>
   </div>
 </div>
@@ -180,6 +286,10 @@ header{background:#FF6B35;color:#fff;padding:12px 14px;display:flex;align-items:
 <div class="toast" id="toast"></div>
 
 <script>
+// =====================================================================
+//  CHAUAT GO — RIDER PANEL
+// =====================================================================
+
 const firebaseConfig = {
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
@@ -194,6 +304,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('[Rider] persistence:', err.code));
 
+// ===== STATE =====
 let currentUser = null;
 let riderProfile = null;
 let allOrders = [];
@@ -204,72 +315,278 @@ let currentNewJobId = null;
 let seenOrderIds = new Set();
 let isOnline = false;
 
-function escHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function showToast(msg, type) { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show' + (type ? ' ' + type : ''); clearTimeout(t._t); t._t = setTimeout(() => { t.className = 'toast'; }, 2500); }
+// ===== UTILS =====
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
 
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 2500);
+}
+
+function showError(msg) {
+  document.getElementById('login-error').textContent = msg || '';
+}
+
+// =====================================================================
+//  TAB SWITCH
+// =====================================================================
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
+  document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+  document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('login-subtitle').textContent = isLogin
+    ? 'สำหรับไรเดอร์เท่านั้น'
+    : 'สมัครใหม่ — รอการอนุมัติจากแอดมิน';
+  document.getElementById('login-hint').innerHTML = isLogin
+    ? '🔐 หลังสมัครแล้ว แอดมินจะต้องอนุมัติก่อน<br>จึงจะเริ่มรับงานได้'
+    : '⚠️ กรอกข้อมูลให้ครบถ้วน<br>หลังสมัครแล้วจะรอแอดมินอนุมัติ';
+  showError('');
+}
+
+// =====================================================================
+//  AUTH STATE
+// =====================================================================
 auth.onAuthStateChanged(async user => {
   if (!user) { showLogin(); return; }
+
+  // โหลดโปรไฟล์ไรเดอร์
   try {
     const snap = await db.collection('riders').doc(user.uid).get();
-    if (!snap.exists) { await auth.signOut(); showLoginError('❌ บัญชีนี้ไม่ได้ลงทะเบียนเป็นไรเดอร์'); showLogin(); return; }
+    if (!snap.exists) {
+      await auth.signOut();
+      showError('❌ ไม่พบข้อมูลไรเดอร์ — กรุณาสมัครใหม่');
+      showLogin();
+      switchAuthTab('signup');
+      return;
+    }
     riderProfile = { uid: user.uid, ...snap.data() };
-  } catch (e) { await auth.signOut(); showLoginError('⚠️ ตรวจสอบสิทธิ์ไม่สำเร็จ'); showLogin(); return; }
+  } catch (e) {
+    console.error('[rider check]', e);
+    await auth.signOut();
+    showError('⚠️ ตรวจสอบสิทธิ์ไม่สำเร็จ ลองใหม่');
+    showLogin();
+    return;
+  }
+
   currentUser = user;
-  isOnline = riderProfile.status === 'available';
+  isOnline = riderProfile.status === 'available' && riderProfile.verified === true;
   document.getElementById('rider-name').textContent = riderProfile.name || 'ไรเดอร์';
+  updatePendingBanner();
   updateOnlineUI();
   showApp();
   listenOrders();
   listenProfile();
-  window.addEventListener('beforeunload', () => { if (currentUser && isOnline) db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(()=>{}); });
+
+  window.addEventListener('beforeunload', () => {
+    if (currentUser && isOnline) {
+      db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(() => {});
+    }
+  });
 });
 
+// =====================================================================
+//  LOGIN
+// =====================================================================
 async function handleLogin(e) {
   e.preventDefault();
   const btn = document.getElementById('login-submit');
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-  showLoginError('');
+  showError('');
   btn.disabled = true; btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
-  try { await auth.signInWithEmailAndPassword(email, password); }
-  catch (err) { showLoginError(mapAuthError(err.code)); btn.disabled = false; btn.textContent = '🔓 เข้าสู่ระบบ'; }
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    showError(mapAuthError(err.code));
+    btn.disabled = false; btn.textContent = '🔓 เข้าสู่ระบบ';
+  }
 }
-function mapAuthError(code) { return ({ 'auth/user-not-found':'ไม่พบอีเมลนี้','auth/wrong-password':'รหัสผ่านไม่ถูกต้อง','auth/invalid-credential':'อีเมลหรือรหัสผ่านไม่ถูกต้อง','auth/invalid-email':'รูปแบบอีเมลไม่ถูกต้อง','auth/too-many-requests':'พยายามหลายครั้งเกินไป','auth/network-request-failed':'ไม่มีการเชื่อมต่อ' })[code] || 'เข้าสู่ระบบไม่สำเร็จ'; }
-function showLogin() { document.getElementById('login-screen').style.display = 'flex'; document.getElementById('app').style.display = 'none'; const b = document.getElementById('login-submit'); b.disabled = false; b.textContent = '🔓 เข้าสู่ระบบ'; }
-function showApp() { document.getElementById('login-screen').style.display = 'none'; document.getElementById('app').style.display = 'block'; }
-function showLoginError(msg) { document.getElementById('login-error').textContent = msg || ''; }
 
+// =====================================================================
+//  SIGNUP (self-register)
+// =====================================================================
+async function handleSignup(e) {
+  e.preventDefault();
+  const btn = document.getElementById('signup-submit');
+  const name = document.getElementById('su-name').value.trim();
+  const phone = document.getElementById('su-phone').value.trim();
+  const vehicle = document.getElementById('su-vehicle').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const pw1 = document.getElementById('su-password').value;
+  const pw2 = document.getElementById('su-password2').value;
+
+  showError('');
+
+  // Validation
+  if (name.length < 2) return showError('⚠️ กรุณากรอกชื่อ-นามสกุล');
+  if (phone.replace(/\D/g,'').length < 9) return showError('⚠️ เบอร์โทรต้องมีอย่างน้อย 9 หลัก');
+  if (!vehicle) return showError('⚠️ กรุณากรอกข้อมูลรถ');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('⚠️ อีเมลไม่ถูกต้อง');
+  if (pw1.length < 6) return showError('⚠️ รหัสผ่านอย่างน้อย 6 ตัวอักษร');
+  if (pw1 !== pw2) return showError('⚠️ รหัสผ่านทั้ง 2 ช่องไม่ตรงกัน');
+
+  btn.disabled = true; btn.textContent = '⏳ กำลังสมัคร...';
+
+  let createdUser = null;
+  try {
+    // 1) สร้าง Firebase Auth user
+    const cred = await auth.createUserWithEmailAndPassword(email, pw1);
+    createdUser = cred.user;
+    await createdUser.updateProfile({ displayName: name });
+
+    // 2) เขียน riders/{uid} อัตโนมัติ (rules บังคับ verified:false)
+    await db.collection('riders').doc(createdUser.uid).set({
+      name,
+      phone,
+      vehicle,
+      email,
+      status: 'offline',
+      verified: false,
+      rating: 0,
+      totalTrips: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      registeredVia: 'rider.html'
+    });
+
+    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ', 'success');
+    // onAuthStateChanged จะพาเข้าแอปอัตโนมัติ
+
+  } catch (err) {
+    console.error('[signup]', err);
+    // ถ้าสร้าง auth สำเร็จ แต่เขียน Firestore fail → ลบ auth user เพื่อไม่ให้ค้าง
+    if (createdUser && (err.code === 'permission-denied' || err.message?.includes('firestore'))) {
+      try { await createdUser.delete(); } catch (e) {}
+      showError('❌ สร้างข้อมูลไรเดอร์ไม่สำเร็จ — ลองใหม่');
+    } else {
+      showError(mapAuthError(err.code));
+    }
+    btn.disabled = false; btn.textContent = '✅ สมัครเป็นไรเดอร์';
+  }
+}
+
+function mapAuthError(code) {
+  return ({
+    'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
+    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+    'auth/email-already-in-use': 'อีเมลนี้ถูกใช้แล้ว — ลองเข้าสู่ระบบ',
+    'auth/weak-password': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป ลองใหม่ภายหลัง',
+    'auth/network-request-failed': 'ไม่มีการเชื่อมต่อเครือข่าย'
+  })[code] || 'เข้าสู่ระบบไม่สำเร็จ';
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const b = document.getElementById('login-submit');
+  b.disabled = false; b.textContent = '🔓 เข้าสู่ระบบ';
+  const s = document.getElementById('signup-submit');
+  s.disabled = false; s.textContent = '✅ สมัครเป็นไรเดอร์';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// =====================================================================
+//  PENDING BANNER
+// =====================================================================
+function updatePendingBanner() {
+  const banner = document.getElementById('pending-banner');
+  const emptyMsg = document.getElementById('empty-msg');
+  const isVerified = riderProfile?.verified === true;
+  banner.classList.toggle('show', !isVerified);
+  if (emptyMsg) {
+    emptyMsg.textContent = isVerified
+      ? 'เปิดสถานะ "ออนไลน์" เพื่อรับงานใหม่'
+      : 'รอแอดมินอนุมัติก่อน';
+  }
+}
+
+// =====================================================================
+//  ONLINE TOGGLE
+// =====================================================================
 async function toggleOnline() {
   if (!currentUser) return;
+  if (riderProfile?.verified !== true) {
+    showToast('⏳ รอแอดมินอนุมัติก่อน', 'error');
+    return;
+  }
   isOnline = !isOnline;
   updateOnlineUI();
   try {
-    await db.collection('riders').doc(currentUser.uid).update({ status: isOnline ? 'available' : 'offline', lastSeen: firebase.firestore.FieldValue.serverTimestamp() });
+    await db.collection('riders').doc(currentUser.uid).update({
+      status: isOnline ? 'available' : 'offline',
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
     showToast(isOnline ? '✅ เปิดรับงานแล้ว' : '⏸️ ปิดรับงาน', isOnline ? 'success' : 'info');
     if (isOnline) playBeep();
-  } catch (e) { isOnline = !isOnline; updateOnlineUI(); showToast('❌ เปลี่ยนสถานะไม่สำเร็จ', 'error'); }
+  } catch (e) {
+    isOnline = !isOnline;
+    updateOnlineUI();
+    showToast('❌ เปลี่ยนสถานะไม่สำเร็จ', 'error');
+  }
 }
+
 function updateOnlineUI() {
   const btn = document.getElementById('online-btn');
   const lbl = document.getElementById('online-label');
   const st = document.getElementById('rider-status');
-  btn.classList.toggle('online', isOnline);
-  lbl.textContent = isOnline ? 'ออนไลน์' : 'ออฟไลน์';
-  st.textContent = isOnline ? '🟢 พร้อมรับงาน' : '⚫ ปิดรับงาน';
+  const isVerified = riderProfile?.verified === true;
+  btn.classList.toggle('online', isOnline && isVerified);
+  btn.disabled = !isVerified;
+  lbl.textContent = !isVerified ? 'รออนุมัติ' : (isOnline ? 'ออนไลน์' : 'ออฟไลน์');
+  st.textContent = !isVerified ? '⏳ รอการอนุมัติ' : (isOnline ? '🟢 พร้อมรับงาน' : '⚫ ปิดรับงาน');
 }
 
+// =====================================================================
+//  LISTEN PROFILE (ติดตาม verified real-time)
+// =====================================================================
 function listenProfile() {
   if (unsubscribeProfile) unsubscribeProfile();
-  unsubscribeProfile = db.collection('riders').doc(currentUser.uid).onSnapshot(snap => { if (snap.exists) riderProfile = { uid: currentUser.uid, ...snap.data() }; });
+  unsubscribeProfile = db.collection('riders').doc(currentUser.uid).onSnapshot(snap => {
+    if (!snap.exists) return;
+    const oldVerified = riderProfile?.verified;
+    riderProfile = { uid: currentUser.uid, ...snap.data() };
+    if (oldVerified === false && riderProfile.verified === true) {
+      showToast('🎉 แอดมินอนุมัติแล้ว! เปิดรับงานได้เลย', 'success');
+      playBeep();
+    }
+    updatePendingBanner();
+    updateOnlineUI();
+  });
 }
 
+// =====================================================================
+//  LISTEN ORDERS
+// =====================================================================
 function listenOrders() {
   if (unsubscribeOrders) unsubscribeOrders();
   unsubscribeOrders = db.collection('orders').where('riderId', '==', currentUser.uid).onSnapshot(snap => {
     const prevIds = new Set(allOrders.map(o => o.id));
-    allOrders = snap.docs.map(d => { const x = d.data(); return { id: d.id, ...x, createdAt: x.createdAt ? x.createdAt.toDate() : new Date() }; }).sort((a,b) => b.createdAt - a.createdAt);
-    const newPending = allOrders.find(o => o.status === 'pending' && !prevIds.has(o.id) && prevIds.size > 0);
-    if (newPending && !currentNewJobId) { if (soundEnabled) playBeep(); showNewJobPopup(newPending); }
+    allOrders = snap.docs.map(d => {
+      const x = d.data();
+      return { id: d.id, ...x, createdAt: x.createdAt ? x.createdAt.toDate() : new Date() };
+    }).sort((a,b) => b.createdAt - a.createdAt);
+
+    const newPending = allOrders.find(o =>
+      o.status === 'pending' && !prevIds.has(o.id) && prevIds.size > 0
+    );
+    if (newPending && !currentNewJobId && riderProfile?.verified === true) {
+      if (soundEnabled) playBeep();
+      showNewJobPopup(newPending);
+    }
     render();
   }, err => {
     console.error('[rider orders]', err);
@@ -278,11 +595,16 @@ function listenOrders() {
   });
 }
 
+// =====================================================================
+//  RENDER
+// =====================================================================
 function render() {
   const today = new Date(); today.setHours(0,0,0,0);
+
   const newJobs = allOrders.filter(o => o.status === 'pending');
   const activeJobs = allOrders.filter(o => ['accepted','picked_up','on_the_way'].includes(o.status));
   const doneJobs = allOrders.filter(o => o.status === 'done' && o.createdAt >= today).slice(0, 10);
+
   document.getElementById('cnt-new').textContent = newJobs.length;
   document.getElementById('cnt-active').textContent = activeJobs.length;
   document.getElementById('cnt-done').textContent = doneJobs.length;
@@ -290,9 +612,11 @@ function render() {
   document.getElementById('stat-done').textContent = doneJobs.length;
   const earn = doneJobs.reduce((s, o) => s + Number(o.fare || 0), 0);
   document.getElementById('stat-earn').textContent = earn.toLocaleString('th-TH') + '฿';
+
   document.getElementById('new-jobs').innerHTML = newJobs.map(o => renderCard(o, 'new')).join('');
   document.getElementById('active-jobs').innerHTML = activeJobs.map(o => renderCard(o, 'active')).join('');
   document.getElementById('done-jobs').innerHTML = doneJobs.map(o => renderCard(o, 'done')).join('');
+
   document.getElementById('empty-all').style.display = allOrders.length > 0 ? 'none' : 'block';
 }
 
@@ -302,28 +626,43 @@ function renderCard(o, group) {
   const items = String(o.items || '');
   const custPhone = o.userPhone || '';
   const distStr = o.distance ? Number(o.distance).toFixed(1) + ' กม.' : '—';
-  const icons = { food:'🍽️', shopping:'🛒', dinein:'🍴', express:'📦', map:'🗺️' };
   const statusIcon = { pending:'🔔', accepted:'🛵', picked_up:'📦', on_the_way:'🚀', done:'✅' }[o.status] || '📦';
+
   let actionBtns = '', quickActions = '';
+
   if (group === 'new') {
-    actionBtns = `<div class="actions-grid two"><button class="action-btn btn-green" onclick="acceptOrder('${o.id}')">✅ รับงาน</button><button class="action-btn btn-gray" onclick="rejectOrder('${o.id}')">✕ ปฏิเสธ</button></div>`;
+    actionBtns = `<div class="actions-grid two">
+      <button class="action-btn btn-green" onclick="acceptOrder('${o.id}')">✅ รับงาน</button>
+      <button class="action-btn btn-gray" onclick="rejectOrder('${o.id}')">✕ ปฏิเสธ</button>
+    </div>`;
   } else if (o.status === 'accepted') {
-    actionBtns = `<button class="action-btn btn-orange" onclick="updateStatus('${o.id}','picked_up')">📦 รับของแล้ว — ไปส่ง</button>`;
+    actionBtns = `<button class="action-btn btn-orange" onclick="updateStatus('${o.id}','picked_up')">
+      📦 รับของแล้ว — ไปส่ง
+    </button>`;
   } else if (o.status === 'picked_up') {
-    actionBtns = `<button class="action-btn btn-blue" onclick="updateStatus('${o.id}','on_the_way')">🛵 กำลังเดินทาง</button>`;
+    actionBtns = `<button class="action-btn btn-blue" onclick="updateStatus('${o.id}','on_the_way')">
+      🛵 กำลังเดินทาง
+    </button>`;
   } else if (o.status === 'on_the_way') {
-    actionBtns = `<button class="action-btn btn-green" onclick="updateStatus('${o.id}','done')">✅ ส่งสำเร็จ — เก็บเงินแล้ว</button>`;
+    actionBtns = `<button class="action-btn btn-green" onclick="updateStatus('${o.id}','done')">
+      ✅ ส่งสำเร็จ — เก็บเงินแล้ว
+    </button>`;
   }
+
   if (['accepted','picked_up','on_the_way'].includes(o.status)) {
     quickActions = `<div class="quick-actions">
       ${custPhone ? `<a href="tel:${escHtml(custPhone)}" class="quick-btn">📞 โทรลูกค้า</a>` : `<button class="quick-btn">📞 ไม่มีเบอร์</button>`}
       <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address||'')}" target="_blank" class="quick-btn">🗺️ นำทาง</a>
     </div>`;
   }
+
   return `<div class="order-card ${o.status}">
     <div class="card-head">
       <div class="card-icon">${statusIcon}</div>
-      <div class="card-title"><h3>${escHtml(o.title || '—')}</h3><div class="sub">${date} • ${time}</div></div>
+      <div class="card-title">
+        <h3>${escHtml(o.title || '—')}</h3>
+        <div class="sub">${date} • ${time}</div>
+      </div>
       ${group === 'new' ? '<span class="card-badge">ใหม่</span>' : ''}
     </div>
     <div class="info-row"><div class="ico">👤</div><div class="txt"><strong>${escHtml(o.userName || 'ลูกค้า')}</strong></div></div>
@@ -331,14 +670,27 @@ function renderCard(o, group) {
     <div class="info-row"><div class="ico">📏</div><div class="txt">ระยะทาง <strong>${distStr}</strong></div></div>
     ${o.note ? `<div class="info-row"><div class="ico">📌</div><div class="txt">${escHtml(o.note)}</div></div>` : ''}
     <div class="items-box"><strong>รายการ</strong>${escHtml(items)}</div>
-    <div class="money-row"><div class="lbl">💰 เก็บเงินจากลูกค้า</div><div class="amt">${Number(o.total || 0)}฿</div></div>
-    ${actionBtns}${quickActions}
+    <div class="money-row">
+      <div class="lbl">💰 เก็บเงินจากลูกค้า</div>
+      <div class="amt">${Number(o.total || 0)}฿</div>
+    </div>
+    ${actionBtns}
+    ${quickActions}
   </div>`;
 }
 
-async function acceptOrder(orderId) { await updateOrder(orderId, { status: 'accepted', acceptedAt: firebase.firestore.FieldValue.serverTimestamp() }, '✅ รับงานแล้ว'); }
+// =====================================================================
+//  ORDER ACTIONS
+// =====================================================================
+async function acceptOrder(orderId) {
+  await updateOrder(orderId, {
+    status: 'accepted',
+    acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, '✅ รับงานแล้ว — ไปที่ร้าน');
+}
+
 async function rejectOrder(orderId) {
-  if (!confirm('ปฏิเสธงานนี้?')) return;
+  if (!confirm('ปฏิเสธงานนี้?\nงานจะถูกส่งคืนให้แอดมินมอบหมายใหม่')) return;
   await updateOrder(orderId, {
     status: 'searching',
     riderId: firebase.firestore.FieldValue.delete(),
@@ -347,19 +699,40 @@ async function rejectOrder(orderId) {
     rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, '↩️ ส่งคืนงานแล้ว');
 }
+
 async function updateStatus(orderId, newStatus) {
   const updates = { status: newStatus };
   if (newStatus === 'picked_up') updates.pickedUpAt = firebase.firestore.FieldValue.serverTimestamp();
   if (newStatus === 'on_the_way') updates.onTheWayAt = firebase.firestore.FieldValue.serverTimestamp();
   if (newStatus === 'done') updates.deliveredAt = firebase.firestore.FieldValue.serverTimestamp();
-  const msg = { picked_up:'📦 รับของแล้ว', on_the_way:'🛵 กำลังเดินทาง', done:'🎉 ส่งสำเร็จ!' }[newStatus] || '✅ อัพเดตแล้ว';
-  await updateOrder(orderId, updates, msg);
-}
-async function updateOrder(orderId, updates, successMsg) {
-  try { await db.collection('orders').doc(orderId).update(updates); showToast(successMsg || '✅ สำเร็จ', 'success'); closeNewJobPopup(); }
-  catch (e) { console.error(e); showToast(e.code === 'permission-denied' ? '❌ ไม่มีสิทธิ์แก้ไข' : '❌ อัพเดตไม่สำเร็จ', 'error'); }
+
+  const successMsg = {
+    picked_up: '📦 อัพเดตแล้ว — กำลังไปส่ง',
+    on_the_way: '🛵 กำลังเดินทาง',
+    done: '🎉 ส่งสำเร็จ!'
+  }[newStatus] || '✅ อัพเดตแล้ว';
+
+  await updateOrder(orderId, updates, successMsg);
 }
 
+async function updateOrder(orderId, updates, successMsg) {
+  try {
+    await db.collection('orders').doc(orderId).update(updates);
+    showToast(successMsg || '✅ สำเร็จ', 'success');
+    closeNewJobPopup();
+  } catch (e) {
+    console.error('[update]', e);
+    if (e.code === 'permission-denied') {
+      showToast('❌ ไม่มีสิทธิ์แก้ไขออเดอร์นี้', 'error');
+    } else {
+      showToast('❌ อัพเดตไม่สำเร็จ', 'error');
+    }
+  }
+}
+
+// =====================================================================
+//  NEW JOB POPUP
+// =====================================================================
 function showNewJobPopup(o) {
   currentNewJobId = o.id;
   const distStr = o.distance ? Number(o.distance).toFixed(1) + ' กม.' : '—';
@@ -372,9 +745,20 @@ function showNewJobPopup(o) {
   `;
   document.getElementById('new-job-popup').classList.add('active');
 }
-function closeNewJobPopup() { document.getElementById('new-job-popup').classList.remove('active'); currentNewJobId = null; }
-function acceptNewJob() { if (currentNewJobId) acceptOrder(currentNewJobId); }
 
+function closeNewJobPopup() {
+  document.getElementById('new-job-popup').classList.remove('active');
+  currentNewJobId = null;
+}
+
+function acceptNewJob() {
+  if (!currentNewJobId) return;
+  acceptOrder(currentNewJobId);
+}
+
+// =====================================================================
+//  SOUND
+// =====================================================================
 let audioCtx = null;
 function playBeep() {
   try {
@@ -394,12 +778,18 @@ function playBeep() {
   } catch (e) {}
 }
 
+// =====================================================================
+//  MENU
+// =====================================================================
 function openMenu() { document.getElementById('menu-sheet').classList.add('active'); }
 function closeMenu() { document.getElementById('menu-sheet').classList.remove('active'); }
+
 function showMyInfo() {
   closeMenu();
-  alert(`👤 ${riderProfile.name || 'ไรเดอร์'}\n📧 ${currentUser.email}\n📱 ${riderProfile.phone || '-'}\n🛵 ${riderProfile.vehicle || '-'}\n⭐ ${riderProfile.rating || 0} (${riderProfile.totalTrips || 0} เที่ยว)`);
+  const verified = riderProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รอการอนุมัติ';
+  alert(`👤 ${riderProfile.name || 'ไรเดอร์'}\n📧 ${currentUser.email}\n📱 ${riderProfile.phone || '-'}\n🛵 ${riderProfile.vehicle || '-'}\n⭐ ${riderProfile.rating || 0} (${riderProfile.totalTrips || 0} เที่ยว)\n🔐 สถานะ: ${verified}`);
 }
+
 function showTodayStats() {
   closeMenu();
   const today = new Date(); today.setHours(0,0,0,0);
@@ -408,19 +798,32 @@ function showTodayStats() {
   alert(`📊 สรุปวันนี้\n\n📦 ส่งสำเร็จ: ${doneToday.length} งาน\n💰 รายได้ค่าส่ง: ${earn}฿`);
 }
 
+// =====================================================================
+//  LOGOUT
+// =====================================================================
 async function handleRiderLogout() {
   if (!confirm('ออกจากระบบ?')) return;
   closeMenu();
-  if (currentUser && isOnline) await db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(()=>{});
+  if (currentUser && isOnline) {
+    await db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(()=>{});
+  }
   if (unsubscribeOrders) unsubscribeOrders();
   if (unsubscribeProfile) unsubscribeProfile();
   await auth.signOut();
-  allOrders = []; seenOrderIds.clear();
+  allOrders = []; seenOrderIds.clear(); riderProfile = null;
 }
 
-window.addEventListener('online', () => { document.getElementById('offline-bar').classList.remove('show'); showToast('🟢 กลับมาออนไลน์', 'success'); });
-window.addEventListener('offline', () => { document.getElementById('offline-bar').classList.add('show'); });
+// =====================================================================
+//  OFFLINE
+// =====================================================================
+window.addEventListener('online', () => {
+  document.getElementById('offline-bar').classList.remove('show');
+  showToast('🟢 กลับมาออนไลน์', 'success');
+});
+window.addEventListener('offline', () => {
+  document.getElementById('offline-bar').classList.add('show');
+});
 if (!navigator.onLine) document.getElementById('offline-bar').classList.add('show');
 </script>
 </body>
-</html> 
+</html>
