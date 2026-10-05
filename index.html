@@ -1,0 +1,3063 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Chauat Go — สั่งอาหาร อ.ชะอวด</title>
+<meta name="theme-color" content="#00A651">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chauat Go">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Chauat Go">
+<meta name="description" content="แอปค้นหาสถานที่และสั่งอาหาร อ.ชะอวด จ.นครศรีธรรมราช">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon.svg">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+/* ═══════════════════════════════════════════════════
+   CHAUAT GO — PREMIUM UI v2.0 + MERCHANT ORDERING
+   ═══════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Thai','Sarabun',-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+:root{--brand:#00A651;--brand-dark:#008C45;--brand-light:#E8F5E9;--accent:#FF6B35;--accent-dark:#E55A2B;--bg:#F5F7FA;--surface:#FFFFFF;--text:#1A1A1A;--text-muted:#6B7280;--text-light:#9CA3AF;--border:rgba(0,0,0,.06);--shadow-sm:0 1px 3px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.06);--shadow-lg:0 12px 32px rgba(0,0,0,.08)}
+html,body{width:100%;overflow-x:hidden;background:var(--bg)}
+body{max-width:480px;margin:0 auto;min-height:100vh;color:var(--text);padding-bottom:calc(88px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#00A651 0%,#008C45 60%,#006B33 100%);padding:calc(16px + env(safe-area-inset-top)) 16px 20px;position:sticky;top:0;z-index:100;border-radius:0 0 24px 24px;box-shadow:0 8px 24px rgba(0,166,81,.24);overflow:hidden}
+.header::before{content:'';position:absolute;top:-80px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 65%);border-radius:50%;pointer-events:none}
+.header::after{content:'';position:absolute;bottom:-100px;left:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 65%);border-radius:50%;pointer-events:none}
+.header-top{display:flex;align-items:center;gap:10px;width:100%;position:relative;z-index:2}
+.location-badge{background:rgba(255,255,255,.22);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.28);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;cursor:pointer;transition:transform .2s,background .2s}
+.location-badge:active{transform:scale(.96);background:rgba(255,255,255,.3)}
+.location-badge .loc-text{color:#fff;font-size:11px;font-weight:700;line-height:1.2}
+.location-badge .loc-sub{color:rgba(255,255,255,.85);font-size:9px;font-weight:600;margin-top:1px}
+.search-bar{flex:1;background:rgba(255,255,255,.98);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,.08);min-width:0;overflow:hidden;transition:box-shadow .2s}
+.search-bar:focus-within{box-shadow:0 6px 20px rgba(0,0,0,.14)}
+.search-bar input{border:none;outline:none;font-size:14px;font-weight:500;flex:1;color:var(--text);background:transparent;min-width:0;width:100%}
+.search-bar input::placeholder{color:var(--text-light)}
+.header-auth-row{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;position:relative;z-index:2}
+#install-btn,#login-btn,#logout-btn{background:rgba(255,255,255,.95);color:var(--brand);border:none;padding:9px 16px;border-radius:22px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.12);transition:transform .15s}
+#install-btn{display:none}
+#logout-btn{display:none;color:var(--accent)}
+#install-btn:active,#login-btn:active,#logout-btn:active{transform:scale(.95)}
+#auth-btns{display:flex;gap:8px;align-items:center}
+#user-display{display:none;color:#fff;font-size:12px;font-weight:700;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:9px 14px;background:rgba(255,255,255,.2);backdrop-filter:blur(12px);border-radius:22px;border:1px solid rgba(255,255,255,.28)}
+
+/* MENU GRID */
+.menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:20px 16px;margin:8px 0}
+.menu-item{text-align:center;cursor:pointer;padding:12px 6px;border-radius:18px;transition:transform .2s;user-select:none;background:var(--surface);box-shadow:var(--shadow-sm)}
+.menu-item:active{transform:scale(.94)}
+.menu-icon{width:56px;height:56px;margin:0 auto 8px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:transform .25s}
+.menu-item:active .menu-icon{transform:scale(1.08) rotate(-4deg)}
+.menu-icon.food{background:linear-gradient(135deg,#FFF3E0 0%,#FFE0B2 100%)}
+.menu-icon.shopping{background:linear-gradient(135deg,#E3F2FD 0%,#BBDEFB 100%)}
+.menu-icon.dinein{background:linear-gradient(135deg,#FCE4EC 0%,#F8BBD0 100%)}
+.menu-icon.express{background:linear-gradient(135deg,#F3E5F5 0%,#E1BEE7 100%)}
+.menu-icon.travel{background:linear-gradient(135deg,#E8F5E9 0%,#C8E6C9 100%)}
+.menu-icon.map{background:linear-gradient(135deg,#FFF8E1 0%,#FFECB3 100%)}
+.menu-label{font-size:12px;color:var(--text);font-weight:800}
+
+/* SECTION */
+.section-header{padding:20px 16px 12px;display:flex;justify-content:space-between;align-items:center}
+.section-title{font-size:17px;font-weight:900;color:var(--text);display:flex;align-items:center;gap:8px}
+.section-more{color:var(--brand);font-size:13px;cursor:pointer;font-weight:800;padding:6px 12px;border-radius:20px;background:var(--brand-light);transition:transform .15s}
+.section-more:active{transform:scale(.95)}
+
+/* FOOD CARDS */
+.food-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 20px}
+.food-card{background:var(--surface);border-radius:20px;overflow:hidden;box-shadow:var(--shadow-md);cursor:pointer;transition:transform .2s}
+.food-card:active{transform:scale(.96)}
+.food-img{width:100%;height:130px;position:relative;display:flex;align-items:center;justify-content:center;font-size:48px;background:#f0f0f0;overflow:hidden}
+.food-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
+.food-card:active .food-img img{transform:scale(1.05)}
+.food-img.rest{background:linear-gradient(135deg,#667eea,#764ba2)}
+.food-img.cafe{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.food-img.shop{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+.food-img.temple{background:linear-gradient(135deg,#FFD700,#FFA500)}
+.food-info{padding:12px 12px 14px}
+.food-name{font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px}
+.food-meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted);font-weight:700}
+.food-rating{color:#FFA500;font-weight:800}
+.food-price{font-size:13px;color:var(--brand);font-weight:900;margin-top:6px}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:rgba(255,255,255,.95);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);display:grid;grid-template-columns:repeat(3,1fr);padding:8px 8px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -4px 24px rgba(0,0,0,.06);z-index:99;border-top:1px solid rgba(0,0,0,.04);border-radius:24px 24px 0 0}
+.nav-item{text-align:center;padding:8px 4px;cursor:pointer;border-radius:14px;transition:background .2s}
+.nav-item.active{background:rgba(0,166,81,.08)}
+.nav-item.active .nav-icon-wrap{color:var(--brand);transform:translateY(-2px) scale(1.1)}
+.nav-item.active .nav-label{color:var(--brand);font-weight:900}
+.nav-icon-wrap{font-size:24px;color:var(--text-light);margin-bottom:2px;position:relative;display:inline-block;transition:transform .25s,color .2s;filter:grayscale(.3)}
+.nav-item.active .nav-icon-wrap{filter:grayscale(0)}
+.nav-badge{position:absolute;top:-6px;right:-12px;background:linear-gradient(135deg,#E91E63,#C2185B);color:#fff;font-size:10px;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;padding:0 5px;box-shadow:0 4px 10px rgba(233,30,99,.4);border:2px solid #fff;animation:badgePulse 2s infinite}
+@keyframes badgePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+.nav-label{font-size:11px;color:var(--text-light);font-weight:700}
+
+/* TOAST */
+.toast{position:fixed;top:24px;left:50%;transform:translateX(-50%);background:rgba(26,26,26,.95);backdrop-filter:blur(12px);color:#fff;padding:14px 24px;border-radius:24px;font-size:14px;font-weight:700;z-index:3000;display:none;max-width:88%;text-align:center;box-shadow:0 12px 32px rgba(0,0,0,.24)}
+.toast.active{display:block;animation:toastIn .3s cubic-bezier(.4,0,.2,1)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:flex-end}
+.modal-overlay.active{display:flex;animation:fadeIn .25s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-content{background:#fff;width:100%;max-width:480px;border-radius:28px 28px 0 0;padding:28px 24px;max-height:92vh;overflow-y:auto;animation:sheetUp .35s cubic-bezier(.4,0,.2,1);box-shadow:0 -12px 40px rgba(0,0,0,.15);position:relative}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* SEARCH RESULTS */
+.search-results{padding:0 16px 16px;display:none}
+.search-results.active{display:block;animation:fadeIn .2s}
+.search-result-item{background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .15s,box-shadow .15s}
+.search-result-item:active{transform:scale(.98);box-shadow:var(--shadow-md)}
+.search-result-img{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;overflow:hidden;background:#f0f0f0}
+.search-result-img img{width:100%;height:100%;object-fit:cover}
+.search-result-img.rest{background:linear-gradient(135deg,#667eea,#764ba2)}
+.search-result-img.cafe{background:linear-gradient(135deg,#f093fb,#f5576c)}
+.search-result-img.shop{background:linear-gradient(135deg,#4facfe,#00f2fe)}
+.search-result-img.temple{background:linear-gradient(135deg,#FFD700,#FFA500)}
+
+/* CATEGORY */
+.category-view{display:none;padding:0 16px 16px}
+.category-view.active{display:block;animation:fadeIn .2s}
+
+/* MAP PAGE */
+.map-page{display:none;position:fixed;inset:0;background:#fff;z-index:500;flex-direction:column}
+.map-page.active{display:flex}
+.map-header-bar{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:501}
+.map-header-bar h3{font-size:16px;font-weight:900;flex:1}
+.map-back-btn{background:rgba(255,255,255,.22);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.28);color:#fff;padding:8px 14px;border-radius:22px;font-size:13px;font-weight:800;cursor:pointer}
+#main-map{flex:1;width:100%;height:100%;z-index:500}
+.map-controls{position:absolute;bottom:90px;left:16px;right:16px;z-index:502;display:flex;gap:8px;flex-wrap:wrap}
+.map-ctrl-btn{background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border:none;padding:10px 14px;border-radius:22px;font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.15);display:flex;align-items:center;gap:5px}
+.map-info-panel{position:absolute;bottom:85px;left:12px;right:12px;z-index:502;background:rgba(255,255,255,.98);backdrop-filter:blur(20px);border-radius:20px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.18);display:none;max-height:300px;overflow-y:auto;border:1px solid rgba(255,255,255,.9)}
+.map-info-panel.active{display:block;animation:sheetUp .3s}
+.map-info-title{font-size:16px;font-weight:900;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.map-info-sub{font-size:13px;color:var(--text-muted);margin-bottom:6px;font-weight:600}
+.map-info-sub strong{color:var(--brand);font-weight:900}
+.map-info-cost{background:linear-gradient(135deg,#FFF3E0,#FFE0B2);padding:12px;border-radius:14px;margin:12px 0;border-left:4px solid var(--accent)}
+.map-info-cost .cost-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:#8D4A00;font-weight:700}
+.map-info-cost .cost-total{display:flex;justify-content:space-between;font-size:17px;font-weight:900;color:var(--brand);padding-top:8px;border-top:1px dashed #FFB74D;margin-top:6px}
+.map-info-actions{display:flex;gap:8px;margin-top:12px}
+.map-info-btn{flex:1;padding:12px;border-radius:14px;border:none;font-weight:900;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.map-info-btn.primary{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;box-shadow:0 6px 16px rgba(0,166,81,.3)}
+.map-info-btn.call-rider{background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;box-shadow:0 6px 16px rgba(255,107,53,.3)}
+.map-info-btn.secondary{background:#f0f0f0;color:#666}
+.tambon-list{position:absolute;top:76px;right:12px;z-index:502;background:rgba(255,255,255,.98);backdrop-filter:blur(20px);border-radius:16px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.18);max-height:320px;overflow-y:auto;display:none;width:200px}
+.tambon-list.active{display:block}
+.tambon-item{padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;font-weight:700}
+.tambon-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+
+/* ORDERS */
+.orders-tab,.messages-tab{padding:16px;display:none}
+.orders-tab.active,.messages-tab.active{display:block;animation:fadeIn .2s}
+.order-section-title{font-size:14px;font-weight:900;color:var(--text-muted);margin:18px 0 12px;text-transform:uppercase;letter-spacing:.5px}
+.order-section-title:first-child{margin-top:0}
+.order-card{background:var(--surface);border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-md);display:flex;gap:14px;cursor:pointer;border-left:4px solid var(--brand);transition:transform .15s}
+.order-card:active{transform:scale(.98)}
+.order-card.searching{border-left-color:#4A90D9;animation:cardPulse 2s infinite}
+.order-card.pending{border-left-color:var(--accent)}
+.order-card.accepted{border-left-color:#4A90D9}
+.order-card.picked_up{border-left-color:#9C27B0}
+.order-card.on_the_way{border-left-color:var(--brand);animation:cardPulse 2s infinite}
+.order-card.done{border-left-color:#cbd5e0}
+.order-card.cancelled{border-left-color:#cbd5e0;opacity:.6}
+@keyframes cardPulse{0%,100%{box-shadow:var(--shadow-md)}50%{box-shadow:0 0 0 4px rgba(0,166,81,.15),var(--shadow-md)}}
+.order-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.order-icon.searching{background:linear-gradient(135deg,#E3F2FD,#BBDEFB)}
+.order-icon.pending{background:linear-gradient(135deg,#FFF3E0,#FFE0B2)}
+.order-icon.accepted{background:linear-gradient(135deg,#E3F2FD,#BBDEFB)}
+.order-icon.picked_up{background:linear-gradient(135deg,#F3E5F5,#E1BEE7)}
+.order-icon.on_the_way{background:linear-gradient(135deg,#E8F5E9,#C8E6C9)}
+.order-icon.done{background:linear-gradient(135deg,#F5F5F5,#E8E8E8)}
+.order-icon.cancelled{background:#f0f0f0}
+.order-info{flex:1;min-width:0}
+.order-title{font-weight:900;font-size:14px;margin-bottom:6px}
+.order-detail{font-size:12px;color:var(--text-muted);margin-bottom:2px;font-weight:600}
+.order-status{font-size:11px;padding:4px 10px;border-radius:12px;font-weight:900;margin-top:8px;display:inline-block}
+.order-status.searching{background:#E3F2FD;color:#1565C0}
+.order-status.pending{background:#FFF3E0;color:#E65100}
+.order-status.accepted{background:#E3F2FD;color:#1565C0}
+.order-status.picked_up{background:#F3E5F5;color:#6A1B9A}
+.order-status.on_the_way{background:#E8F5E9;color:#2E7D32}
+.order-status.done{background:#f0f0f0;color:#666}
+.order-status.cancelled{background:#f0f0f0;color:#999}
+.order-price-tag{color:var(--accent);font-weight:900;font-size:15px;margin-top:6px}
+
+/* CHAT CARD */
+.chat-card{background:var(--surface);border-radius:18px;padding:16px;margin-bottom:12px;display:flex;gap:14px;cursor:pointer;box-shadow:var(--shadow-md)}
+.chat-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:900;flex-shrink:0;box-shadow:0 4px 12px rgba(255,107,53,.3)}
+.chat-info{flex:1;min-width:0}
+.chat-name{font-weight:900;font-size:14px;margin-bottom:4px}
+.chat-last{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-meta{text-align:right;flex-shrink:0}
+.chat-time{font-size:11px;color:var(--text-light);margin-bottom:4px;font-weight:700}
+.chat-unread{background:linear-gradient(135deg,#E91E63,#C2185B);color:#fff;font-size:10px;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;margin-left:auto;padding:0 6px}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:60px 24px;color:var(--text-light)}
+.empty-state .icon{font-size:56px;margin-bottom:12px;opacity:.7}
+#home-content.hidden{display:none}
+
+/* ORDER FORM */
+.order-form-header{text-align:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.order-form-header .of-icon{font-size:56px;margin-bottom:10px}
+.order-form-header .of-title{font-size:22px;font-weight:900}
+.order-form-header .of-sub{font-size:13px;color:var(--text-muted);margin-top:6px;font-weight:600}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:14px 16px;border:2px solid #e8e8e8;border-radius:14px;font-size:14px;font-weight:600;outline:none;transition:border-color .2s,box-shadow .2s;font-family:inherit;background:#fafafa}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
+.form-group textarea{resize:vertical;min-height:90px}
+.summary-box{background:linear-gradient(135deg,#F8F9FA,#F0F2F5);border-radius:16px;padding:16px;margin:16px 0}
+.summary-row{display:flex;justify-content:space-between;padding:7px 0;font-size:14px;font-weight:600}
+.summary-row.total{border-top:2px solid var(--brand);margin-top:10px;padding-top:12px;font-size:20px;font-weight:900;color:var(--brand)}
+.btn-full{width:100%;padding:16px;border-radius:16px;border:none;font-weight:900;font-size:15px;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .15s}
+.btn-full:active{transform:scale(.98)}
+.btn-full:disabled{opacity:.5;cursor:not-allowed}
+.btn-green{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;box-shadow:0 6px 16px rgba(0,166,81,.3)}
+.btn-orange{background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;box-shadow:0 6px 16px rgba(255,107,53,.3)}
+.btn-blue{background:linear-gradient(135deg,#4A90D9,#1565C0);color:#fff;box-shadow:0 6px 16px rgba(74,144,217,.3)}
+.btn-gray{background:#f5f5f5;color:#666}
+
+/* RIDER FOUND */
+.rider-found-box{background:linear-gradient(135deg,#E8F5E9,#C8E6C9);border-radius:16px;padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:14px;border-left:4px solid var(--brand)}
+.rider-found-box .rf-avatar{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:900;flex-shrink:0}
+.rider-found-box .rf-name{font-weight:900;font-size:15px;color:#1B5E20}
+.rider-found-box .rf-vehicle{font-size:12px;color:var(--text-muted);font-weight:600;margin-top:2px}
+.rider-found-box .rf-rating{font-size:12px;color:#FFA500;font-weight:800;margin-top:2px}
+
+/* TIMELINE */
+.timeline{background:#fff;border-radius:18px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow-md)}
+.timeline-item{display:flex;gap:14px;padding:10px 0;opacity:.35;transition:opacity .3s}
+.timeline-item.active,.timeline-item.done{opacity:1}
+.timeline-dot{width:24px;height:24px;border-radius:50%;background:#e0e0e0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:900}
+.timeline-item.done .timeline-dot{background:linear-gradient(135deg,#00A651,#008C45);box-shadow:0 0 0 4px rgba(0,166,81,.15)}
+.timeline-item.active .timeline-dot{background:linear-gradient(135deg,#FF6B35,#E55A2B);box-shadow:0 0 0 4px rgba(255,107,53,.2);animation:dotPulse 1.5s infinite}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 0 4px rgba(255,107,53,.2)}50%{box-shadow:0 0 0 10px rgba(255,107,53,.05)}}
+.timeline-text{font-size:13px;color:var(--text-muted);line-height:1.4;padding-top:3px;font-weight:600}
+.timeline-item.done .timeline-text,.timeline-item.active .timeline-text{color:var(--text);font-weight:800}
+.timeline-time{font-size:11px;color:var(--text-light);margin-top:3px;font-weight:700}
+
+/* PDPA */
+.pdpa-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.pdpa-overlay.hidden{display:none}
+.pdpa-content{background:#fff;border-radius:24px;padding:32px 26px;width:100%;max-width:420px;text-align:center;animation:sheetUp .4s}
+.pdpa-content .pdpa-icon{font-size:64px;margin-bottom:12px}
+.pdpa-content h3{font-size:22px;margin-bottom:12px;font-weight:900}
+.pdpa-content p{font-size:13.5px;color:var(--text-muted);line-height:1.65;margin-bottom:20px;text-align:left;font-weight:500}
+.pdpa-content a{color:var(--brand);text-decoration:underline;font-weight:800}
+.pdpa-btn{width:100%;padding:16px;border-radius:14px;border:none;font-weight:900;font-size:15px;cursor:pointer;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.pdpa-accept{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;box-shadow:0 8px 20px rgba(0,166,81,.3)}
+.pdpa-read{background:#f5f5f5;color:#666}
+
+/* LOCATION */
+.loc-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px}
+.loc-popup-overlay.hidden{display:none}
+.loc-popup-content{background:#fff;border-radius:24px;padding:32px 26px;width:100%;max-width:400px;text-align:center;animation:sheetUp .4s}
+.loc-popup-content .loc-icon-big{font-size:64px;margin-bottom:12px}
+.loc-popup-content h3{font-size:20px;margin-bottom:10px;font-weight:900}
+.loc-popup-content p{font-size:13.5px;color:var(--text-muted);line-height:1.6;margin-bottom:24px}
+.loc-popup-btn{width:100%;padding:16px;border-radius:14px;border:none;font-weight:900;font-size:15px;cursor:pointer;margin-top:10px}
+.loc-allow{background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;box-shadow:0 8px 20px rgba(21,101,192,.3)}
+.loc-skip{background:#f5f5f5;color:#666}
+
+/* INSTALL */
+#install-modal .modal-content{text-align:center}
+#install-confirm-btn{background:linear-gradient(135deg,#00A651,#008C45);box-shadow:0 8px 24px rgba(0,166,81,.35)}
+
+/* LEGAL FOOTER */
+.legal-footer{background:linear-gradient(135deg,#F8F9FA,#F0F2F5);padding:24px 20px;text-align:center;border-top:1px solid var(--border);margin-top:24px;border-radius:20px 20px 0 0}
+.legal-footer .dbd-mark{width:88px;height:88px;background:#fff;border-radius:12px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;border:1.5px dashed #ddd;font-weight:800}
+.legal-footer .links{font-size:12px;color:var(--brand);margin-bottom:12px;font-weight:700}
+.legal-footer .links a{color:var(--brand);text-decoration:none;margin:0 6px;font-weight:800}
+.legal-footer .copyright{font-size:11px;color:var(--text-light);line-height:1.6;font-weight:600}
+
+/* RIDER DISCLAIMER */
+.rider-disclaimer{background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:14px;padding:14px;margin-top:16px;font-size:12px;color:#E65100;line-height:1.5;font-weight:600}
+
+/* OFFLINE */
+.offline-banner{display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;text-align:center;padding:10px;font-size:13px;font-weight:800;z-index:9999}
+.offline-banner.active{display:block}
+
+/* RATING */
+.rating-stars{display:flex;justify-content:center;gap:10px;margin:20px 0}
+.rating-star{font-size:42px;cursor:pointer;transition:transform .15s,filter .15s;filter:grayscale(1);opacity:.3}
+.rating-star.active{filter:grayscale(0);opacity:1;transform:scale(1.15)}
+.rating-label{text-align:center;font-size:14px;font-weight:800;min-height:24px;margin-bottom:12px;color:var(--brand)}
+.rating-comment{width:100%;padding:14px;border:2px solid #e8e8e8;border-radius:14px;font-size:14px;font-family:inherit;outline:none;resize:vertical;min-height:90px;font-weight:600}
+.rating-comment:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(0,166,81,.1)}
+
+/* LEVEL BADGE */
+.level-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:900;vertical-align:middle}
+.level-elite{background:linear-gradient(135deg,#FFD700,#FFA000);color:#fff}
+.level-gold{background:linear-gradient(135deg,#FFC107,#FF8F00);color:#fff}
+.level-silver{background:linear-gradient(135deg,#B0BEC5,#78909C);color:#fff}
+.level-bronze{background:linear-gradient(135deg,#BCAAA4,#8D6E63);color:#fff}
+.level-new{background:#E3F2FD;color:#1565C0}
+
+/* CHAT UI */
+.chat-container{display:flex;flex-direction:column;height:70vh;max-height:600px;margin:-28px -24px -28px}
+.chat-header{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px}
+.chat-header .back-btn{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.28);color:#fff;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.chat-header .info{flex:1;min-width:0}
+.chat-header .info .name{font-size:15px;font-weight:900}
+.chat-header .info .status{font-size:11px;opacity:.9;font-weight:600;margin-top:1px}
+.chat-messages{flex:1;overflow-y:auto;padding:18px 14px;background:#ECE5DD;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:78%;padding:11px 15px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;box-shadow:0 2px 6px rgba(0,0,0,.06);animation:msgIn .3s}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.sent{align-self:flex-end;background:linear-gradient(135deg,#DCF8C6,#C5E1A5);border-bottom-right-radius:4px}
+.chat-msg.received{align-self:flex-start;background:#fff;border-bottom-left-radius:4px}
+.chat-msg.system{align-self:center;background:rgba(0,0,0,.08);color:#666;font-size:12px;padding:7px 14px;border-radius:12px;max-width:90%;text-align:center;box-shadow:none;font-weight:700}
+.chat-msg .msg-time{font-size:10px;color:#999;margin-top:5px;text-align:right;display:block;font-weight:700}
+.chat-msg img{max-width:100%;border-radius:14px;display:block;cursor:pointer;margin-bottom:5px}
+.chat-msg .img-label{font-size:11px;color:#666;margin-bottom:6px;font-weight:800;display:flex;align-items:center;gap:4px}
+.chat-input-area{display:flex;gap:10px;padding:12px 14px;background:#fff;align-items:center}
+.chat-input-area input[type="text"]{flex:1;padding:13px 18px;border:2px solid #e8e8e8;border-radius:24px;outline:none;font-size:14px;font-weight:600}
+.chat-input-area input[type="text"]:focus{border-color:var(--brand)}
+.chat-attach-btn{width:42px;height:42px;border-radius:50%;background:#f0f0f0;border:none;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.chat-send-btn{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;border:none;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,166,81,.3)}
+.chat-quick-actions{display:flex;gap:8px;padding:10px 14px;background:#f8f9fa;overflow-x:auto}
+.chat-quick-actions::-webkit-scrollbar{display:none}
+.quick-action{padding:9px 16px;background:#fff;border:1.5px solid #e8e8e8;border-radius:20px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer;color:#555}
+.quick-action:active{background:#00A651;color:#fff;border-color:#00A651}
+
+/* TRACKING */
+.tracking-box{background:#fff;border-radius:18px;padding:14px;margin-bottom:16px;box-shadow:var(--shadow-md)}
+.tracking-status-bar{display:flex;align-items:center;gap:12px;padding:12px 14px;background:linear-gradient(135deg,#00A651,#008C45);border-radius:14px;color:#fff;margin-bottom:12px}
+.tracking-status-bar.going-to-shop{background:linear-gradient(135deg,#4A90D9,#1565C0)}
+.tracking-status-bar.picked-up{background:linear-gradient(135deg,#9C27B0,#6A1B9A)}
+.tracking-status-bar.arriving{background:linear-gradient(135deg,#FF6B35,#E55A2B);animation:arrivalPulse 1.5s infinite}
+@keyframes arrivalPulse{0%,100%{box-shadow:0 4px 12px rgba(255,107,53,.3)}50%{box-shadow:0 4px 12px rgba(255,107,53,.3),0 0 0 8px rgba(255,107,53,.15)}}
+.tracking-avatar{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;flex-shrink:0}
+.tracking-info{flex:1;min-width:0}
+.tracking-info .name{font-size:14px;font-weight:900;margin-bottom:2px}
+.tracking-info .status{font-size:12px;opacity:.95;font-weight:600}
+.tracking-dist{text-align:right;flex-shrink:0}
+.tracking-dist .km{font-size:20px;font-weight:900;line-height:1}
+.tracking-dist .eta{font-size:11px;opacity:.85;margin-top:3px;font-weight:700}
+#tracking-map{width:100%;height:220px;border-radius:14px;background:#f0f0f0;z-index:1}
+.tracking-updated{font-size:10px;color:#999;text-align:right;margin-top:8px;font-weight:700}
+.tracking-offline{font-size:11px;color:#E53935;text-align:center;padding:8px;background:#FFEBEE;border-radius:10px;margin-top:8px;font-weight:700}
+
+/* ═══ MERCHANT ORDERING v2 ═══ */
+.merchant-card{background:var(--surface);border-radius:18px;padding:14px;margin-bottom:12px;display:flex;gap:12px;align-items:center;box-shadow:var(--shadow-md);cursor:pointer;transition:transform .2s}
+.merchant-card:active{transform:scale(.98)}
+.merchant-card.closed{opacity:.55}
+.m-avatar{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#E8F5E9,#C8E6C9);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.m-info{flex:1;min-width:0}
+.m-name{font-size:14px;font-weight:900;margin-bottom:3px}
+.m-meta{font-size:11px;color:var(--text-muted);font-weight:700}
+.m-open{font-size:9px;padding:3px 8px;border-radius:8px;font-weight:900;flex-shrink:0}
+.m-open.on{background:#E8F5E9;color:#2E7D32}
+.m-open.off{background:#f0f0f0;color:#999}
+.cart-bar{position:fixed;bottom:calc(96px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(140%);width:calc(100% - 32px);max-width:448px;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;border-radius:18px;padding:12px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,166,81,.4);z-index:98;transition:transform .3s;cursor:pointer}
+.cart-bar.show{transform:translateX(-50%) translateY(0)}
+.cart-bar-icon{position:relative;font-size:24px}
+.cart-count{position:absolute;top:-8px;right:-10px;background:#E91E63;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;padding:0 4px}
+.cart-bar-info{flex:1;min-width:0}
+.cart-bar-total{font-size:16px;font-weight:900}
+.cart-bar-name{font-size:10px;opacity:.9;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cart-bar-btn{font-size:13px;font-weight:900;background:rgba(255,255,255,.2);padding:8px 14px;border-radius:14px;white-space:nowrap}
+.menu-row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:#f8f9fa;margin-bottom:10px}
+.mr-img{width:52px;height:52px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;flex-shrink:0}
+.mr-img img{width:100%;height:100%;object-fit:cover}
+.mr-info{flex:1;min-width:0}
+.mr-name{font-size:13px;font-weight:900}
+.mr-price{font-size:13px;color:var(--brand);font-weight:900;margin-top:2px}
+.menu-add-btn{width:34px;height:34px;border-radius:12px;border:none;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-size:18px;font-weight:900;cursor:pointer;flex-shrink:0;box-shadow:0 3px 10px rgba(0,166,81,.3)}
+.cart-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.cart-item .ci-name{flex:1;font-size:13px;font-weight:800}
+.cart-item .ci-price{font-size:12px;color:var(--brand);font-weight:900;width:64px;text-align:right}
+.qty-ctrl{display:flex;align-items:center;gap:8px}
+.qty-btn{width:26px;height:26px;border-radius:8px;border:none;background:#E8F5E9;color:var(--brand);font-size:15px;font-weight:900;cursor:pointer}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js?v=4"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js?v=4"></script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     OFFLINE BANNER + TOAST
+     ═══════════════════════════════════════════════════ -->
+<div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — แสดงข้อมูลจากแคช</div>
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     PDPA OVERLAY
+     ═══════════════════════════════════════════════════ -->
+<div class="pdpa-overlay hidden" id="pdpa-overlay">
+  <div class="pdpa-content">
+    <div class="pdpa-icon">🛡️</div>
+    <h3>ยินดีต้อนรับสู่ Chauat Go</h3>
+    <p>
+      แอปพลิเคชัน Chauat Go ใช้คุกกี้และเก็บรวบรวมข้อมูลส่วนบุคคล
+      (เช่น ชื่อ, เบอร์โทรศัพท์, ที่อยู่, พิกัด GPS)
+      เพื่อวัตถุประสงค์ในการให้บริการจัดส่งอาหารและสินค้า
+      <br><br>
+      เราปฏิบัติตาม <a href="/privacy">พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)</a>
+      อย่างเคร่งครัด ข้อมูลของคุณจะถูกเก็บรักษาอย่างปลอดภัย
+      และจะไม่ถูกเปิดเผยแก่บุคคลที่สามโดยไม่ได้รับอนุญาต
+    </p>
+    <button class="pdpa-btn pdpa-accept" onclick="acceptPDPA()">✅ ยอมรับและใช้งานต่อ</button>
+    <button class="pdpa-btn pdpa-read" onclick="window.open('/privacy','_blank')">📖 อ่านนโยบายฉบับเต็ม</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     LOCATION POPUP
+     ═══════════════════════════════════════════════════ -->
+<div class="loc-popup-overlay hidden" id="loc-popup-overlay">
+  <div class="loc-popup-content">
+    <div class="loc-icon-big">📡</div>
+    <h3>อนุญาตเข้าถึงตำแหน่ง</h3>
+    <p>
+      เพื่อคำนวณระยะทางและค่าส่งที่แม่นยำ<br>
+      แอปจะขออนุญาตเข้าถึงตำแหน่ง GPS ของคุณ
+    </p>
+    <button class="loc-popup-btn loc-allow" onclick="requestLocation()">✅ อนุญาต</button>
+    <button class="loc-popup-btn loc-skip" onclick="skipLocation()">⏭️ ข้ามไปก่อน</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     INSTALL MODAL
+     ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="install-modal" onclick="if(event.target===this)closeInstallModal()">
+  <div class="modal-content">
+    <div style="font-size:60px;margin-bottom:10px">📱</div>
+    <h2 style="font-size:20px;margin-bottom:10px">ติดตั้ง Chauat Go</h2>
+    <p style="color:#666;margin-bottom:20px;font-size:14px">
+      เพิ่มแอป Chauat Go ลงหน้าจอมือถือของคุณ
+    </p>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:20px;text-align:left;font-size:13px">
+      <strong>วิธีติดตั้ง:</strong><br>
+      <span id="install-text"></span>
+    </div>
+    <button class="btn-full btn-green" onclick="triggerInstall()" id="install-confirm-btn" style="display:none">
+      ✅ ติดตั้งเลย
+    </button>
+    <button class="btn-full btn-gray" onclick="closeInstallModal()">❌ ไว้ก่อน</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     LOGIN MODAL
+     ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="login-modal" onclick="if(event.target===this)closeLoginModal()">
+  <div class="modal-content" style="max-width:400px">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:60px;margin-bottom:10px">🔐</div>
+      <h2 style="font-size:22px;margin-bottom:5px">เข้าสู่ระบบ Chauat Go</h2>
+      <p style="color:#888;font-size:13px">ล็อกอินเพื่อสั่งซื้อและติดตามออเดอร์</p>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <button id="tab-login" onclick="switchAuthTab('login')"
+        style="flex:1;padding:12px;border:none;background:#00A651;color:white;border-radius:12px;font-weight:700;cursor:pointer">
+        เข้าสู่ระบบ
+      </button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')"
+        style="flex:1;padding:12px;border:none;background:#f0f0f0;color:#666;border-radius:12px;font-weight:700;cursor:pointer">
+        สมัครสมาชิก
+      </button>
+    </div>
+
+    <div id="login-form">
+      <div class="form-group">
+        <label>📧 อีเมล</label>
+        <input type="email" id="login-email" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>🔒 รหัสผ่าน</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+      <button class="btn-full btn-green" onclick="handleLogin()">🔑 เข้าสู่ระบบ</button>
+    </div>
+
+    <div id="signup-form" style="display:none">
+      <div class="form-group">
+        <label>👤 ชื่อ-นามสกุล</label>
+        <input type="text" id="signup-name" placeholder="สมชาย ใจดี">
+      </div>
+      <div class="form-group">
+        <label>📧 อีเมล</label>
+        <input type="email" id="signup-email" placeholder="example@email.com">
+      </div>
+      <div class="form-group">
+        <label>📱 เบอร์โทรศัพท์</label>
+        <input type="tel" id="signup-phone" placeholder="08X-XXX-XXXX">
+      </div>
+      <div class="form-group">
+        <label>🔒 รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)</label>
+        <input type="password" id="signup-password" placeholder="••••••••">
+      </div>
+      <button class="btn-full btn-green" onclick="handleSignup()">✅ สมัครสมาชิก</button>
+    </div>
+
+    <div style="text-align:center;margin:20px 0;color:#999;font-size:13px">หรือ</div>
+
+    <button class="btn-full" style="background:#06C755;color:white" onclick="loginWithLine()">
+      💬 เข้าสู่ระบบด้วย LINE
+    </button>
+    <button class="btn-full" style="background:#4285F4;color:white" onclick="loginWithGoogle()">
+      🔵 เข้าสู่ระบบด้วย Google
+    </button>
+    <button class="btn-full btn-gray" onclick="closeLoginModal()" style="margin-top:10px">
+      ❌ ยกเลิก
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════ -->
+<div class="header">
+  <div class="header-top">
+    <div class="location-badge" onclick="showToast('📍 ตำแหน่ง: ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช')">
+      <span style="font-size:18px">📍</span>
+      <div>
+        <div class="loc-text" id="loc-text-display">ต.ชะอวด</div>
+        <div class="loc-sub" id="loc-sub-display">อ.ชะอวด จ.นครศรีธรรมราช</div>
+      </div>
+    </div>
+    <div class="search-bar">
+      <span style="font-size:18px;opacity:.6">🔍</span>
+      <input type="text" id="search-input" placeholder="ค้นหาใน Chauat Go..." oninput="doSearch(this.value)">
+    </div>
+  </div>
+
+  <div class="header-auth-row">
+    <button id="install-btn" onclick="showInstallModal()">⬇️ ติดตั้งแอป</button>
+    <div id="auth-btns">
+      <button id="login-btn" onclick="showLoginModal()">🔑 เข้าสู่ระบบ</button>
+      <span id="user-display"></span>
+      <button id="logout-btn" onclick="handleLogout()">🚪 ออก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     TAB HOME
+     ═══════════════════════════════════════════════════ -->
+<div id="tab-home">
+
+  <div class="search-results" id="search-results"></div>
+
+  <div class="category-view" id="category-view">
+    <div class="section-header" style="padding-left:0">
+      <div class="section-title" id="category-title">หมวดหมู่</div>
+      <div class="section-more" onclick="closeCategoryView()">✕ ปิด</div>
+    </div>
+    <div class="food-grid" id="category-grid"></div>
+  </div>
+
+  <!-- 🆕 MERCHANT VIEW (v2) -->
+  <div class="category-view" id="merchant-view">
+    <div class="section-header" style="padding-left:0">
+      <div class="section-title">🏪 ร้านค้าในชะอวด</div>
+      <div class="section-more" onclick="closeMerchantView()">✕ ปิด</div>
+    </div>
+    <div id="merchant-list"></div>
+  </div>
+
+  <div id="home-content">
+    <div class="menu-grid">
+      <div class="menu-item" onclick="openOrderForm('food')">
+        <div class="menu-icon food">🍽️</div>
+        <div class="menu-label">อาหาร</div>
+      </div>
+      <div class="menu-item" onclick="openOrderForm('shopping')">
+        <div class="menu-icon shopping">🛒</div>
+        <div class="menu-label">ของใช้</div>
+      </div>
+      <div class="menu-item" onclick="openOrderForm('dinein')">
+        <div class="menu-icon dinein">🍴</div>
+        <div class="menu-label">กินที่ร้าน</div>
+      </div>
+      <div class="menu-item" onclick="openOrderForm('express')">
+        <div class="menu-icon express">📦</div>
+        <div class="menu-label">ส่งด่วน</div>
+      </div>
+      <!-- 🆕 ปุ่มร้านค้า (v2) -->
+      <div class="menu-item" onclick="openMerchantsView()">
+        <div class="menu-icon" style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9)">🏪</div>
+        <div class="menu-label">ร้านค้า</div>
+      </div>
+      <div class="menu-item" onclick="filterCategory('travel')">
+        <div class="menu-icon travel">🚗</div>
+        <div class="menu-label">เดินทาง</div>
+      </div>
+      <div class="menu-item" onclick="openMapPage()">
+        <div class="menu-icon map">🗺️</div>
+        <div class="menu-label">แผนที่</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">🍽️ ร้านอาหารแนะนำ</div>
+      <div class="section-more" onclick="showAllCategories('restaurant')">ดูทั้งหมด →</div>
+    </div>
+    <div class="food-grid" id="restaurant-grid"></div>
+
+    <div class="section-header">
+      <div class="section-title">🏪 ร้านสะดวกซื้อ</div>
+      <div class="section-more" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div>
+    </div>
+    <div class="food-grid" id="convenience-grid"></div>
+
+    <div class="section-header">
+      <div class="section-title">☕ คาเฟ่</div>
+      <div class="section-more" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div>
+    </div>
+    <div class="food-grid" id="cafe-grid"></div>
+
+    <div class="legal-footer" id="legal-footer" style="display:none">
+      <div class="dbd-mark">[DBD<br>Registered]</div>
+      <div class="links">
+        <a href="/terms">เงื่อนไขการใช้งาน</a> |
+        <a href="/privacy">นโยบายความเป็นส่วนตัว</a> |
+        <a href="/contact">ติดต่อเรา / ร้องเรียน</a>
+      </div>
+      <div class="copyright">
+        © 2024 Chauat Go. สงวนลิขสิทธิ์.<br>
+        ผู้ให้บริการตัวกลางทางอิเล็กทรอนิกส์ (e-Service Provider)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MAP PAGE
+     ═══════════════════════════════════════════════════ -->
+<div class="map-page" id="map-page">
+  <div class="map-header-bar">
+    <button class="map-back-btn" onclick="closeMapPage()">← กลับ</button>
+    <h3>🗺️ แผนที่ อ.ชะอวด</h3>
+  </div>
+  <div id="main-map"></div>
+
+  <div class="tambon-list" id="tambon-list">
+    <div style="font-weight:bold;font-size:13px;padding:5px 10px;color:#666;border-bottom:1px solid #eee;margin-bottom:5px">
+      12 ตำบล อ.ชะอวด
+    </div>
+  </div>
+
+  <div class="map-controls">
+    <button class="map-ctrl-btn" onclick="toggleTambonList()">📍 ตำบล</button>
+    <button class="map-ctrl-btn" onclick="centerToUser()">🎯 ตำแหน่งฉัน</button>
+    <button class="map-ctrl-btn" onclick="clearDestination()">🗑️ ล้างหมุด</button>
+    <button class="map-ctrl-btn" onclick="showAllPlacesOnMap()">📌 ทั้งหมด</button>
+  </div>
+
+  <div class="map-info-panel" id="map-info-panel">
+    <div class="map-info-title" id="map-info-title">📍 ปลายทาง</div>
+    <div id="map-info-content"></div>
+    <div class="map-info-actions">
+      <button class="map-info-btn call-rider" onclick="callRiderFromMap()">🛵 เรียกไรเดอร์</button>
+      <button class="map-info-btn primary" onclick="navigateToDestination()">🧭 นำทาง</button>
+      <button class="map-info-btn secondary" onclick="clearDestination()">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     ORDERS TAB
+     ═══════════════════════════════════════════════════ -->
+<div class="orders-tab" id="tab-orders">
+  <div class="order-section-title">🔍 กำลังดำเนินการ</div>
+  <div id="active-orders"></div>
+
+  <div class="order-section-title">✅ งานที่เสร็จแล้ว</div>
+  <div id="done-orders"></div>
+
+  <div id="empty-orders" style="display:none">
+    <div class="empty-state">
+      <div class="icon">📋</div>
+      <div>ยังไม่มีรายการ</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MESSAGES TAB
+     ═══════════════════════════════════════════════════ -->
+<div class="messages-tab" id="tab-messages">
+  <div class="chat-card" onclick="openChat()">
+    <div class="chat-avatar">🛵</div>
+    <div class="chat-info">
+      <div class="chat-name">แชทกับไรเดอร์</div>
+      <div class="chat-last">แตะเพื่อเปิดแชทออเดอร์ล่าสุด</div>
+    </div>
+    <div class="chat-meta">
+      <div class="chat-time" id="chat-time-display">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- 🆕 CART BAR (v2) -->
+<div class="cart-bar" id="cart-bar" onclick="openCart()">
+  <div class="cart-bar-icon">🛒<span class="cart-count" id="cart-count">0</span></div>
+  <div class="cart-bar-info">
+    <div class="cart-bar-total" id="cart-total">0฿</div>
+    <div class="cart-bar-name" id="cart-shop"></div>
+  </div>
+  <div class="cart-bar-btn">ดูตะกร้า →</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     BOTTOM NAV
+     ═══════════════════════════════════════════════════ -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="switchTab('home',this)">
+    <div class="nav-icon-wrap">🏠</div>
+    <div class="nav-label">หน้าแรก</div>
+  </div>
+  <div class="nav-item" onclick="switchTab('orders',this)">
+    <div class="nav-icon-wrap">
+      📋<span class="nav-badge" id="orders-badge">0</span>
+    </div>
+    <div class="nav-label">รายการ</div>
+  </div>
+  <div class="nav-item" onclick="switchTab('messages',this)">
+    <div class="nav-icon-wrap">
+      💬<span class="nav-badge" id="chat-badge" style="display:none">0</span>
+    </div>
+    <div class="nav-label">ข้อความ</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MAIN MODAL
+     ═══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content" id="modal-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     IMAGE LIGHTBOX
+     ═══════════════════════════════════════════════════ -->
+<div id="img-lightbox"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;align-items:center;justify-content:center;padding:20px"
+  onclick="closeLightbox()">
+  <img id="lightbox-img"
+    style="max-width:100%;max-height:90vh;border-radius:12px" src="">
+  <button
+    style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,.2);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center"
+    onclick="closeLightbox()">✕</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     LEAFLET JS
+     ═══════════════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+//  CHAUAT GO — MAIN SCRIPT
+//  Part 1-2: Config + Helpers + Auth + Orders + Map + Chat + Rating
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─────── 12 ตำบล อ.ชะอวด (ต้องอยู่บนสุด เพื่อให้ initMap ใช้ได้) ───────
+const TAMBONS = [
+  { name: "ต.ชะอวด", lat: 7.9646, lng: 99.9951, desc: "ศูนย์กลางอำเภอ" },
+  { name: "ต.ท่าประจะ", lat: 7.9590, lng: 99.9640, desc: "ทิศตะวันตก" },
+  { name: "ต.ท่าเสม็ด", lat: 7.9545, lng: 100.0067, desc: "ทิศตะวันออก" },
+  { name: "ต.เคร็ง", lat: 7.8850, lng: 100.1150, desc: "ป่าพรุควนเคร็ง" },
+  { name: "ต.ควนหนองหงส์", lat: 8.0105, lng: 99.9505, desc: "ทิศเหนือ" },
+  { name: "ต.บ้านตูล", lat: 7.9230, lng: 99.9710, desc: "ทิศใต้" },
+  { name: "ต.วังอ่าง", lat: 7.9010, lng: 99.9210, desc: "ล่องแพบ้านวังอ่าง" },
+  { name: "ต.เขาพระทอง", lat: 8.0250, lng: 100.0400, desc: "วัดเขาพระทอง" },
+  { name: "ต.นางหลง", lat: 7.9244, lng: 100.0005, desc: "ทิศตะวันออกเฉียงใต้" },
+  { name: "ต.ไม้เสียบ", lat: 8.0710, lng: 99.9105, desc: "ทิศตะวันตกเฉียงเหนือ" },
+  { name: "ต.เกาะขันธ์", lat: 7.9370, lng: 99.9714, desc: "ทิศตะวันตกเฉียงใต้" },
+  { name: "ต.ท่าสะท้อน", lat: 7.9452, lng: 99.9602, desc: "วัดท่าสะท้อน" }
+];
+
+// ─────── FIREBASE CONFIG ───────
+const firebaseConfig = {
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
+  measurementId: "G-6E2QEFWK6P"
+};
+
+const LINE_CONFIG = {
+  channelId: "2011841585",
+  authEndpoint: ""
+};
+
+// ─────── FIREBASE INIT ───────
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+db.enablePersistence({ synchronizeTabs: true })
+  .catch(err => console.warn('[Firestore] persistence:', err.code));
+
+// ═══════════════════════════════════════════════════════════════════════
+//  GLOBAL STATE
+// ═══════════════════════════════════════════════════════════════════════
+let currentUser = null;
+let orders = [];
+let orderSubmitting = false;
+let orderTimestamps = [];
+const ORDER_RATE_LIMIT = { max: 3, windowMs: 60000 };
+
+let mainMap = null;
+let destinationMarker = null;
+let userMarker = null;
+let routeLine = null;
+let placeMarkers = [];
+let tambonMarkers = [];
+let currentDestination = null;
+let currentOrderDraft = null;
+
+let trackingMap = null;
+let trackingRiderMarker = null;
+let trackingShopMarker = null;
+let trackingUserMarker = null;
+let trackingRouteLine = null;
+let trackingUnsubscribe = null;
+
+let currentChatOrderId = null;
+let chatMessagesUnsub = null;
+let currentChatData = null;
+let ordersUnsubscribe = null;
+let cart = [];
+
+const USER_LOC = { lat: 7.9620, lng: 99.9940, granted: false };
+
+// ═══════════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function jsStr(s) {
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('active');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('active'), 2500);
+}
+
+function store(key, val) {
+  try {
+    if (val === undefined) return localStorage.getItem(key);
+    localStorage.setItem(key, val);
+  } catch (e) { return null; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  AUTH STATE
+// ═══════════════════════════════════════════════════════════════════════
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  if (user) {
+    updateUIForLoggedInUser(user);
+    subscribeToUserOrders();
+    updateChatBadge();
+  } else {
+    updateUIForLoggedOutUser();
+    unsubscribeOrders();
+    orders = [];
+    renderOrders();
+    updateOrdersBadge();
+  }
+});
+
+function updateUIForLoggedInUser(user) {
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('logout-btn').style.display = 'block';
+  const name = user.displayName || user.email || 'ผู้ใช้';
+  const ud = document.getElementById('user-display');
+  ud.style.display = 'inline-block';
+  ud.innerText = '👤 ' + (name.length > 20 ? name.substring(0, 20) + '...' : name);
+  document.getElementById('loc-sub-display').innerText = 'ยินดีต้อนรับ, ' + name;
+}
+
+function updateUIForLoggedOutUser() {
+  document.getElementById('login-btn').style.display = 'block';
+  document.getElementById('logout-btn').style.display = 'none';
+  document.getElementById('user-display').style.display = 'none';
+  document.getElementById('loc-sub-display').innerText = 'อ.ชะอวด จ.นครศรีธรรมราช';
+}
+
+function getAuthErrorMessage(code) {
+  return ({
+    'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
+    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+    'auth/email-already-in-use': 'อีเมลนี้ถูกใช้แล้ว',
+    'auth/weak-password': 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร',
+    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป กรุณาลองใหม่ภายหลัง',
+    'auth/popup-closed-by-user': 'ยกเลิกการเข้าสู่ระบบ',
+    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'auth/network-request-failed': 'ไม่สามารถเชื่อมต่อเครือข่ายได้'
+  })[code] || 'เกิดข้อผิดพลาด: ' + code;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════════════════════════════════════
+async function loginWithEmail(email, password) {
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    showToast('✅ เข้าสู่ระบบสำเร็จ!');
+    closeLoginModal();
+  } catch (e) {
+    showToast('❌ ' + getAuthErrorMessage(e.code));
+  }
+}
+
+async function loginWithGoogle() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    await auth.signInWithPopup(provider);
+    showToast('✅ เข้าสู่ระบบด้วย Google สำเร็จ!');
+    closeLoginModal();
+  } catch (e) {
+    showToast('❌ ' + getAuthErrorMessage(e.code));
+  }
+}
+
+function loginWithLine() {
+  const state = crypto.getRandomValues(new Uint32Array(4)).join('-');
+  try { sessionStorage.setItem('line_login_state', state); } catch (e) {}
+  const redirectUri = window.location.origin + window.location.pathname + '?line_callback=1';
+  window.location.href = 'https://access.line.me/oauth2/v2.1/authorize' +
+    '?response_type=code' +
+    '&client_id=' + LINE_CONFIG.channelId +
+    '&redirect_uri=' + encodeURIComponent(redirectUri) +
+    '&state=' + state +
+    '&scope=profile%20openid%20email';
+}
+
+async function handleLineCallback() {
+  const p = new URLSearchParams(window.location.search);
+  const code = p.get('code');
+  const state = p.get('state');
+  let saved = null;
+  try { saved = sessionStorage.getItem('line_login_state'); } catch (e) {}
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if (!code || !state || state !== saved) { showToast('❌ LINE Login ไม่ถูกต้อง'); return; }
+  if (!LINE_CONFIG.authEndpoint) { showToast('⚠️ ยังไม่ได้ตั้งค่า LINE Login'); return; }
+  try {
+    showToast('🔄 กำลังเข้าสู่ระบบด้วย LINE...');
+    const redirectUri = window.location.origin + window.location.pathname + '?line_callback=1';
+    const res = await fetch(LINE_CONFIG.authEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirectUri })
+    });
+    if (!res.ok) throw new Error('auth failed');
+    const { customToken } = await res.json();
+    await auth.signInWithCustomToken(customToken);
+    try { sessionStorage.removeItem('line_login_state'); } catch (e) {}
+    showToast('✅ เข้าสู่ระบบด้วย LINE สำเร็จ!');
+  } catch (e) { showToast('❌ LINE Login ไม่สำเร็จ'); }
+}
+if (new URLSearchParams(window.location.search).has('line_callback')) handleLineCallback();
+
+// ═══════════════════════════════════════════════════════════════════════
+//  SIGNUP
+// ═══════════════════════════════════════════════════════════════════════
+async function signupWithEmail(email, password, name, phone) {
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    await cred.user.updateProfile({ displayName: name });
+    await db.collection('users').doc(cred.user.uid).set({
+      name, email, phone: phone || '',
+      address: 'ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    updateUIForLoggedInUser(auth.currentUser);
+    showToast('✅ สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ ' + name);
+    closeLoginModal();
+  } catch (e) {
+    console.error('[signup]', e);
+    showToast('❌ ' + getAuthErrorMessage(e.code));
+  }
+}
+
+async function handleLogout() {
+  try {
+    unsubscribeOrders();
+    if (chatMessagesUnsub) { try { chatMessagesUnsub(); } catch (e) {} chatMessagesUnsub = null; }
+    await auth.signOut();
+    orders = []; cart = [];
+    renderOrders();
+    updateOrdersBadge();
+    showToast('👋 ออกจากระบบแล้ว');
+  } catch (e) { showToast('❌ ออกจากระบบไม่สำเร็จ'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  MODAL CONTROL
+// ═══════════════════════════════════════════════════════════════════════
+function showLoginModal() {
+  switchAuthTab('login');
+  document.getElementById('login-modal').classList.add('active');
+}
+function closeLoginModal() {
+  document.getElementById('login-modal').classList.remove('active');
+}
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = isLogin ? 'none' : 'block';
+  const on = document.getElementById(isLogin ? 'tab-login' : 'tab-signup');
+  const off = document.getElementById(isLogin ? 'tab-signup' : 'tab-login');
+  on.style.background = '#00A651'; on.style.color = 'white';
+  off.style.background = '#f0f0f0'; off.style.color = '#666';
+}
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return showToast('⚠️ กรุณากรอกอีเมลและรหัสผ่าน');
+  await loginWithEmail(email, password);
+}
+async function handleSignup() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const phone = document.getElementById('signup-phone').value.trim();
+  const password = document.getElementById('signup-password').value;
+  if (!name || !email || !password) return showToast('⚠️ กรุณากรอกข้อมูลให้ครบ');
+  if (password.length < 6) return showToast('⚠️ รหัสผ่านอย่างน้อย 6 ตัวอักษร');
+  if (phone && phone.replace(/\D/g, '').length < 9) return showToast('⚠️ เบอร์โทรไม่ถูกต้อง');
+  await signupWithEmail(email, password, name, phone);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PDPA
+// ═══════════════════════════════════════════════════════════════════════
+function checkPDPA() {
+  if (!store('chauatgo_pdpa_consent')) {
+    document.getElementById('pdpa-overlay').classList.remove('hidden');
+  } else {
+    document.getElementById('pdpa-overlay').classList.add('hidden');
+    document.getElementById('legal-footer').style.display = 'block';
+    checkLocationPopup();
+  }
+}
+function acceptPDPA() {
+  store('chauatgo_pdpa_consent', 'true');
+  document.getElementById('pdpa-overlay').classList.add('hidden');
+  document.getElementById('legal-footer').style.display = 'block';
+  showToast('✅ ยอมรับนโยบายความเป็นส่วนตัวเรียบร้อย');
+  setTimeout(checkLocationPopup, 500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LOCATION
+// ═══════════════════════════════════════════════════════════════════════
+function checkLocationPopup() {
+  const g = store('chauatgo_location_granted');
+  if (g === null) {
+    document.getElementById('loc-popup-overlay').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('loc-popup-overlay').classList.add('hidden');
+  if (g === 'true' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(applyLocation, () => {}, { enableHighAccuracy: true, timeout: 5000 });
+  }
+}
+function requestLocation() {
+  if (!navigator.geolocation) { showToast('⚠️ เบราว์เซอร์ไม่รองรับ GPS'); closeLocPopup(); return; }
+  showToast('📡 กำลังขอตำแหน่ง...');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      applyLocation(pos);
+      store('chauatgo_location_granted', 'true');
+      if (mainMap) mainMap.setView([USER_LOC.lat, USER_LOC.lng], 15);
+      closeLocPopup();
+      showToast('✅ อนุญาตตำแหน่งสำเร็จ!');
+    },
+    err => {
+      const msg = { 1: '⚠️ คุณปฏิเสธการเข้าถึงตำแหน่ง', 2: '⚠️ ตำแหน่งไม่พร้อมใช้งาน', 3: '⏱️ หมดเวลาในการขอตำแหน่ง' }[err.code] || '⚠️ ไม่สามารถเข้าถึงตำแหน่งได้';
+      showToast(msg);
+      closeLocPopup();
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+function applyLocation(pos) {
+  USER_LOC.lat = pos.coords.latitude;
+  USER_LOC.lng = pos.coords.longitude;
+  USER_LOC.granted = true;
+  document.getElementById('loc-text-display').innerText = 'ต.ชะอวด';
+  document.getElementById('loc-sub-display').innerText = `📍 ${USER_LOC.lat.toFixed(4)}, ${USER_LOC.lng.toFixed(4)}`;
+  if (userMarker && mainMap) userMarker.setLatLng([USER_LOC.lat, USER_LOC.lng]);
+  renderCards();
+}
+function skipLocation() {
+  store('chauatgo_location_granted', 'false');
+  closeLocPopup();
+  showToast('⏭️ ข้ามการอนุญาตตำแหน่ง');
+}
+function closeLocPopup() {
+  document.getElementById('loc-popup-overlay').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════════
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-home').style.display = tab === 'home' ? 'block' : 'none';
+  document.getElementById('tab-orders').classList.toggle('active', tab === 'orders');
+  document.getElementById('tab-messages').classList.toggle('active', tab === 'messages');
+  if (tab === 'home') {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').classList.remove('active');
+    document.getElementById('search-results').innerHTML = '';
+    closeCategoryView();
+  }
+  if (tab === 'orders') renderOrders();
+  if (tab === 'messages') updateChatBadge();
+  window.scrollTo(0, 0);
+}
+
+function closeModal() {
+  stopLiveTracking();
+  document.getElementById('modal').classList.remove('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LIGHTBOX
+// ═══════════════════════════════════════════════════════════════════════
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('img-lightbox').style.display = 'flex';
+}
+function closeLightbox() {
+  document.getElementById('lightbox-img').src = '';
+  document.getElementById('img-lightbox').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  CART
+// ═══════════════════════════════════════════════════════════════════════
+function addToCart(item, merchantId, merchantName) {
+  if (cart.length > 0 && cart[0].merchantId !== merchantId) {
+    if (!confirm('มีสินค้าจากร้านอื่นอยู่ในตะกร้า — ล้างตะกร้าเดิมและเริ่มใหม่?')) return;
+    cart = [];
+  }
+  const existing = cart.find(c => c.itemId === item.id);
+  if (existing) existing.qty += 1;
+  else cart.push({ itemId: item.id, merchantId, merchantName, name: item.name, price: Number(item.price), qty: 1, image: item.image || '' });
+  showToast(`✅ เพิ่ม "${item.name}" ลงตะกร้า`);
+  updateCartBadge();
+}
+function updateCartBadge() {
+  const count = cart.reduce((s, c) => s + c.qty, 0);
+  const badge = document.getElementById('cart-badge');
+  if (badge) badge.style.display = count > 0 ? 'flex' : 'none';
+}
+function getCartTotal() { return cart.reduce((s, c) => s + (c.price * c.qty), 0); }
+function clearCart() { cart = []; updateCartBadge(); }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PWA
+// ═══════════════════════════════════════════════════════════════════════
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.style.display = 'block';
+});
+function getInstallInstructions() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua)) return '📱 <b>iOS Safari:</b><br>1. กดปุ่ม "แชร์" (⬆️) ด้านล่าง<br>2. เลือก "เพิ่มไปยังหน้าจอโฮม"<br>3. กด "เพิ่ม"';
+  if (/Android/.test(ua)) return '🤖 <b>Android Chrome:</b><br>1. กดเมนู ⋮ มุมขวาบน<br>2. เลือก "ติดตั้งแอป"<br>3. กด "ติดตั้ง"';
+  return '💻 <b>Desktop Chrome/Edge:</b><br>1. กดไอคอน ⬇️ ที่ address bar<br>2. กด "ติดตั้ง"';
+}
+function showInstallModal() {
+  document.getElementById('install-text').innerHTML = getInstallInstructions();
+  const btn = document.getElementById('install-confirm-btn');
+  btn.style.display = deferredPrompt ? 'flex' : 'none';
+  document.getElementById('install-modal').classList.add('active');
+}
+async function triggerInstall() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') { showToast('✅ ติดตั้งสำเร็จ!'); document.getElementById('install-btn').style.display = 'none'; }
+  deferredPrompt = null;
+  closeInstallModal();
+}
+function closeInstallModal() { document.getElementById('install-modal').classList.remove('active'); }
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const w = reg.installing;
+          if (!w) return;
+          w.addEventListener('statechange', () => {
+            if (w.state === 'installed' && navigator.serviceWorker.controller) showToast('🔄 มีเวอร์ชันใหม่! รีเฟรชเพื่ออัพเดท');
+          });
+        });
+      }).catch(err => console.warn('[PWA]', err));
+  });
+}
+
+window.addEventListener('online', () => { showToast('🟢 กลับมาออนไลน์'); document.getElementById('offline-banner').classList.remove('active'); });
+window.addEventListener('offline', () => { showToast('🔴 ออฟไลน์'); document.getElementById('offline-banner').classList.add('active'); });
+
+// ═══════════════════════════════════════════════════════════════════════
+//  UTILITY — Distance & Fare
+// ═══════════════════════════════════════════════════════════════════════
+function calcDist(lat1, lon1, lat2, lon2) {
+  const R = 6371, r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r, dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function formatDist(km) { return `${Math.max(0.1, km).toFixed(1)} กม.`; }
+function calcFare(dist) {
+  const base = 20;
+  const perKm = 8;
+  const extraKm = Math.max(0, dist - 1);
+  const extra = Math.ceil(extraKm) * perKm;
+  return { base, perKm, extraKm, extra, total: base + extra };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  FIRESTORE — SAVE ORDER
+// ═══════════════════════════════════════════════════════════════════════
+async function saveOrderToFirestore(o) {
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return false; }
+  try {
+    const ref = await db.collection('orders').add({
+      userId: currentUser.uid,
+      userName: currentUser.displayName || currentUser.email || '',
+      userEmail: currentUser.email || '',
+      userPhone: o.userPhone || '',
+      type: o.type, title: o.title, items: o.items,
+      price: o.price, fare: o.fare, serviceFee: o.serviceFee || 0,
+      total: o.total, distance: o.distance,
+      address: o.address, note: o.note,
+      pickupLat: o.pickupLat || 0, pickupLng: o.pickupLng || 0,
+      status: 'searching',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    o.id = ref.id;
+    return true;
+  } catch (e) { console.error(e); showToast('❌ บันทึกไม่สำเร็จ'); return false; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  REALTIME ORDERS
+// ═══════════════════════════════════════════════════════════════════════
+function subscribeToUserOrders() {
+  if (!currentUser) return;
+  unsubscribeOrders();
+  ordersUnsubscribe = db.collection('orders')
+    .where('userId', '==', currentUser.uid)
+    .orderBy('createdAt', 'desc').limit(20)
+    .onSnapshot(snap => {
+      orders = snap.docs.map(d => {
+        const x = d.data();
+        const dist = x.distance || 0;
+        return {
+          id: d.id, type: x.type || 'food', title: x.title || '', items: x.items || '',
+          price: x.price || 0, fare: x.fare || 0, serviceFee: x.serviceFee || 0, total: x.total || 0,
+          distance: dist, distStr: formatDist(dist), timeMin: Math.max(3, Math.ceil(dist * 4)),
+          address: x.address || '', note: x.note || '', userPhone: x.userPhone || '',
+          pickupLat: x.pickupLat || 0, pickupLng: x.pickupLng || 0,
+          rider: x.rider || null, riderId: x.riderId || null,
+          merchantId: x.merchantId || null, merchantStatus: x.merchantStatus || null,
+          status: x.status || 'searching',
+          rated: x.rated || false, ratingStars: x.ratingStars || 0,
+          completedAt: x.completedAt || null,
+          createdAt: x.createdAt ? x.createdAt.toDate() : new Date()
+        };
+      });
+      renderOrders();
+      updateOrdersBadge();
+    }, err => {
+      console.error('[orders]', err);
+      if (err.code === 'failed-precondition') showToast('⚠️ ต้องสร้าง Firestore Index');
+      else showToast('⚠️ โหลดออเดอร์ไม่ได้');
+    });
+}
+function unsubscribeOrders() {
+  if (ordersUnsubscribe) { try { ordersUnsubscribe(); } catch (e) {} ordersUnsubscribe = null; }
+}
+
+function checkOrderRateLimit() {
+  const now = Date.now();
+  orderTimestamps = orderTimestamps.filter(t => now - t < ORDER_RATE_LIMIT.windowMs);
+  if (orderTimestamps.length >= ORDER_RATE_LIMIT.max) {
+    const waitSec = Math.ceil((ORDER_RATE_LIMIT.windowMs - (now - orderTimestamps[0])) / 1000);
+    showToast(`⚠️ สั่งเร็วเกินไป รอ ${waitSec} วินาที`);
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ORDERS UI
+// ═══════════════════════════════════════════════════════════════════════
+const ACTIVE_STATUSES = ['searching', 'pending', 'accepted', 'picked_up', 'on_the_way'];
+
+const STATUS_LABELS = {
+  searching: '⏳ กำลังหาไรเดอร์...', pending: '🔔 รอไรเดอร์รับงาน',
+  accepted: '🛵 ไรเดอร์รับงานแล้ว', picked_up: '📦 ไรเดอร์รับของแล้ว',
+  on_the_way: '🚀 กำลังมาส่ง', done: '✅ ส่งสำเร็จ', cancelled: '✕ ยกเลิก'
+};
+
+const TYPE_ICON = { food:'🍽️', shopping:'🛒', dinein:'🍴', express:'📦', map:'🗺️' };
+
+const CAT_LABEL = {
+  restaurant:'ร้านอาหาร', convenience:'ร้านสะดวกซื้อ', cafe:'คาเฟ่',
+  temple:'วัด/ศาสนสถาน', edu:'สถานศึกษา', gas:'ปั๊มน้ำมัน', hotel:'ที่พัก',
+  bank:'ธนาคาร', gov:'ราชการ', market:'ตลาด', tourist:'ท่องเที่ยว',
+  shop:'ร้านค้า', recreation:'สันทนาการ', transport:'ขนส่ง',
+  health:'สาธารณสุข', postal:'ไปรษณีย์'
+};
+
+const CAT_ICON = {
+  restaurant:'🍽️', convenience:'🏪', cafe:'☕', temple:'🛕', edu:'🎓',
+  gas:'⛽', hotel:'🏨', bank:'🏦', gov:'🏛️', market:'🛒', tourist:'🌴',
+  shop:'🏬', recreation:'🎯', transport:'🚌', health:'🏥', postal:'📮'
+};
+
+function updateOrdersBadge() {
+  const activeCount = orders.filter(o => ACTIVE_STATUSES.includes(o.status)).length;
+  const unratedCount = orders.filter(o => o.status === 'done' && o.rider && !o.rated).length;
+  const badge = document.getElementById('orders-badge');
+  if (activeCount > 0) {
+    badge.innerText = activeCount;
+    badge.style.display = 'flex';
+    badge.style.background = 'linear-gradient(135deg, #E91E63, #C2185B)';
+    badge.style.fontSize = '10px';
+  } else if (unratedCount > 0) {
+    badge.innerText = '⭐';
+    badge.style.display = 'flex';
+    badge.style.background = 'linear-gradient(135deg, #FFB300, #FF8F00)';
+    badge.style.fontSize = '10px';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderOrders() {
+  const active = orders.filter(o => ACTIVE_STATUSES.includes(o.status));
+  const done = orders.filter(o => !ACTIVE_STATUSES.includes(o.status));
+  document.getElementById('active-orders').innerHTML = active.map(o => renderOrderCard(o)).join('');
+  document.getElementById('done-orders').innerHTML = done.map(o => renderOrderCard(o)).join('');
+  document.getElementById('empty-orders').style.display = orders.length ? 'none' : 'block';
+}
+
+function renderOrderCard(o) {
+  const cls = o.status;
+  const time = o.createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const items = String(o.items);
+  const icon = TYPE_ICON[o.type] || '📦';
+  const statusIcon = { searching:'⏳', pending:'🔔', accepted:'🛵', picked_up:'📦', on_the_way:'🚀', done:'✅', cancelled:'✕' }[o.status] || '📦';
+  return `<div class="order-card ${cls}" onclick="showOrderDetail('${jsStr(o.id)}')">
+    <div class="order-icon ${cls}">${statusIcon}</div>
+    <div class="order-info">
+      <div class="order-title">${icon} ${esc(o.title)}</div>
+      <div class="order-detail">📍 ${o.distStr} • ค่าส่ง ${o.fare}฿</div>
+      <div class="order-detail">🕐 ${time} • ${esc(items.substring(0, 30))}${items.length > 30 ? '...' : ''}</div>
+      ${o.rider ? `<div class="order-detail">🛵 ${esc(o.rider.name)} • ⭐${o.rider.rating || '—'}</div>` : ''}
+      <div class="order-price-tag">💰 รวม ${o.total}฿</div>
+      <span class="order-status ${cls}">${STATUS_LABELS[o.status] || o.status}</span>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ORDER DETAIL
+// ═══════════════════════════════════════════════════════════════════════
+function showOrderDetail(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  if (!o) return;
+  const fare = calcFare(o.distance);
+  const date = o.createdAt.toLocaleDateString('th-TH');
+  const time = o.createdAt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const labels = { food:'🍽️ สั่งอาหาร', shopping:'🛒 ซื้อของใช้', dinein:'🍴 กินที่ร้าน', express:'📦 ส่งด่วน', map:'🗺️ จากแผนที่' };
+  const riderName = o.rider ? o.rider.name : 'ไรเดอร์';
+  const riderPhone = o.rider && o.rider.phone ? o.rider.phone : '';
+
+  const showTracking = o.rider && o.riderId && ['accepted', 'picked_up', 'on_the_way'].includes(o.status);
+  const trackingHtml = showTracking ? `
+    <div class="tracking-box" id="tracking-box">
+      <div class="tracking-status-bar" id="tracking-status-bar">
+        <div class="tracking-avatar" id="tracking-avatar">🛵</div>
+        <div class="tracking-info">
+          <div class="name" id="tracking-rider-name">${esc(o.rider.name)}</div>
+          <div class="status" id="tracking-status-text">กำลังโหลด...</div>
+        </div>
+        <div class="tracking-dist">
+          <div class="km" id="tracking-dist-km">—</div>
+          <div class="eta" id="tracking-dist-eta">— นาที</div>
+        </div>
+      </div>
+      <div id="tracking-map"></div>
+      <div class="tracking-updated" id="tracking-updated">—</div>
+    </div>` : '';
+
+  const timeline = `
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="timeline-dot">✓</div>
+        <div><div class="timeline-text">สั่งซื้อสำเร็จ</div><div class="timeline-time">${date} ${time}</div></div>
+      </div>
+      <div class="timeline-item ${['pending','accepted','picked_up','on_the_way','done'].includes(o.status) ? 'done' : (o.status === 'searching' ? 'active' : '')}">
+        <div class="timeline-dot">1</div>
+        <div><div class="timeline-text">มอบหมายไรเดอร์</div>${o.rider ? `<div class="timeline-time">🛵 ${esc(o.rider.name)}</div>` : ''}</div>
+      </div>
+      <div class="timeline-item ${['picked_up','on_the_way','done'].includes(o.status) ? 'done' : (o.status === 'accepted' ? 'active' : '')}">
+        <div class="timeline-dot">2</div>
+        <div><div class="timeline-text">ไปรับอาหารที่ร้าน</div></div>
+      </div>
+      <div class="timeline-item ${['on_the_way','done'].includes(o.status) ? 'done' : (o.status === 'picked_up' ? 'active' : '')}">
+        <div class="timeline-dot">3</div>
+        <div><div class="timeline-text">กำลังมาส่ง</div></div>
+      </div>
+      <div class="timeline-item ${o.status === 'done' ? 'done' : (o.status === 'on_the_way' ? 'active' : '')}">
+        <div class="timeline-dot">4</div>
+        <div><div class="timeline-text">ส่งสำเร็จ</div></div>
+      </div>
+    </div>`;
+
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:50px">📋</div>
+      <div style="font-size:20px;font-weight:900;margin-top:10px">ออเดอร์ ${esc(String(o.id).slice(-6).toUpperCase())}</div>
+      <div style="font-size:13px;color:#888;margin-top:5px">${labels[o.type] || 'ออเดอร์'}</div>
+    </div>
+
+    ${trackingHtml}
+    ${o.status !== 'cancelled' ? timeline : '<div style="text-align:center;color:#999;padding:20px">ออเดอร์นี้ถูกยกเลิก</div>'}
+
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:15px">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">🏪 ต้นทาง</div>
+      <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(o.title)}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px">📝 รายการ</div>
+      <div style="font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(o.items)}</div>
+      ${o.note ? `<div style="font-size:12px;color:#888;margin-top:8px;margin-bottom:4px">📝 หมายเหตุ</div><div style="font-size:13px">${esc(o.note)}</div>` : ''}
+    </div>
+
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:15px">
+      <div style="font-size:12px;color:#888;margin-bottom:4px">🏠 ปลายทาง</div>
+      <div style="font-size:14px;font-weight:600">${esc(o.address)}</div>
+      <div style="font-size:12px;color:#888;margin-top:8px">📍 ${o.distStr} • ⏱️ ~${o.timeMin} นาที</div>
+    </div>
+
+    <div class="summary-box" style="margin-bottom:15px">
+      <div class="summary-row"><span class="label">💰 ค่าสินค้า/อาหาร</span><span class="value">${o.type !== 'express' && o.price > 0 ? Number(o.price).toFixed(0) + '฿' : '-'}</span></div>
+      <div class="summary-row"><span class="label">🚩 ค่าเริ่มต้น (1 กม.)</span><span class="value">${fare.base}฿</span></div>
+      ${fare.extra > 0 ? `<div class="summary-row"><span class="label">📏 ระยะเพิ่ม (${fare.extraKm.toFixed(1)} กม. × ${fare.perKm}฿)</span><span class="value">${fare.extra}฿</span></div>` : ''}
+      <div class="summary-row total"><span>💰 รวมทั้งหมด</span><span>${o.total}฿</span></div>
+    </div>
+
+    ${o.rider ? `
+      <div class="rider-found-box">
+        <div class="rf-avatar">${esc(o.rider.avatar || '?')}</div>
+        <div style="flex:1;min-width:0">
+          <div class="rf-name">${esc(o.rider.name)}</div>
+          <div class="rf-vehicle">${esc(o.rider.vehicle || '')}</div>
+          <div class="rf-rating">⭐ ${o.rider.rating ? Number(o.rider.rating).toFixed(1) : '—'}</div>
+        </div>
+      </div>
+      ${riderPhone ? `<a href="tel:${esc(riderPhone)}" class="btn-full btn-orange" style="text-decoration:none">📞 โทรหาไรเดอร์ (${esc(riderPhone)})</a>` : ''}
+      <div class="rider-disclaimer">⚠️ ไรเดอร์เป็น <b>คู่สัญญาอิสระ (Independent Contractor)</b> ไม่ใช่พนักงานประจำของแพลตฟอร์ม</div>
+    ` : ''}
+
+    ${o.status === 'done' && o.rider && !o.rated ? `
+      <button class="btn-full" style="background:linear-gradient(135deg,#FFB300,#FF8F00);color:#fff;box-shadow:0 6px 16px rgba(255,179,0,.3);margin-top:16px" onclick="closeModal();setTimeout(()=>openRatingDialog('${jsStr(o.id)}'),200)">⭐ ให้คะแนนไรเดอร์</button>
+    ` : ''}
+
+    ${o.status === 'done' && o.rated ? `
+      <div style="background:#E8F5E9;padding:12px;border-radius:12px;text-align:center;margin-top:16px">
+        <div style="font-size:20px;margin-bottom:4px">${'⭐'.repeat(o.ratingStars || 5)}</div>
+        <div style="font-size:12px;color:#2E7D32;font-weight:800">คุณให้คะแนนออเดอร์นี้แล้ว</div>
+      </div>
+    ` : ''}
+
+    <button class="btn-full btn-green" style="margin-top:16px" onclick="closeModal();setTimeout(()=>openChat('${jsStr(o.id)}'),200)">💬 แชทกับไรเดอร์</button>
+    <button class="btn-full btn-blue" onclick="closeModal();openMapFromOrder('${jsStr(o.id)}')">🗺️ ดูบนแผนที่</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>`;
+
+  document.getElementById('modal').classList.add('active');
+  if (showTracking) setTimeout(() => startLiveTracking(o), 200);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LIVE TRACKING
+// ═══════════════════════════════════════════════════════════════════════
+function startLiveTracking(order) {
+  stopLiveTracking();
+  const mapEl = document.getElementById('tracking-map');
+  if (!mapEl) return;
+
+  trackingMap = L.map('tracking-map', { zoomControl: false, attributionControl: false })
+    .setView([USER_LOC.lat, USER_LOC.lng], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(trackingMap);
+
+  if (order.pickupLat && order.pickupLng) {
+    trackingShopMarker = L.marker([order.pickupLat, order.pickupLng], {
+      icon: L.divIcon({ className: '', html: '<div style="background:#FF6B35;border:3px solid white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.3)">🏪</div>', iconSize: [32, 32], iconAnchor: [16, 16] })
+    }).addTo(trackingMap);
+  }
+  trackingUserMarker = L.marker([USER_LOC.lat, USER_LOC.lng], {
+    icon: L.divIcon({ className: '', html: '<div style="background:#4A90D9;border:3px solid white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.3)">🏠</div>', iconSize: [32, 32], iconAnchor: [16, 16] })
+  }).addTo(trackingMap);
+  trackingRiderMarker = L.marker([USER_LOC.lat, USER_LOC.lng], {
+    icon: L.divIcon({ className: '', html: '<div style="background:#00A651;border:3px solid white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 0 4px rgba(0,166,81,.3)">🛵</div>', iconSize: [40, 40], iconAnchor: [20, 20] })
+  }).addTo(trackingMap);
+
+  trackingUnsubscribe = db.collection('rider_locations').doc(order.riderId)
+    .onSnapshot(snap => {
+      if (!snap.exists) { updateTrackingOffline(); return; }
+      const loc = snap.data();
+      if (!loc.lat || !loc.lng) { updateTrackingOffline(); return; }
+
+      trackingRiderMarker.setLatLng([loc.lat, loc.lng]);
+
+      let target = null, statusText = '', statusClass = '', avatarEmoji = '🛵';
+      if (order.status === 'accepted') {
+        target = { lat: order.pickupLat, lng: order.pickupLng };
+        statusText = `กำลังไปรับอาหารที่ ${order.title}`;
+        statusClass = 'going-to-shop'; avatarEmoji = '🛵';
+      } else if (order.status === 'picked_up') {
+        target = { lat: USER_LOC.lat, lng: USER_LOC.lng };
+        statusText = 'รับอาหารแล้ว — กำลังเดินทางไปหาคุณ';
+        statusClass = 'picked-up'; avatarEmoji = '📦';
+      } else if (order.status === 'on_the_way') {
+        target = { lat: USER_LOC.lat, lng: USER_LOC.lng };
+        statusText = 'กำลังมาหาคุณ';
+        statusClass = 'arriving'; avatarEmoji = '🚀';
+      }
+      if (!target) return;
+
+      const dist = calcDist(loc.lat, loc.lng, target.lat, target.lng);
+      const etaMin = Math.max(1, Math.ceil(dist * 3));
+
+      const distEl = document.getElementById('tracking-dist-km');
+      const etaEl = document.getElementById('tracking-dist-eta');
+      const statusEl = document.getElementById('tracking-status-text');
+      const barEl = document.getElementById('tracking-status-bar');
+      const avatarEl = document.getElementById('tracking-avatar');
+      const updatedEl = document.getElementById('tracking-updated');
+
+      if (distEl) distEl.textContent = formatDist(dist);
+      if (etaEl) etaEl.textContent = `~${etaMin} นาที`;
+      if (statusEl) statusEl.textContent = statusText;
+      if (avatarEl) avatarEl.textContent = avatarEmoji;
+      if (barEl) barEl.className = 'tracking-status-bar ' + statusClass;
+      if (updatedEl) {
+        const now = new Date();
+        updatedEl.textContent = `อัพเดต: ${now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+      }
+
+      if (trackingRouteLine) trackingMap.removeLayer(trackingRouteLine);
+      trackingRouteLine = L.polyline([[loc.lat, loc.lng], [target.lat, target.lng]], { color: '#00A651', weight: 4, opacity: 0.8, dashArray: '10, 10' }).addTo(trackingMap);
+
+      const bounds = L.latLngBounds([[loc.lat, loc.lng], [target.lat, target.lng], [USER_LOC.lat, USER_LOC.lng]]);
+      if (order.pickupLat && order.pickupLng) bounds.extend([order.pickupLat, order.pickupLng]);
+      trackingMap.fitBounds(bounds, { padding: [40, 40] });
+    }, err => { console.warn('[tracking]', err); updateTrackingOffline(); });
+}
+
+function updateTrackingOffline() {
+  const statusEl = document.getElementById('tracking-status-text');
+  const distEl = document.getElementById('tracking-dist-km');
+  const etaEl = document.getElementById('tracking-dist-eta');
+  const updatedEl = document.getElementById('tracking-updated');
+  if (statusEl) statusEl.textContent = '⚠️ ไม่มีสัญญาณ GPS';
+  if (distEl) distEl.textContent = '—';
+  if (etaEl) etaEl.textContent = '—';
+  if (updatedEl) updatedEl.innerHTML = '<span style="color:#E53935">⚠️ ไรเดอร์ไม่ได้ส่งตำแหน่ง</span>';
+}
+
+function stopLiveTracking() {
+  if (trackingUnsubscribe) { try { trackingUnsubscribe(); } catch (e) {} trackingUnsubscribe = null; }
+  if (trackingMap) { try { trackingMap.remove(); } catch (e) {} trackingMap = null; }
+  trackingRiderMarker = null; trackingShopMarker = null; trackingUserMarker = null; trackingRouteLine = null;
+}
+// ═══════════════════════════════════════════════════════════════════════
+//  MAP PAGE
+// ═══════════════════════════════════════════════════════════════════════
+function openMapPage() {
+  document.getElementById('map-page').classList.add('active');
+  document.body.style.paddingBottom = '0';
+  setTimeout(() => {
+    if (!mainMap) initMap();
+    else mainMap.invalidateSize();
+  }, 100);
+}
+function closeMapPage() {
+  document.getElementById('map-page').classList.remove('active');
+  document.body.style.paddingBottom = 'calc(88px + env(safe-area-inset-bottom))';
+}
+
+function initMap() {
+  mainMap = L.map('main-map', { center: [USER_LOC.lat, USER_LOC.lng], zoom: 14, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, minZoom: 10 }).addTo(mainMap);
+  L.control.attribution({ prefix: false }).addAttribution('© OpenStreetMap').addTo(mainMap);
+
+  userMarker = L.marker([USER_LOC.lat, USER_LOC.lng], {
+    icon: L.divIcon({ className: 'custom-user-marker', html: '<div style="background:#4A90D9;border:3px solid white;border-radius:50%;width:24px;height:24px;box-shadow:0 2px 8px rgba(74,144,217,.5)"></div>', iconSize: [24, 24], iconAnchor: [12, 12] })
+  }).addTo(mainMap).bindPopup('<b>📍 ตำแหน่งของคุณ</b>');
+
+  const popupBtn = fn => `<button onclick="${fn}" style="background:#00A651;color:white;border:none;padding:6px 12px;border-radius:8px;margin-top:8px;cursor:pointer">📍 ตั้งเป็นปลายทาง</button>`;
+
+  TAMBONS.forEach((t, i) => {
+    const m = L.marker([t.lat, t.lng], {
+      icon: L.divIcon({ className: 'custom-tambon-marker', html: `<div style="background:#FF6B35;color:white;border:3px solid white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold">${i + 1}</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
+    }).addTo(mainMap).bindPopup(`<b>${esc(t.name)}</b><br>${esc(t.desc)}<br>${popupBtn(`pickTambon(${i})`)}`);
+    tambonMarkers.push(m);
+  });
+
+  const colors = { temple:'#FFD700', edu:'#43e97b', gov:'#667eea', health:'#ff6b6b', tourist:'#11998e', hotel:'#a18cd1', gas:'#fa709a', bank:'#30cfd0', market:'#ff9a9e' };
+  PLACES.filter(p => colors[p.c]).forEach(p => {
+    const m = L.marker([p.lat, p.lng], {
+      icon: L.divIcon({ className: 'custom-place-marker', html: `<div style="background:${colors[p.c]};color:white;border:3px solid white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:14px">${CAT_ICON[p.c]}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] })
+    }).addTo(mainMap).bindPopup(`<b>${esc(p.n)}</b><br>⭐ ${p.rating} • ${esc(p.price || 'สอบถาม')}<br>${popupBtn(`pickPlace(${p.id})`)}`);
+    placeMarkers.push(m);
+  });
+
+  mainMap.on('click', e => setDestination(e.latlng.lat, e.latlng.lng, 'จุดที่เลือกบนแผนที่', 'custom'));
+
+  const list = document.getElementById('tambon-list');
+  TAMBONS.forEach((t, i) => {
+    const item = document.createElement('div');
+    item.className = 'tambon-item';
+    item.innerHTML = `<div class="tambon-dot"></div><span>${i + 1}. ${esc(t.name)}</span>`;
+    item.onclick = () => { mainMap.setView([t.lat, t.lng], 16); tambonMarkers[i].openPopup(); toggleTambonList(); };
+    list.appendChild(item);
+  });
+}
+
+function pickPlace(id) { const p = PLACES[id]; mainMap.closePopup(); setDestination(p.lat, p.lng, p.n, p.c); }
+function pickTambon(i) { const t = TAMBONS[i]; mainMap.closePopup(); setDestination(t.lat, t.lng, t.name, 'tambon'); }
+
+function setDestination(lat, lng, name, category) {
+  if (!mainMap) return;
+  if (destinationMarker) mainMap.removeLayer(destinationMarker);
+  destinationMarker = L.marker([lat, lng], {
+    draggable: true,
+    icon: L.divIcon({ className: 'custom-destination-marker', html: '<div style="background:#E91E63;color:white;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);width:36px;height:36px;display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg)">📍</span></div>', iconSize: [36, 36], iconAnchor: [18, 36] })
+  }).addTo(mainMap);
+  destinationMarker.on('dragend', e => {
+    const pos = e.target.getLatLng();
+    currentDestination = { lat: pos.lat, lng: pos.lng, name, category };
+    updateMapInfoPanel(pos.lat, pos.lng, name);
+    drawRoute(pos.lat, pos.lng);
+  });
+  currentDestination = { lat, lng, name, category };
+  updateMapInfoPanel(lat, lng, name);
+  drawRoute(lat, lng);
+  document.getElementById('map-info-panel').classList.add('active');
+  showToast(`📍 ตั้ง "${name}" เป็นปลายทางแล้ว`);
+}
+
+function drawRoute(lat, lng) {
+  if (routeLine) mainMap.removeLayer(routeLine);
+  routeLine = L.polyline([[USER_LOC.lat, USER_LOC.lng], [lat, lng]], { color: '#00A651', weight: 5, opacity: 0.8, dashArray: '10, 10' }).addTo(mainMap);
+  mainMap.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+}
+
+function updateMapInfoPanel(lat, lng, name) {
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
+  const fare = calcFare(dist);
+  document.getElementById('map-info-title').innerHTML = `📍 ปลายทาง: ${esc(name)}`;
+  document.getElementById('map-info-content').innerHTML = `
+    <div class="map-info-sub">ระยะทาง: <strong>${formatDist(dist)}</strong></div>
+    <div class="map-info-sub">เวลาโดยประมาณ: <strong>${Math.max(2, Math.ceil(dist * 4))} นาที</strong></div>
+    <div class="map-info-sub">พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+    <div class="map-info-cost">
+      <div class="cost-row"><span>🚩 ค่าเริ่มต้น (1 กม.)</span><span>${fare.base}฿</span></div>
+      ${fare.extra > 0 ? `<div class="cost-row"><span>📏 ระยะเพิ่ม (${fare.extraKm.toFixed(1)} กม. × ${fare.perKm}฿)</span><span>${fare.extra}฿</span></div>` : ''}
+      <div class="cost-total"><span>💰 รวมค่าส่ง</span><span>${fare.total}฿</span></div>
+    </div>`;
+}
+
+async function callRiderFromMap() {
+  if (orderSubmitting) return;
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return; }
+  if (!currentDestination) return showToast('⚠️ ยังไม่ได้ตั้งปลายทาง');
+  if (!checkOrderRateLimit()) return;
+
+  const { lat, lng, name } = currentDestination;
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, lat, lng);
+  const fare = calcFare(dist);
+
+  let phone = '';
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).get();
+    if (snap.exists) phone = snap.data().phone || '';
+  } catch (e) {}
+
+  if (!phone) { showToast('⚠️ กรุณากรอกเบอร์โทรในโปรไฟล์ก่อน'); return; }
+
+  const order = {
+    type: 'map', title: name, items: 'ปลายทางจากแผนที่',
+    price: 0, fare: fare.total, serviceFee: 0, total: fare.total,
+    distance: dist, address: name, note: '',
+    userPhone: phone, pickupLat: lat, pickupLng: lng,
+    status: 'searching'
+  };
+
+  orderSubmitting = true;
+  orderTimestamps.push(Date.now());
+  showToast('🔍 กำลังเรียกไรเดอร์...');
+  const ok = await saveOrderToFirestore(order);
+  orderSubmitting = false;
+
+  if (!ok) { showToast('❌ เรียกไรเดอร์ไม่สำเร็จ'); return; }
+  closeMapPage();
+  switchTab('orders', document.querySelectorAll('.nav-item')[1]);
+  showToast(`✅ เรียกไรเดอร์สำเร็จ! ไปที่ "${name}"`);
+}
+
+function navigateToDestination() {
+  if (!currentDestination) return showToast('⚠️ ยังไม่ได้ตั้งปลายทาง');
+  const { lat, lng, name } = currentDestination;
+  showToast(`🧭 กำลังนำทางไป ${name}`);
+  setTimeout(() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank'), 500);
+}
+
+function clearDestination() {
+  if (mainMap) {
+    if (destinationMarker) mainMap.removeLayer(destinationMarker);
+    if (routeLine) mainMap.removeLayer(routeLine);
+  }
+  destinationMarker = routeLine = currentDestination = null;
+  document.getElementById('map-info-panel').classList.remove('active');
+  showToast('🗑️ ล้างปลายทางแล้ว');
+}
+
+function centerToUser() {
+  if (!mainMap) return;
+  mainMap.setView([USER_LOC.lat, USER_LOC.lng], 16);
+  userMarker.openPopup();
+}
+
+function toggleTambonList() { document.getElementById('tambon-list').classList.toggle('active'); }
+
+function showAllPlacesOnMap() {
+  if (!mainMap) return;
+  const b = L.latLngBounds([[USER_LOC.lat, USER_LOC.lng]]);
+  placeMarkers.concat(tambonMarkers).forEach(m => b.extend(m.getLatLng()));
+  mainMap.fitBounds(b, { padding: [50, 50] });
+  showToast(`📌 แสดง ${placeMarkers.length + tambonMarkers.length} แห่ง`);
+}
+
+function openMapFromOrder(orderId) {
+  const o = orders.find(x => String(x.id) === String(orderId));
+  const p = o && PLACES.find(x => x.n === o.title);
+  if (p) pinAsDestination(p.id);
+  else whenMapReady(() => mainMap.setView([USER_LOC.lat, USER_LOC.lng], 14));
+}
+
+function whenMapReady(fn) {
+  openMapPage();
+  const t = setInterval(() => { if (mainMap) { clearInterval(t); fn(); } }, 100);
+}
+
+function pinAsDestination(id) {
+  const p = PLACES[id];
+  closeModal();
+  whenMapReady(() => { mainMap.setView([p.lat, p.lng], 16); setDestination(p.lat, p.lng, p.n, p.c); });
+}
+
+function callRiderToPlace(id) {
+  const p = PLACES[id];
+  closeModal();
+  whenMapReady(() => { setDestination(p.lat, p.lng, p.n, p.c); callRiderFromMap(); });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ORDER FORM
+// ═══════════════════════════════════════════════════════════════════════
+const ORDER_CONFIGS = {
+  food: { title: '🍽️ สั่งอาหาร', icon: '🍽️', subtitle: 'เลือกร้านอาหารและพิมพ์รายการอาหาร', placeholder: 'เช่น ข้าวมันไก่ 1 จาน, น้ำเปล่า 1 ขวด...', label: '📝 รายการอาหาร', priceLabel: '💰 ยอดค่าอาหารโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 150', btnText: '📋 สรุปรายการและค่าส่ง', summary: '🍽️ สั่งอาหาร' },
+  shopping: { title: '🛒 ซื้อของใช้', icon: '🛒', subtitle: 'พิมพ์รายการสินค้าที่ต้องการให้ซื้อ', placeholder: 'เช่น น้ำดื่ม 6 ขวด...', label: '📝 รายการสินค้า', priceLabel: '💰 ยอดค่าสินค้าโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 200', btnText: '📋 สรุปรายการและค่าส่ง', summary: '🛒 ซื้อของใช้' },
+  dinein: { title: '🍴 กินที่ร้าน', icon: '🍴', subtitle: 'เลือกร้านอาหารสำหรับนั่งกิน', placeholder: 'เช่น โต๊ะ 4 คน...', label: '📝 ความต้องการพิเศษ', priceLabel: '💰 งบประมาณโดยประมาณ (บาท)', pricePlaceholder: 'เช่น 500', btnText: '📋 สรุปและจองโต๊ะ', summary: '🍴 กินที่ร้าน' },
+  express: { title: '📦 ส่งด่วน', icon: '📦', subtitle: 'กรอกรายละเอียดพัสดุที่จะส่ง', placeholder: 'เช่น เอกสารสำคัญ...', label: '📝 รายละเอียดพัสดุ', priceLabel: '⚖️ น้ำหนักโดยประมาณ (กก.)', pricePlaceholder: 'เช่น 2', btnText: '📋 สรุปค่าส่ง', summary: '📦 ส่งด่วน' }
+};
+
+function getPlacesForType(type) {
+  const cats = type === 'food' || type === 'dinein' ? ['restaurant', 'cafe']
+    : type === 'shopping' ? ['convenience', 'shop', 'market']
+    : ['convenience', 'shop', 'market', 'restaurant', 'cafe', 'postal'];
+  return withDist(PLACES.filter(p => cats.includes(p.c)));
+}
+
+async function openOrderForm(type) {
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return; }
+  const cfg = ORDER_CONFIGS[type];
+  if (!cfg) return;
+  currentOrderDraft = { type };
+
+  let savedPhone = '';
+  try {
+    const snap = await db.collection('users').doc(currentUser.uid).get();
+    if (snap.exists) savedPhone = snap.data().phone || '';
+  } catch (e) {}
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="order-form-header">
+      <div class="of-icon">${cfg.icon}</div>
+      <div class="of-title">${cfg.title}</div>
+      <div class="of-sub">${cfg.subtitle}</div>
+    </div>
+    <div class="form-group">
+      <label>🏪 เลือกร้าน/สถานที่ต้นทาง</label>
+      <select id="of-place-select">
+        <option value="">-- เลือกสถานที่ --</option>
+        ${getPlacesForType(type).map(p => `<option value="${p.id}">${esc(p.n)} (${esc(p.price || 'สอบถาม')})</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>${cfg.label}</label><textarea id="of-items" placeholder="${cfg.placeholder}" rows="4"></textarea></div>
+    <div class="form-group"><label>${cfg.priceLabel}</label><input type="number" id="of-price" placeholder="${cfg.pricePlaceholder}" min="0"></div>
+    <div class="form-group"><label>📱 เบอร์โทรศัพท์ (สำหรับไรเดอร์ติดต่อ)</label><input type="tel" id="of-phone" placeholder="08X-XXX-XXXX" value="${esc(savedPhone)}"></div>
+    <div class="form-group"><label>🏠 ที่อยู่ปลายทาง (คุณ)</label><input type="text" id="of-address" value="ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช"></div>
+    <div class="form-group"><label>📝 หมายเหตุเพิ่มเติม (ไม่บังคับ)</label><textarea id="of-note" placeholder="เช่น ไม่ใส่ผัก..." rows="2"></textarea></div>
+    <button class="btn-full btn-orange" onclick="goToOrderSummary()">${cfg.btnText} →</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ยกเลิก</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+function goToOrderSummary() {
+  const draft = currentOrderDraft;
+  if (!draft) return;
+  const cfg = ORDER_CONFIGS[draft.type];
+  const placeId = document.getElementById('of-place-select').value;
+  const items = document.getElementById('of-items').value.trim();
+  const price = Math.max(0, parseFloat(document.getElementById('of-price').value) || 0);
+  const phone = document.getElementById('of-phone').value.trim();
+  const address = document.getElementById('of-address').value.trim();
+  const note = document.getElementById('of-note').value.trim();
+
+  if (placeId === '') return showToast('⚠️ กรุณาเลือกร้าน');
+  if (!items) return showToast('⚠️ กรุณากรอกรายการ');
+  if (!phone) return showToast('⚠️ กรุณากรอกเบอร์โทร');
+  if (!address) return showToast('⚠️ กรุณากรอกที่อยู่');
+
+  const place = PLACES[+placeId];
+  if (!place) return showToast('⚠️ ไม่พบสถานที่');
+
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, place.lat, place.lng);
+  const fare = calcFare(dist);
+  const goods = draft.type === 'express' ? 0 : price;
+  const total = goods + fare.total;
+  const timeMin = Math.max(3, Math.ceil(dist * 4));
+
+  currentOrderDraft = { ...draft, placeName: place.n, pickupLat: place.lat, pickupLng: place.lng, items, price, phone, address, note, dist, fare, total, timeMin };
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="order-form-header"><div class="of-icon">📋</div><div class="of-title">สรุปรายการสั่งซื้อ</div><div class="of-sub">${cfg.summary}</div></div>
+    <div style="background:#f8f9fa;padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#888">🏪 ต้นทาง</div>
+      <div style="font-weight:900;font-size:14px">${esc(place.n)}</div>
+      <div style="font-size:12px;color:#666">📍 ${formatDist(dist)} • ~${timeMin} นาที</div>
+    </div>
+    <div style="background:#f8f9fa;padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#888">${cfg.label}</div>
+      <div style="font-size:14px;line-height:1.5;white-space:pre-wrap">${esc(items)}</div>
+    </div>
+    <div style="background:#f8f9fa;padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:12px;color:#888">🏠 ปลายทาง</div>
+      <div style="font-size:14px">${esc(address)}</div>
+      <div style="font-size:12px;color:#888;margin-top:6px">📱 ${esc(phone)}</div>
+      ${note ? `<div style="font-size:12px;color:#888;margin-top:6px">📝 ${esc(note)}</div>` : ''}
+    </div>
+    <div class="summary-box">
+      <div class="summary-row"><span class="label">💰 ค่าสินค้า/อาหาร</span><span class="value">${price > 0 ? price.toFixed(0) + '฿' : '-'}</span></div>
+      <div class="summary-row"><span class="label">🚩 ค่าเริ่มต้น (1 กม.)</span><span class="value">${fare.base}฿</span></div>
+      ${fare.extra > 0 ? `<div class="summary-row"><span class="label">📏 ระยะเพิ่ม (${fare.extraKm.toFixed(1)} กม. × ${fare.perKm}฿)</span><span class="value">${fare.extra}฿</span></div>` : ''}
+      <div class="summary-row total"><span>💰 รวมทั้งหมด</span><span>${total.toFixed(0)}฿</span></div>
+    </div>
+    <div style="background:#FFF3E0;padding:12px;border-radius:12px;margin-bottom:15px;border:1px solid #FFE0B2">
+      <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#E65100;cursor:pointer">
+        <input type="checkbox" id="order-pdpa-consent" style="margin-top:3px;accent-color:#E65100">
+        <span>ฉันยอมรับ <a href="/terms" target="_blank" style="color:#E65100;text-decoration:underline">เงื่อนไขการใช้งาน</a> และ <a href="/privacy" target="_blank" style="color:#E65100;text-decoration:underline">นโยบาย PDPA</a> รวมถึงเข้าใจว่าข้อมูลจะถูกส่งต่อให้ไรเดอร์เพื่อการจัดส่งเท่านั้น</span>
+      </label>
+    </div>
+    <button id="confirm-order-btn" class="btn-full btn-green" onclick="confirmOrderWithPDPA()">✅ ยืนยันการสั่งซื้อ</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">❌ ยกเลิก</button>`;
+}
+
+function confirmOrderWithPDPA() {
+  if (!document.getElementById('order-pdpa-consent').checked) return showToast('⚠️ กรุณายอมรับเงื่อนไข');
+  confirmOrderAndCallRider();
+}
+
+async function confirmOrderAndCallRider() {
+  if (orderSubmitting) return;
+  if (!checkOrderRateLimit()) return;
+  const d = currentOrderDraft;
+  if (!d || !d.fare) return;
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบก่อน'); showLoginModal(); return; }
+
+  orderSubmitting = true;
+  const btn = document.getElementById('confirm-order-btn');
+  if (btn) { btn.dataset.originalLabel = btn.innerHTML; btn.disabled = true; btn.innerHTML = '⏳ กำลังบันทึก...'; }
+  showToast('🔍 กำลังค้นหาไรเดอร์...');
+
+  const order = {
+    type: d.type, title: d.placeName, items: d.items,
+    price: d.price, fare: d.fare.total, serviceFee: 0, total: d.total,
+    distance: d.dist, address: d.address, note: d.note,
+    userPhone: d.phone, pickupLat: d.pickupLat, pickupLng: d.pickupLng,
+    status: 'searching'
+  };
+
+  orderTimestamps.push(Date.now());
+  const ok = await saveOrderToFirestore(order);
+  orderSubmitting = false;
+
+  if (ok) {
+    closeModal();
+    switchTab('orders', document.querySelectorAll('.nav-item')[1]);
+    showToast('✅ สั่งซื้อสำเร็จ! ไรเดอร์กำลังมา');
+  } else {
+    if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.originalLabel || '✅ ยืนยัน'; }
+    showToast('❌ สั่งซื้อไม่สำเร็จ');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PLACE DETAIL
+// ═══════════════════════════════════════════════════════════════════════
+function openDetail(id) {
+  const p = PLACES[id];
+  if (!p) return;
+  const dist = formatDist(calcDist(USER_LOC.lat, USER_LOC.lng, p.lat, p.lng));
+  const canRider = p.c === 'restaurant' || p.c === 'cafe';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:60px">${CAT_ICON[p.c] || '📍'}</div>
+      <div style="font-size:20px;font-weight:900;margin-top:10px">${esc(p.n)}</div>
+      <div style="font-size:13px;color:#888;margin-top:5px">${CAT_LABEL[p.c] || esc(p.c)} • ⭐ ${p.rating}</div>
+      <div style="font-size:14px;color:#00A651;font-weight:800;margin-top:5px">📍 ${dist}</div>
+    </div>
+    <div style="background:#f8f9fa;padding:15px;border-radius:12px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:#888">ราคา/เวลา</span><strong style="color:#00A651">${esc(p.price || 'สอบถาม')}</strong></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:#888">ระยะทาง</span><strong>${dist}</strong></div>
+    </div>
+    <button class="btn-full btn-green" onclick="pinAsDestination(${p.id})">📍 ปักหมุดเป็นปลายทาง</button>
+    ${canRider ? `<button class="btn-full btn-orange" onclick="callRiderToPlace(${p.id})">🛵 เรียกไรเดอร์ไปที่นี่</button>` : ''}
+    <button class="btn-full btn-blue" onclick="pinAsDestination(${p.id})">🗺️ ดูบนแผนที่</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PLACES RENDER
+// ═══════════════════════════════════════════════════════════════════════
+function hasPhoto(p) { return !!(p.img && p.img.startsWith('images/')); }
+function withDist(list) {
+  return list.map(p => ({ ...p, dist: calcDist(USER_LOC.lat, USER_LOC.lng, p.lat, p.lng) }))
+    .sort((a, b) => (hasPhoto(b) - hasPhoto(a)) || (a.dist - b.dist));
+}
+function typeClass(c) { return c === 'restaurant' ? 'rest' : c === 'cafe' ? 'cafe' : c === 'temple' ? 'temple' : 'shop'; }
+function imgHtml(p) {
+  if (p.img && p.img.startsWith('images/')) return `<img src="${esc(p.img)}" alt="${esc(p.n)}" loading="lazy" onerror="this.style.display='none'">`;
+  return esc(p.img || CAT_ICON[p.c] || '📍');
+}
+
+function createCard(p, type) {
+  const dist = formatDist(p.dist);
+  return `<div class="food-card" onclick="openDetail(${p.id})">
+    <div class="food-img ${type}">${imgHtml(p)}</div>
+    <div class="food-info">
+      <div class="food-name">${esc(p.n)}</div>
+      <div class="food-meta"><span class="food-rating">⭐ ${p.rating}</span><span>📍 ${dist}</span></div>
+      <div class="food-price">${esc(p.price || 'สอบถาม')}</div>
+    </div>
+  </div>`;
+}
+
+function renderCards() {
+  const top = (c, n) => withDist(PLACES.filter(p => p.c === c)).slice(0, n);
+  document.getElementById('restaurant-grid').innerHTML = top('restaurant', 4).map(p => createCard(p, 'rest')).join('');
+  document.getElementById('convenience-grid').innerHTML = top('convenience', 2).map(p => createCard(p, 'shop')).join('');
+  document.getElementById('cafe-grid').innerHTML = top('cafe', 2).map(p => createCard(p, 'cafe')).join('');
+}
+
+function showListView(title, items) {
+  document.getElementById('category-title').innerText = title;
+  document.getElementById('category-grid').innerHTML = items.length
+    ? items.map(p => createCard(p, typeClass(p.c))).join('')
+    : '<div class="empty-state"><div class="icon">📭</div><div>ไม่มีข้อมูล</div></div>';
+  document.getElementById('home-content').classList.add('hidden');
+  document.getElementById('category-view').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function filterCategory(cat) {
+  const map = { travel: { label: '🚗 เดินทางและขนส่ง', cats: ['transport', 'gas'] } };
+  const cfg = map[cat]; if (!cfg) return;
+  const items = withDist(PLACES.filter(p => cfg.cats.includes(p.c)));
+  showListView(`${cfg.label} (${items.length})`, items);
+}
+
+function showAllCategories(category) {
+  const labels = { restaurant: '🍽️ ร้านอาหารทั้งหมด', convenience: '🏪 ร้านสะดวกซื้อทั้งหมด', cafe: '☕ คาเฟ่ทั้งหมด' };
+  showListView(labels[category] || 'ทั้งหมด', withDist(PLACES.filter(p => p.c === category)));
+}
+
+function closeCategoryView() {
+  document.getElementById('category-view').classList.remove('active');
+  document.getElementById('home-content').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  SEARCH
+// ═══════════════════════════════════════════════════════════════════════
+function doSearch(query) {
+  const box = document.getElementById('search-results');
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) { box.classList.remove('active'); box.innerHTML = ''; return; }
+  const results = withDist(PLACES.filter(p => p.n.toLowerCase().includes(q)));
+  box.classList.add('active');
+  if (!results.length) {
+    box.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><div>ไม่พบ "${esc(query)}"</div></div>`;
+    return;
+  }
+  box.innerHTML = `<div style="padding:10px 0;font-size:14px;color:#666;font-weight:800">พบ ${results.length} สถานที่</div>` +
+    results.map(p => `<div class="search-result-item" onclick="openDetail(${p.id})">
+      <div class="search-result-img ${typeClass(p.c)}">${imgHtml(p)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.n)}</div>
+        <div style="font-size:12px;color:#888">${CAT_ICON[p.c] || ''} ${CAT_LABEL[p.c] || esc(p.c)} • 📍 ${formatDist(p.dist)}</div>
+        <div style="font-size:12px;color:#00A651;font-weight:700">${esc(p.price || 'สอบถาม')}</div>
+      </div>
+    </div>`).join('');
+}
+// ═══════════════════════════════════════════════════════════════════════
+//  CHAT
+// ═══════════════════════════════════════════════════════════════════════
+function openChat(orderId) {
+  let order;
+  if (orderId && typeof orderId === 'string') order = orders.find(o => String(o.id) === String(orderId));
+  else order = orders.find(o => o.rider && ['pending','accepted','picked_up','on_the_way'].includes(o.status));
+  if (!order) { showToast('⚠️ ยังไม่มีออเดอร์ที่มอบหมายไรเดอร์แล้ว'); return; }
+
+  currentChatOrderId = order.id;
+  const rider = order.rider || { name: 'ไรเดอร์', avatar: '?' };
+  ensureChatDoc(order);
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="chat-container">
+      <div class="chat-header">
+        <button class="back-btn" onclick="closeChat()">←</button>
+        <div class="info">
+          <div class="name">${esc(rider.name)}</div>
+          <div class="status">🛵 ไรเดอร์ Chauat Go</div>
+        </div>
+      </div>
+      <div class="chat-quick-actions">
+        <div class="quick-action" onclick="sendQuickMessage('สวัสดีครับ')">👋 สวัสดี</div>
+        <div class="quick-action" onclick="sendQuickMessage('อาหารเสร็จหรือยังครับ?')">⏱️ สอบถาม</div>
+        <div class="quick-action" onclick="sendQuickMessage('ขอบคุณครับ 🙏')"> ขอบคุณ</div>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg system">เริ่มการสนทนาแล้ว</div>
+      </div>
+      <div class="chat-input-area">
+        <button class="chat-attach-btn" onclick="triggerImageUpload()">📷</button>
+        <input type="text" id="chat-input-text" placeholder="พิมพ์ข้อความ..." onkeypress="if(event.key==='Enter')sendChatMessage()">
+        <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
+      </div>
+      <input type="file" id="chat-image-input" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(event)">
+    </div>`;
+  document.getElementById('modal').classList.add('active');
+  setTimeout(() => { subscribeChatMessages(currentChatOrderId); setTimeout(scrollChatToBottom, 250); }, 100);
+}
+
+function closeChat() {
+  if (chatMessagesUnsub) { try { chatMessagesUnsub(); } catch (e) {} chatMessagesUnsub = null; }
+  currentChatOrderId = null; currentChatData = null;
+  closeModal();
+}
+
+async function ensureChatDoc(order) {
+  try {
+    const chatRef = db.collection('chats').doc(order.id);
+    const chatDoc = await chatRef.get();
+    if (!chatDoc.exists) {
+      await chatRef.set({
+        orderId: order.id, userId: order.userId, userName: order.userName || '',
+        riderId: order.riderId, riderName: order.rider?.name || '',
+        lastMessage: '', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        unreadByUser: 0, unreadByRider: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await chatRef.collection('messages').add({
+        sender: 'system', text: `เริ่มการสนทนากับ ${order.rider?.name || 'ไรเดอร์'}`,
+        type: 'text', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else currentChatData = chatDoc.data();
+  } catch (e) { console.error('[ensureChat]', e); }
+}
+
+function subscribeChatMessages(orderId) {
+  if (chatMessagesUnsub) chatMessagesUnsub();
+  chatMessagesUnsub = db.collection('chats').doc(orderId)
+    .collection('messages').orderBy('createdAt', 'asc').limit(200)
+    .onSnapshot(snap => {
+      const container = document.getElementById('chat-messages');
+      if (!container) return;
+      if (snap.empty) { container.innerHTML = '<div class="chat-msg system">เริ่มการสนทนาแล้ว</div>'; return; }
+      container.innerHTML = snap.docs.map(doc => {
+        const m = doc.data();
+        const time = m.createdAt?.toDate ? m.createdAt.toDate() : new Date();
+        const timeStr = time.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        if (m.sender === 'system') return `<div class="chat-msg system">${esc(m.text || '')}</div>`;
+        const isSent = m.sender === 'user';
+        let content = '';
+        if (m.imageUrl) {
+          const label = m.type === 'bill' ? '🧾 ใบเสร็จ' : (m.type === 'food' ? '🍽️ รูปอาหาร' : '📸 รูป');
+          content += `<div class="img-label">${label}</div>`;
+          content += `<img src="${esc(m.imageUrl)}" onclick="openLightbox('${esc(m.imageUrl)}')" onerror="this.style.display='none'">`;
+        }
+        if (m.text) content += `<div>${esc(m.text)}</div>`;
+        return `<div class="chat-msg ${isSent ? 'sent' : 'received'}">${content}<span class="msg-time">${timeStr}</span></div>`;
+      }).join('');
+      scrollChatToBottom();
+      markMessagesAsRead(orderId);
+    }, err => console.warn('[chat]', err));
+}
+
+function scrollChatToBottom() { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input-text');
+  if (!input || !currentChatOrderId) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await sendChatContent({ text, type: 'text' });
+}
+
+async function sendQuickMessage(text) {
+  if (!currentChatOrderId) return;
+  await sendChatContent({ text, type: 'text' });
+}
+
+async function sendChatContent(content) {
+  if (!currentChatOrderId) return;
+  try {
+    const chatRef = db.collection('chats').doc(currentChatOrderId);
+    await chatRef.collection('messages').add({
+      sender: 'user', text: content.text || '', imageUrl: content.imageUrl || null,
+      type: content.type || 'text',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(), read: false
+    });
+    await chatRef.update({
+      lastMessage: content.text || (content.imageUrl ? '📷 ส่งรูป' : ''),
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unreadByRider: firebase.firestore.FieldValue.increment(1)
+    });
+  } catch (e) { console.error('[sendChat]', e); showToast('❌ ส่งไม่สำเร็จ'); }
+}
+
+function triggerImageUpload() { document.getElementById('chat-image-input').click(); }
+
+async function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file || !currentChatOrderId) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('⚠️ รูปใหญ่เกิน 5 MB'); event.target.value = ''; return; }
+
+  const progress = document.createElement('div');
+  progress.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.85);color:#fff;padding:20px 30px;border-radius:16px;font-size:14px;font-weight:800;z-index:9999';
+  progress.textContent = '⏳ กำลังอัพโหลด...';
+  document.body.appendChild(progress);
+
+  try {
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop() || 'jpg';
+    const ref = storage.ref(`chats/${currentChatOrderId}/${timestamp}.${ext}`);
+    const snapshot = await ref.put(file);
+    const url = await snapshot.ref.getDownloadURL();
+    await sendChatContent({ imageUrl: url, text: '', type: 'image' });
+    progress.remove();
+    showToast('✅ ส่งรูปแล้ว');
+  } catch (e) { console.error('[upload]', e); progress.remove(); showToast('❌ อัพโหลดไม่สำเร็จ'); }
+  event.target.value = '';
+}
+
+async function markMessagesAsRead(orderId) {
+  try {
+    const chatRef = db.collection('chats').doc(orderId);
+    const doc = await chatRef.get();
+    if (doc.exists && doc.data().unreadByUser > 0) await chatRef.update({ unreadByUser: 0 });
+  } catch (e) {}
+}
+
+function updateChatBadge() {
+  const badge = document.getElementById('chat-badge');
+  if (!badge || !currentUser) return;
+  db.collection('chats').where('userId', '==', currentUser.uid).where('unreadByUser', '>', 0)
+    .onSnapshot(snap => {
+      const count = snap.docs.reduce((s, d) => s + (d.data().unreadByUser || 0), 0);
+      if (count > 0) { badge.textContent = count; badge.style.display = 'flex'; }
+      else badge.style.display = 'none';
+    }, err => console.warn('[chat badge]', err));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  RATING
+// ═══════════════════════════════════════════════════════════════════════
+function getRiderLevel(rating, totalRatings) {
+  if (!totalRatings || totalRatings < 5) return { key: 'new', icon: '🌱', label: 'ใหม่', cls: 'level-new' };
+  if (rating >= 4.9) return { key: 'elite', icon: '🏆', label: 'Elite', cls: 'level-elite' };
+  if (rating >= 4.7) return { key: 'gold', icon: '🥇', label: 'Gold', cls: 'level-gold' };
+  if (rating >= 4.5) return { key: 'silver', icon: '🥈', label: 'Silver', cls: 'level-silver' };
+  if (rating >= 4.0) return { key: 'bronze', icon: '🥉', label: 'Bronze', cls: 'level-bronze' };
+  return { key: 'warn', icon: '️', label: 'ปรับปรุง', cls: 'level-new' };
+}
+
+function openRatingDialog(orderId) {
+  const order = orders.find(o => String(o.id) === String(orderId));
+  if (!order || !order.rider) { showToast('ไม่พบข้อมูลไรเดอร์'); return; }
+  if (order.rated) { showToast('คุณให้คะแนนออเดอร์นี้แล้ว'); return; }
+  const rider = order.rider;
+
+  document.getElementById('modal-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;font-weight:900;margin:0 auto 12px">${esc(rider.avatar || (rider.name || '?')[0])}</div>
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:4px">${esc(rider.name)}</h2>
+      <p style="font-size:13px;color:#888">ให้คะแนนการให้บริการ</p>
+    </div>
+    <div class="rating-stars" id="rating-stars">
+      <div class="rating-star" data-star="1" onclick="setRating(1)">⭐</div>
+      <div class="rating-star" data-star="2" onclick="setRating(2)">⭐</div>
+      <div class="rating-star" data-star="3" onclick="setRating(3)">⭐</div>
+      <div class="rating-star" data-star="4" onclick="setRating(4)">⭐</div>
+      <div class="rating-star" data-star="5" onclick="setRating(5)">⭐</div>
+    </div>
+    <div class="rating-label" id="rating-label">กดดาวเพื่อให้คะแนน</div>
+    <textarea class="rating-comment" id="rating-comment" placeholder="คอมเมนต์เพิ่มเติม (ไม่บังคับ)" maxlength="500"></textarea>
+    <div style="background:#F0F9FF;padding:12px;border-radius:10px;margin-top:12px;font-size:12px;color:#1565C0;line-height:1.6;font-weight:600">💡 คะแนนของคุณจะช่วยให้เราปรับปรุงบริการ</div>
+    <button class="btn-full btn-green" id="submit-rating-btn" style="margin-top:16px" onclick="submitRating('${jsStr(order.id)}')" disabled>✅ ส่งคะแนน</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ข้ามไปก่อน</button>`;
+  window._currentRating = 0;
+  document.getElementById('modal').classList.add('active');
+}
+
+function setRating(stars) {
+  window._currentRating = stars;
+  document.querySelectorAll('.rating-star').forEach(el => {
+    el.classList.toggle('active', Number(el.dataset.star) <= stars);
+  });
+  const labels = { 1: '😞 แย่มาก', 2: '😕 ไม่ค่อยดี', 3: '🙂 พอใช้', 4: '😊 ดี', 5: '🤩 ยอดเยี่ยม!' };
+  document.getElementById('rating-label').textContent = labels[stars] || '';
+  const btn = document.getElementById('submit-rating-btn');
+  if (btn) btn.disabled = false;
+}
+
+async function submitRating(orderId) {
+  const stars = window._currentRating || 0;
+  if (stars < 1 || stars > 5) return showToast('⚠️ กรุณากดดาวก่อน');
+  const order = orders.find(o => String(o.id) === String(orderId));
+  if (!order || !order.rider) return;
+  const comment = (document.getElementById('rating-comment')?.value || '').trim().slice(0, 500);
+  const btn = document.getElementById('submit-rating-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '⏳ กำลังส่ง...'; }
+
+  try {
+    await db.collection('ratings').add({
+      orderId: order.id, riderId: order.riderId, riderName: order.rider.name || '',
+      userId: currentUser.uid, userName: currentUser.displayName || currentUser.email || 'ลูกค้า',
+      stars, comment,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    const riderRef = db.collection('riders').doc(order.riderId);
+    await db.runTransaction(async (transaction) => {
+      const riderDoc = await transaction.get(riderRef);
+      if (!riderDoc.exists) return;
+      const data = riderDoc.data();
+      const newTotal = Number(data.totalRatings || 0) + 1;
+      const newSum = Number(data.ratingSum || 0) + stars;
+      const newAvg = Math.round((newSum / newTotal) * 10) / 10;
+      const ratingKey = `rating${stars}`;
+      transaction.update(riderRef, {
+        rating: newAvg, totalRatings: newTotal, ratingSum: newSum,
+        [ratingKey]: Number(data[ratingKey] || 0) + 1
+      });
+    });
+
+    await db.collection('orders').doc(order.id).update({
+      rated: true, ratedAt: firebase.firestore.FieldValue.serverTimestamp(), ratingStars: stars
+    });
+
+    closeModal();
+    showToast('🙏 ขอบคุณสำหรับคะแนน!');
+    setTimeout(() => {
+      document.getElementById('modal-body').innerHTML = `
+        <div style="text-align:center;padding:30px 20px">
+          <div style="font-size:70px;margin-bottom:12px">🙏</div>
+          <h2 style="font-size:20px;font-weight:900;color:#00A651;margin-bottom:8px">ขอบคุณสำหรับคะแนน!</h2>
+          <p style="font-size:14px;color:#666;line-height:1.6;margin-bottom:20px">คะแนนของคุณจะช่วยให้เราพัฒนาบริการ</p>
+          <div style="font-size:32px;margin-bottom:20px">${'⭐'.repeat(stars)}</div>
+          <button class="btn-full btn-green" onclick="closeModal()">ปิด</button>
+        </div>`;
+      document.getElementById('modal').classList.add('active');
+    }, 400);
+  } catch (e) {
+    console.error('[submitRating]', e);
+    showToast('❌ ส่งคะแนนไม่สำเร็จ');
+    if (btn) { btn.disabled = false; btn.innerHTML = '✅ ส่งคะแนน'; }
+  }
+}
+
+let ratingPromptShown = new Set();
+setInterval(() => {
+  if (!currentUser) return;
+  orders.forEach(o => {
+    if (o.status === 'done' && o.rider && !o.rated) {
+      const doneTime = o.completedAt?.toDate ? o.completedAt.toDate() : null;
+      if (!doneTime) return;
+      const ageMin = (Date.now() - doneTime.getTime()) / 1000 / 60;
+      if (ageMin >= 1 && ageMin <= 15 && !ratingPromptShown.has(o.id)) {
+        if (!document.getElementById('modal').classList.contains('active')) {
+          ratingPromptShown.add(o.id);
+          openRatingDialog(o.id);
+        }
+      }
+    }
+  });
+}, 30000);
+
+// ═══════════════════════════════════════════════════════════════════════
+//  INIT ON LOAD
+// ═══════════════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if (!navigator.onLine) document.getElementById('offline-banner').classList.add('active');
+  renderCards();
+  renderOrders();
+  checkPDPA();
+  const action = new URLSearchParams(window.location.search).get('action');
+  if (action === 'order-food') setTimeout(() => openOrderForm('food'), 500);
+  else if (action === 'map') setTimeout(openMapPage, 500);
+  else if (action === 'express') setTimeout(() => openOrderForm('express'), 500);
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+//   MERCHANT ORDERING v2 — ลูกค้าสั่งอาหารจากร้านค้า
+// ═══════════════════════════════════════════════════════════════════════
+let merchants = [];
+let currentMenus = [];
+let unsubMerchants = null;
+
+function subscribeMerchants() {
+  if (unsubMerchants) return;
+  unsubMerchants = db.collection('merchants').onSnapshot(snap => {
+    merchants = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(m => m.verified === true);
+    if (document.getElementById('merchant-view').classList.contains('active')) renderMerchants();
+  }, err => console.warn('[merchants]', err));
+}
+
+function openMerchantsView() {
+  subscribeMerchants();
+  renderMerchants();
+  closeCategoryView();
+  document.getElementById('home-content').classList.add('hidden');
+  document.getElementById('merchant-view').classList.add('active');
+  window.scrollTo(0, 0);
+}
+function closeMerchantView() {
+  document.getElementById('merchant-view').classList.remove('active');
+  document.getElementById('home-content').classList.remove('hidden');
+}
+
+function renderMerchants() {
+  const list = document.getElementById('merchant-list');
+  const icons = { restaurant:'🍽️', cafe:'☕', convenience:'🏪', market:'🛒', shop:'🏬' };
+  const sorted = [...merchants].sort((a,b) => (b.isOpen?1:0) - (a.isOpen?1:0));
+  if (!sorted.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🏪</div><div>ยังไม่มีร้านค้าที่อนุมัติ<br>เชิญชวนร้านในชะอวดมาสมัครได้!</div></div>';
+    return;
+  }
+  list.innerHTML = sorted.map(m => {
+    const dist = (m.lat && m.lng) ? formatDist(calcDist(USER_LOC.lat, USER_LOC.lng, m.lat, m.lng)) : '';
+    return `<div class="merchant-card ${m.isOpen ? '' : 'closed'}" onclick="openMerchant('${jsStr(m.id)}')">
+      <div class="m-avatar">${icons[m.category] || '🏪'}</div>
+      <div class="m-info">
+        <div class="m-name">${esc(m.name)}</div>
+        <div class="m-meta">⭐ ${(m.rating||0).toFixed(1)} • ${m.openTime||'—'}-${m.closeTime||'—'}${dist ? ' • 📍'+dist : ''}</div>
+      </div>
+      <span class="m-open ${m.isOpen ? 'on' : 'off'}">${m.isOpen ? 'เปิดอยู่' : 'ปิด'}</span>
+    </div>`;
+  }).join('');
+}
+
+async function openMerchant(mid) {
+  const m = merchants.find(x => x.id === mid);
+  if (!m) return;
+  if (!m.isOpen) showToast('⚠️ ร้านนี้ปิดอยู่ (ยังดูเมนูได้)', 'info');
+  let menus = [];
+  try {
+    const snap = await db.collection('menus').where('merchantId', '==', mid).get();
+    menus = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(x => x.isAvailable !== false);
+  } catch (e) { console.warn(e); }
+  currentMenus = menus;
+  const icons = { main:'🍽️', side:'🥗', drink:'🥤', dessert:'🍰', other:'📦' };
+  document.getElementById('modal-body').innerHTML = `
+    <div class="order-form-header">
+      <div class="of-icon">${icons[m.category] || '🏪'}</div>
+      <div class="of-title">${esc(m.name)}</div>
+      <div class="of-sub">⭐ ${(m.rating||0).toFixed(1)} • เปิด ${m.openTime||'—'}-${m.closeTime||'—'}</div>
+    </div>
+    ${menus.length ? menus.map((x, i) => `
+      <div class="menu-row">
+        <div class="mr-img">${x.image ? `<img src="${esc(x.image)}" onerror="this.parentElement.innerHTML='${icons[x.category]||'🍽️'}'">` : (icons[x.category] || '🍽️')}</div>
+        <div class="mr-info">
+          <div class="mr-name">${esc(x.name)}</div>
+          <div class="mr-price">${Number(x.price).toLocaleString()}฿</div>
+        </div>
+        <button class="menu-add-btn" onclick="addMenuToCart(${i})">+</button>
+      </div>`).join('')
+    : '<div class="empty-state"><div class="icon">🍽️</div><div>ร้านยังไม่มีเมนู</div></div>'}
+    <button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+function addMenuToCart(i) {
+  const x = currentMenus[i];
+  if (!x) return;
+  addToCart({ id: x.id, name: x.name, price: Number(x.price) }, x.merchantId, x.merchantName || '');
+  updateCartBar();
+}
+
+function updateCartBar() {
+  const bar = document.getElementById('cart-bar');
+  const count = cart.reduce((s, c) => s + c.qty, 0);
+  if (count > 0) {
+    bar.classList.add('show');
+    document.getElementById('cart-count').textContent = count;
+    document.getElementById('cart-total').textContent = getCartTotal().toLocaleString() + '฿';
+    document.getElementById('cart-shop').textContent = cart[0].merchantName || '';
+  } else bar.classList.remove('show');
+}
+const _addToCartOrig = addToCart;
+addToCart = function(item, mid, mname) { _addToCartOrig(item, mid, mname); updateCartBar(); };
+const _clearCartOrig = clearCart;
+clearCart = function() { _clearCartOrig(); updateCartBar(); };
+
+function chgQty(i, d) {
+  cart[i].qty += d;
+  if (cart[i].qty <= 0) cart.splice(i, 1);
+  updateCartBar();
+  if (cart.length) openCart(); else closeModal();
+}
+
+function openCart() {
+  if (!cart.length) return;
+  const m = merchants.find(x => x.id === cart[0].merchantId);
+  const mLat = (m && m.lat) ? m.lat : 7.9646, mLng = (m && m.lng) ? m.lng : 99.9951;
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, mLat, mLng);
+  const fare = calcFare(dist);
+  const goods = getCartTotal();
+  document.getElementById('modal-body').innerHTML = `
+    <div class="order-form-header">
+      <div class="of-icon">🛒</div>
+      <div class="of-title">ตะกร้าสินค้า</div>
+      <div class="of-sub">${esc(cart[0].merchantName || '')}</div>
+    </div>
+    ${cart.map((c, i) => `
+      <div class="cart-item">
+        <div class="ci-name">${esc(c.name)}<br><span style="font-size:11px;color:#888">${c.price}฿</span></div>
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="chgQty(${i},-1)">−</button><b>${c.qty}</b><button class="qty-btn" onclick="chgQty(${i},1)">+</button>
+        </div>
+        <div class="ci-price">${(c.price * c.qty).toLocaleString()}฿</div>
+      </div>`).join('')}
+    <div class="form-group" style="margin-top:14px"><label>📱 เบอร์โทร</label><input id="cart-phone" type="tel" placeholder="08X-XXX-XXXX"></div>
+    <div class="form-group"><label>🏠 ที่อยู่ปลายทาง</label><input id="cart-address" value="ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช"></div>
+    <div class="form-group"><label>📝 หมายเหตุ</label><textarea id="cart-note" rows="2" placeholder="เช่น ไม่ใส่ผัก"></textarea></div>
+    <div class="summary-box">
+      <div class="summary-row"><span>💰 ค่าอาหาร</span><span>${goods.toLocaleString()}฿</span></div>
+      <div class="summary-row"><span>🚩 ค่าส่ง (${formatDist(dist)})</span><span>${fare.total}฿</span></div>
+      <div class="summary-row total"><span>รวมทั้งหมด</span><span>${(goods + fare.total).toLocaleString()}฿</span></div>
+    </div>
+    <button class="btn-full btn-green" onclick="checkout()">✅ ยืนยันสั่งซื้อ</button>
+    <button class="btn-full btn-gray" onclick="closeModal()">ยกเลิก</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+async function checkout() {
+  if (!currentUser) { showToast('⚠️ กรุณาเข้าสู่ระบบ'); showLoginModal(); return; }
+  const phone = document.getElementById('cart-phone').value.trim();
+  const address = document.getElementById('cart-address').value.trim();
+  const note = document.getElementById('cart-note').value.trim();
+  if (!phone) return showToast('⚠️ กรุณากรอกเบอร์โทร');
+  if (!address) return showToast('⚠️ กรุณากรอกที่อยู่');
+  const m = merchants.find(x => x.id === cart[0].merchantId);
+  const mLat = (m && m.lat) ? m.lat : 7.9646, mLng = (m && m.lng) ? m.lng : 99.9951;
+  const dist = calcDist(USER_LOC.lat, USER_LOC.lng, mLat, mLng);
+  const fare = calcFare(dist);
+  const goods = getCartTotal();
+  try {
+    await db.collection('orders').add({
+      userId: currentUser.uid,
+      userName: currentUser.displayName || currentUser.email || '',
+      userEmail: currentUser.email || '',
+      userPhone: phone,
+      type: 'food',
+      title: (m && m.name) || cart[0].merchantName || 'ร้านค้า',
+      merchantId: cart[0].merchantId,
+      merchantName: cart[0].merchantName || '',
+      items: cart.map(c => ({ menuId: c.itemId, name: c.name, price: c.price, qty: c.qty })),
+      price: goods, fare: fare.total, serviceFee: 0, total: goods + fare.total,
+      distance: dist, address: address, note: note,
+      pickupLat: mLat, pickupLng: mLng,
+      status: 'searching',
+      merchantStatus: 'new',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    clearCart();
+    closeModal();
+    switchTab('orders', document.querySelectorAll('.nav-item')[1]);
+    showToast('✅ ส่งออเดอร์เข้าร้านแล้ว!', 'success');
+  } catch (e) { console.error(e); showToast('❌ สั่งไม่สำเร็จ'); }
+}
+
+// ป้ายสถานะอัจฉริยะสำหรับออเดอร์ร้านค้า
+const _renderOrderCardOrig = renderOrderCard;
+renderOrderCard = function(o) {
+  const html = _renderOrderCardOrig(o);
+  if (o.merchantId && o.merchantStatus && o.status !== 'done' && o.status !== 'cancelled') {
+    const lbl = { new:'🏪 รอร้านรับออเดอร์', cooking:'🍳 ร้านกำลังทำอาหาร', ready:'✅ อาหารเสร็จ รอไรเดอร์' }[o.merchantStatus];
+    if (lbl) return html.replace(/<span class="order-status [a-z_]+">[^<]*<\/span>/, `<span class="order-status ${o.status}">${lbl}</span>`);
+  }
+  return html;
+};
+
+// ปิดหน้าร้านค้าเมื่อกลับหน้าแรก
+const _switchTabOrig = switchTab;
+switchTab = function(tab, el) { if (tab === 'home') closeMerchantView(); _switchTabOrig(tab, el); };
+
+subscribeMerchants();
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+//  CHAUAT GO — PLACES DATA (490 สถานที่)
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─────── PLACE CATEGORIES MAP ───────
+const PLACE_CATS = {
+  r: 'restaurant', f: 'cafe', c: 'convenience', m: 'market', t: 'tourist',
+  h: 'hotel', s: 'shop', w: 'temple', g: 'gas', b: 'bank', e: 'edu',
+  o: 'gov', x: 'transport', l: 'health', p: 'postal', y: 'recreation'
+};
+
+// ─────── PLACES_RAW (490 สถานที่) ───────
+// รูปแบบ: [ชื่อ, lat, lng, หมวด, ราคา/เวลา, รูป, rating]
+const PLACES_RAW = [
+  // ════════ ร้านอาหาร (83) ════════
+  ["สเต็กลุงอ้วน by เชฟปืน",7.9725186,99.9958096,'r',"150-350฿","images/steak-lung-uan.jpg",4.6],
+  ["ขนมจีนลุงบ่าว",7.9670,99.9960,'r',"40-80฿","images/khanom-jeen-lung-bao.jpg",4.4],
+  ["เจ๊หญิงผัดไทย หอยทอด",7.9635936,99.9980924,'r',"40-80฿","images/jay-ying-padthai.jpg",4.5],
+  ["ข้าวขาหมูน้องออ",7.968951,99.995472,'r',"50-120฿","images/khao-kha-moo-nong-or.jpg",4.3],
+  ["FIVE STARS",7.9590838,99.9639115,'r',"45-120฿","⭐",4.1],
+  ["Samu sushi สาขาชะอวด",7.9705488,99.9963399,'r',"60-150฿","🍣",4.4],
+  ["กระทะทอง หมูกะทะ",7.9670749,100.0027069,'r',"150-300฿","",4.3],
+  ["ก๋วยจั๊บน้ำข้นแม่น้องอัญชัน",7.9670768,100.0027459,'r',"40-80฿","",4.5],
+  ["ก๋วยเตี๋ยวเรือ5",7.9662886,100.0104017,'r',"35-60฿","",4.4],
+  ["ก๋วยเตี๋ยวเรือบนเนิน",7.9672004,100.0070046,'r',"35-65฿","🍜",4.3],
+  ["ก๋วยเตี๋ยวเรือบ้านพ่อ@ท่าประจะ",7.9612968,99.9717433,'r',"35-70฿","🍜",4.5],
+  ["ข้าวต้มโกยศ&จุ๊บจิ๊บ",7.9696185,99.994334,'r',"40-100฿","🍚",4.3],
+  ["ข้าวหน้าเป็ด ข้าวหมูอบ",7.9688368,99.9946618,'r',"40-80฿","🍚",4.3],
+  ["ข้าวแกงกิ้มเตี้ยน",7.9652805,99.9975557,'r',"35-70฿","🍛",4.4],
+  ["ครัว ชานเมือง",7.9643424,99.9898984,'r',"60-150฿","🍽️",4.3],
+  ["ครัวขนมจีน คุณแม่",7.9692451,99.997884,'r',"40-80฿","",4.6],
+  ["ครัวต้นตอ",8.0070983,99.9797433,'r',"50-120฿","🍽️",4.2],
+  ["ครัวมะปราง",7.9939983,99.9615043,'r',"50-130฿","🍽️",4.3],
+  ["ครัวศรีเมือง",7.9639176,99.98905,'r',"50-120฿","🍽️",4.2],
+  ["ครัวอีสานใต้",7.9711681,99.963453,'r',"50-130฿","🌶️",4.3],
+  ["จำหน่ายลูกชิ้นทอดเจ๊กบ",7.9675258,99.9963719,'r',"20-50฿","",4.4],
+  ["ชาบูบ้านแม่",7.9623247,99.9854726,'r',"200-400฿","🍲",4.2],
+  ["ซีแซ่บ กุ้งแช่น้ำปลาชะอวด",7.9666804,99.998424,'r',"60-150฿","🦐",4.4],
+  ["ณ ที่เดิม",7.9643464,99.9899005,'r',"50-120฿","",4.3],
+  ["ตามสั่งท่าเสม็ดเดลิเวอรี่",7.9495929,100.0152696,'r',"40-100฿","🍱",4.2],
+  ["ตู้กับข้าว @ชะอวด",7.9704229,99.9980995,'r',"50-130฿","",4.4],
+  ["ทะเลดอง ชะอวด",7.9666467,99.9962655,'r',"80-200฿","🦐",4.4],
+  ["บ้าน ยายเลี่ยน ตาถวิล",7.9594066,99.9637612,'r',"50-120฿","🏠",4.3],
+  ["บ้านขนมจีน ปุ้ย",7.9877066,99.9890172,'r',"40-80฿","🍜",4.5],
+  ["บ้านปัญจ-รส",7.9841934,99.9808577,'r',"60-150฿","🍽️",4.4],
+  ["ปังปิ้งเตาถ่านร้าน2ปัง",7.9593949,99.963404,'r',"25-60฿","🍞",4.3],
+  ["ร้าน ขายปลาแดดเดียว",7.9713991,100.002393,'r',"50-120฿","",4.2],
+  ["ร้าน ทุ่งนาคาราโอเกะ",7.9620958,99.9941764,'r',"80-200฿","🎤",4.2],
+  ["ร้านก๋วยจั๊บรสเด็ด",7.9667677,99.9988822,'r',"40-80฿","🍜",4.4],
+  ["ร้านก๋วยเตี๋ยว เนื้อตุ่นเปื่อย",7.9724311,99.9959182,'r',"40-90฿","",4.3],
+  ["ร้านก๋วยเตี๋ยวน้องมรท่าเสม็ด",7.9529883,100.0102231,'r',"35-70฿","",4.2],
+  ["ร้านก๋วยเตี๋ยวสูตรโบราณ",7.9548062,100.0088371,'r',"35-70฿","🍜",4.5],
+  ["ร้านขนมจีนบนเนิน",7.9666807,100.0104124,'r',"40-80฿","",4.4],
+  ["ร้านขนมจีนป้าสาว",7.9647049,99.9904454,'r',"35-70฿","🍜",4.3],
+  ["ร้านขนมจีนยายจิตรตาพร",7.9595442,99.9695015,'r',"35-75฿","🍜",4.4],
+  ["ร้านข้าวมันไก่เจ๊นอม",7.9519858,100.0138437,'r',"40-80฿","🍛",4.3],
+  ["ร้านครัวคนเคร็ง",7.972678,99.9912826,'r',"50-120฿","🍽️",4.2],
+  ["ร้านชาบูเสียบไม้ice&c",7.9639698,99.9980227,'r',"100-250฿","🍲",4.3],
+  ["ร้านปั่นแหลกบุฟเฟ่ต์ผลไม้",7.968886,99.997976,'r',"40-100฿","🥤",4.4],
+  ["ร้านป้าเอียดหมูกระทะบุฟเฟต์",7.9726114,99.9957222,'r',"139฿","",4.3],
+  ["ร้านส้มตำป้าธรรม",7.9666962,100.0066603,'r',"40-100฿","🥗",4.4],
+  ["ร้านส้มตำสะดุ้งmyเพลง",7.9646839,99.9951063,'r',"40-100฿","🥗",4.2],
+  ["ร้านหนมจีนน้าตุ้น",7.9557042,99.999855,'r',"35-70฿","🍜",4.5],
+  ["ร้านหมูพวงรสเด็ด ชะอวด",7.9649516,99.9977638,'r',"50-120฿","🍖",4.3],
+  ["ร้านอาหารตารื่นยายแก้ว",7.9456361,99.9694289,'r',"50-130฿","",4.4],
+  ["ร้านอาหารนกน้อย",7.9711658,99.9926807,'r',"50-120฿","",4.2],
+  ["ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์",7.964281,99.9970526,'r',"100-250฿","🥩",4.3],
+  ["ร้านอาหารโอเค",7.967058,99.9966538,'r',"50-150฿","",4.2],
+  ["ร้านแกงใต้และขนมไทยบ้านอิ่มเอม",7.9666389,99.9947637,'r',"40-100฿","🍛",4.5],
+  ["ร้านแต่แรก The old time",7.9654721,99.9944093,'r',"50-130฿","🍽️",4.3],
+  ["ร้านแฮปปี้ โฟล์ค ตำแซ่บ",7.9631287,99.9883002,'r',"40-100฿","🥗",4.2],
+  ["ลาบอุดร(หน้าสวนหย่อม)",7.9662922,99.9975223,'r',"50-120฿","",4.4],
+  ["ลำภูหมูกะทะชะอวด",7.985507,99.989834,'r',"150-300฿","",4.3],
+  ["วารินทร์ ซาลาเปาทอด&ปาท่องโก๋",7.9680305,99.9952084,'r',"20-50฿","🥟",4.4],
+  ["สถานีของหรอย@ชะอวด",7.9654112,99.9905907,'r',"50-130฿","🍽️",4.3],
+  ["สถานียำตำแซ่บ",7.9704778,99.9961367,'r',"40-100฿","🥗",4.2],
+  ["สลัดไข่มุก สาขาชะอวด",7.9692051,99.9981353,'r',"50-120฿","🥗",4.3],
+  ["ส้มตำ เชลล์",7.9696555,99.9943106,'r',"40-100฿","",4.2],
+  ["ส้มตำครกทอง",7.9710256,99.9931146,'r',"40-100฿","🥗",4.3],
+  ["ส้มตำสองพี่น้อง ลาบอุบลฯ",7.9640635,99.9897116,'r',"40-100฿","🥗",4.4],
+  ["หม่าล่าเฮงเฮง",7.9637426,99.9985664,'r',"60-150฿","🌶️",4.2],
+  ["หอยครก...หรอยยกนิ้ว",7.9670202,99.9983783,'r',"40-100฿","🦪",4.3],
+  ["อีสานพลัดถิ่น (บ้านไร่เนิน)",7.9516409,100.0225923,'r',"50-130฿","🌶️",4.4],
+  ["เจ๊สาห์หมูกระทะ",7.9585347,99.9849734,'r',"150-300฿","",4.3],
+  ["เตี๋ยวตุ๋น หม้อไฟ INDY",7.9605533,99.9863734,'r',"100-250฿","🍲",4.4],
+  ["เมษา กาแฟ",7.9646839,99.9951063,'r',"40-100฿","",4.3],
+  ["เมามาย ชะอวด",7.9938386,99.9704377,'r',"80-200฿","🍻",4.2],
+  ["แม่พรขนมจีน",7.9751241,99.9632741,'r',"40-80฿","🍜",4.5],
+  ["แม่เพ็ญเครื่องแกง & ข้าวต้ม",7.9646317,99.9847939,'r',"40-100฿","🍲",4.3],
+  ["ไก่ทอดโอปป้า สาขาชะอวด",7.9662091,99.9930427,'r',"50-120฿","🍗",4.3],
+  ["ไก่โต้งข้าวมันไก่ไหหลำ",7.9662262,99.9929985,'r',"40-80฿","🍛",4.4],
+  ["ร้านเยี่ยมโอชา",7.9648964,99.9953573,'r',"50-150฿","🍛",4.5],
+  ["ชิปปิ้ง ชาบู&หมูกระทะ",7.9659063,99.9949039,'r',"150-300฿","🍲",4.4],
+  ["ร้านหนองคาย อาหารอิสาน",7.9657836,99.9922684,'r',"50-120฿","🌶️",4.4],
+  ["เต๋วเรือลานข่อย ณ ชะอวด",7.9681891,99.9959867,'r',"40-80฿","🍜",4.5],
+  ["Love Milk Cafe&Restaurant",7.9659765,99.9932246,'r',"45-150฿","🥛",4.5],
+  ["ปริ่มละมุล",7.9866593,99.9894992,'r',"60-180฿","🍰",4.6],
+  ["เหล่าเต๊ง Chauat",7.9654603,99.9943536,'r',"40-120฿","🍵",4.4],
+
+  // ════════ คาเฟ่ (41) ════════
+  ["ร้านหวานใจไอติม & พิซซ่าโคน",7.9675,99.9965,'f',"30-80฿","images/wan-jai-icecream-pizza.jpg",4.5],
+  ["Dew Coffee Cha-uat",7.9690861,99.9943373,'f',"45-120฿","☕",4.8],
+  ["Cafe.Lao",7.9649201,99.9951997,'f',"40-100฿","☕",4.3],
+  ["Cameron Cafe",7.9685043,99.994887,'f',"40-120฿","",4.5],
+  ["Mr.VAN Ice Cream",7.9821871,99.9666483,'f',"30-80฿","🍦",4.4],
+  ["กาแฟโบว์",7.9821889,99.9820569,'f',"35-90฿","☕",4.3],
+  ["กินติม @ชะอวด",7.9672812,99.9970054,'f',"25-60฿","🍦",4.5],
+  ["ข.ไข่คาเฟ่ ชะอวด",7.9669234,100.0233534,'f',"50-130฿","",4.3],
+  ["คอชาเย็น(สาขา สภ.ชะอวด)",7.9663835,99.9981566,'f',"30-70฿","🧋",4.2],
+  ["ชาช้าง หลาดชะอวด",7.9673797,99.9955824,'f',"35-80฿","🍵",4.4],
+  ["ชาทรตะโหมดสาขาชะอวด",7.9670326,99.9959598,'f',"35-85฿","🧋",4.3],
+  ["ชานมไข่มุกดอทคอม ชะอวด",7.9681854,99.9950467,'f',"30-75฿","🧋",4.2],
+  ["ชาฮีโร่ HERO",7.970075,99.9977912,'f',"35-90฿","🧋",4.4],
+  ["ชิลล์ - Chill",7.9630355,99.9984221,'f',"40-100฿","🍹",4.3],
+  ["ชีวิตดี๊ดี",7.9596369,99.9605265,'f',"40-110฿","☕",4.5],
+  ["ติดชาน้องนุช ต.ท่าประจะ",7.9554994,99.9632278,'f',"30-70฿","🧋",4.2],
+  ["ท่าน้ำชา คาเฟ่",7.9623699,99.9963144,'f',"40-100฿","☕",4.6],
+  ["นั่งเล่าหน้าบ้าน ณ ควนดินแดง",7.9416481,99.9643163,'f',"45-120฿","☕",4.4],
+  ["บ้านลูกชุบ บนเนิน",7.9670964,100.0088697,'f',"35-90฿","🍡",4.3],
+  ["บ้านเอ็มพิชซ่า",7.9646423,99.9901592,'f',"80-180฿","🍕",4.2],
+  ["ป้ายยักคอชะอวด",7.9751266,99.9960417,'f',"35-85฿","",4.3],
+  ["ภูซอนไอติมกระทิสด",7.9254483,100.0089881,'f',"25-60฿","🍦",4.5],
+  ["ร้านกาแฟเศรษฐี ท่าเสม็ด",7.9517624,100.0105614,'f',"35-90฿","☕",4.2],
+  ["ร้านคะวัน",7.9592561,99.9604253,'f',"40-100฿","🍰",4.3],
+  ["ร้านชาพะยอม",7.9608777,100.005908,'f',"30-75฿","🍵",4.2],
+  ["ร้านช้อนชาม.นครศรีธรรมราช",7.9695261,99.995251,'f',"35-85฿","",4.3],
+  ["ร้านธราธิป",7.9676412,99.9963438,'f',"40-100฿","☕",4.2],
+  ["ร้านน้ำชาบังกด",7.9648089,99.9956764,'f',"25-60฿","🍵",4.3],
+  ["ร้านน้ำชาเจ๊อ้อย",7.9649214,99.9918854,'f',"25-60฿","🍵",4.2],
+  ["ร้านน้ำน้องสาว",7.9692367,99.9965894,'f',"30-70฿","🍵",4.3],
+  ["ร้านน้ำน้องโอชิ",7.9751241,99.9632741,'f',"30-75฿","🍵",4.2],
+  ["ร้านน้ำอ้อย 3M",7.9590977,99.9564628,'f',"25-60฿","🥤",4.4],
+  ["ร้านฟอร์ยู@ชะอวด",7.9667841,99.9984914,'f',"30-80฿","🧋",4.3],
+  ["ร้านเพลินพุง'งง",7.9363545,100.0212613,'f',"40-110฿","",4.4],
+  ["ร้านไอติมใจยักษ์",7.9690185,99.9979403,'f',"25-65฿","🍦",4.5],
+  ["ลานชา สถานีคนง่วง",7.9673556,99.9955932,'f',"30-75฿","🍵",4.3],
+  ["วรรณภาพร",7.974785,99.9634335,'f',"35-85฿","☕",4.2],
+  ["หอมหวานชานม",7.9668981,100.0018463,'f',"30-80฿","🧋",4.3],
+  ["อาณาจักรชา บ้านเนินแขก",7.9641097,99.9897522,'f',"30-75฿","🍵",4.2],
+  ["โคกหนองนา ธนาคารอาหารสุขภาพ",7.964849,100.0164816,'f',"40-120฿","🥗",4.4],
+
+  // ════════ ร้านสะดวกซื้อ / ตลาด (11) ════════
+  ["7-Eleven สาขา ถนนอรุณประชา",7.96862,99.9946493,'c',"24 ชม.","images/7-eleven-arun-pracha.jpg",4.3],
+  ["7-Eleven สาขา ท่าประจะ",7.9590652,99.9639528,'c',"24 ชม.","🏪",4.3],
+  ["7-Eleven สาขา PTTOR ชะอวด",7.961493,99.987406,'c',"24 ชม.","🏪",4.2],
+  ["7-Eleven สาขา ชะอวด",7.9667964,99.9967819,'c',"24 ชม.","🏪",4.3],
+  ["7-Eleven สาขา ชะอวด 2",7.967021,99.9964999,'c',"24 ชม.","🏪",4.2],
+  ["โลตัส โก เฟรช ชะอวด",7.9670751,99.9968295,'c',"7:00-22:00","🛒",4.4],
+  ["KFC สาขาชะอวด",7.9616453,99.9875667,'c',"10:00-22:00","🍗",4.1],
+  ["Sod Station",7.96422,99.998431,'m',"7:00-20:00","images/sod-station.jpg",4.0],
+  ["ตลาดชะอวด",7.9716912,99.994021,'m',"6:00-18:00","🏪",4.2],
+  ["ตลาดร่วมใจ ถนนคนเดิน",7.964451,99.998216,'m',"17:00-22:00","🛍️",4.3],
+  ["ตลาดสดชะอวด",7.9652396,99.9967148,'m',"5:00-12:00","🥬",4.1],
+
+  // ════════ ท่องเที่ยว (8) ════════
+  ["อ่างเก็บน้ำห้วยน้ำใส",7.9520,99.9750,'t',"เปิดทุกวัน","images/huai-nam-sai-reservoir.jpg",4.7],
+  ["สวิสเซอร์แลนด์แดนชะอวด",7.9700,99.9850,'t',"เปิดทุกวัน","images/switzerland-chauat.jpg",4.8],
+  ["สะพานโค้ง100ปีชะอวด",7.9644,99.9982,'t',"เปิดทุกวัน","🌉",4.6],
+  ["หอนาฬิกาเทศบาลตำบลชะอวด",7.9670053,99.9973112,'t',"เปิดทุกวัน","🕐",4.2],
+  ["ล่องแพบ้านวังอ่าง",7.9025,99.9225,'t',"8:00-17:00","🛶",4.5],
+  ["ป่าพรุควนเคร็ง",7.8850,100.1150,'t',"8:00-17:00","🌿",4.6],
+  ["น้ำตกวังหอน",7.9000,99.9150,'t',"8:00-17:00","💧",4.4],
+  ["ท่องบ้านยวน",7.9618215,99.9560357,'t',"8:00-17:00","🏞️",4.5],
+
+  // ════════ ที่พัก (9) ════════
+  ["โรงแรมเฟื่องฟ้ารีสอร์ท",7.9650,99.9900,'h',"600-1200฿","images/fueangfa-resort.jpg",4.4],
+  ["บ้านแม่ ทุ่งหัวพาน",7.9417746,100.0080005,'h',"400-800฿","🏡",4.3],
+  ["โฮมสเตย์เรือนริมน้ำชะอวด",7.963346,100.0346649,'h',"500-1000฿","",4.5],
+  ["บ้านพัก ขวัญแก้ว",7.9694722,99.9934722,'h',"350-700฿","🏠",4.2],
+  ["ทองขาวบ้านสวนรีสอร์ท",7.9670818,100.0232993,'h',"600-1200฿","🌳",4.4],
+  ["เรือนกลางหลาด",7.9828841,99.9908841,'h',"600-1200฿","🏠",4.5],
+  ["สวนพลู รีสอร์ต",7.9644048,99.9808742,'h',"400-900฿","",4.3],
+  ["มะปรางค์ เอสบี รีสอร์ท",7.9924958,99.962219,'h',"500-1000฿","🌺",4.4],
+  ["บ้านนายหัวชาม โฮมสเตย์",8.0000644,100.0165882,'h',"400-800฿","",4.2],
+
+  // ════════ ร้านค้า (200+) ════════
+  ["ร้านเจริญ",7.9658759,99.9975259,'s',"8:00-18:00","images/ran-charoen.jpg",4.1],
+  ["A Coffee Bar",7.9244411,100.0005104,'s',"8:00-20:00","☕",4.2],
+  ["CP FreshMart",7.9666366,99.9954757,'s',"7:00-22:00","🛒",4.3],
+  ["Cozyday",7.9688835,99.9979628,'s',"8:00-20:00","☕",4.3],
+  ["GN FASHION",7.9675874,99.9963538,'s',"9:00-20:00","👗",4.1],
+  ["Indeed Tattoo @ ชะอวด",7.9679936,100.0026909,'s',"10:00-20:00","🎨",4.4],
+  ["Juicy ice สาขาชะอวด",7.9668703,100.0076342,'s',"10:00-21:00","🍦",4.3],
+  ["Kerry Express Parcel Service",7.9659091,99.992776,'s',"8:00-20:00","📦",4.1],
+  ["Mesa Coffee Roasters",7.9671216,100.0034409,'s',"7:00-18:00","☕",4.4],
+  ["Momocha สาขาชะอวด",7.9683637,99.9966894,'s',"10:00-21:00","🧋",4.3],
+  ["SB แบตเตอรี่เซอร์วิส ชะอวด",7.9930373,99.9632882,'s',"8:00-18:00","🔋",4.1],
+  ["Tattoo by kob",7.9765007,100.0018575,'s',"10:00-20:00","🎨",4.4],
+  ["กระจูด",7.9474587,100.0315216,'s',"8:00-17:00","🧺",4.3],
+  ["กระเป๋ากระจูดน้องมีตังค์",7.966165,100.0384609,'s',"9:00-18:00","👜",4.4],
+  ["กลุ่มมังคุดชะอวดพัฒนา",7.9369912,99.9713771,'s',"8:00-17:00","🥭",4.2],
+  ["กลุ่มแม่บ้านเกษตรกรบ้านเนินกลาง",7.9664473,99.9989433,'s',"8:00-17:00","",4.3],
+  ["กะปะ(เจ้าเก่า)",7.9751241,99.9632741,'s',"7:00-18:00","",4.1],
+  ["กาแฟบ้านสวนพ่อ",7.9650648,99.9960414,'s',"7:00-17:00","☕",4.3],
+  ["กิจเจริญอะไหล่ยนต์",7.9682661,99.9950978,'s',"8:00-18:00","🔧",4.2],
+  ["กินเส้นเย็นตาโฟ",7.980588,99.9838749,'s',"7:00-15:00","🍜",4.4],
+  ["ก๋วยเตี๋ยวทุ่งค่าย",8.0052774,99.9800295,'s',"7:00-15:00","🍜",4.3],
+  ["ก๋วยเตี๋ยวโบราณป้าแบน",7.9384267,99.9862992,'s',"7:00-14:00","🍜",4.5],
+  ["คอมพิวเตอร์ ปริ้นเตอร์ ชะอวด",7.9653003,99.9904537,'s',"9:00-18:00","💻",4.1],
+  ["คิดอิเล็กทรอนิกส์",7.9537965,99.9793065,'s',"8:00-20:00","🔌",4.6],
+  ["จงรักฟาร์ม",7.9669756,99.9960383,'s',"7:00-18:00","🐓",4.2],
+  ["จิระดาวเทียม",7.9660923,99.9922518,'s',"8:00-18:00","📡",4.3],
+  ["จิ๊บจิ๊บเทเลคอมชะอวด",7.9660663,99.9975462,'s',"9:00-18:00","📱",4.2],
+  ["ฉลองคอนกรีตบ้านไร่เนิน",7.9512888,100.0232375,'s',"7:00-17:00","🏗️",4.1],
+  ["ช.พรหมนิมิตวัสดุ",7.961592,99.9866635,'s',"7:00-18:00","🧱",4.2],
+  ["ชะอวดการพิมพ์",7.9665791,99.9964458,'s',"8:00-17:00","🖨️",4.1],
+  ["ชะอวดค้าเหล็ก",7.9746038,99.9900184,'s',"7:00-17:00","🔩",4.2],
+  ["ชะอวดค้าไม้",7.9859021,99.9896265,'s',"7:00-17:00","🪵",4.1],
+  ["ชะอวดนานาวัสดุ",7.9672967,99.9971594,'s',"7:00-18:00","🧱",4.2],
+  ["ชะอวดรถยก 24ชม.",7.9762937,99.9937471,'s',"24 ชม.","🚛",4.0],
+  ["ชะอวดรับอัดสายไฮดรอลิค",7.9610492,99.9864779,'s',"8:00-17:00","🔧",4.1],
+  ["ชะอวดแทรกเตอร์และอะไหล่ยนต์",7.971146,99.993145,'s',"8:00-17:00","🚜",4.2],
+  ["ชาคาร์ออดิโอ",7.9678611,99.9947721,'s',"9:00-18:00","🔊",4.1],
+  ["ชาลิสา",8.0009563,100.0035484,'s',"8:00-17:00","🍵",4.2],
+  ["ชำนาญวัสดุก่อสร้างสาขา2",7.9625152,99.9733502,'s',"7:00-18:00","🧱",4.3],
+  ["ซักผ้ายอดเหรียญ",7.9571749,100.0089802,'s',"24 ชม.","👕",4.0],
+  ["ซุปเปอร์ไอทีชะอวด",7.9611246,99.9870202,'s',"9:00-20:00","💻",4.2],
+  ["ณ บ้านเรา'Cafe @ชะอวด",7.9678976,99.9938578,'s',"8:00-20:00","☕",4.4],
+  ["ดาว อาหารตามสั่ง(ชะอวด)",7.9678669,99.9968779,'s',"7:00-15:00","🍱",4.2],
+  ["ดิ่งคาร์แคร์",7.9372222,99.992044,'s',"8:00-18:00","🚗",4.3],
+  ["ติ๋วมินิมาร์ทสาขาชะอวด",7.969446,99.9962909,'s',"7:00-22:00","🏪",4.2],
+  ["ทรัพย์ทองมาคาร์เซ็นเตอร์",7.974756,99.9898094,'s',"8:00-18:00","🚗",4.3],
+  ["ทวีศักดิ์การช่าง (ครูอ้น)",7.9719442,99.992528,'s',"8:00-17:00","🔧",4.4],
+  ["ธนพลการพิมพ์",7.96707,99.996564,'s',"8:00-17:00","🖨️",4.1],
+  ["ธรรมรงค์แอร์และเพื่อนชะอวด",7.9682327,99.9951198,'s',"8:00-18:00","❄️",4.2],
+  ["ธิระศักดิ์ รับซื้อผลไม้",7.9504847,100.0107644,'s',"7:00-17:00","🍎",4.1],
+  ["น้ำดื่มฉลอง",7.9513195,100.0231269,'s',"7:00-18:00","💧",4.2],
+  ["บ. หนูทับการเกษตร",7.9657711,99.9917063,'s',"7:00-17:00","🌾",4.4],
+  ["บจก.สมชัยค้าวัสดุ",7.966656,99.9965125,'s',"7:00-17:00","🏪",4.2],
+  ["บริษัท ชายการเกษตร จำกัด",7.9658651,99.9913734,'s',"7:00-17:00","🌾",4.1],
+  ["บริษัท ตั้งใจกลการ สาขาชะอวด1",7.9690475,99.9947566,'s',"8:00-17:00","⚙️",4.2],
+  ["บริษัท ตั้งใจกลการ สาขาชะอวด2",7.9663236,99.997442,'s',"8:00-17:00","⚙️",4.2],
+  ["บริษัท อีซูซุนครมอเตอร์เซลส์",7.9572099,99.9831465,'s',"8:00-17:00","🚗",4.3],
+  ["บริษัทเบาหวิวแคคตัสจำกัด",7.9615073,99.9937973,'s',"9:00-17:00","🌵",4.4],
+  ["บริษัทโมโตรถเกรดเอจำกัด",7.9675627,99.9954295,'s',"8:00-17:00","🏍️",4.2],
+  ["บาร์น้ำชา",7.9659753,99.9933271,'s',"10:00-22:00","🍵",4.1],
+  ["บ้าน",7.9641007,99.9956895,'s',"-","🏠",4.0],
+  ["บ้านฐานิตา",7.9664899,100.0045611,'s',"-","🏠",4.2],
+  ["บ้านต้นน้ำ",7.962868,99.998288,'s',"8:00-20:00","🏞️",4.4],
+  ["บ้านสวน โรงสี",7.9820602,99.9916192,'s',"7:00-17:00","🌾",4.1],
+  ["บ้านส้องคาร์เซอร์วิส",7.9758424,99.9874156,'s',"8:00-18:00","🚗",4.3],
+  ["พงศ์ศักดิ์อะไหล่",7.966812,99.995588,'s',"8:00-18:00","🔧",4.2],
+  ["พอเพียงเจริญยนต์",7.967389,99.99577,'s',"8:00-17:00","🚗",4.1],
+  ["พีพีโมบายชะอวด",7.9656434,99.9976052,'s',"9:00-20:00","📱",4.2],
+  ["ฟรายส์ชิค หิวโซ",7.9682172,99.996144,'s',"10:00-22:00","🍟",4.1],
+  ["ฟองน้ำ ฟิชชิ่ง",7.9650404,99.9954813,'s',"8:00-18:00","🎣",4.2],
+  ["ฟิน สเตชั่น",7.9668991,100.00902,'s',"8:00-20:00","⛽",4.1],
+  ["ยำเลย กะเทยชัวร์",7.9466793,100.0321721,'s',"10:00-21:00","🥗",4.3],
+  ["ยืนหนึ่งทุกอย่าง10บาท",7.9629146,99.9886005,'s',"8:00-20:00","🛍️",4.0],
+  ["ยุพา เบอเกอรี่ (YUPA Bakery)",7.968226,99.9949466,'s',"7:00-18:00","🥐",4.4],
+  ["รถยกชะอวดชะอวดรถยก24ชม.",7.9764136,99.9937492,'s',"24 ชม.","🚛",4.0],
+  ["รวมยาเภสัชชะอวด",7.9670495,99.9959625,'s',"8:00-21:00","💊",4.3],
+  ["รับอัดสายไฮดรอลิคชะอวด",7.9653697,99.9909332,'s',"8:00-17:00","🔧",4.1],
+  ["รัศมีคาราโอเกะ",7.968056,99.996966,'s',"12:00-24:00","🎤",4.2],
+  ["ร้าน ก.เกษตร",7.965925,99.9916897,'s',"7:00-17:00","🌾",4.2],
+  ["ร้าน ก.ไก่",7.9416754,99.9642163,'s',"7:00-17:00","🐓",4.1],
+  ["ร้าน ธารา ชะอวด",7.9664046,99.9970031,'s',"8:00-18:00","🏪",4.2],
+  ["ร้าน ป้าคองของชำ",7.959416,99.9678204,'s',"7:00-18:00","🏪",4.1],
+  ["ร้าน ลิขิตศิลป์",7.9666387,99.9954324,'s',"8:00-17:00","🎨",4.3],
+  ["ร้าน ส.เฟอร์นิช",7.9643015,99.9897614,'s',"8:00-18:00","🛋️",4.2],
+  ["ร้าน อ.สยามการไฟฟ้า",7.9913677,99.9602162,'s',"8:00-18:00","⚡",4.3],
+  ["ร้าน เท่ห์ที่ผม",7.9417967,99.9649284,'s',"9:00-20:00","💇",4.2],
+  ["ร้าน โอเค เครื่องนอน",7.9662539,99.9971589,'s',"9:00-20:00","🛏️",4.1],
+  ["ร้านจิบแฟแลพาน",7.9628229,99.9983403,'s',"8:00-20:00","☕",4.3],
+  ["ร้านBuddy Barber 2",7.9721503,99.9945084,'s',"9:00-20:00","💈",4.2],
+  ["ร้านMalaeta มาแลตะ",7.969358,99.9945232,'s',"10:00-21:00","🍽️",4.3],
+  ["ร้านPorkshopหมีหมูสด",7.9663689,99.9948628,'s',"7:00-18:00","🐷",4.2],
+  ["ร้านกัญชา G.Green420OG",7.9663914,99.9917815,'s',"10:00-20:00","🌿",4.0],
+  ["ร้านกัญชาWocogloy420",7.9685721,99.9957211,'s',"10:00-20:00","🌿",4.0],
+  ["ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",7.9705659,99.9963424,'s',"7:00-15:00","🍜",4.3],
+  ["ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",7.9774353,100.0042232,'s',"7:00-15:00","🍜",4.4],
+  ["ร้านชะอวดเครื่องใช้ไฟฟ้า",7.9677097,99.996893,'s',"8:00-18:00","📺",4.2],
+  ["ร้านชะอวดโอเอ กรุ๊ป",7.9369664,99.9809185,'s',"9:00-18:30","💻",3.3],
+  ["ร้านซักอบผ้าหยอดเหรียญ",7.9727137,99.9916718,'s',"24 ชม.","👕",4.0],
+  ["ร้านซักอบรีด ท่าประจะ คุณบี",7.9592208,99.9634293,'s',"8:00-18:00","👕",4.1],
+  ["ร้านซ่อมนาฬิกาPS Time to Smile",7.9706293,99.9984979,'s',"9:00-18:00","⌚",4.3],
+  ["ร้านซ่อมมือถือ Love Phone",7.9625546,99.9954734,'s',"9:00-20:00","📱",4.2],
+  ["ร้านดอกไม้",7.9679855,100.0036496,'s',"8:00-18:00","💐",4.3],
+  ["ร้านดอกไม้ บูมโบว์ ฟลาวเวอร์",7.9661577,99.9923842,'s',"8:00-18:00","💐",4.4],
+  ["ร้านต้นขาม",7.9670797,100.0084077,'s',"8:00-18:00","🌳",4.2],
+  ["ร้านท่านรอง คลองเกียบ",7.981452,99.983199,'s',"8:00-18:00","🍽️",4.3],
+  ["ร้านธงฟ้าประชารัฐ สวัสดิ์การค้า",7.9522223,100.0131292,'s',"7:00-18:00","🏪",4.1],
+  ["ร้านนิวแสงฟ้า",7.9666013,99.9958838,'s',"8:00-18:00","🏪",4.2],
+  ["ร้านน้องพรพันธุ์ไม้",7.9821802,99.9821234,'s',"8:00-17:00","🌱",4.3],
+  ["ร้านน้องโอมน้องออมการค้า",7.9769632,99.9941824,'s',"8:00-18:00","🏪",4.1],
+  ["ร้านน้องใบบัว",7.9653202,99.9954949,'s',"8:00-18:00","🏪",4.2],
+  ["ร้านน้ำชา&ข้าวต้ม เกาเหลา",7.9684229,99.9952169,'s',"6:00-15:00","🍵",4.3],
+  ["ร้านน้ำชาจ่าหมาย",7.968414,99.9952188,'s',"6:00-15:00","🍵",4.2],
+  ["ร้านน้ำหอม คาร์แคร์เซ็นเตอร์",7.98947,99.9862887,'s',"8:00-18:00","🚗",4.1],
+  ["ร้านบ้านต่อผมชะอวด",7.9788552,100.0121912,'s',"9:00-20:00","💇",4.3],
+  ["ร้านป้าสาวเจริญการค้า",7.9481078,99.9628092,'s',"7:00-18:00","🏪",4.1],
+  ["ร้านป้าไล (ของชำ,ขนมลา)",7.9652729,99.9955147,'s',"7:00-18:00","🏪",4.2],
+  ["ร้านพรพรรณ-กรอบรูป",7.967181,100.004165,'s',"9:00-18:00","🖼️",4.2],
+  ["ร้านพระเครื่องเทพสยาม",7.972115,99.992315,'s',"9:00-18:00","📿",4.3],
+  ["ร้านพิมนารา",7.9498413,99.9752208,'s',"10:30-21:00","🍽️",4.5],
+  ["ร้านมายเดียร์โมบาย",7.9650688,99.9977525,'s',"9:00-20:00","📱",4.2],
+  ["ร้านมีสุข ของชำ",7.9715976,100.0015811,'s',"7:00-20:00","🏪",4.1],
+  ["ร้านยงใจ",7.9410329,99.9656317,'s',"8:00-18:00","🏪",4.0],
+  ["ร้านสมเจตน์ ( ชะอวด )",8.001079,100.0024084,'s',"8:00-18:00","🏪",4.2],
+  ["ร้านสมใจ(พี่เพ็ญ)",7.9660122,99.9971465,'s',"7:00-18:00","🏪",4.1],
+  ["ร้านสมใจ2",7.9732734,99.9911663,'s',"7:00-18:00","🏪",4.1],
+  ["ร้านสักช่างแจ็คสักลายชะอวด",7.989631,99.987916,'s',"10:00-20:00","🎨",4.3],
+  ["ร้านสี เมืองทองเคหะภัณฑ์ชะอวด",7.9717666,99.9919556,'s',"8:00-18:00","🎨",4.2],
+  ["ร้านสุธรรมยานยนต์",7.9670093,99.996414,'s',"8:00-18:00","🏍️",4.2],
+  ["ร้านสุธรรมยานยนต์ (อะไหล่)",7.9674502,99.9969574,'s',"8:00-18:00","🏍️",4.2],
+  ["ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",7.962628,99.9883982,'s',"17:00-23:00","🥩",4.2],
+  ["ร้านหัวไทรเฟอร์นิเจอร์",7.9679619,99.9955467,'s',"9:00-18:00","🛋️",4.1],
+  ["ร้านอัครไวนิล",7.9687412,99.9945534,'s',"8:00-18:00","🎨",4.2],
+  ["ร้านอั๋นคอมพิวเตอร์",7.9651646,99.9958397,'s',"9:00-18:00","💻",4.1],
+  ["ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",8.0030681,99.9982724,'s',"7:00-15:00","🍜",4.2],
+  ["ร้านอาหารนั่งเล่นชะอวด",7.9687349,99.9955717,'s',"10:00-22:00","🍽️",4.3],
+  ["ร้านเครื่องเสียงแอนด์ซาวด์",7.9933797,99.9709374,'s',"9:00-18:00","🔊",4.2],
+  ["ร้านเจียมรัตน์",7.9664151,99.9950503,'s',"8:00-18:00","🏪",4.2],
+  ["ร้านเตือนใจ สาขาชะอวด",7.9701435,99.994102,'s',"8:00-20:00","🏪",4.2],
+  ["ร้านเท็น 2009",7.96408,99.9897567,'s',"8:00-20:00","🏪",4.1],
+  ["ร้านเพื่อนเด็ก",7.9667586,99.9969729,'s',"9:00-20:00","🧸",4.3],
+  ["ร้านเสริมสวย ครบวงจร",7.9758431,100.0025379,'s',"9:00-20:00","💇",4.2],
+  ["ร้านเอิร์นคอมพิวเตอร์",7.9599783,99.9707676,'s',"9:00-18:00","💻",4.1],
+  ["ร้านเอ็นวีกรุ๊ป",7.9637188,99.9887988,'s',"8:00-18:00","🏪",4.0],
+  ["ร้านแกงน้องรัตน์",7.9660722,99.9937653,'s',"7:00-15:00","🍛",4.3],
+  ["ร้านแยมการค้า",7.9373533,99.9921848,'s',"8:00-18:00","🏪",4.1],
+  ["ร้านแว่นบิวตี้ฟูลสาขาชะอวด",7.9667461,99.997057,'s',"9:00-20:00","👓",4.2],
+  ["ร้านโปร ณ คอนแอร์ แอนด์เซอร์วิส",7.9645868,99.9903681,'s',"8:00-18:00","❄️",4.3],
+  ["ร้านไฟฟ้านายหมึก",7.9667805,99.9967046,'s',"8:00-18:00","⚡",4.2],
+  ["ร้านไร ชะอวด (เสื้อผ้า รองเท้า)",7.9656011,99.9950366,'s',"9:00-20:00","👗",4.1],
+  ["ลานชา ใต้ขาม",7.93932,99.9894971,'s',"8:00-18:00","🍵",4.4],
+  ["ลานเทปาล์มสองพี่น้อง",7.9749773,100.0290413,'s',"8:00-17:00","🌴",4.2],
+  ["ว.ทรัพย์เกษตร",7.9370309,99.9814456,'s',"7:30-17:30","🌾",4.0],
+  ["สติ๊กเกอร์ชะอวด",7.9692995,99.9962469,'s',"8:00-18:00","🏷️",4.1],
+  ["สถานีตำแซ่บ",7.9643083,99.9984177,'s',"10:00-21:00","🥗",4.2],
+  ["สมยา พาณิชย์ & ชอการช่าง",7.9505714,99.9762045,'s',"8:00-18:00","🔧",4.3],
+  ["สหไพบูลย์",7.9669158,99.9973463,'s',"8:00-18:00","🏪",4.1],
+  ["สาวมินิมาร์ท",7.9751241,99.9632741,'s',"7:00-22:00","🏪",4.2],
+  ["สำนักงานตัวแทน วิริยะประกันภัย",7.9673134,99.995566,'s',"จ-ศ 8:30-17:00","🛡️",4.2],
+  ["สิริโภชนา",7.9676294,99.9982468,'s',"8:00-18:00","🍽️",4.3],
+  ["สีกัน๐ไม้",7.9667728,100.0011909,'s',"8:00-18:00","🎨",4.1],
+  ["สุกัลยาผ้าม่าน",7.970404,99.9961778,'s',"9:00-18:00","🪟",4.2],
+  ["หจก.สิทธิ์ออโต้ไลท์ติ้ง",7.9609565,99.9869111,'s',"8:00-18:00","💡",4.2],
+  ["ห้างทองศุภัทรา",7.946812,99.9716833,'s',"9:00-20:00","🥇",4.3],
+  ["ห้างหุ้นส่วนจำกัด อุดมกิจโฮมซัพพลาย",7.9672759,99.995865,'s',"8:00-18:00","🏠",4.2],
+  ["อร่าม รับหลอมทอง ชะอวด",7.9681359,99.9962286,'s',"9:00-17:00","🥇",4.1],
+  ["อินทร์ศรีทองคาร์แคร์",7.949173,99.973833,'s',"8:00-18:00","🚗",4.2],
+  ["อ้ายเกลอ คาร์แคร์",7.9760584,99.9943639,'s',"8:00-18:00","🚗",4.3],
+  ["เจี๊ยวหอมอะไหล่ซิ่งชะอวด",7.9693144,100.0026773,'s',"8:00-18:00","🏍️",4.2],
+  ["เชี่ยวชาญ การแว่น ชะอวด",7.9676616,99.9955794,'s',"9:00-20:00","👓",4.3],
+  ["เนื้อตุ๋นคุณพัฒน์",7.9709583,99.9962329,'s',"8:00-20:00","🥩",4.4],
+  ["เมษา กาแฟ (สาขา2)",7.9671037,100.003486,'s',"7:00-18:00","☕",4.3],
+  ["เรืองรินการเกษตร",7.9706107,99.9935979,'s',"7:00-17:00","🌾",4.2],
+  ["เลอศักดิ์ แบตเตอรี่ชะอวด",7.9609233,99.9936178,'s',"8:00-18:00","🔋",4.1],
+  ["เวชพงษ์โอสก",7.966812,99.9969907,'s',"8:00-20:00","💊",4.2],
+  ["เว่นท็อปเจริญสาขาชะอวด",7.9674521,99.9957602,'s',"9:00-20:00","👓",4.3],
+  ["แว่นตาพอเพียง",7.9622953,99.9880286,'s',"9:00-20:00","👓",4.2],
+  ["แฮปปี้โมบายชะอวด",7.9675345,99.9967919,'s',"9:00-21:00","📱",4.2],
+  ["โกดังมือถือ ชะอวด",7.9665149,99.9951063,'s',"9:00-20:00","📱",4.1],
+  ["โกเปรี้ยว แม็กซิ่ง ยาง",7.9739973,99.9906455,'s',"8:00-18:00","🏍️",4.2],
+  ["โซนคอม",7.9878118,99.9888319,'s',"9:00-20:00","💻",4.1],
+  ["โต๊ะเครื่องแป้ง ชะอวด",7.9670992,99.9972553,'s',"9:00-20:00","💄",4.2],
+  ["โรงอิฐตั้งเจริญกุล",7.9493223,99.9739756,'s',"7:00-17:00","🧱",4.0],
+  ["โรงอิฐว. อดุลย์ภัณฑ์",7.989432,99.978565,'s',"7:00-17:00","🧱",4.0],
+  ["โรงอิฐสมศักดิ์",7.9787636,99.9871513,'s',"7:00-17:00","🧱",4.0],
+  ["โรงอิฐเพชรทักสิน 3",7.9916428,99.9896513,'s',"7:00-17:00","🧱",4.0],
+  ["โรตีชะอวด หวานสั่งได้",7.9670099,99.9974378,'s',"7:00-20:00","🫓",4.3],
+  ["ไทยรุ่ง ชะอวด",7.9720844,99.9961561,'s',"8:00-20:00","🏪",4.2],
+  ["ไร่ย่านาทราย",7.9977282,100.0004285,'s',"7:00-17:00","🌾",4.1],
+
+  // ════════ วัด (15) ════════
+  ["วัดหมื่นระงับรังสรรค์",7.967482,100.0011391,'w',"เปิดทุกวัน","🛕",4.5],
+  ["วัดโทสิทธิวารีน้อย (วัดบางน้อย)",7.9443214,100.0320631,'w',"เปิดทุกวัน","🛕",4.4],
+  ["วัดบ่อน้ำดำ",7.9238441,99.9869303,'w',"เปิดทุกวัน","🛕",4.6],
+  ["วัดท่าเสม็ด",7.9545473,100.0079449,'w',"เปิดทุกวัน","🛕",4.5],
+  ["วัดตะเคียนทอง",7.9567803,99.9704696,'w',"เปิดทุกวัน","🛕",4.3],
+  ["วัดศรีมาประสิทธ์",7.963936,99.9965192,'w',"เปิดทุกวัน","🛕",4.7],
+  ["วัดควนสมบูรณ์",7.9718178,99.9651773,'w',"เปิดทุกวัน","🛕",4.4],
+  ["วัดป่านาบน",7.939721,100.0263685,'w',"เปิดทุกวัน","🛕",4.5],
+  ["วัดรักขิตวัน",7.9780661,99.9920701,'w',"เปิดทุกวัน","🛕",4.6],
+  ["วัดเลียบ",7.9798026,99.9701276,'w',"เปิดทุกวัน","🛕",4.3],
+  ["วัดดอนมะปราง",7.9906917,99.9609256,'w',"เปิดทุกวัน","🛕",4.5],
+  ["สำนักวิมานแก้ว",7.9617102,99.985519,'w',"เปิดทุกวัน","🏯",4.4],
+  ["วัดท่าสะท้อน",8.0000628,100.0182942,'w',"เปิดทุกวัน","🛕",4.7],
+  ["วัดไทรหัวม้า",7.9644527,100.0356972,'w',"เปิดทุกวัน","🛕",4.5],
+  ["วัดเขาพระทอง",8.0250,100.0400,'w',"เปิดทุกวัน","⛰️",4.8],
+
+  // ════════ ปั๊มน้ำมัน (8) ════════
+  ["PTT Station ปตท.ชะอวด (น้ำมัน+EV)",7.9616121,99.9874856,'g',"เปิด 24 ชม.","⛽",4.3],
+  ["PTT",7.9713988,99.9928366,'g',"เปิด 24 ชม.","⛽",4.2],
+  ["Caltex",7.968906,99.994871,'g',"เปิด 24 ชม.","⛽",4.3],
+  ["ปั๊มน้ำมัน PT (สาขาชะอวด 2)",7.9727798,99.9910928,'g',"เปิด 24 ชม.","⛽",4.1],
+  ["Sukhothai Gas Stations",7.972852,99.991155,'g',"เปิด 24 ชม.","⛽",4.0],
+  ["ปั๊มตราดาว เจ๊ยี่",7.9686435,99.9949754,'g',"เปิด 24 ชม.","⭐",4.2],
+  ["วีระพลปิโตรเลียม",8.001079,100.0024084,'g',"เปิด 24 ชม.","⛽",4.1],
+  ["ปั้มน้ำมัน พี่แกน",8.001674,100.0023387,'g',"เปิด 24 ชม.","⛽",4.0],
+
+  // ════════ ธนาคาร/การเงิน (14) ════════
+  ["ธนาคารกรุงไทย สาขาชะอวด",7.9678545,99.9955985,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+  ["ธนาคารออมสิน สาขาชะอวด",7.9681554,99.9966014,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+  ["ธนาคารเพื่อการเกษตรฯ สาขาชะอวด",7.9698444,99.9937785,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+  ["ธนาคารไทยพาณิชย์ สาขาชะอวด",7.967917,99.9954819,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+  ["เงินติดล้อ สาขา ชะอวด",7.9676908,99.9953319,'b',"จ-ส 9:00-18:00","💰",4.0],
+  ["ศรีสวัสดิ์ เงินสดทันใจ (ท่าประจะ)",7.961113,99.987004,'b',"จ-ส 9:00-17:00","💰",3.9],
+  ["ศรีสวัสดิ์ เงินสดทันใจ (ชะอวด)",7.9751241,99.9632741,'b',"จ-ส 9:00-17:00","💰",3.9],
+  ["ศรีสวัสดิ์ เงินสดทันใจ (รพ.)",7.9693057,99.9963774,'b',"จ-ส 9:00-17:00","💰",4.0],
+  ["ศรีสวัสดิ์ เงินสดทันใจ (รร.)",7.966608,99.998516,'b',"จ-ส 9:00-17:00","💰",3.9],
+  ["สมหวัง เงินสั่งได้ สาขา ชะอวด",7.961227,99.987169,'b',"จ-ส 9:00-17:00","💰",4.0],
+  ["ห้างทองศักดิ์สุวรรณ2",7.9658472,99.9973143,'b',"9:00-20:00","🥇",4.3],
+  ["เงินเทอร์โบ สาขาชะอวด",7.9660515,99.9922354,'b',"จ-ส 9:00-17:00","💰",3.9],
+  ["เงินไชโยสาขาชะอวด",7.9673602,99.9957658,'b',"จ-ส 9:00-17:00","💰",4.0],
+  ["Omsin Sakha Cha-uat Banks",8.001079,100.0024084,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+
+  // ════════ สถานศึกษา (40) ════════
+  ["โรงเรียนบ้านหนองหิน",7.9405707,99.9931927,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+  ["โรงเรียนบ้านห้วยโส",7.9527034,99.9797008,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+  ["โรงเรียนวัดท่าเสม็ด",7.9560129,100.0067071,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+  ["โรงเรียนบ้านชะอวด",7.9641603,100.0000337,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+  ["โรงเรียนชุมชนควนดินแดงมิตรภาพที่๓",7.9402422,99.9615976,'e',"จ-ศ 7:00-16:00","🏫",4.5],
+  ["โรงเรียนวัดควนสมบูรณ์",7.9715566,99.9663925,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+  ["โรงเรียนวัดรักขิตวัน",7.9776563,99.992897,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+  ["โรงเรียนวัดปากควน",7.9627771,100.0368423,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+  ["โรงเรียนบ้านบางน้อย",7.951818,100.0269177,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+  ["โรงเรียนชะอวด",7.969309,99.9987471,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+  ["โรงเรียนกุลวดีศึกษา",7.9667757,100.0036838,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+  ["โรงเรียนชะอวดวิทยา",7.9727688,99.9956609,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+  ["โรงเรียนวัดดอนมะปราง",7.9910655,99.9615524,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+  ["โรงเรียนวัดท่าสะท้อน",8.0006006,100.0178194,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+  ["โรงเรียนชะอวดวิทยาคาร",7.9712039,100.0052213,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+  ["โรงเรียนบ้านศาลาทวดทอง",7.9767231,100.0200571,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+  ["ศูนย์การศึกษาพิเศษฯ หน่วยบริการชะอวด",7.9668154,99.9987599,'e',"จ-ศ 8:30-16:30","♿",4.4],
+  ["ศูนย์เด็กเล็กอำเภอชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.3],
+  ["โรงเรียนอนุบาลลูกแก้ว",7.968188,99.99372,'e',"จ-ศ 8:00-15:00","🎓",4.5],
+  ["วิทยาลัยการอาชีพชะอวด",7.9800,100.0100,'e',"จ-ศ 8:00-16:00","🎓",4.4],
+  ["กศน.ตำบลท่าประจะ",7.9732835,99.9626224,'e',"จ-ศ 9:00-17:00","📚",4.2],
+  ["กศน.ตำบลท่าเสม็ด",7.9569534,100.0064912,'e',"จ-ศ 9:00-17:00","📚",4.2],
+  ["ครูออยสอนพิเศษ",7.9674348,99.9953067,'e',"ตามนัด","👩‍🏫",4.5],
+  ["ชมรมข้าราชการบำเหน็จบำนาญ",7.9648176,99.9989211,'e',"จ-ศ 9:00-16:00","🏛️",4.1],
+  ["ชะอวดติวเตอร์",7.9689317,99.9979594,'e',"ตามนัด","📖",4.4],
+  ["ชะอวดบุ๊คเซ็นเตอร์",7.9645596,99.989676,'e',"8:00-20:00","📚",4.3],
+  ["ร้านหนังสือพิมพ์จินตนา",7.9670515,99.9966782,'e',"7:00-18:00","📰",4.2],
+  ["ศูนย์การเรียนรู้(สวนมังคุด)",7.92678,99.9857367,'e',"จ-ศ 9:00-16:00","🥭",4.3],
+  ["ศูนย์การเรียนรู้ระดับตำบลชะอวด",7.9783738,100.0188994,'e',"จ-ศ 9:00-16:00","📚",4.2],
+  ["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.4],
+  ["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลท่าประจะ",7.9692849,99.9648115,'e',"จ-ศ 8:00-16:00","👶",4.3],
+  ["ศูนย์พัฒนาเด็กเล็กโรงเรียนวัดปากควน",7.9641159,100.0362609,'e',"จ-ศ 8:00-16:00","👶",4.3],
+  ["สกร.ระดับอำเภอชะอวด",7.9672545,99.998667,'e',"จ-ศ 8:30-16:30","📚",4.2],
+  ["ห้องสมุดประชาชนอำเภอชะอวด",7.967155,99.998853,'e',"จ-ศ 9:00-17:00","📚",4.3],
+  ["ไก่การพิมพ์",7.966144,99.9925204,'e',"8:00-17:00","🖨️",4.1],
+  ["ศพก.อำเภอชะอวด",7.927141,99.985738,'e',"จ-ศ 8:30-16:30","🌾",4.2],
+  ["ศูนย์การเรียนชุมชนวิถีไท",7.9947329,100.02409,'e',"จ-ศ 9:00-16:00","📖",4.3],
+
+  // ════════ ราชการ / สาธารณสุข / ขนส่ง / ไปรษณีย์ / สันทนาการ (27) ════════
+  ["ที่ว่าการอำเภอชะอวด",7.9646,99.9951,'o',"จ-ศ 8:30-16:30","🏛️",4.5],
+  ["สถานีตำรวจภูธรชะอวด",7.9652,99.9958,'o',"24 ชม.","🚔",4.3],
+  ["เทศบาลตำบลชะอวด",7.9620,99.9935,'o',"จ-ศ 8:30-16:30","🏢",4.2],
+  ["อบต ท่าเสม็ด",7.9562142,100.0087033,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+  ["อบต ท่าประจะ",7.9720053,99.9634295,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+  ["โรงพยาบาลชะอวด",7.9813021,99.9916658,'o',"24 ชม.","🏥",4.3],
+  ["Ban Tungkhai",7.99401,99.9867609,'x',"เปิดทุกวัน","🚉",4.0],
+  ["Chauat Station",7.965,99.99833,'x',"เปิดทุกวัน","🚉",4.1],
+  ["ทางแยกชะอวด",7.9667387,99.9960237,'x',"เปิดทุกวัน","🛣️",3.8],
+  ["บ้านของสส.กฤต",7.9420445,99.9968167,'x',"-","🏠",3.5],
+  ["ร้านขนมปังปิ้งหอมโฉ",7.9643131,99.9980384,'l',"6:00-12:00","🍞",4.3],
+  ["สำนักงานสาธารณสุขอำเภอชะอวด",7.9641119,99.9977083,'l',"จ-ศ 8:30-16:30","🏥",4.2],
+  ["รพ.สต.บ้านควนสมบูรณ์",7.9731338,99.9634295,'l',"จ-ศ 8:30-16:30","🏥",4.1],
+  ["FlashHomeเมืองใหม่",7.9606922,99.9861881,'p',"8:00-20:00","📦",4.2],
+  ["SPX Express สาขาสี่แยกบนเนิน",7.9670161,100.0076208,'p',"8:00-20:00","📦",4.1],
+  ["Shippop สาขาชะอวด",7.9673865,99.9955265,'p',"8:00-18:00","📦",4.0],
+  ["ไปรษณีย์ไทย สาขาชะอวด",7.968176,99.9954555,'p',"จ-ส 8:30-16:30","📮",4.2],
+  ["กลุมมังคุดเมืองใหม่ก้าวหน้า",7.9596389,99.9850833,'y',"-","🥭",4.2],
+  ["กองทุนหมู่บ้าน บ้านสี่แยกโคกขันธ์",7.961342,99.9635418,'y',"จ-ศ 9:00-16:00","🏘️",4.0],
+  ["ค่ายไก่ส.สิทธิชัย",7.965189,99.9969038,'y',"-","🐓",4.3],
+  ["ที่ทำการผู้ใหญ่บ้านเนินอินทร์แก้ว",7.9784003,100.0188892,'y',"จ-ศ 8:30-16:30","🏘️",4.1],
+  ["สวนปาล์ม ผอ.อรอนงค์",7.9312206,100.0101695,'y',"-","🌴",4.2],
+  ["สวนป้านงค์",7.9346763,99.9903153,'y',"-","🌳",4.3],
+  ["สวนผลไม้ บ้านมังสัง",7.9478047,99.9594238,'y',"-","🍎",4.2],
+  ["สวนมังคุด คุณพ่อมนูญ",7.9637895,100.0285622,'y',"-","🥭",4.4],
+  ["เกมส์",7.951874,100.0357781,'y',"10:00-22:00","🎮",4.0]
+];
+
+// ═══════════════════════════════════════════════════════════════════════
+//  แปลง PLACES_RAW → PLACES objects
+// ═══════════════════════════════════════════════════════════════════════
+const PLACES = PLACES_RAW.map((a, idx) => ({
+  id: idx,
+  n: a[0],
+  lat: a[1],
+  lng: a[2],
+  c: PLACE_CATS[a[3]],
+  price: a[4],
+  img: a[5],
+  rating: a[6]
+}));
+
+console.log(`[Chauat Go] โหลด ${PLACES.length} สถานที่สำเร็จ ✅`);
+</script>
+</body>
+</html>
