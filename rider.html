@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Chauat Go — Rider</title>
+<meta name="theme-color" content="#FF6B35">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Thai','Sarabun',-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
+:root{
+  --brand:#FF6B35;--brand-dark:#E55A2B;--brand-light:#FFF3E0;
+  --green:#00A651;--green-dark:#008C45;--green-light:#E8F5E9;
+  --blue:#4A90D9;--purple:#9C27B0;
+  --warn:#E65100;--danger:#E53935;
+  --bg:#F5F7FA;--surface:#FFFFFF;--text:#1A1A1A;
+  --text-muted:#6B7280;--text-light:#9CA3AF;
+  --border:rgba(0,0,0,.06);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,.06);
+  --shadow-lg:0 12px 32px rgba(0,0,0,.08)
+}
+html,body{width:100%;overflow-x:hidden;background:var(--bg);overscroll-behavior-y:contain}
+body{max-width:480px;margin:0 auto;min-height:100vh;color:var(--text);-webkit-font-smoothing:antialiased;padding-bottom:20px}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#FF6B35 0%,#E55A2B 60%,#C44A1F 100%);overflow-y:auto;z-index:9999}
+#login-screen::before{content:'';position:absolute;top:-100px;right:-60px;width:280px;height:280px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);border-radius:50%;pointer-events:none}
+.login-card{background:#fff;border-radius:28px;padding:32px 26px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;margin:auto;position:relative;z-index:1}
+.login-icon{margin-bottom:16px;display:flex;justify-content:center;align-items:center}
+.login-icon img{width:100px;height:100px;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.15);object-fit:contain;background:#fff}
+.login-icon .fallback{font-size:64px;filter:drop-shadow(0 4px 12px rgba(255,107,53,.3))}
+.login-card h1{font-size:24px;font-weight:900;margin-bottom:4px;letter-spacing:-.3px}
+.login-card p{font-size:13px;color:var(--text-muted);margin-bottom:22px;font-weight:500}
+.auth-tabs{display:flex;gap:6px;margin-bottom:22px;background:#f5f5f5;padding:5px;border-radius:16px}
+.auth-tab{flex:1;padding:11px;border-radius:12px;font-weight:800;font-size:13px;color:var(--text-muted);transition:.2s;border:none;cursor:pointer;font-family:inherit}
+.auth-tab.active{background:#fff;color:var(--brand);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.form-field{margin-bottom:14px;text-align:left}
+.form-field label{display:block;font-size:12px;font-weight:800;color:#555;margin-bottom:6px}
+.form-field input,.form-field select,.form-field textarea{width:100%;padding:14px 16px;border:2px solid #e8e8e8;border-radius:14px;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;background:#fafafa;font-family:inherit;font-weight:600}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(255,107,53,.1)}
+.form-field .hint{font-size:11px;color:var(--text-light);margin-top:4px;font-weight:500}
+.btn-primary{width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;font-weight:900;font-size:15px;margin-top:8px;border:none;cursor:pointer;box-shadow:0 6px 16px rgba(255,107,53,.3);transition:transform .15s;font-family:inherit}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+#login-error{color:#E53935;font-size:13px;margin-top:12px;min-height:18px;text-align:center;font-weight:700}
+.login-hint{margin-top:18px;font-size:11px;color:var(--text-light);line-height:1.6;text-align:center;font-weight:500}
+.pdpa-gps-box{background:#FFF3E0;padding:12px;border-radius:12px;margin-bottom:14px;border:1px solid #FFE0B2;text-align:left}
+.pdpa-gps-box label{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#E65100;cursor:pointer;line-height:1.5;font-weight:600}
+.pdpa-gps-box input[type="checkbox"]{margin-top:3px;accent-color:#E65100;flex-shrink:0;width:16px;height:16px}
+.pdpa-gps-box a{color:#E65100;text-decoration:underline;font-weight:800}
+
+/* HEADER */
+header{background:linear-gradient(135deg,#FF6B35 0%,#E55A2B 60%,#C44A1F 100%);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(255,107,53,.3);border-radius:0 0 20px 20px}
+header::before{content:'';position:absolute;top:-60px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);border-radius:50%;pointer-events:none}
+.header-info{flex:1;min-width:0;position:relative;z-index:2}
+.header-info .name{font-size:15px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.header-info .status{font-size:11px;opacity:.9;margin-top:3px;font-weight:600}
+.online-toggle{background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.4);color:#fff;padding:9px 15px;border-radius:24px;font-size:13px;font-weight:900;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:.2s;cursor:pointer;position:relative;z-index:2;font-family:inherit}
+.online-toggle.online{background:#fff;color:var(--green);border-color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.online-toggle:disabled{opacity:.5;cursor:not-allowed}
+.online-toggle .dot{width:8px;height:8px;border-radius:50%;background:#ffcdd2;transition:.2s}
+.online-toggle.online .dot{background:var(--green);box-shadow:0 0 0 3px rgba(0,166,81,.3);animation:pulseDot 1.5s infinite}
+@keyframes pulseDot{0%,100%{box-shadow:0 0 0 3px rgba(0,166,81,.3)}50%{box-shadow:0 0 0 8px rgba(0,166,81,0)}}
+.menu-btn{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;cursor:pointer;position:relative;z-index:2;color:#fff;font-family:inherit}
+
+/* LAYOUT */
+.container{padding:16px}
+.section-divider{display:flex;align-items:center;gap:8px;margin:24px 0 12px}
+.section-divider .title{font-size:14px;font-weight:900;color:var(--text)}
+.section-divider .line{flex:1;height:1px;background:linear-gradient(90deg,#ddd,transparent)}
+.section-divider .count{background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;font-weight:900;box-shadow:0 2px 8px rgba(255,107,53,.3)}
+
+/* HERO */
+.hero-card{background:linear-gradient(135deg,#FF6B35 0%,#E55A2B 60%,#C44A1F 100%);border-radius:24px;padding:24px 20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(255,107,53,.35)}
+.hero-card::before{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%);border-radius:50%;pointer-events:none}
+.hero-card::after{content:'';position:absolute;bottom:-80px;left:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.1),transparent 70%);border-radius:50%;pointer-events:none}
+.hero-label{font-size:13px;opacity:.9;font-weight:700;margin-bottom:6px;position:relative;z-index:1}
+.hero-amount{font-size:46px;font-weight:900;line-height:1;letter-spacing:-1px;position:relative;z-index:1}
+.hero-sub{font-size:12px;opacity:.85;margin-top:8px;font-weight:600;position:relative;z-index:1}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.2);position:relative;z-index:1}
+.hero-grid-cell .lbl{font-size:11px;opacity:.85;font-weight:700}
+.hero-grid-cell .val{font-size:20px;font-weight:900;margin-top:2px}
+.hero-grid-cell .val.warn{color:#FFE0B2}
+
+.deadline-strip{margin-top:14px;background:rgba(0,0,0,.2);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;position:relative;z-index:1;backdrop-filter:blur(8px)}
+.deadline-strip.urgent{background:rgba(229,57,53,.35);animation:pulseUrgent 1.5s infinite}
+.deadline-strip.warning{background:rgba(255,167,38,.3)}
+.deadline-strip.safe{background:rgba(76,175,80,.25)}
+@keyframes pulseUrgent{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.3)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}
+.deadline-icon{font-size:22px;flex-shrink:0}
+.deadline-info{flex:1;min-width:0}
+.deadline-title{font-size:11px;opacity:.9;font-weight:800;text-transform:uppercase;letter-spacing:.3px}
+.deadline-time{font-size:17px;font-weight:900;margin-top:2px;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.deadline-note{font-size:10px;opacity:.85;margin-top:2px;font-weight:700}
+
+/* ACTION CARDS */
+.action-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s}
+.action-card:active{transform:scale(.98)}
+.action-card.warn{border-left:4px solid var(--warn);background:#FFFBEB}
+.action-card.danger{border-left:4px solid var(--danger);background:#FFEBEE}
+.action-card.blue{border-left:4px solid var(--blue);background:#EFF6FF}
+.action-card.green{border-left:4px solid var(--green);background:#F0FDF4}
+.action-card.orange{border-left:4px solid var(--brand);background:#FFF7ED}
+.action-icon{font-size:28px;flex-shrink:0;line-height:1}
+.action-info{flex:1;min-width:0}
+.action-title{font-size:14px;font-weight:800;line-height:1.3}
+.action-card.warn .action-title{color:#92400e}
+.action-card.danger .action-title{color:#991b1b}
+.action-card.blue .action-title{color:#1e40af}
+.action-card.green .action-title{color:#166534}
+.action-card.orange .action-title{color:#9a3412}
+.action-value{font-size:20px;font-weight:900;margin-top:2px;letter-spacing:-.3px}
+.action-card.warn .action-value{color:var(--warn)}
+.action-card.danger .action-value{color:var(--danger)}
+.action-card.blue .action-value{color:var(--blue)}
+.action-card.green .action-value{color:var(--green)}
+.action-card.orange .action-value{color:var(--brand)}
+.action-sub{font-size:11px;color:var(--text-muted);margin-top:2px;font-weight:700}
+.action-btn{flex-shrink:0;padding:9px 14px;border-radius:12px;font-size:12px;font-weight:900;border:none;cursor:pointer;font-family:inherit;transition:transform .15s}
+.action-btn:active{transform:scale(.95)}
+.action-btn.green{background:var(--green);color:#fff;box-shadow:0 4px 12px rgba(0,166,81,.25)}
+.action-btn.orange{background:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(255,107,53,.25)}
+.action-btn.blue{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(74,144,217,.25)}
+.action-btn.red{background:var(--danger);color:#fff;box-shadow:0 4px 12px rgba(229,57,53,.25)}
+.action-btn.gray{background:#f0f0f0;color:#666}
+
+/* STATS MINI */
+.stats-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat-mini{background:#fff;border-radius:14px;padding:12px 8px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.stat-mini .n{font-size:20px;font-weight:900;color:var(--brand);line-height:1}
+.stat-mini .l{font-size:10px;color:var(--text-muted);font-weight:800;margin-top:4px}
+
+/* ORDER CARDS */
+.order-card{background:#fff;border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,.06);position:relative;overflow:hidden;transition:transform .15s}
+.order-card:active{transform:scale(.99)}
+.order-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--brand)}
+.order-card.pending::before{background:var(--brand)}
+.order-card.accepted::before{background:var(--blue)}
+.order-card.picked_up::before{background:var(--purple)}
+.order-card.on_the_way::before{background:var(--green)}
+.order-card.done::before{background:#bbb}
+.order-card.is-new{animation:flashNew 2s ease-out}
+@keyframes flashNew{0%,100%{box-shadow:var(--shadow-md)}50%{box-shadow:0 0 0 4px rgba(255,107,53,.4)}}
+.card-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.card-icon{width:46px;height:46px;border-radius:14px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.card-title{flex:1;min-width:0}
+.card-title h3{font-size:15px;font-weight:900;color:var(--text);line-height:1.3;margin-bottom:3px}
+.card-title .sub{font-size:11px;color:var(--text-muted);font-weight:700}
+.card-badge{background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;font-size:10px;padding:4px 10px;border-radius:12px;font-weight:900;flex-shrink:0;box-shadow:0 4px 12px rgba(255,107,53,.3)}
+.info-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-top:1px solid #f5f5f5;font-size:13px;color:#555;line-height:1.5}
+.info-row .ico{font-size:15px;flex-shrink:0;width:20px;text-align:center}
+.info-row .txt{flex:1;min-width:0;word-break:break-word;font-weight:600}
+.info-row .txt strong{color:var(--text);font-weight:900}
+.items-box{background:#f8f9fa;padding:12px;border-radius:12px;margin:12px 0;font-size:13px;color:#444;line-height:1.5;white-space:pre-wrap;max-height:120px;overflow-y:auto;font-weight:600}
+.items-box strong{display:block;margin-bottom:6px;font-size:11px;color:var(--text-muted);text-transform:uppercase;font-weight:900}
+.money-row{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#FFF8E1,#FFECB3);padding:12px 14px;border-radius:14px;margin-top:12px;border-left:4px solid #FFA500}
+.money-row .lbl{font-size:12px;color:#8D4A00;font-weight:800}
+.money-row .amt{font-size:20px;font-weight:900;color:var(--brand);letter-spacing:-.3px}
+.actions-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}
+.actions-grid.two{grid-template-columns:1fr 1fr}
+.action-btn-big{padding:14px;border-radius:14px;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;transition:transform .15s;border:none;cursor:pointer;font-family:inherit}
+.action-btn-big:active{transform:scale(.97)}
+.btn-orange-big{background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;box-shadow:0 6px 16px rgba(255,107,53,.3)}
+.btn-green-big{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;box-shadow:0 6px 16px rgba(0,166,81,.3)}
+.btn-blue-big{background:linear-gradient(135deg,#4A90D9,#1565C0);color:#fff;box-shadow:0 6px 16px rgba(74,144,217,.3)}
+.btn-purple-big{background:linear-gradient(135deg,#9C27B0,#6A1B9A);color:#fff;box-shadow:0 6px 16px rgba(156,39,176,.3)}
+.btn-gray-big{background:#f0f0f0;color:#666}
+.btn-red-big{background:#FFEBEE;color:#E53935;border:1px solid #FFCDD2}
+
+.quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.quick-btn{padding:12px;border-radius:12px;background:#f5f5f5;color:#555;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;border:none;cursor:pointer;transition:background .15s;font-family:inherit}
+.quick-btn:active{background:#eee}
+.quick-btn:disabled{opacity:.5;cursor:not-allowed}
+
+.nav-buttons-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.nav-btn-small{padding:11px;border-radius:12px;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:4px;text-decoration:none;transition:transform .1s;font-family:inherit}
+.nav-btn-small:active{transform:scale(.95)}
+.btn-nav-shop{background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2}
+.btn-nav-home{background:#E8F5E9;color:#2E7D32;border:1px solid #C8E6C9}
+
+/* MINI MAP */
+.mini-map-container{height:150px;width:100%;border-radius:12px;overflow:hidden;margin-bottom:12px;position:relative;background:#e5e7eb;border:1px solid var(--border);z-index:1}
+.map-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);background:rgba(255,255,255,.8);z-index:10}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;background:#fff;border-radius:16px;color:var(--text-light);box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.empty .icon{font-size:56px;margin-bottom:14px;opacity:.6}
+.empty h3{font-size:16px;color:var(--text-muted);margin-bottom:6px;font-weight:800}
+.empty p{font-size:13px;color:var(--text-light);line-height:1.5;font-weight:600}
+
+/* BANNERS */
+.offline-bar{position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,#E53935,#C62828);color:#fff;text-align:center;padding:10px;font-size:12px;font-weight:800;z-index:200;display:none;box-shadow:0 4px 12px rgba(229,57,53,.3)}
+.offline-bar.show{display:block}
+.pending-banner{background:linear-gradient(135deg,#FFF3E0,#FFE0B2);color:#E65100;padding:14px 16px;font-size:13px;font-weight:800;text-align:center;border-bottom:2px solid #FFB74D;display:none;line-height:1.5}
+.pending-banner.show{display:block}
+
+/* SHEET */
+.sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:flex-end}
+.sheet-overlay.active{display:flex;animation:fadeIn .25s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.sheet{background:#fff;width:100%;max-width:600px;border-radius:28px 28px 0 0;padding:28px 24px;max-height:85vh;overflow-y:auto;animation:sheetUp .3s cubic-bezier(.4,0,.2,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet h2{font-size:20px;font-weight:900;margin-bottom:16px}
+.sheet-item{padding:16px;border-radius:14px;background:#f8f9fa;margin-bottom:10px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:background .15s}
+.sheet-item:active{background:#eee}
+.sheet-item .ico{font-size:24px;flex-shrink:0}
+.sheet-item .content{flex:1;min-width:0}
+.sheet-item .lbl{font-size:14px;font-weight:900;color:var(--text)}
+.sheet-item .sub{font-size:12px;color:var(--text-muted);margin-top:2px;font-weight:600}
+.sheet-item .arrow{font-size:18px;color:var(--text-light)}
+.close-sheet{width:100%;padding:16px;border-radius:14px;background:#f0f0f0;color:#666;font-weight:900;font-size:15px;margin-top:12px;border:none;cursor:pointer;transition:background .15s;font-family:inherit}
+.close-sheet:active{background:#e0e0e0}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:flex-end}
+.modal-overlay.active{display:flex;animation:fadeIn .25s}
+.modal-content{background:#fff;width:100%;max-width:480px;border-radius:28px 28px 0 0;padding:0;max-height:92vh;overflow-y:auto;animation:sheetUp .3s cubic-bezier(.4,0,.2,1);box-shadow:0 -12px 40px rgba(0,0,0,.15)}
+.modal-inner{padding:28px 24px}
+
+/* TOAST */
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);background:rgba(26,26,26,.95);backdrop-filter:blur(12px);color:#fff;padding:14px 22px;border-radius:24px;font-size:14px;font-weight:700;z-index:3000;opacity:0;pointer-events:none;transition:.3s;max-width:90%;text-align:center;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:linear-gradient(135deg,#00A651,#008C45)}
+.toast.error{background:linear-gradient(135deg,#E53935,#C62828)}
+.toast.info{background:linear-gradient(135deg,#4A90D9,#1565C0)}
+
+/* NEW JOB POPUP */
+.new-job-popup{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:2500;display:none;align-items:center;justify-content:center;padding:20px}
+.new-job-popup.active{display:flex;animation:fadeIn .25s}
+.new-job-card{background:#fff;border-radius:24px;padding:28px 24px;width:100%;max-width:400px;text-align:center;animation:popIn .35s cubic-bezier(.4,0,.2,1);box-shadow:0 24px 60px rgba(0,0,0,.4)}
+@keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.new-job-card .icon{font-size:60px;margin-bottom:10px;animation:bell 1s infinite;filter:drop-shadow(0 4px 12px rgba(255,107,53,.4))}
+@keyframes bell{0%,100%{transform:rotate(0)}25%{transform:rotate(-15deg)}75%{transform:rotate(15deg)}}
+.new-job-card h2{font-size:22px;font-weight:900;color:var(--brand);margin-bottom:8px;letter-spacing:-.3px}
+.new-job-card p{font-size:14px;color:var(--text-muted);margin-bottom:8px;line-height:1.5;font-weight:600}
+.new-job-card .detail{background:#f8f9fa;padding:14px;border-radius:14px;margin:16px 0;text-align:left;font-size:13px;line-height:1.7;font-weight:600}
+.new-job-card .detail div{margin-bottom:5px}
+.new-job-card .detail strong{color:var(--text);font-weight:900}
+
+/* CHAT */
+.chat-container{display:flex;flex-direction:column;height:80vh;max-height:700px}
+.chat-header{background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:12px}
+.chat-header .back-btn{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);color:#fff;width:40px;height:40px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;font-family:inherit}
+.chat-header .back-btn:active{transform:scale(.9)}
+.chat-header .info{flex:1;min-width:0}
+.chat-header .info .name{font-size:15px;font-weight:900}
+.chat-header .info .status{font-size:11px;opacity:.9;font-weight:600;margin-top:2px}
+.chat-messages{flex:1;overflow-y:auto;padding:20px 14px;background:#ECE5DD;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:80%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.5;word-wrap:break-word;box-shadow:0 2px 6px rgba(0,0,0,.08);animation:msgIn .3s;font-weight:500}
+@keyframes msgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.chat-msg.sent{align-self:flex-end;background:linear-gradient(135deg,#DCF8C6,#C5E1A5);border-bottom-right-radius:4px;color:#1a1a1a}
+.chat-msg.received{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;color:#1a1a1a}
+.chat-msg.system{align-self:center;background:rgba(0,0,0,.08);color:#666;font-size:12px;padding:8px 14px;border-radius:12px;max-width:90%;text-align:center;box-shadow:none;font-weight:700}
+.chat-msg .msg-time{font-size:10px;color:#999;margin-top:5px;text-align:right;display:block;font-weight:700}
+.chat-msg.sent .msg-time{color:#7B9E5C}
+.chat-msg img{max-width:100%;border-radius:14px;display:block;cursor:pointer;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.chat-msg .img-label{font-size:11px;color:#666;margin-bottom:6px;font-weight:900}
+.chat-input-area{display:flex;gap:10px;padding:14px;background:#fff;align-items:center;border-top:1px solid rgba(0,0,0,.04)}
+.chat-input-area input[type="text"]{flex:1;padding:14px 18px;border:2px solid #e8e8e8;border-radius:24px;outline:none;font-size:14px;font-family:inherit;font-weight:600}
+.chat-input-area input[type="text"]:focus{border-color:var(--brand)}
+.chat-attach-btn{width:44px;height:44px;border-radius:50%;background:#f5f5f5;border:none;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.chat-attach-btn:active{transform:scale(.9)}
+.chat-send-btn{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;border:none;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(255,107,53,.3);transition:transform .15s}
+.chat-send-btn:active{transform:scale(.9)}
+.chat-quick-actions{display:flex;gap:8px;padding:12px 14px;background:#f8f9fa;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid rgba(0,0,0,.04)}
+.chat-quick-actions::-webkit-scrollbar{display:none}
+.quick-action{padding:10px 16px;background:#fff;border:1.5px solid #e8e8e8;border-radius:20px;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer;color:#555;transition:.15s}
+.quick-action:active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* RATING BOX */
+.rating-box{background:linear-gradient(135deg,#FFF8E1,#FFECB3);border-radius:18px;padding:16px;margin-bottom:16px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+.rating-box-inner{display:flex;align-items:center;gap:14px}
+.rating-num{text-align:center;flex-shrink:0}
+.rating-num .big{font-size:34px;font-weight:900;color:#F57F17;line-height:1}
+.rating-num .stars{font-size:13px;color:#F57F17;margin-top:4px;letter-spacing:1px}
+.rating-info{flex:1;min-width:0}
+.rating-info .title{font-size:13px;font-weight:900;color:#E65100;margin-bottom:4px}
+.rating-info .sub{font-size:11px;color:#8D4A00;font-weight:700}
+.rating-info .level{font-size:11px;color:#E65100;font-weight:800;margin-top:6px}
+.rating-btn{background:#FFB300;color:#fff;border:none;padding:10px 16px;border-radius:20px;font-size:12px;font-weight:900;cursor:pointer;flex-shrink:0;box-shadow:0 4px 12px rgba(255,179,0,.3);font-family:inherit}
+
+/* UPLOAD */
+.upload-progress{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.9);color:#fff;padding:24px 32px;border-radius:20px;font-size:14px;font-weight:800;z-index:9999;text-align:center;backdrop-filter:blur(12px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.upload-progress .spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.qr-placeholder{width:200px;height:200px;margin:0 auto;background:#f0f0f0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:60px}
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<div class="offline-bar" id="offline-bar">🔴 ออฟไลน์ — รอการเชื่อมต่อ</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-icon">
+      <img src="icons/icon-512.png" alt="Chauat Go"
+           onerror="this.outerHTML='<div class=\'fallback\'>🛵</div>'">
+    </div>
+    <h1>Chauat Go Rider</h1>
+    <p id="login-subtitle">สำหรับไรเดอร์เท่านั้น</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">สมัครเป็นไรเดอร์</button>
+    </div>
+
+    <form id="form-login" onsubmit="handleLogin(event)">
+      <div class="form-field">
+        <label>📧 อีเมล</label>
+        <input type="email" id="login-email" placeholder="rider@example.com" required autocomplete="email">
+      </div>
+      <div class="form-field">
+        <label>🔒 รหัสผ่าน</label>
+        <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-primary" id="login-submit">🔓 เข้าสู่ระบบ</button>
+    </form>
+
+    <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
+      <div class="form-field">
+        <label>👤 ชื่อ-นามสกุล *</label>
+        <input type="text" id="su-name" placeholder="สมชาย ใจดี" required maxlength="100">
+      </div>
+      <div class="form-field">
+        <label>📱 เบอร์โทรศัพท์ *</label>
+        <input type="tel" id="su-phone" placeholder="0812345678" required maxlength="20">
+        <div class="hint">ใช้ติดต่อลูกค้าและแอดมิน</div>
+      </div>
+      <div class="form-field">
+        <label>🛵 ยี่ห้อรถ / ทะเบียน *</label>
+        <input type="text" id="su-vehicle" placeholder="Honda PCX • 1กข-1234" required maxlength="200">
+      </div>
+      <div class="form-field">
+        <label>📧 อีเมล *</label>
+        <input type="email" id="su-email" placeholder="rider@example.com" required autocomplete="email">
+      </div>
+      <div class="form-field">
+        <label>🔒 รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)</label>
+        <input type="password" id="su-password" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="form-field">
+        <label>🔒 ยืนยันรหัสผ่าน *</label>
+        <input type="password" id="su-password2" placeholder="••••••••" required minlength="6">
+      </div>
+
+      <div class="pdpa-gps-box">
+        <label>
+          <input type="checkbox" id="gps-consent" required>
+          <span>
+            ข้าพเจ้ายินยอมให้เก็บ <b>พิกัด GPS</b> ของข้าพเจ้า เพื่อวัตถุประสงค์ในการจับคู่กับลูกค้าที่อยู่ใกล้และคำนวณค่าส่ง<br>
+            <b>เก็บเฉพาะขณะ "ออนไลน์"</b> — เมื่อกด "ออฟไลน์" ระบบจะลบพิกัดทันที<br>
+            อ่านเพิ่มเติม: <a href="/privacy" target="_blank">นโยบายความเป็นส่วนตัว</a>
+          </span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary" id="signup-submit">✅ สมัครเป็นไรเดอร์</button>
+      <div id="login-error"></div>
+    </form>
+
+    <div class="login-hint" id="login-hint">
+      🔐 หลังสมัครแล้ว แอดมินจะต้องอนุมัติก่อน<br>จึงจะเริ่มรับงานได้
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <header>
+    <div class="header-info">
+      <div class="name" id="rider-name">—</div>
+      <div class="status" id="rider-status">ออฟไลน์</div>
+    </div>
+    <button class="online-toggle" id="online-btn" onclick="toggleOnline()">
+      <span class="dot"></span><span id="online-label">ออฟไลน์</span>
+    </button>
+    <button class="menu-btn" onclick="openMenu()">☰</button>
+  </header>
+
+  <div class="pending-banner" id="pending-banner">
+    ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>ยังไม่สามารถเปิดรับงานได้
+  </div>
+
+  <div class="container">
+    <!-- HERO -->
+    <div class="hero-card">
+      <div class="hero-label">💰 รายได้วันนี้ (80% ของคุณ)</div>
+      <div class="hero-amount" id="hero-earn">฿0.00</div>
+      <div class="hero-sub" id="hero-sub">จาก 0 งานเสร็จสิ้นวันนี้</div>
+
+      <div class="hero-grid">
+        <div class="hero-grid-cell">
+          <div class="lbl">📦 เก็บจากลูกค้า</div>
+          <div class="val" id="hero-collected">฿0</div>
+        </div>
+        <div class="hero-grid-cell">
+          <div class="lbl">⚠️ ต้องโอนแอป (20%)</div>
+          <div class="val warn" id="hero-owed">฿0.00</div>
+        </div>
+      </div>
+
+      <div class="deadline-strip" id="deadline-strip" style="display:none">
+        <div class="deadline-icon" id="deadline-icon">⏰</div>
+        <div class="deadline-info">
+          <div class="deadline-title">⏳ ต้องโอนภายใน 21:00 น.</div>
+          <div class="deadline-time" id="deadline-time">--:--:--</div>
+          <div class="deadline-note" id="deadline-note">โปรดโอนเพื่อไม่ให้บัญชีถูกระงับ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats mini -->
+    <div class="stats-mini">
+      <div class="stat-mini"><div class="n" id="stat-done">0</div><div class="l">📦 เสร็จวันนี้</div></div>
+      <div class="stat-mini"><div class="n" id="stat-active">0</div><div class="l">🛵 กำลังทำ</div></div>
+      <div class="stat-mini"><div class="n" id="stat-total">0</div><div class="l">📊 สะสม</div></div>
+    </div>
+
+    <!-- ACTION -->
+    <div class="section-divider">
+      <div class="title">🎯 ต้องทำอะไรต่อ</div>
+      <div class="line"></div>
+    </div>
+    <div id="action-cards"></div>
+
+    <!-- Rating -->
+    <div class="rating-box" id="rating-box" style="display:none">
+      <div class="rating-box-inner">
+        <div class="rating-num">
+          <div class="big" id="my-rating">0.0</div>
+          <div class="stars" id="my-rating-stars">☆☆☆☆☆</div>
+        </div>
+        <div class="rating-info">
+          <div class="title">⭐ คะแนนของคุณ</div>
+          <div class="sub" id="my-rating-count">จาก 0 รีวิว</div>
+          <div class="level" id="my-level-text"></div>
+        </div>
+        <button class="rating-btn" onclick="showMyReviews()">ดูรีวิว</button>
+      </div>
+    </div>
+
+    <!-- Orders -->
+    <div class="section-divider">
+      <div class="title">🔔 งานใหม่รอรับ</div>
+      <div class="line"></div>
+      <div class="count" id="cnt-new">0</div>
+    </div>
+    <div id="new-jobs"></div>
+
+    <div class="section-divider">
+      <div class="title">🛵 งานที่กำลังทำ</div>
+      <div class="line"></div>
+      <div class="count" id="cnt-active">0</div>
+    </div>
+    <div id="active-jobs"></div>
+
+    <div class="section-divider">
+      <div class="title">✅ ประวัติวันนี้</div>
+      <div class="line"></div>
+      <div class="count" id="cnt-done">0</div>
+    </div>
+    <div id="done-jobs"></div>
+
+    <div id="empty-all" class="empty" style="display:none">
+      <div class="icon">🛵</div>
+      <h3>ยังไม่มีงาน</h3>
+      <p id="empty-msg">เปิดสถานะ "ออนไลน์" เพื่อรับงานใหม่</p>
+    </div>
+
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- NEW JOB POPUP -->
+<div class="new-job-popup" id="new-job-popup">
+  <div class="new-job-card">
+    <div class="icon">🔔</div>
+    <h2>มีงานใหม่!</h2>
+    <p>กรุณากดยอมรับภายใน 30 วินาที</p>
+    <div class="detail" id="new-job-detail"></div>
+    <div class="actions-grid two" style="margin-top:16px">
+      <button class="action-btn-big btn-green-big" onclick="acceptNewJob()">✅ รับงาน</button>
+      <button class="action-btn-big btn-gray-big" onclick="closeNewJobPopup()">✕ ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- MENU SHEET -->
+<div class="sheet-overlay" id="menu-sheet" onclick="if(event.target===this)closeMenu()">
+  <div class="sheet">
+    <h2>เมนู</h2>
+    <div class="sheet-item" onclick="showMyInfo()">
+      <div class="ico">👤</div>
+      <div class="content"><div class="lbl">ข้อมูลของฉัน</div><div class="sub">ดูโปรไฟล์และสถิติ</div></div>
+      <div class="arrow">›</div>
+    </div>
+    <div class="sheet-item" onclick="showDebtDetail()">
+      <div class="ico">💰</div>
+      <div class="content"><div class="lbl">ยอดค้างจ่าย</div><div class="sub">สรุปเงินที่ต้องโอนให้แอป</div></div>
+      <div class="arrow">›</div>
+    </div>
+    <div class="sheet-item" onclick="showMyReviews()">
+      <div class="ico">⭐</div>
+      <div class="content"><div class="lbl">รีวิวของฉัน</div><div class="sub">ดูคะแนนจากลูกค้า</div></div>
+      <div class="arrow">›</div>
+    </div>
+    <div class="sheet-item" onclick="showMyChats()">
+      <div class="ico">💬</div>
+      <div class="content"><div class="lbl">แชทกับลูกค้า</div><div class="sub">ดูข้อความและส่งรูป</div></div>
+      <div class="arrow">›</div>
+    </div>
+    <div class="sheet-item" onclick="handleRiderLogout()" style="background:#fff5f5">
+      <div class="ico">🚪</div>
+      <div class="content"><div class="lbl" style="color:#E53935">ออกจากระบบ</div></div>
+    </div>
+    <button class="close-sheet" onclick="closeMenu()">ปิด</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content" id="modal-body"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+//  CHAUAT GO — RIDER SCRIPT v3
+// ═══════════════════════════════════════════════════════════════════════
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
+  measurementId: "G-6E2QEFWK6P"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('[Rider] persistence:', err.code));
+
+// STATE
+let currentUser = null;
+let riderProfile = null;
+let allOrders = [];
+let unsubscribeOrders = null;
+let unsubscribeProfile = null;
+let unsubscribeRatings = null;
+let unsubscribeDebt = null;
+let chatUnsub = null;
+let soundEnabled = true;
+let currentNewJobId = null;
+let currentChatOrderId = null;
+let isOnline = false;
+let locationUpdateInterval = null;
+let myRatings = [];
+let currentDebtData = null;
+let lastActionTime = 0;
+let lastPopupTime = 0;
+let activeMaps = {};
+
+let deadlineTimer = null;
+let lastDeadlineWarning = 0;
+
+const DEADLINE_HOUR = 21;
+const PLATFORM_FEE_RATE = 0.20;
+
+// HELPERS
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function jsStr(s) {
+  return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 2500);
+}
+function showError(msg) { document.getElementById('login-error').textContent = msg || ''; }
+function checkRateLimit() {
+  const now = Date.now();
+  if (now - lastActionTime < 1500) { showToast('⚠️ กรุณารอสักครู่', 'info'); return false; }
+  lastActionTime = now;
+  return true;
+}
+function toDate(t) {
+  if (!t) return null;
+  const d = t.toDate ? t.toDate() : new Date(t);
+  return isNaN(d) ? null : d;
+}
+function getOrderMapKey(id) {
+  return 'map-' + String(id).replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+// AUTH STATE
+auth.onAuthStateChanged(async user => {
+  if (!user) { showLogin(); return; }
+
+  try {
+    const snap = await db.collection('riders').doc(user.uid).get();
+    if (!snap.exists) {
+      await auth.signOut();
+      showError('❌ ไม่พบข้อมูลไรเดอร์ — กรุณาสมัครใหม่');
+      showLogin();
+      switchAuthTab('signup');
+      return;
+    }
+    riderProfile = { uid: user.uid, ...snap.data() };
+  } catch (e) {
+    console.error('[rider check]', e);
+    await auth.signOut();
+    showError('⚠️ ตรวจสอบสิทธิ์ไม่สำเร็จ ลองใหม่');
+    showLogin();
+    return;
+  }
+
+  currentUser = user;
+  isOnline = riderProfile.status === 'available' && riderProfile.verified === true;
+  document.getElementById('rider-name').textContent = riderProfile.name || 'ไรเดอร์';
+  updatePendingBanner();
+  updateOnlineUI();
+  updateHeaderBadge();
+  showApp();
+  listenOrders();
+  listenProfile();
+  listenRatings();
+  listenDebt();
+  startDeadlineCountdown();
+
+  if (isOnline) setTimeout(startLocationTracking, 1000);
+
+  window.addEventListener('beforeunload', () => {
+    stopLocationTracking();
+    if (currentUser && isOnline) {
+      db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(() => {});
+    }
+  });
+});
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
+  document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+  document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = isLogin ? 'none' : 'block';
+  document.getElementById('login-subtitle').textContent = isLogin ? 'สำหรับไรเดอร์เท่านั้น' : 'สมัครใหม่ — รอการอนุมัติจากแอดมิน';
+  document.getElementById('login-hint').innerHTML = isLogin
+    ? '🔐 หลังสมัครแล้ว แอดมินจะต้องอนุมัติก่อน<br>จึงจะเริ่มรับงานได้'
+    : '⚠️ กรอกข้อมูลให้ครบถ้วน<br>หลังสมัครแล้วจะรอแอดมินอนุมัติ';
+  showError('');
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-submit');
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  showError('');
+  btn.disabled = true; btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    showError(mapAuthError(err.code));
+    btn.disabled = false; btn.textContent = '🔓 เข้าสู่ระบบ';
+  }
+}
+
+async function handleSignup(e) {
+  e.preventDefault();
+  const btn = document.getElementById('signup-submit');
+  const name = document.getElementById('su-name').value.trim();
+  const phone = document.getElementById('su-phone').value.trim();
+  const vehicle = document.getElementById('su-vehicle').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const pw1 = document.getElementById('su-password').value;
+  const pw2 = document.getElementById('su-password2').value;
+
+  showError('');
+  if (name.length < 2) return showError('⚠️ กรุณากรอกชื่อ-นามสกุล');
+  if (phone.replace(/\D/g,'').length < 9) return showError('⚠️ เบอร์โทรต้องมีอย่างน้อย 9 หลัก');
+  if (!vehicle) return showError('⚠️ กรุณากรอกข้อมูลรถ');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('⚠️ อีเมลไม่ถูกต้อง');
+  if (pw1.length < 6) return showError('⚠️ รหัสผ่านอย่างน้อย 6 ตัวอักษร');
+  if (pw1 !== pw2) return showError('⚠️ รหัสผ่านทั้ง 2 ช่องไม่ตรงกัน');
+  if (!document.getElementById('gps-consent').checked) return showError('⚠️ กรุณายอมรับนโยบาย GPS ก่อนสมัคร');
+
+  btn.disabled = true; btn.textContent = '⏳ กำลังสมัคร...';
+  let createdUser = null;
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pw1);
+    createdUser = cred.user;
+    await createdUser.updateProfile({ displayName: name });
+
+    await db.collection('riders').doc(createdUser.uid).set({
+      name, phone, vehicle, email,
+      status: 'offline', verified: false,
+      rating: 0, totalRatings: 0, ratingSum: 0,
+      rating5: 0, rating4: 0, rating3: 0, rating2: 0, rating1: 0,
+      totalTrips: 0, gpsConsent: true,
+      gpsConsentAt: firebase.firestore.FieldValue.serverTimestamp(),
+      gpsConsentVersion: '1.0',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      registeredVia: 'rider.html'
+    });
+    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ', 'success');
+  } catch (err) {
+    console.error('[signup]', err);
+    if (createdUser && (err.code === 'permission-denied' || err.message?.includes('firestore'))) {
+      try { await createdUser.delete(); } catch (e) {}
+      showError('❌ สร้างข้อมูลไรเดอร์ไม่สำเร็จ — ลองใหม่');
+    } else {
+      showError(mapAuthError(err.code));
+    }
+    btn.disabled = false; btn.textContent = '✅ สมัครเป็นไรเดอร์';
+  }
+}
+
+function mapAuthError(code) {
+  return ({
+    'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
+    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
+    'auth/email-already-in-use': 'อีเมลนี้ถูกใช้แล้ว — ลองเข้าสู่ระบบ',
+    'auth/weak-password': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป ลองใหม่ภายหลัง',
+    'auth/network-request-failed': 'ไม่มีการเชื่อมต่อเครือข่าย'
+  })[code] || 'เข้าสู่ระบบไม่สำเร็จ';
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const b = document.getElementById('login-submit');
+  b.disabled = false; b.textContent = '🔓 เข้าสู่ระบบ';
+  const s = document.getElementById('signup-submit');
+  s.disabled = false; s.textContent = '✅ สมัครเป็นไรเดอร์';
+}
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ONLINE / GPS
+function updatePendingBanner() {
+  const banner = document.getElementById('pending-banner');
+  const emptyMsg = document.getElementById('empty-msg');
+  const isVerified = riderProfile?.verified === true;
+  banner.classList.toggle('show', !isVerified);
+  if (emptyMsg) emptyMsg.textContent = isVerified ? 'เปิดสถานะ "ออนไลน์" เพื่อรับงานใหม่' : 'รอแอดมินอนุมัติก่อน';
+}
+
+async function toggleOnline() {
+  if (!currentUser) return;
+  if (riderProfile?.verified !== true) { showToast('⏳ รอแอดมินอนุมัติก่อน', 'error'); return; }
+
+  const btn = document.getElementById('online-btn');
+  const lbl = document.getElementById('online-label');
+  const originalLabel = lbl.textContent;
+  lbl.textContent = '⏳ กำลังหาพิกัด...';
+  btn.disabled = true;
+
+  try {
+    if (!isOnline) {
+      if (!navigator.geolocation) {
+        lbl.textContent = originalLabel; btn.disabled = false;
+        showToast('⚠️ เบราว์เซอร์ไม่รองรับ GPS', 'error');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        async pos => {
+          try {
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            await db.collection('riders').doc(currentUser.uid).update({
+              status: 'available', riderLat: lat, riderLng: lng,
+              lastLocationUpdate: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection('rider_locations').doc(currentUser.uid).set({
+              name: riderProfile.name || 'ไรเดอร์', status: 'available', lat, lng,
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+
+            isOnline = true;
+            updateOnlineUI();
+            startLocationTracking();
+            playBeep();
+            showToast('✅ เปิดรับงานแล้ว', 'success');
+          } catch (e) {
+            console.error('[toggleOnline open]', e);
+            lbl.textContent = originalLabel; btn.disabled = false;
+            showToast('❌ เปิดออนไลน์ไม่สำเร็จ', 'error');
+          }
+        },
+        err => {
+          lbl.textContent = originalLabel; btn.disabled = false;
+          const msg = { 1: '⚠️ กรุณาอนุญาต GPS', 2: '⚠️ ตำแหน่งใช้ไม่ได้', 3: '⏱️ หมดเวลา' }[err.code] || '⚠️ เข้าถึง GPS ไม่ได้';
+          showToast(msg, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      );
+    } else {
+      await db.collection('riders').doc(currentUser.uid).update({
+        status: 'offline', lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+        riderLat: firebase.firestore.FieldValue.delete(),
+        riderLng: firebase.firestore.FieldValue.delete(),
+        lastLocationUpdate: firebase.firestore.FieldValue.delete()
+      });
+      await db.collection('rider_locations').doc(currentUser.uid).set({
+        name: riderProfile.name || 'ไรเดอร์', status: 'offline',
+        lat: firebase.firestore.FieldValue.delete(),
+        lng: firebase.firestore.FieldValue.delete(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      isOnline = false;
+      updateOnlineUI();
+      stopLocationTracking();
+      showToast('⏸️ ปิดรับงาน — ลบพิกัดแล้ว', 'info');
+    }
+  } catch (e) {
+    console.error('[toggleOnline]', e);
+    lbl.textContent = originalLabel; btn.disabled = false;
+    showToast('❌ เปลี่ยนสถานะไม่สำเร็จ', 'error');
+  }
+}
+
+function updateOnlineUI() {
+  const btn = document.getElementById('online-btn');
+  const lbl = document.getElementById('online-label');
+  const st = document.getElementById('rider-status');
+  const isVerified = riderProfile?.verified === true;
+  btn.classList.toggle('online', isOnline && isVerified);
+  btn.disabled = !isVerified;
+  lbl.textContent = !isVerified ? 'รออนุมัติ' : (isOnline ? 'ออนไลน์' : 'ออฟไลน์');
+  st.textContent = !isVerified ? '⏳ รอการอนุมัติ' : (isOnline ? '🟢 พร้อมรับงาน' : '⚫ ปิดรับงาน');
+}
+
+function startLocationTracking() {
+  if (!navigator.geolocation) return;
+  stopLocationTracking();
+  const updateLoc = () => {
+    if (!currentUser || !isOnline) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        db.collection('riders').doc(currentUser.uid).update({
+          riderLat: lat, riderLng: lng,
+          lastLocationUpdate: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(err => console.warn('[GPS riders]', err));
+        db.collection('rider_locations').doc(currentUser.uid).set({
+          name: riderProfile?.name || 'ไรเดอร์', status: 'available', lat, lng,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(err => console.warn('[GPS locations]', err));
+      },
+      err => console.warn('[GPS]', err.code),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
+  updateLoc();
+  locationUpdateInterval = setInterval(updateLoc, 20000);
+}
+
+function stopLocationTracking() {
+  if (locationUpdateInterval) {
+    clearInterval(locationUpdateInterval);
+    locationUpdateInterval = null;
+  }
+  if (currentUser) {
+    db.collection('rider_locations').doc(currentUser.uid).set({
+      name: riderProfile?.name || '', status: 'offline',
+      lat: firebase.firestore.FieldValue.delete(),
+      lng: firebase.firestore.FieldValue.delete(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(() => {});
+  }
+}
+
+// LISTENERS
+function listenProfile() {
+  if (unsubscribeProfile) unsubscribeProfile();
+  unsubscribeProfile = db.collection('riders').doc(currentUser.uid).onSnapshot(snap => {
+    if (!snap.exists) return;
+    const oldVerified = riderProfile?.verified;
+    riderProfile = { uid: currentUser.uid, ...snap.data() };
+    if (oldVerified === false && riderProfile.verified === true) {
+      showToast('🎉 แอดมินอนุมัติแล้ว! เปิดรับงานได้เลย', 'success');
+      playBeep();
+    }
+    updatePendingBanner();
+    updateOnlineUI();
+    updateHeaderBadge();
+  });
+}
+
+function listenOrders() {
+  if (unsubscribeOrders) unsubscribeOrders();
+  unsubscribeOrders = db.collection('orders').where('riderId', '==', currentUser.uid).onSnapshot(snap => {
+    const prevIds = new Set(allOrders.map(o => o.id));
+    allOrders = snap.docs.map(d => {
+      const x = d.data();
+      return { id: d.id, ...x, createdAt: toDate(x.createdAt) || new Date() };
+    }).sort((a,b) => b.createdAt - a.createdAt);
+
+    const newPending = allOrders.find(o => o.status === 'pending' && !prevIds.has(o.id) && prevIds.size > 0);
+    if (newPending && !currentNewJobId && riderProfile?.verified === true && (Date.now() - lastPopupTime > 3000)) {
+      lastPopupTime = Date.now();
+      if (soundEnabled) playBeep();
+      showNewJobPopup(newPending);
+    }
+    render();
+    updateHeroAndActions();
+  }, err => {
+    console.error('[rider orders]', err);
+    if (err.code === 'failed-precondition') showToast('⚠️ ต้องสร้าง Index (riderId + createdAt)', 'error');
+  });
+}
+
+function listenRatings() {
+  if (unsubscribeRatings) unsubscribeRatings();
+  if (!currentUser) return;
+  unsubscribeRatings = db.collection('ratings').where('riderId', '==', currentUser.uid).orderBy('createdAt', 'desc').limit(50).onSnapshot(snap => {
+    myRatings = snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toDate?.() || new Date() }));
+    updateRatingBox();
+  }, err => console.warn('[ratings]', err));
+}
+
+function listenDebt() {
+  if (unsubscribeDebt) unsubscribeDebt();
+  if (!currentUser) return;
+  unsubscribeDebt = db.collection('rider_debts').doc(currentUser.uid).onSnapshot(snap => {
+    if (snap.exists) {
+      currentDebtData = snap.data();
+      if (currentDebtData.suspended === true && !window._suspendedShown) {
+        window._suspendedShown = true;
+        showToast(`🚫 บัญชีถูกระงับ: ${currentDebtData.suspendedReason || 'มียอดค้างจ่าย'}`, 'error');
+        if (isOnline) toggleOnline();
+      }
+      if (currentDebtData.suspended === false) window._suspendedShown = false;
+    }
+    updateHeroAndActions();
+  }, err => console.warn('[debt listener]', err));
+}
+
+// DEADLINE COUNTDOWN
+function startDeadlineCountdown() {
+  if (deadlineTimer) clearInterval(deadlineTimer);
+  updateDeadline();
+  deadlineTimer = setInterval(updateDeadline, 1000);
+}
+
+function updateDeadline() {
+  const strip = document.getElementById('deadline-strip');
+  if (!strip) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todaysOrders = allOrders.filter(o => o.status === 'done' && o.createdAt >= today);
+  const amountOwed = todaysOrders.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.appEarning ?? (Math.round(fare * PLATFORM_FEE_RATE * 100) / 100));
+  }, 0);
+
+  if (amountOwed <= 0) { strip.style.display = 'none'; return; }
+  strip.style.display = 'flex';
+
+  const now = new Date();
+  const deadline = new Date();
+  deadline.setHours(DEADLINE_HOUR, 0, 0, 0);
+  if (now >= deadline) deadline.setDate(deadline.getDate() + 1);
+
+  const diffMs = deadline - now;
+  const totalSec = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+
+  const timeStr = `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  document.getElementById('deadline-time').textContent = timeStr;
+
+  strip.classList.remove('urgent', 'warning', 'safe');
+  let icon = '⏰', note = 'โปรดโอนเพื่อไม่ให้บัญชีถูกระงับ';
+
+  if (hours < 1) {
+    strip.classList.add('urgent');
+    icon = '🚨';
+    note = '⚠️ เร่งด่วนมาก! โอนทันที';
+  } else if (hours < 3) {
+    strip.classList.add('warning');
+    icon = '⚠️';
+    note = 'ใกล้ deadline — โอนภายในวันนี้';
+  } else {
+    strip.classList.add('safe');
+  }
+
+  document.getElementById('deadline-icon').textContent = icon;
+  document.getElementById('deadline-note').textContent = note;
+
+  if (hours < 1) {
+    const totalMin = Math.floor(totalSec / 60);
+    if ([60, 30, 15].includes(totalMin) && lastDeadlineWarning !== totalMin) {
+      lastDeadlineWarning = totalMin;
+      playBeep();
+      showToast(`🚨 อีก ${totalMin} นาทีถึง deadline โอนเงิน!`, 'error');
+    }
+  }
+}
+
+// HERO + ACTION
+function updateHeroAndActions() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const doneToday = allOrders.filter(o => o.status === 'done' && o.createdAt >= today);
+  const activeJobs = allOrders.filter(o => ['accepted','picked_up','on_the_way'].includes(o.status));
+  const newJobs = allOrders.filter(o => o.status === 'pending');
+
+  const riderEarning = doneToday.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.riderEarning ?? (Math.round(fare * (1 - PLATFORM_FEE_RATE) * 100) / 100));
+  }, 0);
+
+  const totalCollected = doneToday.reduce((s, o) => s + Number(o.total || 0), 0);
+
+  const amountOwed = doneToday.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.appEarning ?? (Math.round(fare * PLATFORM_FEE_RATE * 100) / 100));
+  }, 0);
+
+  document.getElementById('hero-earn').textContent = '฿' + riderEarning.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('hero-sub').textContent = `จาก ${doneToday.length} งานเสร็จสิ้นวันนี้`;
+  document.getElementById('hero-collected').textContent = '฿' + totalCollected.toLocaleString('th-TH', { maximumFractionDigits: 0 });
+  document.getElementById('hero-owed').textContent = '฿' + amountOwed.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  document.getElementById('stat-done').textContent = doneToday.length;
+  document.getElementById('stat-active').textContent = activeJobs.length;
+  document.getElementById('stat-total').textContent = riderProfile?.totalTrips || 0;
+
+  const actionItems = [];
+
+  if (amountOwed > 0) {
+    const now = new Date();
+    const deadline = new Date();
+    deadline.setHours(DEADLINE_HOUR, 0, 0, 0);
+    if (now >= deadline) deadline.setDate(deadline.getDate() + 1);
+    const hoursLeft = (deadline - now) / 1000 / 3600;
+
+    let cardClass = 'warn', btnClass = 'orange', btnText = 'โอนเงิน →';
+    if (hoursLeft < 1) { cardClass = 'danger'; btnClass = 'red'; btnText = '🚨 โอนทันที!'; }
+    else if (hoursLeft < 3) { cardClass = 'warn'; btnClass = 'orange'; btnText = '⚠️ โอนเลย →'; }
+
+    actionItems.push(`
+      <div class="action-card ${cardClass}" onclick="showDebtDetail()">
+        <div class="action-icon">💰</div>
+        <div class="action-info">
+          <div class="action-title">ต้องโอนให้แอป (20%)</div>
+          <div class="action-value">฿${amountOwed.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <div class="action-sub">ภายใน 21:00 น. — จาก ${doneToday.length} งาน</div>
+        </div>
+        <button class="action-btn ${btnClass}">${btnText}</button>
+      </div>
+    `);
+  }
+
+  if (newJobs.length > 0) {
+    actionItems.push(`
+      <div class="action-card orange" onclick="scrollToSection('new-jobs')">
+        <div class="action-icon">🔔</div>
+        <div class="action-info">
+          <div class="action-title">มีงานใหม่รอรับ</div>
+          <div class="action-value">${newJobs.length} งาน</div>
+          <div class="action-sub">กดเพื่อดูรายละเอียด</div>
+        </div>
+        <button class="action-btn orange">ดูงาน →</button>
+      </div>
+    `);
+  }
+
+  if (activeJobs.length > 0) {
+    actionItems.push(`
+      <div class="action-card blue" onclick="scrollToSection('active-jobs')">
+        <div class="action-icon">🛵</div>
+        <div class="action-info">
+          <div class="action-title">งานที่กำลังทำ</div>
+          <div class="action-value">${activeJobs.length} งาน</div>
+          <div class="action-sub">อัปเดตสถานะและนำทาง</div>
+        </div>
+        <button class="action-btn blue">ไปที่งาน →</button>
+      </div>
+    `);
+  }
+
+  if (!isOnline && riderProfile?.verified === true) {
+    actionItems.push(`
+      <div class="action-card green" onclick="toggleOnline()">
+        <div class="action-icon">⚫</div>
+        <div class="action-info">
+          <div class="action-title">คุณกำลังออฟไลน์</div>
+          <div class="action-value">เปิดรับงาน</div>
+          <div class="action-sub">แตะเพื่อเปิดออนไลน์</div>
+        </div>
+        <button class="action-btn green">เปิดเลย →</button>
+      </div>
+    `);
+  }
+
+  if (actionItems.length === 0) {
+    if (isOnline) {
+      actionItems.push(`
+        <div class="action-card green" style="text-align:center;flex-direction:column;gap:6px;padding:24px">
+          <div style="font-size:48px">✅</div>
+          <div class="action-title" style="font-size:15px">ทุกอย่างเรียบร้อย!</div>
+          <div class="action-sub">รอรับงานใหม่ — ไม่มียอดค้าง</div>
+        </div>
+      `);
+    } else {
+      actionItems.push(`
+        <div class="action-card orange">
+          <div class="action-icon">💤</div>
+          <div class="action-info">
+            <div class="action-title">ยังไม่พร้อมรับงาน</div>
+            <div class="action-sub">เปิดออนไลน์เพื่อเริ่มรับงาน</div>
+          </div>
+        </div>
+      `);
+    }
+  }
+
+  document.getElementById('action-cards').innerHTML = actionItems.join('');
+  updateDeadline();
+}
+
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// RENDER ORDERS
+function render() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const newJobs = allOrders.filter(o => o.status === 'pending');
+  const activeJobs = allOrders.filter(o => ['accepted','picked_up','on_the_way'].includes(o.status));
+  const doneJobs = allOrders.filter(o => o.status === 'done' && o.createdAt >= today).slice(0, 10);
+
+  document.getElementById('cnt-new').textContent = newJobs.length;
+  document.getElementById('cnt-active').textContent = activeJobs.length;
+  document.getElementById('cnt-done').textContent = doneJobs.length;
+
+  document.getElementById('new-jobs').innerHTML = newJobs.map(o => renderCard(o, 'new')).join('');
+  document.getElementById('active-jobs').innerHTML = activeJobs.map(o => renderCard(o, 'active')).join('');
+  document.getElementById('done-jobs').innerHTML = doneJobs.map(o => renderCard(o, 'done')).join('');
+  document.getElementById('empty-all').style.display = allOrders.length > 0 ? 'none' : 'block';
+
+  setTimeout(initMiniMaps, 200);
+}
+
+function renderCard(o, group) {
+  const time = o.createdAt.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+  const date = o.createdAt.toLocaleDateString('th-TH', {day:'2-digit', month:'short'});
+  const items = String(o.items || '');
+  const custPhone = o.userPhone || '';
+  const shopPhone = o.shopPhone || o.merchantPhone || '';
+  const distStr = o.distance ? Number(o.distance).toFixed(1) + ' กม.' : '—';
+  const statusIcon = { pending:'🔔', accepted:'🛵', picked_up:'📦', on_the_way:'🚀', done:'✅' }[o.status] || '📦';
+  const typeIcon = { food:'🍽️', shopping:'🛒', dinein:'🍴', express:'📦', map:'🗺️' }[o.type] || '📦';
+
+  let actionBtns = '', quickActions = '', miniMapHtml = '';
+  const mapKey = getOrderMapKey(o.id);
+
+  const hasGps = o.pickupLat && o.pickupLng && o.dropoffLat && o.dropoffLng;
+  if (group === 'active' && hasGps) {
+    miniMapHtml = `<div class="mini-map-container" id="${mapKey}-container"><div class="map-loading" id="${mapKey}-loader">กำลังโหลดแผนที่...</div><div id="${mapKey}" style="width:100%;height:100%"></div></div>`;
+  }
+
+  if (['accepted','picked_up','on_the_way'].includes(o.status)) {
+    const shopQuery = encodeURIComponent(o.pickupAddress || o.title || 'ร้านค้า');
+    const homeQuery = encodeURIComponent(o.address || 'ปลายทาง');
+
+    quickActions = `
+      <div class="nav-buttons-row">
+        <a href="https://www.google.com/maps/search/?api=1&query=${shopQuery}" target="_blank" class="nav-btn-small btn-nav-shop">🏪 ไปรับของ</a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${homeQuery}" target="_blank" class="nav-btn-small btn-nav-home">🏠 ส่งถึงบ้าน</a>
+      </div>
+      <div class="quick-actions">
+        ${custPhone ? `<a href="tel:${escHtml(custPhone)}" class="quick-btn">📞 โทรลูกค้า</a>` : `<button class="quick-btn" disabled>📞 ไม่มีเบอร์</button>`}
+        ${shopPhone ? `<a href="tel:${escHtml(shopPhone)}" class="quick-btn">🏪 โทรหาร้าน</a>` : `<button class="quick-btn" disabled>🏪 ไม่มีเบอร์ร้าน</button>`}
+        <button class="quick-btn" onclick="openChat('${jsStr(o.id)}')">💬 แชทลูกค้า</button>
+        <button class="quick-btn" style="color:#E53935;background:#FFEBEE" onclick="openReportIssue('${jsStr(o.id)}')">⚠️ แจ้งปัญหา</button>
+      </div>
+    `;
+  }
+
+  if (group === 'new') {
+    actionBtns = `<div class="actions-grid two">
+      <button class="action-btn-big btn-green-big" onclick="acceptOrder('${jsStr(o.id)}')">✅ รับงาน</button>
+      <button class="action-btn-big btn-gray-big" onclick="rejectOrder('${jsStr(o.id)}')">✕ ปฏิเสธ</button>
+    </div>`;
+  } else if (o.status === 'accepted') {
+    actionBtns = `<button class="action-btn-big btn-orange-big" onclick="updateStatus('${jsStr(o.id)}','picked_up')">📦 รับของแล้ว — ไปส่ง</button>`;
+  } else if (o.status === 'picked_up') {
+    actionBtns = `<button class="action-btn-big btn-blue-big" onclick="updateStatus('${jsStr(o.id)}','on_the_way')">🛵 กำลังเดินทาง</button>`;
+  } else if (o.status === 'on_the_way') {
+    actionBtns = `<button class="action-btn-big btn-green-big" onclick="updateStatus('${jsStr(o.id)}','done')">✅ ส่งสำเร็จ — เก็บเงินแล้ว</button>`;
+  }
+
+  return `<div class="order-card ${o.status} ${group === 'new' ? 'is-new' : ''}">
+    <div class="card-head">
+      <div class="card-icon">${statusIcon}</div>
+      <div class="card-title">
+        <h3>${typeIcon} ${escHtml(o.title || '—')}</h3>
+        <div class="sub">${date} • ${time}</div>
+      </div>
+      ${group === 'new' ? '<span class="card-badge">ใหม่</span>' : ''}
+    </div>
+    ${miniMapHtml}
+    <div class="info-row"><div class="ico">👤</div><div class="txt"><strong>${escHtml(o.userName || 'ลูกค้า')}</strong></div></div>
+    <div class="info-row"><div class="ico">🏠</div><div class="txt">${escHtml(o.address || '—')}</div></div>
+    <div class="info-row"><div class="ico">📏</div><div class="txt">ระยะทาง <strong>${distStr}</strong></div></div>
+    ${o.note ? `<div class="info-row"><div class="ico">📌</div><div class="txt">${escHtml(o.note)}</div></div>` : ''}
+    <div class="items-box"><strong>รายการ</strong>${escHtml(items)}</div>
+    <div class="money-row">
+      <div class="lbl">💰 เก็บเงินจากลูกค้า</div>
+      <div class="amt">${Number(o.total || 0)}฿</div>
+    </div>
+    ${actionBtns}
+    ${quickActions}
+  </div>`;
+}
+
+// ORDER ACTIONS
+async function acceptOrder(orderId) {
+  if (!checkRateLimit()) return;
+  await updateOrder(orderId, {
+    status: 'accepted',
+    acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, '✅ รับงานแล้ว — ไปที่ร้าน');
+  if (currentUser) {
+    db.collection('rider_locations').doc(currentUser.uid).set({
+      status: 'busy', updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(() => {});
+  }
+}
+
+async function rejectOrder(orderId) {
+  if (!checkRateLimit()) return;
+  if (!confirm('ปฏิเสธงานนี้?\nงานจะถูกส่งคืนให้แอดมินมอบหมายใหม่')) return;
+  await updateOrder(orderId, {
+    status: 'searching',
+    riderId: firebase.firestore.FieldValue.delete(),
+    rider: firebase.firestore.FieldValue.delete(),
+    rejectedBy: currentUser.uid,
+    rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, '↩️ ส่งคืนงานแล้ว');
+}
+
+async function updateStatus(orderId, newStatus) {
+  if (!checkRateLimit()) return;
+  const updates = { status: newStatus };
+  if (newStatus === 'picked_up') updates.pickedUpAt = firebase.firestore.FieldValue.serverTimestamp();
+  if (newStatus === 'on_the_way') updates.onTheWayAt = firebase.firestore.FieldValue.serverTimestamp();
+  if (newStatus === 'done') updates.deliveredAt = firebase.firestore.FieldValue.serverTimestamp();
+
+  const successMsg = {
+    picked_up: '📦 อัพเดตแล้ว — กำลังไปส่ง',
+    on_the_way: '🛵 กำลังเดินทาง',
+    done: '🎉 ส่งสำเร็จ!'
+  }[newStatus] || '✅ อัพเดตแล้ว';
+
+  await updateOrder(orderId, updates, successMsg);
+
+  if (newStatus === 'done' && currentUser && isOnline) {
+    db.collection('rider_locations').doc(currentUser.uid).set({
+      status: 'available', updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(() => {});
+  }
+}
+
+async function updateOrder(orderId, updates, successMsg) {
+  try {
+    await db.collection('orders').doc(orderId).update(updates);
+    showToast(successMsg || '✅ สำเร็จ', 'success');
+    closeNewJobPopup();
+  } catch (e) {
+    console.error('[update]', e);
+    showToast(e.code === 'permission-denied' ? '❌ ไม่มีสิทธิ์แก้ไข' : '❌ อัพเดตไม่สำเร็จ', 'error');
+  }
+}
+
+// NEW JOB POPUP
+function showNewJobPopup(o) {
+  currentNewJobId = o.id;
+  const distStr = o.distance ? Number(o.distance).toFixed(1) + ' กม.' : '—';
+  document.getElementById('new-job-detail').innerHTML = `
+    <div>🏪 <strong>${escHtml(o.title || '—')}</strong></div>
+    <div>👤 ${escHtml(o.userName || 'ลูกค้า')}</div>
+    <div>🏠 ${escHtml((o.address||'').slice(0, 60))}</div>
+    <div>📏 ${distStr}</div>
+    <div style="margin-top:10px;color:#FF6B35;font-weight:900;font-size:18px">💰 ${Number(o.total||0)}฿</div>
+  `;
+  document.getElementById('new-job-popup').classList.add('active');
+}
+function closeNewJobPopup() {
+  document.getElementById('new-job-popup').classList.remove('active');
+  currentNewJobId = null;
+}
+function acceptNewJob() {
+  if (!currentNewJobId) return;
+  acceptOrder(currentNewJobId);
+}
+
+// SOUND
+let audioCtx = null;
+function playBeep() {
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    [880, 1100, 880].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.15);
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime + i * 0.15 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.15 + 0.15);
+      osc.start(audioCtx.currentTime + i * 0.15);
+      osc.stop(audioCtx.currentTime + i * 0.15 + 0.15);
+    });
+  } catch (e) {}
+}
+
+// LEAFLET MINI MAPS
+function initMiniMaps() {
+  document.querySelectorAll('.mini-map-container').forEach(container => {
+    const containerId = container.id;
+    const mapKey = containerId.replace('-container', '');
+
+    const order = allOrders.find(o => getOrderMapKey(o.id) === mapKey);
+    if (!order || !order.pickupLat || !order.pickupLng || !order.dropoffLat || !order.dropoffLng) return;
+    if (activeMaps[mapKey]) return;
+
+    try {
+      const loader = document.getElementById(`${mapKey}-loader`);
+      const mapEl = document.getElementById(mapKey);
+      if (!mapEl) return;
+
+      const map = L.map(mapKey, {
+        zoomControl: false, dragging: true, scrollWheelZoom: false, attributionControl: false
+      }).setView([order.pickupLat, order.pickupLng], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+      const pickupIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: "<div style='font-size:24px;text-shadow:0 2px 4px rgba(0,0,0,.3)'>🏪</div>",
+        iconSize: [30, 30], iconAnchor: [15, 30]
+      });
+      const dropoffIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: "<div style='font-size:24px;text-shadow:0 2px 4px rgba(0,0,0,.3)'>🏠</div>",
+        iconSize: [30, 30], iconAnchor: [15, 30]
+      });
+
+      L.marker([order.pickupLat, order.pickupLng], { icon: pickupIcon }).addTo(map);
+      L.marker([order.dropoffLat, order.dropoffLng], { icon: dropoffIcon }).addTo(map);
+
+      const bounds = [[order.pickupLat, order.pickupLng], [order.dropoffLat, order.dropoffLng]];
+      map.fitBounds(bounds, { padding: [30, 30] });
+      L.polyline(bounds, { color: '#FF6B35', weight: 3, dashArray: '5, 10' }).addTo(map);
+
+      if (loader) loader.remove();
+      activeMaps[mapKey] = map;
+    } catch (e) {
+      console.error(`[map] ${mapKey}:`, e);
+    }
+  });
+}
+
+function destroyAllMaps() {
+  Object.keys(activeMaps).forEach(id => {
+    try { activeMaps[id].remove(); } catch (e) {}
+  });
+  activeMaps = {};
+}
+
+// MENU & MODAL
+function openMenu() { document.getElementById('menu-sheet').classList.add('active'); }
+function closeMenu() { document.getElementById('menu-sheet').classList.remove('active'); }
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  if (chatUnsub) { try { chatUnsub(); } catch (e) {} chatUnsub = null; }
+  currentChatOrderId = null;
+}
+
+function showMyInfo() {
+  closeMenu();
+  const verified = riderProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รอการอนุมัติ';
+  alert(`👤 ${riderProfile.name || 'ไรเดอร์'}\n📧 ${currentUser.email}\n📱 ${riderProfile.phone || '-'}\n🛵 ${riderProfile.vehicle || '-'}\n⭐ ${(riderProfile.rating || 0).toFixed(1)} (${riderProfile.totalRatings || 0} รีวิว)\n📦 ${riderProfile.totalTrips || 0} เที่ยว\n🔐 สถานะ: ${verified}`);
+}
+
+function showTodayStats() {
+  closeMenu();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const doneToday = allOrders.filter(o => o.status === 'done' && o.createdAt >= today);
+  const myEarning = doneToday.reduce((s, o) => s + Math.round(Number(o.fare || 0) * (1 - PLATFORM_FEE_RATE) * 100) / 100, 0);
+  const appFee = doneToday.reduce((s, o) => s + Math.round(Number(o.fare || 0) * PLATFORM_FEE_RATE * 100) / 100, 0);
+  alert(`📊 สรุปวันนี้\n\n📦 ส่งสำเร็จ: ${doneToday.length} งาน\n💰 รายรับรวม: ฿${(myEarning + appFee).toFixed(2)}\n🛵 คุณได้รับ (80%): ฿${myEarning.toFixed(2)}\n🏢 ค่าบริการแอป (20%): ฿${appFee.toFixed(2)}`);
+}
+
+// DEBT
+function showDebtDetail() {
+  closeMenu();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todaysOrders = allOrders.filter(o => o.status === 'done' && o.createdAt >= today);
+
+  if (!todaysOrders.length) {
+    showToast('✅ ไม่มียอดค้างจ่ายวันนี้', 'success');
+    return;
+  }
+
+  const totalOrders = todaysOrders.length;
+  const totalCollected = todaysOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+  const totalToShop = todaysOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+  const totalFare = todaysOrders.reduce((s, o) => s + Number(o.fare || 0), 0);
+
+  const riderEarning = todaysOrders.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.riderEarning ?? (Math.round(fare * (1 - PLATFORM_FEE_RATE) * 100) / 100));
+  }, 0);
+
+  const amountOwed = todaysOrders.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.appEarning ?? (Math.round(fare * PLATFORM_FEE_RATE * 100) / 100));
+  }, 0);
+
+  const debt = currentDebtData || {};
+  const lastPaid = debt.lastPaidAt?.toDate?.();
+  const isPaidToday = lastPaid && lastPaid >= today;
+  const isSuspended = debt.suspended === true;
+  const dateStr = today.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  let statusBlock = '';
+  if (isSuspended) {
+    statusBlock = `<div style="background:#FFEBEE;padding:14px;border-radius:12px;text-align:center;margin-bottom:16px;border:1px solid #EF9A9A"><div style="font-size:22px;margin-bottom:4px">🚫</div><div style="font-size:13px;font-weight:900;color:#C62828">บัญชีถูกระงับ</div><div style="font-size:11px;color:#B71C1C;margin-top:4px">${escHtml(debt.suspendedReason || 'กรุณาโอนเงินค้างจ่าย')}</div></div>`;
+  } else if (isPaidToday) {
+    statusBlock = `<div style="background:#E8F5E9;padding:14px;border-radius:12px;text-align:center;margin-bottom:16px"><div style="font-size:22px;margin-bottom:4px">✅</div><div style="font-size:13px;font-weight:900;color:#2E7D32">โอนเงินเรียบร้อยแล้ว</div><div style="font-size:11px;color:#558B2F;margin-top:4px">เวลา ${lastPaid.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</div></div>`;
+  } else {
+    statusBlock = `<div style="background:#FFF3E0;padding:14px;border-radius:12px;text-align:center;margin-bottom:16px;border:1px solid #FFCC80"><div style="font-size:22px;margin-bottom:4px">⏰</div><div style="font-size:13px;font-weight:900;color:#E65100">ต้องโอนภายใน 21:00 น.</div></div>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-inner">
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:16px">💰 สรุปบัญชีวันนี้</h2>
+      <div style="font-size:12px;color:#888;margin-bottom:12px;text-align:center">${dateStr}</div>
+      ${statusBlock}
+      <div style="background:#f8f9fa;border-radius:14px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:700"><span>📦 ออเดอร์วันนี้</span><strong>${totalOrders} รายการ</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:700"><span>💵 เก็บจากลูกค้ารวม</span><strong>฿${totalCollected.toFixed(2)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:700"><span>🏪 ค่าสินค้า (จ่ายร้าน)</span><strong style="color:#666">-฿${totalToShop.toFixed(2)}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;font-weight:700;border-top:1px dashed #ddd;margin-top:6px;padding-top:10px"><span>🚚 ค่าส่งรวม</span><strong>฿${totalFare.toFixed(2)}</strong></div>
+      </div>
+      <div style="background:linear-gradient(135deg,#E8F5E9,#C8E6C9);border-radius:14px;padding:14px;margin-bottom:12px">
+        <div style="font-size:11px;color:#2E7D32;font-weight:800;text-transform:uppercase">🛵 รายได้ของคุณ (80%)</div>
+        <div style="font-size:28px;font-weight:900;color:#2E7D32;margin-top:4px">฿${riderEarning.toFixed(2)}</div>
+        <div style="font-size:11px;color:#558B2F;margin-top:4px">เก็บไว้ใช้ได้เลย</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:14px;padding:16px;margin-bottom:20px;border-left:4px solid #FF6B35">
+        <div style="font-size:11px;color:#E65100;font-weight:800;text-transform:uppercase">💰 ต้องโอนให้แอป (20%)</div>
+        <div style="font-size:32px;font-weight:900;color:#E65100;margin-top:4px">฿${amountOwed.toFixed(2)}</div>
+        <div style="font-size:11px;color:#E65100;margin-top:4px;font-weight:700">⏰ ภายใน 21:00 น. วันนี้</div>
+      </div>
+      ${!isSuspended && !isPaidToday ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="action-btn-big btn-blue-big" onclick="showTransferQR()">📱 โอนเงิน</button>
+          <button class="action-btn-big btn-green-big" onclick="markDebtPaid()">✅ แจ้งโอนแล้ว</button>
+        </div>
+      ` : ''}
+      <button class="action-btn-big btn-gray-big" onclick="closeModal()" style="width:100%;margin-top:8px">ปิด</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('active');
+}
+
+function showTransferQR() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todaysOrders = allOrders.filter(o => o.status === 'done' && o.createdAt >= today);
+  const amountOwed = todaysOrders.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.appEarning ?? (Math.round(fare * PLATFORM_FEE_RATE * 100) / 100));
+  }, 0);
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-inner">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:50px;margin-bottom:8px">📱</div>
+        <h2 style="font-size:20px;font-weight:900">โอนเงินให้แอดมิน</h2>
+      </div>
+      <div style="background:#f8f9fa;padding:20px;border-radius:16px;text-align:center;margin-bottom:16px">
+        <div style="font-size:14px;color:#888;margin-bottom:8px">ยอดที่ต้องโอน</div>
+        <div style="font-size:40px;font-weight:900;color:#FF6B35;line-height:1">฿${amountOwed.toFixed(2)}</div>
+      </div>
+      <div style="background:#fff;border:2px dashed #ddd;border-radius:16px;padding:20px;text-align:center;margin-bottom:16px">
+        <div style="font-size:12px;color:#888;margin-bottom:12px">💳 PromptPay / โอนเข้าบัญชี</div>
+        <div class="qr-placeholder">🏦</div>
+        <div style="margin-top:14px;font-size:14px;font-weight:900">ชื่อบัญชี: <span style="color:#00A651">Chauat Go</span></div>
+        <div style="margin-top:6px;font-size:16px;font-weight:900;font-family:monospace">📱 08X-XXX-XXXX</div>
+      </div>
+      <button class="action-btn-big btn-green-big" style="width:100%" onclick="closeModal();markDebtPaid()">✅ ฉันโอนแล้ว</button>
+      <button class="action-btn-big btn-gray-big" style="width:100%;margin-top:8px" onclick="closeModal()">ยกเลิก</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('active');
+}
+
+async function markDebtPaid() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todaysOrders = allOrders.filter(o => o.status === 'done' && o.createdAt >= today);
+  const amount = todaysOrders.reduce((s, o) => {
+    const fare = Number(o.fare || 0);
+    return s + (o.appEarning ?? (Math.round(fare * PLATFORM_FEE_RATE * 100) / 100));
+  }, 0);
+
+  if (!amount || amount <= 0) { showToast('ไม่มียอดค้างจ่าย', 'info'); return; }
+  if (!confirm(`ยืนยันว่าโอนเงิน ฿${amount.toFixed(2)} แล้ว?`)) return;
+
+  try {
+    const dateStr = today.toISOString().split('T')[0];
+    const totalCollected = todaysOrders.reduce((s, o) => s + Number(o.total || 0), 0);
+    const totalToShop = todaysOrders.reduce((s, o) => s + Number(o.price || 0), 0);
+    const totalDeliveryFee = todaysOrders.reduce((s, o) => s + Number(o.fare || 0), 0);
+    const riderEarning = todaysOrders.reduce((s, o) => {
+      const fare = Number(o.fare || 0);
+      return s + (o.riderEarning ?? (Math.round(fare * (1 - PLATFORM_FEE_RATE) * 100) / 100));
+    }, 0);
+
+    await db.collection('rider_debt_history').add({
+      riderId: currentUser.uid,
+      riderName: riderProfile.name || 'ไรเดอร์',
+      date: dateStr,
+      dateTs: firebase.firestore.Timestamp.fromDate(today),
+      totalOrders: todaysOrders.length,
+      totalCollected, totalToShop, totalDeliveryFee, riderEarning,
+      amountOwed: amount, status: 'pending',
+      markedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      paidAt: null, markedBy: null
+    });
+
+    await db.collection('rider_debts').doc(currentUser.uid).set({
+      riderName: riderProfile.name || 'ไรเดอร์',
+      lastNotifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    showToast('✅ แจ้งโอนแล้ว — รอแอดมินยืนยัน', 'success');
+    closeModal();
+  } catch (e) {
+    console.error('[markDebtPaid]', e);
+    showToast('❌ แจ้งไม่สำเร็จ ลองใหม่', 'error');
+  }
+}
+
+// RATING
+function getRiderLevel(rating, totalRatings) {
+  if (!totalRatings || totalRatings < 5) return { key: 'new', icon: '🌱', label: 'ใหม่' };
+  if (rating >= 4.9) return { key: 'elite', icon: '🏆', label: 'Elite' };
+  if (rating >= 4.7) return { key: 'gold', icon: '🥇', label: 'Gold' };
+  if (rating >= 4.5) return { key: 'silver', icon: '🥈', label: 'Silver' };
+  if (rating >= 4.0) return { key: 'bronze', icon: '🥉', label: 'Bronze' };
+  return { key: 'warn', icon: '⚠️', label: 'ปรับปรุง' };
+}
+
+function updateHeaderBadge() {
+  const nameEl = document.querySelector('.header-info .name');
+  if (!nameEl) return;
+  const lv = getRiderLevel(riderProfile?.rating || 0, riderProfile?.totalRatings || 0);
+  const baseName = (riderProfile?.name || 'ไรเดอร์').split(' ')[0];
+  nameEl.innerHTML = `${escHtml(baseName)} <span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:900;vertical-align:middle;background:rgba(255,255,255,.2)">${lv.icon} ${lv.label}</span>`;
+}
+
+function updateRatingBox() {
+  const box = document.getElementById('rating-box');
+  if (!box || !myRatings.length) { if(box) box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  const totalStars = myRatings.reduce((s, r) => s + Number(r.stars || 0), 0);
+  const avg = totalStars / myRatings.length;
+  const avgRounded = Math.round(avg * 10) / 10;
+  const fullStars = Math.floor(avgRounded);
+  const hasHalf = (avgRounded - fullStars) >= 0.5;
+  let starsStr = '★'.repeat(fullStars);
+  if (hasHalf) starsStr += '☆';
+  starsStr += '☆'.repeat(5 - fullStars - (hasHalf ? 1 : 0));
+
+  document.getElementById('my-rating').textContent = avgRounded.toFixed(1);
+  document.getElementById('my-rating-stars').textContent = starsStr;
+  document.getElementById('my-rating-count').textContent = `จาก ${myRatings.length} รีวิว`;
+
+  const lv = getRiderLevel(avgRounded, myRatings.length);
+  const levelText = document.getElementById('my-level-text');
+  if (levelText) {
+    if (lv.key === 'new') levelText.textContent = `🌱 ต้องมีอีก ${5 - myRatings.length} รีวิว → Silver`;
+    else if (lv.key === 'elite') levelText.textContent = `🏆 ระดับสูงสุดแล้ว!`;
+    else {
+      const targets = { gold: 4.9, silver: 4.7, bronze: 4.5, warn: 4.0 };
+      const target = targets[lv.key];
+      if (target) levelText.textContent = `${lv.icon} ${lv.label} • อีก ${(target - avgRounded).toFixed(1)}`;
+    }
+  }
+}
+
+function showMyReviews() {
+  closeMenu();
+  if (!myRatings.length) { showToast('ยังไม่มีรีวิว', 'info'); return; }
+  const html = myRatings.slice(0, 20).map(r => {
+    const stars = '⭐'.repeat(Number(r.stars || 0));
+    const time = r.createdAt?.toLocaleDateString?.('th-TH') || '';
+    return `<div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:18px">${stars}</div>
+        <div style="font-size:11px;color:#888">${time}</div>
+      </div>
+      ${r.comment ? `<div style="font-size:13px;color:#333;line-height:1.5;margin-bottom:6px">"${escHtml(r.comment)}"</div>` : ''}
+      <div style="font-size:11px;color:#888">— ${escHtml(r.userName || 'ลูกค้า')}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-inner">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:50px">⭐</div>
+        <h2 style="font-size:20px;font-weight:900;margin-top:8px">รีวิวของฉัน</h2>
+        <p style="font-size:13px;color:#888;margin-top:4px">${myRatings.length} รีวิว (ล่าสุด 20)</p>
+      </div>
+      ${html}
+      <button class="action-btn-big btn-green-big" style="width:100%;margin-top:16px" onclick="closeModal()">ปิด</button>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('active');
+}
+
+// REPORT ISSUE
+function openReportIssue(orderId) {
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-inner">
+      <h2 style="font-size:20px;font-weight:900;margin-bottom:16px">⚠️ แจ้งปัญหาออเดอร์</h2>
+      <div class="form-field">
+        <label>เลือกปัญหาที่พบ</label>
+        <select id="issue-reason">
+          <option value="customer_no_answer">ลูกค้าไม่รับสาย / ติดต่อไม่ได้</option>
+          <option value="shop_closed">ร้านปิด / หาไม่เจอ</option>
+          <option value="wrong_address">ที่อยู่ไม่ตรง / หาไม่เจอ</option>
+          <option value="other">อื่นๆ</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>รายละเอียดเพิ่มเติม</label>
+        <textarea id="issue-detail" rows="3" placeholder="อธิบายเพิ่มเติม..."></textarea>
+      </div>
+      <div class="actions-grid two" style="margin-top:16px">
+        <button class="action-btn-big btn-gray-big" onclick="closeModal()">ยกเลิก</button>
+        <button class="action-btn-big btn-red-big" onclick="submitReportIssue('${jsStr(orderId)}')" style="background:#E53935;color:#fff">📤 ส่งแจ้งปัญหา</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('active');
+}
+
+async function submitReportIssue(orderId) {
+  const reason = document.getElementById('issue-reason').value;
+  const detail = document.getElementById('issue-detail').value.trim();
+  try {
+    await db.collection('orders').doc(orderId).update({
+      issueReported: true, issueReason: reason, issueDetail: detail,
+      issueReportedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      issueReportedBy: currentUser.uid
+    });
+    showToast('✅ แจ้งปัญหาสำเร็จ', 'success');
+    closeModal();
+  } catch (e) {
+    showToast('❌ แจ้งปัญหาไม่สำเร็จ', 'error');
+  }
+}
+
+// CHAT
+function showMyChats() {
+  closeMenu();
+  const activeOrders = allOrders.filter(o => ['accepted','picked_up','on_the_way'].includes(o.status));
+  if (!activeOrders.length) { showToast('⚠️ ยังไม่มีงานที่กำลังทำ', 'info'); return; }
+  openChat(activeOrders[0].id);
+}
+
+function openChat(orderId) {
+  const order = allOrders.find(o => String(o.id) === String(orderId));
+  if (!order) { showToast('⚠️ ไม่พบออเดอร์', 'error'); return; }
+  currentChatOrderId = order.id;
+  ensureChatDoc(order);
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="chat-container">
+      <div class="chat-header">
+        <button class="back-btn" onclick="closeModal()">←</button>
+        <div class="info">
+          <div class="name">${escHtml(order.userName || 'ลูกค้า')}</div>
+          <div class="status">👤 ลูกค้า • ${escHtml(order.title || '')}</div>
+        </div>
+        ${order.userPhone ? `<a href="tel:${escHtml(order.userPhone)}" style="background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 12px;border-radius:20px;font-size:12px;font-weight:900;text-decoration:none">📞 โทร</a>` : ''}
+      </div>
+      <div class="chat-quick-actions">
+        <div class="quick-action" onclick="sendQuickMessage('ถึงหน้าร้านแล้วครับ 🏪')">🏪 ถึงร้าน</div>
+        <div class="quick-action" onclick="sendQuickMessage('กำลังออกจากร้านครับ 🛵')">🚀 ออกร้าน</div>
+        <div class="quick-action" onclick="sendQuickMessage('อีก 2-3 นาทีถึงครับ ⏱️')">⏱️ อีก 3 นาที</div>
+        <div class="quick-action" onclick="sendQuickMessage('ถึงแล้วครับ 🏠')">🏠 ถึงแล้ว</div>
+      </div>
+      <div class="chat-messages" id="chat-messages"><div class="chat-msg system">เริ่มการสนทนาแล้ว</div></div>
+      <div class="chat-input-area">
+        <label for="chat-image-input" class="chat-attach-btn">📷</label>
+        <input type="file" id="chat-image-input" accept="image/*" capture="environment" style="display:none" onchange="handleImageUpload(this)">
+        <input type="text" id="chat-input-text" placeholder="พิมพ์ข้อความ..." onkeypress="if(event.key==='Enter')sendChatMessage()">
+        <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
+      </div>
+    </div>`;
+  document.getElementById('modal').classList.add('active');
+  setTimeout(() => {
+    subscribeChatMessages(currentChatOrderId);
+    setTimeout(scrollChatToBottom, 250);
+  }, 100);
+}
+
+async function ensureChatDoc(order) {
+  try {
+    const chatRef = db.collection('chats').doc(order.id);
+    const chatDoc = await chatRef.get();
+    if (!chatDoc.exists) {
+      await chatRef.set({
+        orderId: order.id, userId: order.userId, userName: order.userName || '',
+        riderId: order.riderId, riderName: order.rider?.name || '',
+        lastMessage: '', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        unreadByUser: 0, unreadByRider: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await chatRef.collection('messages').add({
+        sender: 'system',
+        text: `เริ่มการสนทนากับ ${order.userName || 'ลูกค้า'}`,
+        type: 'text',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  } catch (e) { console.error('[ensureChat]', e); }
+}
+
+function subscribeChatMessages(orderId) {
+  if (chatUnsub) chatUnsub();
+  chatUnsub = db.collection('chats').doc(orderId).collection('messages').orderBy('createdAt', 'asc').limit(200).onSnapshot(snap => {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    if (snap.empty) { container.innerHTML = '<div class="chat-msg system">เริ่มการสนทนาแล้ว</div>'; return; }
+    container.innerHTML = snap.docs.map(doc => {
+      const m = doc.data();
+      const time = m.createdAt?.toDate ? m.createdAt.toDate() : new Date();
+      const timeStr = time.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      if (m.sender === 'system') return `<div class="chat-msg system">${escHtml(m.text || '')}</div>`;
+      const isSent = m.sender === 'rider';
+      let content = '';
+      if (m.imageUrl) {
+        const label = m.type === 'bill' ? '🧾 ใบเสร็จ' : (m.type === 'food' ? '🍽️ รูปอาหาร' : '📸 รูป');
+        content += `<div class="img-label">${label}</div>`;
+        content += `<img src="${escHtml(m.imageUrl)}" onclick="openLightbox('${escHtml(m.imageUrl)}')" onerror="this.style.display='none'">`;
+      }
+      if (m.text) content += `<div>${escHtml(m.text)}</div>`;
+      return `<div class="chat-msg ${isSent ? 'sent' : 'received'}">${content}<span class="msg-time">${timeStr}</span></div>`;
+    }).join('');
+    scrollChatToBottom();
+  }, err => console.warn('[chat]', err));
+}
+
+function scrollChatToBottom() { const c = document.getElementById('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input-text');
+  if (!input || !currentChatOrderId) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await sendChatContent({ text, type: 'text' });
+}
+async function sendQuickMessage(text) {
+  if (!currentChatOrderId) return;
+  await sendChatContent({ text, type: 'text' });
+}
+async function sendChatContent(content) {
+  if (!currentChatOrderId) return;
+  try {
+    const chatRef = db.collection('chats').doc(currentChatOrderId);
+    await chatRef.collection('messages').add({
+      sender: 'rider', text: content.text || '', imageUrl: content.imageUrl || null,
+      type: content.type || 'text',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(), read: false
+    });
+    await chatRef.update({
+      lastMessage: content.text || (content.imageUrl ? '📷 ส่งรูป' : ''),
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unreadByUser: firebase.firestore.FieldValue.increment(1)
+    });
+  } catch (e) { console.error('[sendChat]', e); showToast('❌ ส่งไม่สำเร็จ'); }
+}
+
+async function handleImageUpload(inputElement) {
+  const file = inputElement.files[0];
+  if (!file || !currentChatOrderId) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('⚠️ รูปใหญ่เกิน 5 MB'); inputElement.value = ''; return;
+  }
+
+  const progress = document.createElement('div');
+  progress.className = 'upload-progress';
+  progress.innerHTML = '<div class="spinner"></div>กำลังอัปโหลด...';
+  document.body.appendChild(progress);
+
+  try {
+    const compressedBlob = await compressImage(file, 1024, 0.7);
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop() || 'jpg';
+    const ref = storage.ref(`chats/${currentChatOrderId}/${timestamp}.${ext}`);
+    const snapshot = await ref.put(compressedBlob);
+    const url = await snapshot.ref.getDownloadURL();
+    await sendChatContent({ imageUrl: url, text: '', type: 'image' });
+    progress.remove();
+    showToast('✅ ส่งรูปแล้ว', 'success');
+  } catch (e) {
+    console.error('[upload]', e);
+    progress.remove();
+    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+  }
+  inputElement.value = '';
+}
+
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width, height = img.height;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
+function openLightbox(url) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `<img src="${url}" style="max-width:100%;max-height:90vh;border-radius:12px" onclick="this.parentElement.remove()"><button style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,.2);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer" onclick="this.parentElement.remove()">✕</button>`;
+  document.body.appendChild(overlay);
+}
+
+// LOGOUT & OFFLINE
+async function handleRiderLogout() {
+  if (!confirm('ออกจากระบบ?')) return;
+  closeMenu();
+  stopLocationTracking();
+  if (deadlineTimer) clearInterval(deadlineTimer);
+  destroyAllMaps();
+
+  if (currentUser && isOnline) {
+    await db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(() => {});
+  }
+  if (unsubscribeOrders) unsubscribeOrders();
+  if (unsubscribeProfile) unsubscribeProfile();
+  if (unsubscribeRatings) unsubscribeRatings();
+  if (unsubscribeDebt) unsubscribeDebt();
+  if (chatUnsub) { try { chatUnsub(); } catch (e) {} chatUnsub = null; }
+  await auth.signOut();
+  allOrders = []; riderProfile = null; myRatings = []; currentDebtData = null;
+}
+
+window.addEventListener('online', () => {
+  document.getElementById('offline-bar').classList.remove('show');
+  showToast('🟢 กลับมาออนไลน์', 'success');
+});
+window.addEventListener('offline', () => {
+  document.getElementById('offline-bar').classList.add('show');
+});
+if (!navigator.onLine) document.getElementById('offline-bar').classList.add('show');
+</script>
+</body>
+</html>
