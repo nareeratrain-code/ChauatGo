@@ -1,1806 +1,579 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Merchant — POS หลังร้าน</title>
-<meta name="theme-color" content="#00A651">
-<meta name="robots" content="noindex, nofollow">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-
-<script>
-// ═══════════════════════════════════════════════════════════════════
-//  🔄 FORCE AUTO-UPDATE v3.3.0
-// ═══════════════════════════════════════════════════════════════════
-(function() {
-  const APP_VERSION = 'v3.3.0';
-  const savedVersion = localStorage.getItem('chauat_app_version');
-  if (savedVersion && savedVersion !== APP_VERSION) {
-    localStorage.setItem('chauat_app_version', APP_VERSION);
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage('FORCE_UPDATE');
-    }
-    if ('caches' in window) {
-      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).then(() => location.reload(true));
-    } else location.reload(true);
-    return;
-  }
-  localStorage.setItem('chauat_app_version', APP_VERSION);
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-        .then(reg => {
-          setInterval(() => reg.update(), 30000);
-          reg.update();
-          reg.addEventListener('updatefound', () => {
-            const newSW = reg.installing;
-            if (!newSW) return;
-            newSW.addEventListener('statechange', () => {
-              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                newSW.postMessage('SKIP_WAITING');
-                setTimeout(() => location.reload(true), 500);
-              }
-            });
-          });
-        }).catch(err => console.warn('[SW]', err));
-      navigator.serviceWorker.addEventListener('message', e => {
-        if (e.data?.type === 'SW_UPDATED') location.reload(true);
-      });
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload(true);
-      });
-    });
-  }
-})();
-</script>
-
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Thai','Sarabun',-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}
-:root{
-  --brand:#00A651;--brand-dark:#008C45;--brand-light:#E8F5E9;
-  --accent:#FF6B35;--accent-dark:#E55A2B;
-  --blue:#4A90D9;--purple:#9C27B0;--orange:#FFA500;
-  --danger:#E53935;--warn:#E65100;
-  --bg:#F5F7FA;--surface:#FFFFFF;
-  --text:#1A1A1A;--text-muted:#6B7280;--text-light:#9CA3AF;
-  --border:rgba(0,0,0,.06);
-  --shadow-sm:0 1px 3px rgba(0,0,0,.04);
-  --shadow-md:0 4px 16px rgba(0,0,0,.06);
-  --shadow-lg:0 12px 32px rgba(0,0,0,.08)
-}
-html,body{width:100%;min-height:100vh;background:var(--bg);-webkit-overflow-scrolling:touch}
-body{max-width:600px;margin:0 auto;color:var(--text);-webkit-font-smoothing:antialiased;padding-bottom:20px}
-
-/* ═══ RIPPLE ═══ */
-.ripple{position:relative;overflow:hidden;isolation:isolate}
-.ripple::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle,rgba(255,255,255,.45) 10%,transparent 11%);background-position:center;background-size:0% 0%;background-repeat:no-repeat;transition:background-size .5s ease-out;pointer-events:none}
-.ripple:active::after{background-size:250% 250%}
-
-/* ═══ LOGIN ═══ */
-#login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#00A651 0%,#008C45 60%,#006B33 100%);z-index:5000;overflow-y:auto}
-#login-screen::before{content:'';position:absolute;top:-100px;right:-60px;width:280px;height:280px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);border-radius:50%;pointer-events:none}
-#login-screen::after{content:'';position:absolute;bottom:-120px;left:-60px;width:240px;height:240px;background:radial-gradient(circle,rgba(255,255,255,.1),transparent 65%);border-radius:50%;pointer-events:none}
-.login-card{background:#fff;border-radius:28px;padding:32px 26px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;margin:auto;position:relative;z-index:1;animation:popIn .5s cubic-bezier(.32,.72,0,1)}
-@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
-.login-icon{font-size:60px;margin-bottom:10px}
-.login-card h1{font-size:24px;font-weight:900;margin-bottom:4px}
-.login-card .sub{font-size:13px;color:var(--text-muted);margin-bottom:22px;font-weight:600}
-.auth-tabs{display:flex;gap:6px;margin-bottom:22px;background:#f5f5f5;padding:5px;border-radius:16px}
-.auth-tab{flex:1;padding:12px;border-radius:12px;font-weight:800;font-size:13px;color:var(--text-muted);transition:.2s;border:none;cursor:pointer;font-family:inherit;min-height:44px}
-.auth-tab.active{background:#fff;color:var(--brand);box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.form-field{margin-bottom:13px;text-align:left}
-.form-field label{display:block;font-size:12px;font-weight:800;color:#555;margin-bottom:6px}
-.form-field input,.form-field select,.form-field textarea{width:100%;padding:14px 16px;border:2px solid #e8e8e8;border-radius:14px;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s;background:#fafafa;font-family:inherit;font-weight:600;min-height:52px}
-.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
-.form-field .hint{font-size:11px;color:var(--text-light);margin-top:4px;font-weight:600}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.gp-consent{background:#FFF3E0;border:1px solid #FFE0B2;border-radius:12px;padding:12px;margin-bottom:14px;text-align:left}
-.gp-consent label{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#E65100;cursor:pointer;line-height:1.6;font-weight:700}
-.gp-consent input{accent-color:#E65100;width:20px;height:20px;margin-top:2px;flex-shrink:0}
-.btn-primary{width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-weight:900;font-size:15px;border:none;cursor:pointer;box-shadow:0 6px 16px rgba(0,166,81,.3);transition:transform .15s;font-family:inherit;min-height:56px}
-.btn-primary:active{transform:scale(.98)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed}
-#login-error{color:#E53935;font-size:13px;margin-top:12px;min-height:18px;text-align:center;font-weight:700}
-.login-hint{margin-top:16px;font-size:11px;color:var(--text-light);line-height:1.7;font-weight:600}
-
-/* ═══ HEADER ═══ */
-header{background:linear-gradient(135deg,#00A651 0%,#008C45 60%,#006B33 100%);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,166,81,.25);border-radius:0 0 20px 20px}
-header::before{content:'';position:absolute;top:-60px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);border-radius:50%;pointer-events:none}
-.header-info{flex:1;min-width:0;position:relative;z-index:2}
-.header-info .name{font-size:15px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.header-info .status{font-size:11px;opacity:.9;margin-top:2px;font-weight:700}
-.header-info .shop-id{font-size:9px;opacity:.75;margin-top:2px;font-weight:700;font-family:monospace;letter-spacing:.5px}
-.shop-toggle{background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.4);color:#fff;padding:10px 16px;border-radius:24px;font-size:13px;font-weight:900;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:.2s;cursor:pointer;position:relative;z-index:2;font-family:inherit;min-height:48px}
-.shop-toggle.open{background:#fff;color:var(--brand);box-shadow:0 4px 12px rgba(0,0,0,.15)}
-.shop-toggle:disabled{opacity:.5;cursor:not-allowed}
-.shop-toggle .dot{width:9px;height:9px;border-radius:50%;background:#ffcdd2;transition:.2s;flex-shrink:0}
-.shop-toggle.open .dot{background:var(--brand);box-shadow:0 0 0 3px rgba(0,166,81,.3);animation:pulseDot 1.5s infinite}
-@keyframes pulseDot{0%,100%{box-shadow:0 0 0 3px rgba(0,166,81,.3)}50%{box-shadow:0 0 0 8px rgba(0,166,81,0)}}
-.menu-btn{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;cursor:pointer;position:relative;z-index:2;font-family:inherit;color:#fff}
-
-/* ═══ PENDING BANNER ═══ */
-.pending-banner{background:linear-gradient(135deg,#FFF3E0,#FFE0B2);color:#E65100;padding:14px 16px;font-size:13px;font-weight:800;text-align:center;border-bottom:2px solid #FFB74D;display:none;line-height:1.6}
-.pending-banner.show{display:block}
-
-/* ═══ NAV TABS ═══ */
-.nav-tabs{display:flex;background:#fff;box-shadow:var(--shadow-sm);position:sticky;top:calc(68px + env(safe-area-inset-top));z-index:90;border-radius:0 0 16px 16px;overflow:hidden}
-.nav-tab{flex:1;padding:14px 8px;text-align:center;cursor:pointer;border:none;background:none;font-size:12px;font-weight:800;color:var(--text-muted);position:relative;transition:.2s;font-family:inherit;min-height:64px}
-.nav-tab .nav-ico{font-size:20px;display:block;margin-bottom:3px}
-.nav-tab.active{color:var(--brand);background:var(--brand-light)}
-.nav-tab.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:3px;background:var(--brand);border-radius:3px 3px 0 0}
-.nav-badge{position:absolute;top:6px;right:calc(50% - 22px);background:linear-gradient(135deg,#E91E63,#C2185B);color:#fff;font-size:9px;padding:2px 7px;border-radius:10px;font-weight:900;animation:badgePulse 2s infinite;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center}
-@keyframes badgePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
-
-/* ═══ CONTAINER ═══ */
-.container{padding:14px 14px 100px}
-.tab-content{display:none}
-.tab-content.active{display:block;animation:fadeIn .25s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-/* ═══ HERO CARD ═══ */
-.hero-card{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;border-radius:22px;padding:22px 20px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,166,81,.3);position:relative;overflow:hidden}
-.hero-card::before{content:'';position:absolute;top:-40px;right:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);border-radius:50%}
-.hero-label{font-size:12px;font-weight:800;opacity:.85;margin-bottom:5px;position:relative;z-index:1}
-.hero-value{font-size:40px;font-weight:900;line-height:1;margin-bottom:6px;letter-spacing:-1px;position:relative;z-index:1}
-.hero-sub{font-size:12px;opacity:.9;font-weight:700;position:relative;z-index:1}
-.hero-change{display:inline-block;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,.2);font-size:11px;font-weight:800;margin-top:8px;position:relative;z-index:1}
-.hero-change.up{color:#C8E6C9}
-.hero-change.down{color:#FFCDD2}
-
-/* ═══ STATS GRID ═══ */
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-@media(min-width:420px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
-.stat-card{background:var(--surface);border-radius:16px;padding:14px;box-shadow:var(--shadow-md);text-align:center;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.stat-card .ico{font-size:22px;margin-bottom:6px}
-.stat-card .val{font-size:22px;font-weight:900;color:var(--text);line-height:1}
-.stat-card .lbl{font-size:10px;color:var(--text-muted);margin-top:5px;font-weight:800}
-
-/* ═══ SECTION TITLE ═══ */
-.section-title{font-size:12px;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px;display:flex;align-items:center;justify-content:space-between}
-.section-count{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-size:10px;padding:4px 10px;border-radius:12px;font-weight:900;min-height:22px;display:flex;align-items:center}
-
-/* ═══ ORDER CARD ═══ */
-.order-card{background:var(--surface);border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow-md);position:relative;overflow:hidden;transition:transform .15s;border-left:4px solid transparent}
-.order-card:active{transform:scale(.99)}
-.order-card.is-new{animation:flashNew 2s ease-out;border-left-color:#E91E63}
-.order-card.status-pending{border-left-color:#FFA500}
-.order-card.status-cooking{border-left-color:#4A90D9}
-.order-card.status-ready{border-left-color:#9C27B0}
-.order-card.status-done{border-left-color:#ccc}
-@keyframes flashNew{0%,100%{box-shadow:var(--shadow-md)}50%{box-shadow:0 0 0 4px rgba(233,30,99,.35)}}
-.order-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
-.order-emoji{width:48px;height:48px;border-radius:14px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.order-top-info{flex:1;min-width:0}
-.order-title{font-size:14px;font-weight:900;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.order-title .oid{font-size:10px;color:var(--text-light);font-family:monospace;font-weight:700;background:#f0f0f0;padding:2px 6px;border-radius:6px}
-.order-title .new-tag{background:linear-gradient(135deg,#E91E63,#C2185B);color:#fff;font-size:9px;padding:3px 8px;border-radius:8px;font-weight:900;animation:badgePulse 1.5s infinite}
-.order-sub{font-size:11px;color:var(--text-muted);font-weight:700}
-.status-badge{font-size:10px;padding:5px 12px;border-radius:12px;font-weight:900;flex-shrink:0}
-.status-badge.pending{background:#FFF3E0;color:#E65100}
-.status-badge.cooking{background:#E3F2FD;color:#1565C0}
-.status-badge.ready{background:#F3E5F5;color:#6A1B9A}
-.status-badge.done{background:#f0f0f0;color:#666}
-.status-badge.cancelled{background:#f0f0f0;color:#999}
-
-.customer-box{background:#f0f9ff;border-radius:12px;padding:12px;margin-bottom:10px;border-left:3px solid #4A90D9}
-.customer-box .cname{font-size:13px;font-weight:900;color:#1565C0;margin-bottom:4px}
-.customer-box .cphone{font-size:12px;color:#1976D2;font-weight:700;display:flex;align-items:center;gap:6px}
-.customer-box .cphone a{color:inherit;text-decoration:none;font-weight:900}
-.customer-box .caddr{font-size:11px;color:#1976D2;font-weight:600;margin-top:3px}
-
-.items-list{background:#f8f9fa;border-radius:12px;padding:12px;margin-bottom:10px}
-.items-list .items-title{font-size:10px;color:var(--text-muted);font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.item-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px dashed #eee}
-.item-row:last-child{border-bottom:none;padding-bottom:0}
-.item-row .qty{background:var(--brand);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px;font-weight:900;margin-right:8px;flex-shrink:0}
-.item-row .item-name{flex:1;font-weight:700;min-width:0}
-.item-row .item-price{font-weight:900;color:var(--brand);white-space:nowrap;margin-left:8px}
-
-.order-note{background:#FFFDE7;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#5D4037;font-weight:700;display:flex;gap:8px;align-items:flex-start;border-left:3px solid #FFA500}
-
-.order-money{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#FFF8E1,#FFECB3);border-radius:12px;padding:12px 14px;margin-bottom:12px}
-.order-money .lbl{font-size:11px;color:#8D4A00;font-weight:800}
-.order-money .amt{font-size:22px;font-weight:900;color:var(--brand);letter-spacing:-.3px}
-.order-money .gp{font-size:10px;color:#8D4A00;font-weight:700;margin-top:3px;text-align:right}
-
-.order-actions{display:grid;gap:8px}
-.order-actions.two{grid-template-columns:1fr 1fr}
-.order-btn{padding:14px;border-radius:13px;font-weight:900;font-size:13px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s;text-decoration:none;font-family:inherit;min-height:52px}
-.order-btn:active{transform:scale(.97)}
-.btn-accept{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;box-shadow:0 4px 12px rgba(0,166,81,.3)}
-.btn-ready{background:linear-gradient(135deg,#9C27B0,#6A1B9A);color:#fff;box-shadow:0 4px 12px rgba(156,39,176,.3)}
-.btn-done{background:linear-gradient(135deg,#4A90D9,#1565C0);color:#fff;box-shadow:0 4px 12px rgba(74,144,217,.3)}
-.btn-reject{background:#fff;color:#E53935;border:2px solid #ffcdd2}
-.btn-gray{background:#f0f0f0;color:#666}
-.btn-chat{background:#E3F2FD;color:#1565C0}
-
-.order-time-bar{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-light);margin-top:10px;font-weight:700;padding-top:10px;border-top:1px solid #f5f5f5}
-
-/* ═══ MENU MANAGEMENT ═══ */
-.menu-header-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.menu-header-bar h3{font-size:16px;font-weight:900}
-.menu-count{font-size:12px;color:var(--text-muted);font-weight:700;background:#fff;padding:6px 12px;border-radius:12px;box-shadow:var(--shadow-sm)}
-.add-menu-btn{width:100%;padding:16px;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-weight:900;font-size:14px;border:none;border-radius:14px;box-shadow:0 6px 16px rgba(0,166,81,.3);margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .15s;font-family:inherit;min-height:56px}
-.add-menu-btn:active{transform:scale(.98)}
-.menu-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:360px){.menu-list{grid-template-columns:1fr}}
-.menu-card{background:var(--surface);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-md);position:relative;transition:transform .15s}
-.menu-card:active{transform:scale(.98)}
-.menu-card.off{opacity:.55}
-.menu-img-wrap{width:100%;height:110px;position:relative;display:flex;align-items:center;justify-content:center;font-size:40px;overflow:hidden;background:linear-gradient(135deg,#FFF3E0,#FFE0B2)}
-.menu-img-wrap img{width:100%;height:100%;object-fit:cover}
-.menu-status-badge{position:absolute;top:8px;right:8px;font-size:9px;padding:4px 9px;border-radius:8px;font-weight:900;z-index:2}
-.menu-status-badge.on{background:#00A651;color:#fff;box-shadow:0 2px 8px rgba(0,166,81,.4)}
-.menu-status-badge.off{background:#E53935;color:#fff;box-shadow:0 2px 8px rgba(229,57,53,.4)}
-.menu-card-body{padding:12px}
-.menu-card-name{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
-.menu-card-cat{font-size:10px;color:var(--text-light);font-weight:700;margin-bottom:6px}
-.menu-card-price{font-size:17px;font-weight:900;color:var(--brand);letter-spacing:-.3px}
-.menu-card-actions{display:flex;gap:6px;margin-top:10px}
-.menu-act-btn{flex:1;padding:9px;border-radius:9px;font-size:11px;font-weight:800;border:none;cursor:pointer;transition:transform .15s;font-family:inherit;min-height:40px}
-.menu-act-btn:active{transform:scale(.95)}
-.menu-act-btn.edit{background:#E3F2FD;color:#1565C0}
-.menu-act-btn.toggle{background:#FFF3E0;color:#E65100}
-.menu-act-btn.del{background:#FFEBEE;color:#E53935}
-
-/* ═══ GP PAGE ═══ */
-.gp-hero{background:linear-gradient(135deg,#FFA500,#FF8F00);color:#fff;border-radius:22px;padding:24px 20px;margin-bottom:14px;text-align:center;box-shadow:0 8px 24px rgba(255,165,0,.3);position:relative;overflow:hidden}
-.gp-hero::before{content:'';position:absolute;top:-30px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 65%);border-radius:50%}
-.gp-hero .label{font-size:12px;font-weight:800;opacity:.85;margin-bottom:6px;position:relative;z-index:1}
-.gp-hero .value{font-size:44px;font-weight:900;line-height:1;letter-spacing:-1px;position:relative;z-index:1}
-.gp-hero .sub{font-size:12px;opacity:.9;margin-top:8px;font-weight:700;position:relative;z-index:1}
-.gp-countdown{background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:16px;padding:16px;margin-bottom:14px;border-left:4px solid #FFA500;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow-md)}
-.gp-countdown .days{font-size:36px;font-weight:900;color:#E65100;line-height:1;white-space:nowrap;letter-spacing:-1px}
-.gp-countdown .txt .t1{font-size:13px;font-weight:900;color:#E65100;margin-bottom:4px}
-.gp-countdown .txt .t2{font-size:11px;color:#8D4A00;font-weight:700;line-height:1.6}
-.gp-card{background:var(--surface);border-radius:18px;padding:18px;margin-bottom:12px;box-shadow:var(--shadow-md)}
-.gp-card h4{font-size:13px;font-weight:900;margin-bottom:14px;display:flex;align-items:center;gap:6px}
-.gp-row{display:flex;justify-content:space-between;padding:9px 0;font-size:13px;border-bottom:1px solid #f5f5f5}
-.gp-row:last-child{border-bottom:none}
-.gp-row .k{color:var(--text-muted);font-weight:700}
-.gp-row .v{font-weight:900}
-.gp-row.indent{padding-left:14px}
-.gp-row.indent .k{padding-left:14px;font-size:12px}
-.gp-row.total{border-top:2px solid var(--brand);padding-top:12px;margin-top:4px;font-size:15px}
-.gp-row.total .v{color:var(--brand)}
-.gp-bar-wrap{margin-top:14px}
-.gp-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.gp-bar-label{font-size:11px;font-weight:800;width:110px;flex-shrink:0;color:var(--text-muted)}
-.gp-bar-track{flex:1;background:#f0f0f0;border-radius:6px;height:12px;overflow:hidden}
-.gp-bar-fill{height:100%;border-radius:6px;transition:width .8s cubic-bezier(.4,0,.2,1)}
-.gp-bar-fill.rider{background:linear-gradient(90deg,#FF6B35,#E55A2B)}
-.gp-bar-fill.platform{background:linear-gradient(90deg,#4A90D9,#1565C0)}
-.gp-bar-val{font-size:11px;font-weight:900;width:60px;text-align:right;flex-shrink:0}
-
-/* ═══ SHEET / MODAL ═══ */
-.sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(0px);z-index:1000;justify-content:center;align-items:flex-end;transition:backdrop-filter .3s ease}
-.sheet-overlay.active{display:flex;backdrop-filter:blur(4px);animation:fadeIn .25s}
-.sheet{background:#fff;width:100%;max-width:600px;border-radius:28px 28px 0 0;padding:24px 22px;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);box-shadow:0 -20px 60px rgba(0,0,0,.2)}
-.sheet-overlay.active .sheet{transform:translateY(0);animation:sheetBounce .45s cubic-bezier(.32,.72,0,1)}
-@keyframes sheetBounce{0%{transform:translateY(100%)}55%{transform:translateY(-6px)}100%{transform:translateY(0)}}
-.sheet-handle{width:40px;height:4px;background:#e0e0e0;border-radius:2px;margin:0 auto 16px}
-.sheet h2{font-size:18px;font-weight:900;margin-bottom:16px}
-.sheet-close{width:100%;padding:16px;border-radius:14px;background:#f0f0f0;color:#666;font-weight:900;font-size:14px;margin-top:12px;border:none;cursor:pointer;font-family:inherit;min-height:56px}
-
-/* ═══ IMG UPLOAD ═══ */
-.img-upload-area{width:100%;height:140px;border:2px dashed #e0e0e0;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;margin-bottom:12px;position:relative;overflow:hidden;transition:border-color .2s;background:#fafafa}
-.img-upload-area:hover{border-color:var(--brand)}
-.img-upload-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.img-upload-area .ico{font-size:32px}
-.img-upload-area .txt{font-size:12px;color:var(--text-muted);font-weight:700}
-.img-upload-area .remove-img{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:14px;cursor:pointer;display:none;z-index:2;font-family:inherit}
-.img-upload-area.has-img .remove-img{display:flex;align-items:center;justify-content:center}
-.img-upload-area.has-img .ico,.img-upload-area.has-img .txt{display:none}
-
-/* ═══ TOAST ═══ */
-.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-16px);background:rgba(26,26,26,.95);backdrop-filter:blur(12px);color:#fff;padding:14px 22px;border-radius:24px;font-size:13px;font-weight:800;z-index:3000;opacity:0;pointer-events:none;transition:.3s;max-width:90%;text-align:center;box-shadow:0 12px 32px rgba(0,0,0,.3)}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.success{background:linear-gradient(135deg,#00A651,#008C45)}
-.toast.error{background:linear-gradient(135deg,#E53935,#C62828)}
-.toast.info{background:linear-gradient(135deg,#4A90D9,#1565C0)}
-.toast.warning{background:linear-gradient(135deg,#FFA500,#FF8F00)}
-
-/* ═══ NEW ORDER POPUP ═══ */
-.new-order-popup{position:fixed;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);z-index:2500;display:none;align-items:center;justify-content:center;padding:20px}
-.new-order-popup.active{display:flex;animation:fadeIn .2s}
-.new-order-card{background:#fff;border-radius:26px;padding:28px 24px;width:100%;max-width:400px;text-align:center;animation:popIn .4s cubic-bezier(.32,.72,0,1);box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.new-order-card .bell{font-size:64px;margin-bottom:10px;animation:bellRing 1s infinite}
-@keyframes bellRing{0%,100%{transform:rotate(0)}20%{transform:rotate(-18deg)}40%{transform:rotate(18deg)}60%{transform:rotate(-10deg)}80%{transform:rotate(10deg)}}
-.new-order-card h2{font-size:22px;font-weight:900;color:var(--brand);margin-bottom:6px}
-.new-order-card .sub{font-size:13px;color:var(--text-muted);margin-bottom:16px;font-weight:700}
-.new-order-detail{background:#f8f9fa;border-radius:14px;padding:16px;text-align:left;margin-bottom:16px;font-size:13px;line-height:1.9;font-weight:600}
-.new-order-detail strong{color:var(--text);font-weight:900}
-.new-order-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-
-/* ═══ EMPTY STATE ═══ */
-.empty-state{text-align:center;padding:50px 20px;color:var(--text-light)}
-.empty-state .icon{font-size:64px;margin-bottom:12px;opacity:.5}
-.empty-state h4{font-size:15px;font-weight:900;color:var(--text-muted);margin-bottom:6px}
-.empty-state p{font-size:13px;line-height:1.6;font-weight:600}
-
-/* ═══ OFFLINE BAR ═══ */
-.offline-bar{position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,#E53935,#C62828);color:#fff;text-align:center;padding:10px;font-size:12px;font-weight:800;z-index:300;display:none}
-.offline-bar.show{display:block}
-
-/* ═══ SHOP ID BOX ═══ */
-.shop-id-box{background:#f0f9ff;border-radius:14px;padding:14px;margin-bottom:14px;border-left:4px solid #4A90D9;display:flex;align-items:center;gap:12px}
-.shop-id-box .ico{font-size:24px;flex-shrink:0}
-.shop-id-box .info{flex:1;min-width:0}
-.shop-id-box .info .lbl{font-size:10px;color:#1565C0;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
-.shop-id-box .info .val{font-size:13px;color:#0D47A1;font-weight:900;font-family:monospace;word-break:break-all;margin-top:2px;line-height:1.3}
-.shop-id-box .copy-btn{background:#4A90D9;color:#fff;border:none;padding:9px 14px;border-radius:10px;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;flex-shrink:0;min-height:40px}
-</style>
-
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chauat Go Merchant — POS หลังร้าน</title>
+    <link rel="stylesheet" href="merchant.css">
+</head>
 <body>
 
-<div class="offline-bar" id="offline-bar">🔴 ออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
-
-<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="login-icon">🏪</div>
-    <h1>Chauat Go Merchant</h1>
-    <div class="sub">สำหรับร้านค้า อ.ชะอวด จ.นครศรีธรรมราช</div>
-
-    <div class="auth-tabs">
-      <button class="auth-tab active ripple" id="tab-login" onclick="switchAuthTab('login')">🔓 เข้าสู่ระบบ</button>
-      <button class="auth-tab ripple" id="tab-signup" onclick="switchAuthTab('signup')">🏪 สมัครร้านค้า</button>
+    <!-- 🔄 หน้าโหลด -->
+    <div id="loadingScreen" class="screen active">
+        <div class="spinner"></div>
+        <p>กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...</p>
     </div>
 
-    <!-- LOGIN FORM -->
-    <form id="form-login" onsubmit="handleLogin(event)">
-      <div class="form-field">
-        <label>📧 อีเมล</label>
-        <input type="email" id="login-email" placeholder="shop@example.com" required autocomplete="email">
-      </div>
-      <div class="form-field">
-        <label>🔒 รหัสผ่าน</label>
-        <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
-      </div>
-      <button type="submit" class="btn-primary ripple" id="btn-login">🔓 เข้าสู่ระบบ</button>
-    </form>
-
-    <!-- SIGNUP FORM -->
-    <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
-      <div class="form-field">
-        <label>🏪 ชื่อร้าน *</label>
-        <input type="text" id="su-shop-name" placeholder="เช่น ร้านข้าวแกงป้าสมร" required maxlength="100">
-      </div>
-      <div class="form-field">
-        <label>📂 ประเภทร้าน *</label>
-        <select id="su-category" required>
-          <option value="">-- เลือกประเภท --</option>
-          <option value="restaurant">🍽️ ร้านอาหาร</option>
-          <option value="cafe">☕ คาเฟ่ / เครื่องดื่ม</option>
-          <option value="convenience">🏪 ร้านสะดวกซื้อ</option>
-          <option value="market">🛒 ตลาด / ของสด</option>
-          <option value="shop">🏬 ร้านค้าอื่นๆ</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label>📱 เบอร์โทร *</label>
-          <input type="tel" id="su-phone" placeholder="08X-XXX-XXXX" required maxlength="20">
-        </div>
-        <div class="form-field">
-          <label>⏰ เวลาเปิด</label>
-          <input type="time" id="su-open-time" value="07:00">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label>⏰ เวลาปิด</label>
-          <input type="time" id="su-close-time" value="20:00">
-        </div>
-        <div class="form-field">
-          <label>📍 ที่อยู่</label>
-          <input type="text" id="su-address" placeholder="ต.ชะอวด" value="ต.ชะอวด อ.ชะอวด จ.นครศรีธรรมราช">
-        </div>
-      </div>
-      <div class="form-field">
-        <label>📧 อีเมล *</label>
-        <input type="email" id="su-email" placeholder="shop@example.com" required autocomplete="email">
-      </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label>🔒 รหัสผ่าน * (6+ ตัว)</label>
-          <input type="password" id="su-password" required minlength="6" autocomplete="new-password">
-        </div>
-        <div class="form-field">
-          <label>🔒 ยืนยันรหัสผ่าน</label>
-          <input type="password" id="su-password2" required minlength="6">
-        </div>
-      </div>
-
-      <div class="gp-consent">
-        <label>
-          <input type="checkbox" id="gp-consent-check" required>
-          <span>
-            ข้าพเจ้ายอมรับเงื่อนไข <b>GP 3%</b> ของยอดขาย<br>
-            โดยแบ่งให้ไรเดอร์ 2% และแพลตฟอร์ม 1%<br>
-            <b>โปรโมชั่น: 2 เดือนแรกไม่คิด GP</b><br>
-            อ่านเพิ่มเติม: <a href="/terms" target="_blank" style="color:#E65100">เงื่อนไขการใช้งาน</a>
-          </span>
-        </label>
-      </div>
-
-      <button type="submit" class="btn-primary ripple" id="btn-signup">🏪 สมัครร้านค้า</button>
-    </form>
-
-    <div id="login-error"></div>
-    <div class="login-hint" id="login-hint">
-      🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════ MAIN APP ═══════════════ -->
-<div id="app" style="display:none">
-
-  <!-- HEADER -->
-  <header>
-    <div class="header-info">
-      <div class="name" id="shop-name">—</div>
-      <div class="status" id="shop-status">⚫ ปิดร้าน</div>
-      <div class="shop-id" id="shop-id-header">—</div>
-    </div>
-    <button class="shop-toggle ripple" id="shop-toggle-btn" onclick="toggleShop()">
-      <span class="dot"></span>
-      <span id="toggle-label">ปิดร้าน</span>
-    </button>
-    <button class="menu-btn ripple" onclick="openSheet('menu-sheet')">☰</button>
-  </header>
-
-  <!-- PENDING BANNER -->
-  <div class="pending-banner" id="pending-banner">
-    ⏳ ร้านของคุณรอการอนุมัติจากแอดมิน<br>จะเปิดรับออเดอร์ได้เมื่ออนุมัติแล้ว
-  </div>
-
-  <!-- NAV TABS -->
-  <div class="nav-tabs">
-    <button class="nav-tab active ripple" data-tab="orders" onclick="switchTab('orders',this)">
-      <span class="nav-ico">📋</span>
-      ออเดอร์
-      <span class="nav-badge" id="nav-orders-badge" style="display:none">0</span>
-    </button>
-    <button class="nav-tab ripple" data-tab="menus" onclick="switchTab('menus',this)">
-      <span class="nav-ico">🍽️</span>
-      เมนู
-    </button>
-    <button class="nav-tab ripple" data-tab="gp" onclick="switchTab('gp',this)">
-      <span class="nav-ico">💰</span>
-      GP
-    </button>
-  </div>
-
-  <div class="container">
-
-    <!-- ═══ TAB: ORDERS ═══ -->
-    <div class="tab-content active" id="tab-orders">
-      <div class="hero-card">
-        <div class="hero-label">💰 ยอดขายวันนี้</div>
-        <div class="hero-value" id="hero-revenue">0฿</div>
-        <div class="hero-sub" id="hero-sub">📦 0 ออเดอร์ • ⏱️ เปิดร้าน: —</div>
-        <span class="hero-change" id="hero-change">— เทียบเมื่อวาน</span>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="ico">🔔</div>
-          <div class="val" id="stat-new">0</div>
-          <div class="lbl">ออเดอร์ใหม่</div>
-        </div>
-        <div class="stat-card">
-          <div class="ico">🍳</div>
-          <div class="val" id="stat-cooking">0</div>
-          <div class="lbl">กำลังทำ</div>
-        </div>
-        <div class="stat-card">
-          <div class="ico">✅</div>
-          <div class="val" id="stat-done">0</div>
-          <div class="lbl">เสร็จวันนี้</div>
-        </div>
-        <div class="stat-card">
-          <div class="ico">💸</div>
-          <div class="val" id="stat-gp">0฿</div>
-          <div class="lbl">GP วันนี้</div>
-        </div>
-      </div>
-
-      <div class="section-title">
-        🔔 ออเดอร์ใหม่
-        <span class="section-count" id="cnt-new">0</span>
-      </div>
-      <div id="new-orders-list"></div>
-
-      <div class="section-title">
-        🍳 กำลังทำ
-        <span class="section-count" id="cnt-cooking">0</span>
-      </div>
-      <div id="cooking-orders-list"></div>
-
-      <div class="section-title">
-        ✅ เสร็จแล้ววันนี้
-        <span class="section-count" id="cnt-done">0</span>
-      </div>
-      <div id="done-orders-list"></div>
-
-      <div id="orders-empty" class="empty-state" style="display:none">
-        <div class="icon">📭</div>
-        <h4>ยังไม่มีออเดอร์</h4>
-        <p>เมื่อลูกค้าสั่งอาหารจากร้านของคุณ<br>ออเดอร์จะแสดงที่นี่แบบทันที</p>
-      </div>
+    <!-- ❌ หน้าแจ้ง Error -->
+    <div id="errorScreen" class="screen">
+        <div class="error-icon">⚠️</div>
+        <h2>ไม่มีสิทธิ์เข้าใช้งาน</h2>
+        <p id="errorMessage">บัญชีนี้ไม่ใช่บัญชีร้านค้า (Merchant)</p>
+        <button onclick="window.location.href='index.html'" class="btn btn-danger">กลับสู่หน้าแรก</button>
     </div>
 
-    <!-- ═══ TAB: MENUS ═══ -->
-    <div class="tab-content" id="tab-menus">
-      <div class="menu-header-bar">
-        <h3>🍽️ จัดการเมนู</h3>
-        <span class="menu-count" id="menu-count-text">0 เมนู</span>
-      </div>
-      <button class="add-menu-btn ripple" onclick="openMenuForm()">➕ เพิ่มเมนูใหม่</button>
-      <div class="menu-list" id="menu-list"></div>
-      <div id="menus-empty" class="empty-state" style="display:none">
-        <div class="icon">🍽️</div>
-        <h4>ยังไม่มีเมนู</h4>
-        <p>เพิ่มเมนูอาหารเพื่อให้ลูกค้าสั่งได้</p>
-      </div>
+    <!-- ✅ หน้าหลัก Dashboard -->
+    <div id="dashboardScreen" class="screen">
+        
+        <!-- Sidebar (Desktop) / Bottom Nav (Mobile) -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                <h2>Chauat Go</h2>
+                <span class="badge">Merchant</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item active" data-target="ordersSection">📦 จัดการออเดอร์</li>
+                <li class="nav-item" data-target="menuSection">🍔 จัดการเมนู</li>
+                <li class="nav-item" data-target="settingsSection">⚙️ ตั้งค่าร้านค้า</li>
+            </ul>
+            <button id="logoutBtn" class="btn btn-logout">ออกจากระบบ</button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <h1 id="merchantName">กำลังโหลด...</h1>
+                <div class="status-toggle">
+                    <label class="switch">
+                        <input type="checkbox" id="storeStatusToggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span id="storeStatusText">เปิดร้าน</span>
+                </div>
+            </header>
+
+            <!-- Section 1: Orders -->
+            <section id="ordersSection" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card"><p>ออเดอร์ใหม่</p><h3 id="statNewOrders">0</h3></div>
+                    <div class="stat-card"><p>กำลังทำอาหาร</p><h3 id="statPreparing">0</h3></div>
+                    <div class="stat-card"><p>รอไรเดอร์รับ</p><h3 id="statReady">0</h3></div>
+                    <div class="stat-card"><p>สำเร็จวันนี้</p><h3 id="statCompleted">0</h3></div>
+                </div>
+                <div class="card">
+                    <h2>📦 รายการออเดอร์ล่าสุด</h2>
+                    <div id="ordersList" class="list-container">
+                        <p class="text-center text-gray-400 py-10">กำลังโหลดข้อมูล...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Menu Management -->
+            <section id="menuSection" class="content-section">
+                <div class="card">
+                    <div class="flex-between mb-4">
+                        <h2>🍔 เมนูของร้าน</h2>
+                        <button id="addMenuBtn" class="btn btn-primary">+ เพิ่มเมนูใหม่</button>
+                    </div>
+                    
+                    <!-- ฟอร์มเพิ่มเมนู (ซ่อนไว้ก่อน) -->
+                    <div id="menuFormContainer" class="form-container hidden">
+                        <h3 id="formTitle">เพิ่มเมนูใหม่</h3>
+                        <input type="hidden" id="menuIdInput">
+                        <input type="text" id="menuNameInput" placeholder="ชื่อเมนู" class="input-field">
+                        <input type="number" id="menuPriceInput" placeholder="ราคา (บาท)" class="input-field">
+                        <textarea id="menuDescInput" placeholder="คำอธิบาย" class="input-field"></textarea>
+                        <input type="text" id="menuImageInput" placeholder="URL รูปภาพ" class="input-field">
+                        <div class="flex-end gap-2">
+                            <button id="cancelMenuBtn" class="btn btn-secondary">ยกเลิก</button>
+                            <button id="saveMenuBtn" class="btn btn-primary">บันทึก</button>
+                        </div>
+                    </div>
+
+                    <div id="menuList" class="list-container">
+                        <!-- Menu items will be injected here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Store Settings -->
+            <section id="settingsSection" class="content-section">
+                <div class="card">
+                    <h2>⚙️ ตั้งค่าร้านค้า</h2>
+                    <div class="form-container">
+                        <label>ชื่อร้านค้า</label>
+                        <input type="text" id="shopNameInput" class="input-field">
+                        
+                        <label>ที่อยู่ร้านค้า</label>
+                        <textarea id="shopAddressInput" class="input-field"></textarea>
+                        
+                        <label>เบอร์โทรศัพท์</label>
+                        <input type="tel" id="shopPhoneInput" class="input-field">
+                        
+                        <button id="saveSettingsBtn" class="btn btn-primary mt-4">บันทึกการตั้งค่า</button>
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <!-- ═══ TAB: GP ═══ -->
-    <div class="tab-content" id="tab-gp">
-      <div class="gp-hero">
-        <div class="label">💰 GP สะสมเดือนนี้</div>
-        <div class="value" id="gp-month">0฿</div>
-        <div class="sub" id="gp-month-sub">จากยอดขาย 0฿</div>
-      </div>
+    <!-- Firebase SDK (Modular) -->
+    <script type="module" src="merchant.js"></script>
+</body>
+</html>
+:root {
+    --primary: #16a34a;
+    --primary-dark: #15803d;
+    --secondary: #64748b;
+    --danger: #dc2626;
+    --warning: #f59e0b;
+    --bg: #f1f5f9;
+    --white: #ffffff;
+    --text: #1e293b;
+    --border: #e2e8f0;
+}
 
-      <div class="gp-countdown" id="gp-countdown">
-        <div class="days" id="gp-days-left">—</div>
-        <div class="txt">
-          <div class="t1">⏰ ช่วงโปรโมชั่น — ไม่คิด GP</div>
-          <div class="t2">2 เดือนแรกฟรี! หลังจากนั้นเริ่มคิด 3%</div>
-        </div>
-      </div>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: var(--bg); color: var(--text); }
 
-      <div class="gp-card">
-        <h4>📊 Breakdown วันนี้</h4>
-        <div class="gp-row">
-          <span class="k">ยอดขายรวมวันนี้</span>
-          <span class="v" id="gp-today-sales">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">GP 3% (รวม)</span>
-          <span class="v" id="gp-today-total" style="color:#FFA500">0฿</span>
-        </div>
-        <div class="gp-row indent">
-          <span class="k">├─ ไรเดอร์ได้ 2%</span>
-          <span class="v" id="gp-today-rider" style="color:#FF6B35">0฿</span>
-        </div>
-        <div class="gp-row indent">
-          <span class="k">└─ แพลตฟอร์มได้ 1%</span>
-          <span class="v" id="gp-today-platform" style="color:#4A90D9">0฿</span>
-        </div>
-        <div class="gp-row total">
-          <span class="k">ร้านได้รับสุทธิ</span>
-          <span class="v" id="gp-today-net">0฿</span>
-        </div>
-        <div class="gp-bar-wrap">
-          <div class="gp-bar-row">
-            <span class="gp-bar-label">🛵 ไรเดอร์</span>
-            <div class="gp-bar-track"><div class="gp-bar-fill rider" id="bar-rider" style="width:67%"></div></div>
-            <span class="gp-bar-val" id="bar-rider-val">67%</span>
-          </div>
-          <div class="gp-bar-row">
-            <span class="gp-bar-label">🏢 แพลตฟอร์ม</span>
-            <div class="gp-bar-track"><div class="gp-bar-fill platform" id="bar-platform" style="width:33%"></div></div>
-            <span class="gp-bar-val" id="bar-platform-val">33%</span>
-          </div>
-        </div>
-      </div>
+/* Screens */
+.screen { display: none; }
+.screen.active { display: flex; }
 
-      <div class="gp-card">
-        <h4>📈 สถิติเดือนนี้</h4>
-        <div class="gp-row">
-          <span class="k">ออเดอร์ทั้งหมด</span>
-          <span class="v" id="gp-month-orders">0 รายการ</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">ยอดขายรวม</span>
-          <span class="v" id="gp-month-sales">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">GP สะสม</span>
-          <span class="v" id="gp-month-total">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">ร้านได้รับสุทธิ</span>
-          <span class="v" id="gp-month-net" style="color:var(--brand)">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">เฉลี่ยต่อออเดอร์</span>
-          <span class="v" id="gp-month-avg">0฿</span>
-        </div>
-      </div>
-    </div>
+/* Loading & Error */
+#loadingScreen, #errorScreen {
+    position: fixed; inset: 0; background: var(--white);
+    flex-direction: column; align-items: center; justify-content: center;
+    z-index: 9999; text-align: center; padding: 20px;
+}
+.spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-  </div><!-- /container -->
-</div><!-- /app -->
+/* Dashboard Layout */
+#dashboardScreen { display: flex; min-height: 100vh; width: 100%; }
+.sidebar {
+    width: 250px; background: var(--white); border-right: 1px solid var(--border);
+    padding: 20px; display: flex; flex-direction: column;
+}
+.sidebar-brand h2 { color: var(--primary); font-size: 1.5rem; }
+.badge { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }
+.nav-menu { list-style: none; margin-top: 30px; flex: 1; }
+.nav-item {
+    padding: 12px 15px; border-radius: 8px; cursor: pointer; margin-bottom: 5px;
+    transition: all 0.2s; font-weight: 500;
+}
+.nav-item:hover { background: var(--bg); }
+.nav-item.active { background: #dcfce7; color: var(--primary-dark); font-weight: bold; }
 
-<!-- ═══════════════ NEW ORDER POPUP ═══════════════ -->
-<div class="new-order-popup" id="new-order-popup">
-  <div class="new-order-card">
-    <div class="bell">🔔</div>
-    <h2>ออเดอร์ใหม่!</h2>
-    <div class="sub">มีลูกค้าสั่งอาหารจากร้านของคุณ</div>
-    <div class="new-order-detail" id="new-order-detail"></div>
-    <div class="new-order-actions">
-      <button class="order-btn btn-accept ripple" onclick="acceptFromPopup()">✅ รับออเดอร์</button>
-      <button class="order-btn btn-reject ripple" onclick="closeNewOrderPopup()">⏰ ดูภายหลัง</button>
-    </div>
-  </div>
-</div>
+/* Main Content */
+.main-content { flex: 1; padding: 20px; overflow-y: auto; }
+.top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.content-section { display: none; }
+.content-section.active { display: block; }
 
-<!-- ═══════════════ MENU FORM SHEET ═══════════════ -->
-<div class="sheet-overlay" id="menu-form-sheet" onclick="if(event.target===this)closeSheet('menu-form-sheet')">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <h2 id="menu-form-title">➕ เพิ่มเมนูใหม่</h2>
+/* Cards & Grids */
+.card { background: var(--white); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.stat-card { background: var(--white); padding: 15px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stat-card p { color: var(--secondary); font-size: 0.85rem; }
+.stat-card h3 { font-size: 1.5rem; color: var(--primary); margin-top: 5px; }
 
-    <div class="img-upload-area" id="img-upload-area" onclick="document.getElementById('menu-img-input').click()">
-      <button class="remove-img ripple" onclick="event.stopPropagation();removeMenuImg()">✕</button>
-      <div class="ico">📷</div>
-      <div class="txt">แตะเพื่อเพิ่มรูปเมนู</div>
-      <img id="img-preview" src="" style="display:none">
-    </div>
-    <input type="file" id="menu-img-input" accept="image/*" style="display:none" onchange="previewMenuImg(event)">
+/* Forms & Inputs */
+.input-field, textarea {
+    width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 0.95rem;
+}
+.form-container { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 15px; }
+.hidden { display: none !important; }
 
-    <div class="form-field">
-      <label>🍽️ ชื่อเมนู *</label>
-      <input type="text" id="mf-name" placeholder="เช่น ข้าวมันไก่" maxlength="80">
-    </div>
-    <div class="form-row">
-      <div class="form-field">
-        <label>💰 ราคา (บาท) *</label>
-        <input type="number" id="mf-price" placeholder="40" min="1" step="1">
-      </div>
-      <div class="form-field">
-        <label>📂 หมวดหมู่</label>
-        <select id="mf-category">
-          <option value="main">อาหารจานหลัก</option>
-          <option value="side">กับข้าว / เครื่องเคียง</option>
-          <option value="drink">เครื่องดื่ม</option>
-          <option value="dessert">ของหวาน</option>
-          <option value="other">อื่นๆ</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-field">
-      <label>📝 คำอธิบาย (ไม่บังคับ)</label>
-      <textarea id="mf-desc" rows="2" placeholder="เช่น ข้าวมันไก่สูตรโบราณ น้ำจิ้มเด็ด" maxlength="200" style="resize:none"></textarea>
-    </div>
+/* Buttons */
+.btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { background: var(--secondary); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-logout { background: transparent; color: var(--danger); border: 1px solid var(--danger); margin-top: 20px; }
+.btn-logout:hover { background: #fee2e2; }
 
-    <button class="btn-primary ripple" id="btn-save-menu" onclick="saveMenu()">💾 บันทึกเมนู</button>
-    <button class="sheet-close ripple" onclick="closeSheet('menu-form-sheet')">ยกเลิก</button>
-  </div>
-</div>
+/* Utilities */
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-end { display: flex; justify-content: flex-end; }
+.gap-2 { gap: 10px; }
+.mt-4 { margin-top: 15px; }
+.mb-4 { margin-bottom: 15px; }
+.text-center { text-align: center; }
 
-<!-- ═══════════════ MENU SHEET (☰) ═══════════════ -->
-<div class="sheet-overlay" id="menu-sheet" onclick="if(event.target===this)closeSheet('menu-sheet')">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <h2>☰ เมนูร้านค้า</h2>
+/* Order Cards */
+.order-card { border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; }
+.order-card-header { display: flex; justify-content: space-between; font-weight: bold; }
+.order-actions { display: flex; gap: 10px; }
+.status-badge { padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; }
+.status-pending { background: #fef3c7; color: #d97706; }
+.status-preparing { background: #ffedd5; color: #ea580c; }
+.status-ready { background: #dbeafe; color: #2563eb; }
+.status-completed { background: #dcfce7; color: #16a34a; }
 
-    <!-- Shop ID Box -->
-    <div class="shop-id-box" id="shop-id-box">
-      <div class="ico">🆔</div>
-      <div class="info">
-        <div class="lbl">Merchant ID ของคุณ</div>
-        <div class="val" id="shop-id-full">—</div>
-      </div>
-      <button class="copy-btn ripple" onclick="copyShopId()">📋 คัดลอก</button>
-    </div>
+/* Toggle Switch */
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(18px); }
 
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('orders',document.querySelector('[data-tab=orders]'))">
-        📋 ดูออเดอร์
-      </button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('menus',document.querySelector('[data-tab=menus]'))">
-        🍽️ จัดการเมนู
-      </button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('gp',document.querySelector('[data-tab=gp]'))">
-        💰 สรุป GP
-      </button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');showShopInfo()">
-        🏪 ข้อมูลร้าน
-      </button>
-      <button class="order-btn btn-reject ripple" style="justify-content:flex-start" onclick="handleMerchantLogout()">
-        🚪 ออกจากระบบ
-      </button>
-    </div>
-    <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-  </div>
-</div>
+/* Responsive (Mobile) */
+@media (max-width: 768px) {
+    #dashboardScreen { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-top: 1px solid var(--border); position: fixed; bottom: 0; z-index: 100; padding: 10px; flex-direction: row; justify-content: space-around; }
+    .sidebar-brand, .btn-logout { display: none; }
+    .nav-menu { display: flex; margin: 0; gap: 5px; }
+    .nav-item { padding: 8px 12px; font-size: 0.8rem; text-align: center; }
+    .main-content { padding-bottom: 80px; }
+    .order-card { flex-direction: column; }
+    .order-actions { width: 100%; }
+    .order-actions button { flex: 1; }
+}
+// ==========================================
+// 1. Import Firebase SDK (Modular v10)
+// ==========================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
+    collection, query, where, orderBy, getDocs, addDoc, serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
- src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-</head>
-<script>
-// ═══════════════════════════════════════════════════════════════════════
-//  CHAUAT GO — MERCHANT SCRIPT v3.3.0 (POS หลังร้าน + Merchant ID)
-// ═══════════════════════════════════════════════════════════════════════
-
+// ==========================================
+// 2. Firebase Configuration (⚠️ แก้ไขเป็นของคุณ)
+// ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
-  authDomain: "chauat-go-b9841.firebaseapp.com",
-  projectId: "chauat-go-b9841",
-  storageBucket: "chauat-go-b9841.firebasestorage.app",
-  messagingSenderId: "282197694521",
-  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
-  measurementId: "G-6E2QEFWK6P"
+    apiKey: "YOUR_API_KEY",
+    authDomain: "chauat-go.firebaseapp.com",
+    projectId: "chauat-go",
+    storageBucket: "chauat-go.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
 };
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[Merchant] persistence:', e.code));
 
-// ═══════════════════════════════════════════════════════════════════════
-//  STATE
-// ═══════════════════════════════════════════════════════════════════════
-let currentUser = null;
-let merchantProfile = null;
-let allOrders = [];
-let myMenus = [];
-let unsubOrders = null;
-let unsubMenus = null;
-let unsubProfile = null;
-let editingMenuId = null;
-let menuImgFile = null;
-let menuImgDataUrl = null;
-let currentMenuImageUrl = null;
-let newPopupOrderId = null;
-let audioCtx = null;
-let seenOrderIds = new Set();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-const GP_RATE = 0.03;
-const GP_RIDER_RATE = 0.02;
-const GP_PLATFORM_RATE = 0.01;
-const GP_FREE_DAYS = 60;
+// ==========================================
+// 3. Global Variables
+// ==========================================
+let currentMerchantId = null;
+let currentUserRole = null;
 
-const CAT_LABELS = {main:'จานหลัก', side:'กับข้าว', drink:'เครื่องดื่ม', dessert:'ของหวาน', other:'อื่นๆ'};
-const CAT_ICONS = {main:'🍽️', side:'🥗', drink:'🥤', dessert:'🍰', other:'📦'};
+// ==========================================
+// 4. ระบบตรวจสอบสิทธิ์ (Auth Guard)
+// ==========================================
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            // ดึง Role จาก Collection users
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            
+            if (!userDoc.exists()) throw new Error("ไม่พบข้อมูลผู้ใช้ในระบบ");
+            
+            const userData = userDoc.data();
+            currentUserRole = userData.role;
 
-// ═══════════════════════════════════════════════════════════════════════
-//  HELPERS
-// ═══════════════════════════════════════════════════════════════════════
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
-}
-function jsStr(s) {
-  return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-    .replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-}
-function fmt(n) { return Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }); }
-function fmtTime(ts) {
-  if (!ts) return '—';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-}
-function isToday(ts) {
-  if (!ts) return false;
-  const d = ts instanceof Date ? ts : (ts.toDate ? ts.toDate() : new Date(ts));
-  const now = new Date(); now.setHours(0, 0, 0, 0);
-  return d >= now;
-}
-function isYesterday(ts) {
-  if (!ts) return false;
-  const d = ts instanceof Date ? ts : (ts.toDate ? ts.toDate() : new Date(ts));
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const yest = new Date(today); yest.setDate(yest.getDate() - 1);
-  return d >= yest && d < today;
-}
-function isThisMonth(ts) {
-  if (!ts) return false;
-  const d = ts instanceof Date ? ts : (ts.toDate ? ts.toDate() : new Date(ts));
-  const now = new Date();
-  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-}
-
-function isGPActive() {
-  if (!merchantProfile?.createdAt) return false;
-  const created = merchantProfile.createdAt.toDate ? merchantProfile.createdAt.toDate() : new Date(merchantProfile.createdAt);
-  const diff = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
-  return diff >= GP_FREE_DAYS;
-}
-function gpDaysLeft() {
-  if (!merchantProfile?.createdAt) return GP_FREE_DAYS;
-  const created = merchantProfile.createdAt.toDate ? merchantProfile.createdAt.toDate() : new Date(merchantProfile.createdAt);
-  const diff = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
-  return Math.max(0, Math.ceil(GP_FREE_DAYS - diff));
-}
-function calcGP(amount) {
-  if (!isGPActive()) return { total: 0, rider: 0, platform: 0 };
-  const rider = Math.round(amount * GP_RIDER_RATE * 100) / 100;
-  const platform = Math.round(amount * GP_PLATFORM_RATE * 100) / 100;
-  return { total: Math.round(amount * GP_RATE * 100) / 100, rider, platform };
-}
-
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => { t.className = 'toast'; }, 3000);
-}
-function openSheet(id) { document.getElementById(id).classList.add('active'); }
-function closeSheet(id) { document.getElementById(id).classList.remove('active'); }
-
-function playNotificationSound() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    [660, 880, 1100, 880].forEach((f, i) => {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.connect(g); g.connect(audioCtx.destination);
-      o.type = 'sine';
-      o.frequency.setValueAtTime(f, audioCtx.currentTime + i * 0.18);
-      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + i * 0.18);
-      g.gain.exponentialRampToValueAtTime(0.4, audioCtx.currentTime + i * 0.18 + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.18 + 0.18);
-      o.start(audioCtx.currentTime + i * 0.18);
-      o.stop(audioCtx.currentTime + i * 0.18 + 0.18);
-    });
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-  } catch (e) {}
-}
-
-function compressImage(file, maxWidth, quality) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width, height = img.height;
-        if (width > maxWidth) {
-          height = Math.round(height * (maxWidth / width));
-          width = maxWidth;
+            if (currentUserRole === 'merchant') {
+                // ✅ ผ่าน! แสดง Dashboard
+                currentMerchantId = user.uid;
+                document.getElementById('merchantName').innerText = userData.shopName || userData.name || "ร้านค้าของฉัน";
+                
+                document.getElementById('loadingScreen').classList.remove('active');
+                document.getElementById('dashboardScreen').classList.add('active');
+                
+                // โหลดข้อมูลเริ่มต้น
+                loadOrders();
+                loadStoreSettings();
+                loadMenus();
+                
+                setupNavigation();
+                setupEventListeners();
+            } else {
+                // ❌ ไม่ใช่ Merchant
+                showError("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานหลังบ้าน (ต้องเป็น Role: merchant)");
+            }
+        } catch (error) {
+            console.error("Auth Error:", error);
+            showError("ไม่สามารถตรวจสอบสิทธิ์ได้: " + error.message);
         }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
-      };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  AUTH
-// ═══════════════════════════════════════════════════════════════════════
-auth.onAuthStateChanged(async user => {
-  if (!user) { showLoginScreen(); return; }
-  try {
-    const snap = await db.collection('merchants').doc(user.uid).get();
-    if (!snap.exists) {
-      await auth.signOut();
-      setLoginError('❌ ไม่พบข้อมูลร้านค้า กรุณาสมัครใหม่');
-      showLoginScreen();
-      switchAuthTab('signup');
-      return;
+    } else {
+        // ❌ ยังไม่ได้ล็อกอิน
+        window.location.href = 'index.html';
     }
-    merchantProfile = { uid: user.uid, ...snap.data() };
-  } catch (e) {
-    console.error('[auth]', e);
-    await auth.signOut();
-    setLoginError('⚠️ ตรวจสอบสิทธิ์ไม่สำเร็จ');
-    showLoginScreen();
-    return;
-  }
-  currentUser = user;
-  showApp();
-  initApp();
 });
 
-function showLoginScreen() {
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  const bl = document.getElementById('btn-login');
-  bl.disabled = false; bl.textContent = '🔓 เข้าสู่ระบบ';
-  const bs = document.getElementById('btn-signup');
-  bs.disabled = false; bs.textContent = '🏪 สมัครร้านค้า';
-}
-function showApp() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-}
-function setLoginError(msg) { document.getElementById('login-error').textContent = msg || ''; }
-
-function switchAuthTab(tab) {
-  const isLogin = tab === 'login';
-  document.getElementById('tab-login').classList.toggle('active', isLogin);
-  document.getElementById('tab-signup').classList.toggle('active', !isLogin);
-  document.getElementById('form-login').style.display = isLogin ? 'block' : 'none';
-  document.getElementById('form-signup').style.display = isLogin ? 'none' : 'block';
-  document.getElementById('login-hint').innerHTML = isLogin
-    ? '🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.'
-    : '⚠️ กรอกข้อมูลให้ครบถ้วน แอดมินจะติดต่อกลับ';
-  setLoginError('');
+function showError(msg) {
+    document.getElementById('loadingScreen').classList.remove('active');
+    document.getElementById('errorScreen').classList.add('active');
+    document.getElementById('errorMessage').innerText = msg;
 }
 
-async function handleLogin(e) {
-  e.preventDefault();
-  const btn = document.getElementById('btn-login');
-  const email = document.getElementById('login-email').value.trim();
-  const pw = document.getElementById('login-password').value;
-  setLoginError('');
-  btn.disabled = true; btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
-  try {
-    await auth.signInWithEmailAndPassword(email, pw);
-  } catch (err) {
-    setLoginError(mapAuthErr(err.code));
-    btn.disabled = false; btn.textContent = '🔓 เข้าสู่ระบบ';
-  }
-}
+// ==========================================
+// 5. Navigation Logic (Tab Switching)
+// ==========================================
+function setupNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    const sections = document.querySelectorAll('.content-section');
 
-async function handleSignup(e) {
-  e.preventDefault();
-  const btn = document.getElementById('btn-signup');
-  const name = document.getElementById('su-shop-name').value.trim();
-  const cat = document.getElementById('su-category').value;
-  const phone = document.getElementById('su-phone').value.trim();
-  const openTime = document.getElementById('su-open-time').value || '07:00';
-  const closeTime = document.getElementById('su-close-time').value || '20:00';
-  const address = document.getElementById('su-address').value.trim();
-  const email = document.getElementById('su-email').value.trim();
-  const pw1 = document.getElementById('su-password').value;
-  const pw2 = document.getElementById('su-password2').value;
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Remove active from all
+            navItems.forEach(nav => nav.classList.remove('active'));
+            sections.forEach(sec => sec.classList.remove('active'));
 
-  setLoginError('');
-  if (!name) return setLoginError('⚠️ กรุณากรอกชื่อร้าน');
-  if (!cat) return setLoginError('⚠️ กรุณาเลือกประเภทร้าน');
-  if (phone.replace(/\D/g, '').length < 9) return setLoginError('⚠️ เบอร์โทรไม่ถูกต้อง');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setLoginError('⚠️ อีเมลไม่ถูกต้อง');
-  if (pw1.length < 6) return setLoginError('⚠️ รหัสผ่านอย่างน้อย 6 ตัวอักษร');
-  if (pw1 !== pw2) return setLoginError('⚠️ รหัสผ่านไม่ตรงกัน');
-  if (!document.getElementById('gp-consent-check').checked) return setLoginError('⚠️ กรุณายอมรับเงื่อนไข GP 3%');
-
-  btn.disabled = true; btn.textContent = '⏳ กำลังสมัคร...';
-  let createdUser = null;
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pw1);
-    createdUser = cred.user;
-    await createdUser.updateProfile({ displayName: name });
-    await db.collection('merchants').doc(createdUser.uid).set({
-      merchantId: createdUser.uid, // ⭐ Merchant ID หลัก
-      name, category: cat, phone, address,
-      openTime, closeTime,
-      isOpen: false,
-      verified: false,
-      gpAccepted: true,
-      gpAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      gpFreeDays: GP_FREE_DAYS,
-      totalSales: 0, totalGP: 0, totalOrders: 0,
-      rating: 0, totalRatings: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      registeredVia: 'merchant.html'
-    });
-    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ', 'success');
-  } catch (err) {
-    console.error('[signup]', err);
-    if (createdUser && (err.code === 'permission-denied' || err.message?.includes('firestore'))) {
-      try { await createdUser.delete(); } catch (e) {}
-      setLoginError('❌ สร้างข้อมูลร้านไม่สำเร็จ — ลองใหม่');
-    } else {
-      setLoginError(mapAuthErr(err.code));
-    }
-    btn.disabled = false; btn.textContent = '🏪 สมัครร้านค้า';
-  }
-}
-
-function mapAuthErr(code) {
-  return ({
-    'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
-    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
-    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
-    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
-    'auth/email-already-in-use': 'อีเมลนี้ถูกใช้แล้ว',
-    'auth/weak-password': 'รหัสผ่านอย่างน้อย 6 ตัวอักษร',
-    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป',
-    'auth/network-request-failed': 'ไม่มีการเชื่อมต่อ'
-  })[code] || 'เข้าสู่ระบบไม่สำเร็จ (' + code + ')';
-}
-
-async function handleMerchantLogout() {
-  if (!confirm('ออกจากระบบ?')) return;
-  closeSheet('menu-sheet');
-  if (unsubOrders) unsubOrders();
-  if (unsubMenus) unsubMenus();
-  if (unsubProfile) unsubProfile();
-  await auth.signOut();
-  allOrders = []; myMenus = []; merchantProfile = null; seenOrderIds.clear();
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  INIT APP
-// ═══════════════════════════════════════════════════════════════════════
-function initApp() {
-  updateHeader();
-  updatePendingBanner();
-  subscribeProfile();
-  subscribeOrders();
-  subscribeMenus();
-  requestNotificationPermission();
-
-  window.addEventListener('online', () => {
-    document.getElementById('offline-bar').classList.remove('show');
-    showToast('🟢 กลับมาออนไลน์', 'success');
-  });
-  window.addEventListener('offline', () => {
-    document.getElementById('offline-bar').classList.add('show');
-  });
-  if (!navigator.onLine) document.getElementById('offline-bar').classList.add('show');
-}
-
-function requestNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(() => Notification.requestPermission().catch(() => {}), 2000);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SUBSCRIBE PROFILE
-// ═══════════════════════════════════════════════════════════════════════
-function subscribeProfile() {
-  if (unsubProfile) unsubProfile();
-  unsubProfile = db.collection('merchants').doc(currentUser.uid).onSnapshot(snap => {
-    if (!snap.exists) return;
-    const prev = merchantProfile?.verified;
-    merchantProfile = { uid: currentUser.uid, ...snap.data() };
-    if (prev === false && merchantProfile.verified === true) {
-      showToast('🎉 แอดมินอนุมัติแล้ว! เปิดร้านได้เลย', 'success');
-      playNotificationSound();
-    }
-    updateHeader();
-    updatePendingBanner();
-  }, e => console.error('[profile]', e));
-}
-
-function updateHeader() {
-  if (!merchantProfile) return;
-  document.getElementById('shop-name').textContent = merchantProfile.name || 'ร้านค้า';
-  // ⭐ แสดง Merchant ID 8 ตัวแรกบน header
-  const mid = merchantProfile.uid || merchantProfile.merchantId || '';
-  document.getElementById('shop-id-header').textContent = mid ? '🆔 ' + mid.slice(0, 12) + '...' : '';
-  // ⭐ แสดง Merchant ID เต็มในกล่อง sheet
-  document.getElementById('shop-id-full').textContent = mid || '—';
-  updateShopToggle();
-}
-
-function updatePendingBanner() {
-  const banner = document.getElementById('pending-banner');
-  const isVerified = merchantProfile?.verified === true;
-  banner.classList.toggle('show', !isVerified);
-}
-
-function updateShopToggle() {
-  const btn = document.getElementById('shop-toggle-btn');
-  const lbl = document.getElementById('toggle-label');
-  const st = document.getElementById('shop-status');
-  const isOpen = merchantProfile?.isOpen === true && merchantProfile?.verified === true;
-  btn.classList.toggle('open', isOpen);
-  btn.disabled = merchantProfile?.verified !== true;
-  lbl.textContent = isOpen ? 'เปิดร้าน' : 'ปิดร้าน';
-  st.textContent = merchantProfile?.verified !== true ? '⏳ รอการอนุมัติ' : (isOpen ? '🟢 เปิดรับออเดอร์' : '⚫ ปิดร้าน');
-}
-
-async function toggleShop() {
-  if (!currentUser) return;
-  if (merchantProfile?.verified !== true) {
-    showToast('⏳ รอแอดมินอนุมัติก่อน', 'warning');
-    return;
-  }
-  const newState = !merchantProfile.isOpen;
-  try {
-    await db.collection('merchants').doc(currentUser.uid).update({
-      isOpen: newState,
-      toggledAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast(newState ? '🟢 เปิดร้านรับออเดอร์แล้ว' : '⚫ ปิดร้านแล้ว', newState ? 'success' : 'info');
-  } catch (e) {
-    console.error(e);
-    showToast('❌ เปลี่ยนสถานะไม่สำเร็จ', 'error');
-  }
-}
-
-function copyShopId() {
-  const mid = merchantProfile?.uid || merchantProfile?.merchantId || '';
-  if (!mid) { showToast('❌ ไม่พบ Merchant ID', 'error'); return; }
-  navigator.clipboard.writeText(mid).then(() => {
-    showToast('📋 คัดลอก Merchant ID แล้ว', 'success');
-  }).catch(() => {
-    // fallback
-    const ta = document.createElement('textarea');
-    ta.value = mid;
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); showToast('📋 คัดลอก Merchant ID แล้ว', 'success'); } catch (e) {}
-    document.body.removeChild(ta);
-  });
-}
-
-function showShopInfo() {
-  if (!merchantProfile) return;
-  const verified = merchantProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รอการอนุมัติ';
-  const gpStatus = isGPActive() ? '🟠 เริ่มคิด GP แล้ว' : '🟢 โปรโมชั่นฟรี GP';
-  const mid = merchantProfile.uid || merchantProfile.merchantId || '—';
-  alert(
-    `🏪 ${merchantProfile.name || '-'}\n` +
-    `🆔 Merchant ID:\n${mid}\n` +
-    `📂 ประเภท: ${merchantProfile.category || '-'}\n` +
-    `📱 เบอร์: ${merchantProfile.phone || '-'}\n` +
-    `📍 ที่อยู่: ${merchantProfile.address || '-'}\n` +
-    `⏰ เปิด: ${merchantProfile.openTime || '-'}-${merchantProfile.closeTime || '-'}\n` +
-    `⭐ คะแนน: ${(merchantProfile.rating || 0).toFixed(1)} (${merchantProfile.totalRatings || 0} รีวิว)\n` +
-    `📦 ออเดอร์ทั้งหมด: ${merchantProfile.totalOrders || 0}\n` +
-    `💰 สถานะ: ${verified}\n` +
-    `💸 GP: ${gpStatus}\n` +
-    `⏰ เหลืออีก: ${gpDaysLeft()} วัน`
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SUBSCRIBE ORDERS
-// ═══════════════════════════════════════════════════════════════════════
-function subscribeOrders() {
-  if (unsubOrders) unsubOrders();
-  unsubOrders = db.collection('orders')
-    .where('merchantId', '==', currentUser.uid)
-    .orderBy('createdAt', 'desc')
-    .limit(100)
-    .onSnapshot(snap => {
-      const prevIds = seenOrderIds;
-      allOrders = snap.docs.map(d => {
-        const x = d.data();
-        return {
-          id: d.id, ...x,
-          createdAt: x.createdAt?.toDate?.() || new Date(x.createdAt || Date.now())
-        };
-      });
-
-      const newOrders = allOrders.filter(o =>
-        !prevIds.has(o.id) &&
-        (o.status === 'pending' || o.merchantStatus === 'new') &&
-        merchantProfile?.verified === true &&
-        merchantProfile?.isOpen === true
-      );
-
-      if (newOrders.length > 0 && prevIds.size > 0) {
-        const latest = newOrders[0];
-        playNotificationSound();
-        showNewOrderPopup(latest);
-        if ('Notification' in window && Notification.permission === 'granted') {
-          try {
-            new Notification('🔔 ออเดอร์ใหม่!', {
-              body: `${latest.userName || 'ลูกค้า'} สั่งอาหารจากร้านคุณ`,
-              icon: '/icons/icon-512.png',
-              tag: 'new-order-' + latest.id
-            });
-          } catch (e) {}
-        }
-      }
-
-      seenOrderIds = new Set(allOrders.map(o => o.id));
-      renderOrders();
-      updateStats();
-      updateGP();
-    }, err => {
-      console.error('[orders]', err);
-      if (err.code === 'permission-denied') showToast('⚠️ ไม่มีสิทธิ์อ่านออเดอร์', 'error');
-      else if (err.code === 'failed-precondition') showToast('⚠️ ต้องสร้าง Firestore Index', 'error');
-    });
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  RENDER ORDERS
-// ═══════════════════════════════════════════════════════════════════════
-function renderOrders() {
-  const newOrders = allOrders.filter(o =>
-    (o.status === 'pending' || o.merchantStatus === 'new') &&
-    o.status !== 'cancelled' && o.status !== 'done'
-  );
-  const cookingOrders = allOrders.filter(o =>
-    o.merchantStatus === 'cooking' ||
-    (o.status === 'accepted' && o.merchantStatus !== 'ready')
-  );
-  const readyOrders = allOrders.filter(o =>
-    o.merchantStatus === 'ready' &&
-    o.status !== 'done' && o.status !== 'cancelled'
-  );
-  const doneToday = allOrders.filter(o =>
-    (o.status === 'done' || o.merchantStatus === 'done') &&
-    isToday(o.createdAt)
-  );
-
-  document.getElementById('cnt-new').textContent = newOrders.length;
-  document.getElementById('cnt-cooking').textContent = cookingOrders.length + readyOrders.length;
-  document.getElementById('cnt-done').textContent = doneToday.length;
-
-  const navBadge = document.getElementById('nav-orders-badge');
-  if (newOrders.length > 0) {
-    navBadge.style.display = 'flex';
-    navBadge.textContent = newOrders.length;
-  } else navBadge.style.display = 'none';
-
-  document.getElementById('new-orders-list').innerHTML = newOrders.map(o => renderOrderCard(o, 'new')).join('');
-  document.getElementById('cooking-orders-list').innerHTML = [...cookingOrders, ...readyOrders].map(o => renderOrderCard(o, 'cooking')).join('');
-  document.getElementById('done-orders-list').innerHTML = doneToday.slice(0, 15).map(o => renderOrderCard(o, 'done')).join('');
-
-  document.getElementById('orders-empty').style.display = allOrders.length > 0 ? 'none' : 'block';
-}
-
-function renderOrderCard(o, type) {
-  const isNew = type === 'new';
-  const time = fmtTime(o.createdAt);
-  const statusCls = o.merchantStatus || o.status;
-  const statusLabel = {
-    pending: '🔔 ใหม่',
-    accepted: '🍳 กำลังทำ',
-    cooking: '🍳 กำลังทำ',
-    ready: '✅ พร้อมส่ง',
-    picked_up: '📦 ไรเดอร์รับแล้ว',
-    on_the_way: '🚀 กำลังส่ง',
-    done: '✅ เสร็จสิ้น'
-  }[statusCls] || o.status;
-  const statusBadge = {
-    pending: 'pending',
-    accepted: 'cooking',
-    cooking: 'cooking',
-    ready: 'ready',
-    picked_up: 'done',
-    on_the_way: 'done',
-    done: 'done'
-  }[statusCls] || 'done';
-
-  let itemsList = '';
-  if (Array.isArray(o.items)) {
-    itemsList = o.items.map(it => `
-      <div class="item-row">
-        <span class="qty">×${it.qty || 1}</span>
-        <span class="item-name">${esc(it.name || '—')}</span>
-        <span class="item-price">${fmt(Number(it.price || 0) * Number(it.qty || 1))}฿</span>
-      </div>`).join('');
-  } else if (typeof o.items === 'string') {
-    itemsList = `<div class="item-row"><span class="item-name">${esc(o.items)}</span></div>`;
-  }
-
-  let actionBtns = '';
-  if (isNew || o.status === 'pending') {
-    actionBtns = `<div class="order-actions two">
-      <button class="order-btn btn-accept ripple" onclick="acceptOrder('${jsStr(o.id)}')">✅ รับออเดอร์</button>
-      <button class="order-btn btn-reject ripple" onclick="rejectOrder('${jsStr(o.id)}')">✕ ปฏิเสธ</button>
-    </div>`;
-  } else if (o.merchantStatus === 'cooking' || (o.status === 'accepted' && o.merchantStatus !== 'ready')) {
-    actionBtns = `<button class="order-btn btn-ready ripple" onclick="markReady('${jsStr(o.id)}')">📦 อาหารพร้อม — แจ้งไรเดอร์</button>`;
-  } else if (o.merchantStatus === 'ready') {
-    actionBtns = `<button class="order-btn btn-done ripple" onclick="markDone('${jsStr(o.id)}')">✅ ส่งของแล้ว</button>`;
-  }
-
-  const customerHtml = `
-    <div class="customer-box">
-      <div class="cname">👤 ${esc(o.userName || 'ลูกค้า')}</div>
-      <div class="cphone">
-        ${o.userPhone ? `<a href="tel:${esc(o.userPhone)}">📞 ${esc(o.userPhone)}</a>` : '📞 ไม่มีเบอร์'}
-      </div>
-      ${o.address ? `<div class="caddr">📍 ${esc(o.address.slice(0, 60))}${o.address.length > 60 ? '...' : ''}</div>` : ''}
-    </div>`;
-
-  return `<div class="order-card status-${statusBadge} ${isNew ? 'is-new' : ''}">
-    <div class="order-top">
-      <div class="order-emoji">🍽️</div>
-      <div class="order-top-info">
-        <div class="order-title">
-          ${isNew ? '<span class="new-tag">ใหม่!</span>' : ''}
-          <span>ออเดอร์ #${String(o.id).slice(-6).toUpperCase()}</span>
-          <span class="oid">${time}</span>
-        </div>
-        <div class="order-sub">🆔 ลูกค้า: ${esc((o.userId || '').slice(0, 12))}...</div>
-      </div>
-      <span class="status-badge ${statusBadge}">${statusLabel}</span>
-    </div>
-    ${customerHtml}
-    <div class="items-list">
-      <div class="items-title">📝 รายการอาหาร</div>
-      ${itemsList}
-    </div>
-    ${o.note ? `<div class="order-note">📌 <span>${esc(o.note)}</span></div>` : ''}
-    <div class="order-money">
-      <div>
-        <div class="lbl">💰 ยอดรวม</div>
-        <div class="gp">GP 3%: ${fmt(calcGP(Number(o.total || o.price || 0)).total)}฿</div>
-      </div>
-      <div class="amt">${fmt(o.total || o.price || 0)}฿</div>
-    </div>
-    ${actionBtns}
-    <div class="order-time-bar">
-      <span>🕐 ${time}</span>
-      <span>🆔 ${esc(String(o.id).slice(0, 8))}</span>
-    </div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  UPDATE STATS
-// ═══════════════════════════════════════════════════════════════════════
-function updateStats() {
-  const todayDone = allOrders.filter(o =>
-    (o.status === 'done' || o.merchantStatus === 'done') &&
-    isToday(o.createdAt)
-  );
-  const yesterdayDone = allOrders.filter(o =>
-    (o.status === 'done' || o.merchantStatus === 'done') &&
-    isYesterday(o.createdAt)
-  );
-  const newCount = allOrders.filter(o =>
-    (o.status === 'pending' || o.merchantStatus === 'new') &&
-    o.status !== 'cancelled' && o.status !== 'done'
-  ).length;
-  const cookingCount = allOrders.filter(o =>
-    (o.merchantStatus === 'cooking' || o.status === 'accepted' || o.merchantStatus === 'ready') &&
-    o.status !== 'done' && o.status !== 'cancelled'
-  ).length;
-
-  const todayRevenue = todayDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const yesterdayRevenue = yesterdayDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const todayGP = todayDone.reduce((s, o) => s + calcGP(Number(o.total || o.price || 0)).total, 0);
-
-  document.getElementById('hero-revenue').textContent = fmt(todayRevenue) + '฿';
-  document.getElementById('hero-sub').innerHTML =
-    `📦 ${todayDone.length} ออเดอร์ • ⏱️ เปิด: ${merchantProfile?.openTime || '—'}-${merchantProfile?.closeTime || '—'}`;
-
-  const changeEl = document.getElementById('hero-change');
-  if (yesterdayRevenue > 0) {
-    const change = Math.round((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100);
-    changeEl.textContent = `${change >= 0 ? '📈 +' : '📉 '}${change}% เทียบเมื่อวาน`;
-    changeEl.className = 'hero-change ' + (change >= 0 ? 'up' : 'down');
-  } else if (todayRevenue > 0) {
-    changeEl.textContent = '📈 +100% เทียบเมื่อวาน';
-    changeEl.className = 'hero-change up';
-  } else {
-    changeEl.textContent = '— เทียบเมื่อวาน';
-    changeEl.className = 'hero-change';
-  }
-
-  document.getElementById('stat-new').textContent = newCount;
-  document.getElementById('stat-cooking').textContent = cookingCount;
-  document.getElementById('stat-done').textContent = todayDone.length;
-  document.getElementById('stat-gp').textContent = fmt(todayGP) + '฿';
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  UPDATE GP PAGE
-// ═══════════════════════════════════════════════════════════════════════
-function updateGP() {
-  const todayDone = allOrders.filter(o =>
-    (o.status === 'done' || o.merchantStatus === 'done') &&
-    isToday(o.createdAt)
-  );
-  const todaySales = todayDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const todayGP = calcGP(todaySales);
-
-  document.getElementById('gp-today-sales').textContent = fmt(todaySales) + '฿';
-  document.getElementById('gp-today-total').textContent = fmt(todayGP.total) + '฿';
-  document.getElementById('gp-today-rider').textContent = fmt(todayGP.rider) + '฿';
-  document.getElementById('gp-today-platform').textContent = fmt(todayGP.platform) + '฿';
-  document.getElementById('gp-today-net').textContent = fmt(todaySales - todayGP.total) + '฿';
-
-  if (todayGP.total > 0) {
-    const riderPct = Math.round((todayGP.rider / todayGP.total) * 100);
-    const platPct = 100 - riderPct;
-    document.getElementById('bar-rider').style.width = riderPct + '%';
-    document.getElementById('bar-platform').style.width = platPct + '%';
-    document.getElementById('bar-rider-val').textContent = riderPct + '%';
-    document.getElementById('bar-platform-val').textContent = platPct + '%';
-  }
-
-  const monthDone = allOrders.filter(o =>
-    (o.status === 'done' || o.merchantStatus === 'done') &&
-    isThisMonth(o.createdAt)
-  );
-  const monthSales = monthDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const monthGP = calcGP(monthSales);
-  const avg = monthDone.length > 0 ? (monthSales / monthDone.length) : 0;
-
-  document.getElementById('gp-month').textContent = fmt(monthGP.total) + '฿';
-  document.getElementById('gp-month-sub').textContent = `จากยอดขาย ${fmt(monthSales)}฿`;
-  document.getElementById('gp-month-orders').textContent = monthDone.length + ' รายการ';
-  document.getElementById('gp-month-sales').textContent = fmt(monthSales) + '฿';
-  document.getElementById('gp-month-total').textContent = fmt(monthGP.total) + '฿';
-  document.getElementById('gp-month-net').textContent = fmt(monthSales - monthGP.total) + '฿';
-  document.getElementById('gp-month-avg').textContent = fmt(avg) + '฿';
-
-  const daysLeft = gpDaysLeft();
-  const cdEl = document.getElementById('gp-countdown');
-  const daysEl = document.getElementById('gp-days-left');
-  if (isGPActive()) {
-    cdEl.innerHTML = `
-      <div class="days" style="color:#C62828">✓</div>
-      <div class="txt">
-        <div class="t1" style="color:#C62828">⏰ เริ่มคิด GP 3% แล้ว</div>
-        <div class="t2" style="color:#B71C1C">GP ถูกหักจากยอดขายอัตโนมัติ</div>
-      </div>`;
-  } else {
-    daysEl.textContent = daysLeft;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  ORDER ACTIONS
-// ═══════════════════════════════════════════════════════════════════════
-async function acceptOrder(orderId) {
-  try {
-    await db.collection('orders').doc(orderId).update({
-      status: 'accepted',
-      merchantStatus: 'cooking',
-      merchantAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('✅ รับออเดอร์แล้ว — เริ่มทำอาหาร', 'success');
-    closeNewOrderPopup();
-  } catch (e) { console.error(e); showToast('❌ รับออเดอร์ไม่สำเร็จ', 'error'); }
-}
-
-async function rejectOrder(orderId) {
-  const reason = prompt('ระบุเหตุผลที่ปฏิเสธ (ไม่บังคับ):', '');
-  if (reason === null) return;
-  try {
-    await db.collection('orders').doc(orderId).update({
-      status: 'cancelled',
-      merchantStatus: 'rejected',
-      rejectReason: reason || 'ร้านปฏิเสธ',
-      rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('✕ ปฏิเสธออเดอร์แล้ว', 'info');
-  } catch (e) { console.error(e); showToast('❌ ไม่สำเร็จ', 'error'); }
-}
-
-async function markReady(orderId) {
-  try {
-    await db.collection('orders').doc(orderId).update({
-      merchantStatus: 'ready',
-      status: 'accepted',
-      readyAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('✅ อาหารพร้อมแล้ว — รอไรเดอร์มารับ', 'success');
-  } catch (e) { console.error(e); showToast('❌ ไม่สำเร็จ', 'error'); }
-}
-
-async function markDone(orderId) {
-  try {
-    const order = allOrders.find(o => o.id === orderId);
-    const total = Number(order?.total || order?.price || 0);
-    const gp = calcGP(total);
-    await db.collection('orders').doc(orderId).update({
-      merchantStatus: 'done',
-      merchantDoneAt: firebase.firestore.FieldValue.serverTimestamp(),
-      gpAmount: gp.total,
-      gpRider: gp.rider,
-      gpPlatform: gp.platform
-    });
-    showToast('📦 ส่งให้ไรเดอร์แล้ว', 'success');
-  } catch (e) { console.error(e); showToast('❌ ไม่สำเร็จ', 'error'); }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  NEW ORDER POPUP
-// ═══════════════════════════════════════════════════════════════════════
-function showNewOrderPopup(o) {
-  newPopupOrderId = o.id;
-  let itemsHtml = '';
-  if (Array.isArray(o.items)) {
-    itemsHtml = o.items.map(it =>
-      `<div>${esc(it.name || '—')} × ${it.qty || 1} = <strong>${fmt(Number(it.price || 0) * Number(it.qty || 1))}฿</strong></div>`
-    ).join('');
-  } else if (typeof o.items === 'string') {
-    itemsHtml = `<div>${esc(o.items)}</div>`;
-  }
-  document.getElementById('new-order-detail').innerHTML = `
-    <div>👤 <strong>${esc(o.userName || 'ลูกค้า')}</strong></div>
-    <div>📞 <strong>${esc(o.userPhone || '—')}</strong></div>
-    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd">${itemsHtml}</div>
-    <div style="margin-top:8px;color:var(--brand);font-weight:900;font-size:18px">
-      💰 รวม ${fmt(o.total || o.price || 0)}฿
-    </div>
-    ${o.note ? `<div style="margin-top:6px;color:#E65100;font-size:12px">📌 ${esc(o.note)}</div>` : ''}
-  `;
-  document.getElementById('new-order-popup').classList.add('active');
-}
-function closeNewOrderPopup() {
-  document.getElementById('new-order-popup').classList.remove('active');
-  newPopupOrderId = null;
-}
-function acceptFromPopup() {
-  if (newPopupOrderId) acceptOrder(newPopupOrderId);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SUBSCRIBE MENUS
-// ═══════════════════════════════════════════════════════════════════════
-function subscribeMenus() {
-  if (unsubMenus) unsubMenus();
-  unsubMenus = db.collection('menus')
-    .where('merchantId', '==', currentUser.uid)
-    .onSnapshot(snap => {
-      myMenus = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => {
-          const cA = a.category || '';
-          const cB = b.category || '';
-          if (cA !== cB) return cA.localeCompare(cB);
-          return (a.name || '').localeCompare(b.name || '', 'th');
+            // Add active to clicked
+            item.classList.add('active');
+            const targetId = item.getAttribute('data-target');
+            document.getElementById(targetId).classList.add('active');
         });
-      renderMenus();
-    }, e => console.error('[menus]', e));
-}
-
-function renderMenus() {
-  const list = document.getElementById('menu-list');
-  const empty = document.getElementById('menus-empty');
-  const countEl = document.getElementById('menu-count-text');
-  const availCount = myMenus.filter(m => m.isAvailable !== false).length;
-
-  countEl.textContent = `${myMenus.length} เมนู (${availCount} พร้อมขาย)`;
-
-  if (!myMenus.length) {
-    list.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  list.innerHTML = myMenus.map(m => {
-    const isOff = m.isAvailable === false;
-    return `<div class="menu-card ${isOff ? 'off' : ''}">
-      <div class="menu-img-wrap">
-        ${m.image
-          ? `<img src="${esc(m.image)}" alt="${esc(m.name)}" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='${CAT_ICONS[m.category] || '🍽️'}'">`
-          : (CAT_ICONS[m.category] || '🍽️')}
-        <span class="menu-status-badge ${isOff ? 'off' : 'on'}">${isOff ? 'ปิด' : 'ขาย'}</span>
-      </div>
-      <div class="menu-card-body">
-        <div class="menu-card-name">${esc(m.name || '—')}</div>
-        <div class="menu-card-cat">${CAT_ICONS[m.category] || '📦'} ${CAT_LABELS[m.category] || 'อื่นๆ'}</div>
-        <div class="menu-card-price">${fmt(m.price)}฿</div>
-        <div class="menu-card-actions">
-          <button class="menu-act-btn edit ripple" onclick="openMenuForm('${jsStr(m.id)}')">✏️ แก้</button>
-          <button class="menu-act-btn toggle ripple" onclick="toggleMenuAvail('${jsStr(m.id)}')">${isOff ? 'เปิด' : 'ปิด'}</button>
-          <button class="menu-act-btn del ripple" onclick="deleteMenu('${jsStr(m.id)}')">🗑️</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-//  MENU FORM
-// ═══════════════════════════════════════════════════════════════════════
-function openMenuForm(menuId) {
-  editingMenuId = menuId || null;
-  menuImgFile = null;
-  menuImgDataUrl = null;
-  currentMenuImageUrl = null;
-
-  const title = document.getElementById('menu-form-title');
-  const area = document.getElementById('img-upload-area');
-  const preview = document.getElementById('img-preview');
-  const nameEl = document.getElementById('mf-name');
-  const priceEl = document.getElementById('mf-price');
-  const catEl = document.getElementById('mf-category');
-  const descEl = document.getElementById('mf-desc');
-
-  if (menuId) {
-    const m = myMenus.find(x => x.id === menuId);
-    if (!m) return;
-    title.textContent = '✏️ แก้ไขเมนู';
-    nameEl.value = m.name || '';
-    priceEl.value = m.price || '';
-    catEl.value = m.category || 'main';
-    descEl.value = m.description || '';
-    if (m.image) {
-      currentMenuImageUrl = m.image;
-      preview.src = m.image;
-      preview.style.display = 'block';
-      area.classList.add('has-img');
-    } else {
-      preview.src = ''; preview.style.display = 'none';
-      area.classList.remove('has-img');
-    }
-  } else {
-    title.textContent = '➕ เพิ่มเมนูใหม่';
-    nameEl.value = '';
-    priceEl.value = '';
-    catEl.value = 'main';
-    descEl.value = '';
-    preview.src = ''; preview.style.display = 'none';
-    area.classList.remove('has-img');
-  }
-
-  openSheet('menu-form-sheet');
-}
-
-async function previewMenuImg(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('⚠️ รูปใหญ่เกิน 5 MB', 'warning');
-    e.target.value = '';
-    return;
-  }
-  menuImgFile = file;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const preview = document.getElementById('img-preview');
-    const area = document.getElementById('img-upload-area');
-    preview.src = ev.target.result;
-    preview.style.display = 'block';
-    area.classList.add('has-img');
-  };
-  reader.readAsDataURL(file);
-}
-
-function removeMenuImg() {
-  menuImgFile = null;
-  menuImgDataUrl = null;
-  currentMenuImageUrl = null;
-  const preview = document.getElementById('img-preview');
-  const area = document.getElementById('img-upload-area');
-  preview.src = ''; preview.style.display = 'none';
-  area.classList.remove('has-img');
-  document.getElementById('menu-img-input').value = '';
-}
-
-async function saveMenu() {
-  if (!currentUser) return;
-  const btn = document.getElementById('btn-save-menu');
-  const name = document.getElementById('mf-name').value.trim();
-  const price = parseFloat(document.getElementById('mf-price').value);
-  const category = document.getElementById('mf-category').value;
-  const description = document.getElementById('mf-desc').value.trim();
-
-  if (!name) { showToast('⚠️ กรุณากรอกชื่อเมนู', 'warning'); return; }
-  if (!price || price <= 0) { showToast('⚠️ กรุณากรอกราคา', 'warning'); return; }
-
-  btn.disabled = true;
-  const origTxt = btn.textContent;
-  btn.textContent = '⏳ กำลังบันทึก...';
-
-  try {
-    let imageUrl = currentMenuImageUrl || '';
-
-    if (menuImgFile) {
-      try {
-        const compressedBlob = await compressImage(menuImgFile, 800, 0.75);
-        const timestamp = Date.now();
-        const ref = storage.ref(`menus/${currentUser.uid}/${timestamp}.jpg`);
-        const snap = await ref.put(compressedBlob);
-        imageUrl = await snap.ref.getDownloadURL();
-      } catch (uploadErr) {
-        console.error('[upload]', uploadErr);
-        showToast('⚠️ อัปโหลดรูปไม่สำเร็จ — บันทึกข้อมูลอย่างเดียว', 'warning');
-      }
-    }
-
-    const data = {
-      merchantId: currentUser.uid,
-      merchantName: merchantProfile?.name || '',
-      name, price, category, description,
-      image: imageUrl,
-      isAvailable: true,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    if (editingMenuId) {
-      await db.collection('menus').doc(editingMenuId).update(data);
-      showToast('✅ อัปเดตเมนูแล้ว', 'success');
-    } else {
-      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection('menus').add(data);
-      showToast('✅ เพิ่มเมนูแล้ว', 'success');
-    }
-
-    closeSheet('menu-form-sheet');
-    editingMenuId = null;
-    menuImgFile = null;
-    currentMenuImageUrl = null;
-  } catch (e) {
-    console.error('[saveMenu]', e);
-    showToast('❌ บันทึกไม่สำเร็จ', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = origTxt;
-  }
-}
-
-async function toggleMenuAvail(menuId) {
-  const m = myMenus.find(x => x.id === menuId);
-  if (!m) return;
-  const newState = m.isAvailable === false ? true : false;
-  try {
-    await db.collection('menus').doc(menuId).update({
-      isAvailable: newState,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast(newState ? '🟢 เปิดขายเมนูแล้ว' : '🔴 ปิดขายเมนูแล้ว', 'success');
-  } catch (e) { console.error(e); showToast('❌ ไม่สำเร็จ', 'error'); }
 }
 
-async function deleteMenu(menuId) {
-  const m = myMenus.find(x => x.id === menuId);
-  if (!m) return;
-  if (!confirm(`ลบเมนู "${m.name}" ?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้`)) return;
-  try {
-    await db.collection('menus').doc(menuId).delete();
-    showToast('🗑️ ลบเมนูแล้ว', 'info');
-  } catch (e) { console.error(e); showToast('❌ ลบไม่สำเร็จ', 'error'); }
+// ==========================================
+// 6. ระบบจัดการออเดอร์ (Orders)
+// ==========================================
+async function loadOrders() {
+    const ordersList = document.getElementById('ordersList');
+    ordersList.innerHTML = '<p class="text-center">กำลังโหลด...</p>';
+
+    try {
+        // ⚠️ ต้องสร้าง Composite Index: merchantId (Asc) + createdAt (Desc)
+        const q = query(
+            collection(db, "orders"),
+            where("merchantId", "==", currentMerchantId),
+            orderBy("createdAt", "desc")
+        );
+
+        const snapshot = await getDocs(q);
+        ordersList.innerHTML = '';
+        
+        if (snapshot.empty) {
+            ordersList.innerHTML = '<p class="text-center text-gray-400 py-10">ยังไม่มีออเดอร์ในขณะนี้</p>';
+            return;
+        }
+
+        let stats = { pending: 0, preparing: 0, ready: 0, completed: 0 };
+
+        snapshot.forEach((doc) => {
+            const order = doc.data();
+            const id = doc.id;
+            
+            // นับสถิติ
+            if (order.status === 'pending') stats.pending++;
+            else if (order.status === 'preparing') stats.preparing++;
+            else if (order.status === 'ready_for_pickup') stats.ready++;
+            else if (order.status === 'delivered') stats.completed++;
+
+            // สร้างการ์ดออเดอร์
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            
+            const statusMap = {
+                'pending': '<span class="status-badge status-pending">🟡 รอยืนยัน</span>',
+                'preparing': '<span class="status-badge status-preparing">🟠 กำลังทำ</span>',
+                'ready_for_pickup': '<span class="status-badge status-ready">🔵 รอไรเดอร์</span>',
+                'delivered': '<span class="status-badge status-completed">🟢 สำเร็จ</span>'
+            };
+
+            card.innerHTML = `
+                <div class="order-card-header">
+                    <span>#${id.slice(-6).toUpperCase()}</span>
+                    <span>฿${order.totalPrice || 0}</span>
+                </div>
+                <div>${statusMap[order.status] || order.status}</div>
+                <div class="order-actions">
+                    ${order.status === 'pending' ? `<button onclick="updateOrderStatus('${id}', 'preparing')" class="btn btn-primary">รับออเดอร์</button>` : ''}
+                    ${order.status === 'preparing' ? `<button onclick="updateOrderStatus('${id}', 'ready_for_pickup')" class="btn btn-primary" style="background:var(--warning)">ทำเสร็จแล้ว</button>` : ''}
+                </div>
+            `;
+            ordersList.appendChild(card);
+        });
+
+        // อัปเดต Stats
+        document.getElementById('statNewOrders').innerText = stats.pending;
+        document.getElementById('statPreparing').innerText = stats.preparing;
+        document.getElementById('statReady').innerText = stats.ready;
+        document.getElementById('statCompleted').innerText = stats.completed;
+
+    } catch (error) {
+        console.error("Error loading orders:", error);
+        ordersList.innerHTML = `<p class="text-danger text-center">เกิดข้อผิดพลาด: ${error.message}</p>`;
+    }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  TAB SWITCHING
-// ═══════════════════════════════════════════════════════════════════════
-function switchTab(tabId, el) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + tabId).classList.add('active');
-  if (el) el.classList.add('active');
-  window.scrollTo(0, 0);
+window.updateOrderStatus = async (orderId, newStatus) => {
+    if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
+    try {
+        await updateDoc(doc(db, "orders", orderId), {
+            status: newStatus,
+            updatedAt: serverTimestamp()
+        });
+        alert("✅ อัปเดตสถานะสำเร็จ");
+        loadOrders(); // โหลดใหม่
+    } catch (error) {
+        alert("❌ ไม่สามารถอัปเดตได้: " + error.message);
+    }
+};
+
+// ==========================================
+// 7. ระบบจัดการเมนู (Menu Management)
+// ==========================================
+async function loadMenus() {
+    const menuList = document.getElementById('menuList');
+    menuList.innerHTML = '<p class="text-center">กำลังโหลดเมนู...</p>';
+
+    try {
+        const q = query(collection(db, "menus"), where("merchantId", "==", currentMerchantId));
+        const snapshot = await getDocs(q);
+        menuList.innerHTML = '';
+
+        if (snapshot.empty) {
+            menuList.innerHTML = '<p class="text-center text-gray-400 py-10">ยังไม่มีเมนูในระบบ</p>';
+            return;
+        }
+
+        snapshot.forEach((doc) => {
+            const menu = doc.data();
+            const id = doc.id;
+
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            card.innerHTML = `
+                <div class="flex-between">
+                    <div>
+                        <h4>${menu.name}</h4>
+                        <p style="color:var(--primary); font-weight:bold;">฿${menu.price}</p>
+                        <small>${menu.description || ''}</small>
+                    </div>
+                    <div class="flex-end gap-2">
+                        <button onclick="deleteMenu('${id}')" class="btn btn-danger">ลบ</button>
+                    </div>
+                </div>
+            `;
+            menuList.appendChild(card);
+        });
+    } catch (error) {
+        console.error("Error loading menus:", error);
+    }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-//  RIPPLE + HAPTIC
-// ═══════════════════════════════════════════════════════════════════════
-document.addEventListener('touchstart', e => {
-  const el = e.target.closest('.ripple, button, .order-card, .menu-card, .nav-tab, .sheet-close');
-  if (!el) return;
-  el.style.transform = 'scale(.97)';
-  setTimeout(() => { el.style.transform = ''; }, 150);
-}, { passive: true });
+// ฟังก์ชันลบเมนู
+window.deleteMenu = async (menuId) => {
+    if (!confirm("คุณต้องการลบเมนูนี้ใช่หรือไม่?")) return;
+    try {
+        await deleteDoc(doc(db, "menus", menuId));
+        alert("🗑️ ลบเมนูสำเร็จ");
+        loadMenus();
+    } catch (error) {
+        alert("❌ ลบไม่สำเร็จ: " + error.message);
+    }
+};
 
-document.addEventListener('click', e => {
-  const el = e.target.closest('button, .nav-tab, .order-btn, .add-menu-btn');
-  if (el && navigator.vibrate) navigator.vibrate(10);
-}, { passive: true });
+// ==========================================
+// 8. ระบบตั้งค่าร้านค้า (Store Settings)
+// ==========================================
+async function loadStoreSettings() {
+    try {
+        const docRef = doc(db, "merchants", currentMerchantId);
+        const docSnap = await getDoc(docRef);
 
-const focusStyle = document.createElement('style');
-focusStyle.textContent = `
-  *:focus-visible { outline: 2px solid #00A651; outline-offset: 2px; border-radius: 4px; }
-  input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
-`;
-document.head.appendChild(focusStyle);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            document.getElementById('shopNameInput').value = data.shopName || '';
+            document.getElementById('shopAddressInput').value = data.address || '';
+            document.getElementById('shopPhoneInput').value = data.phone || '';
+            
+            // เช็คสถานะร้านเปิด/ปิด
+            const isOpen = data.isOpen !== false; // Default to true
+            document.getElementById('storeStatusToggle').checked = isOpen;
+            document.getElementById('storeStatusText').innerText = isOpen ? 'เปิดร้าน' : 'ปิดร้าน';
+        }
+    } catch (error) {
+        console.error("Error loading settings:", error);
+    }
+}
 
-console.log('%c🏪 Chauat Go Merchant v3.3.0 (POS + Merchant ID)', 'color:#00A651;font-weight:900;font-size:16px');
-console.log('%c✓ Auto-update enabled', 'color:#4A90D9;font-weight:700');
-console.log('%c✓ Menu CRUD + Image Upload', 'color:#FF6B35;font-weight:700');
-console.log('%c✓ GP Tracking + Countdown 60 days', 'color:#FFA500;font-weight:700');
-console.log('%c✓ Merchant ID display + copy', 'color:#9C27B0;font-weight:700');
-</script>
-</body>
-</html> 
+// ==========================================
+// 9. Event Listeners (ปุ่มกดต่างๆ)
+// ==========================================
+function setupEventListeners() {
+    // บันทึกการตั้งค่าร้าน
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+        const shopName = document.getElementById('shopNameInput').value;
+        const address = document.getElementById('shopAddressInput').value;
+        const phone = document.getElementById('shopPhoneInput').value;
+
+        try {
+            await setDoc(doc(db, "merchants", currentMerchantId), {
+                shopName, address, phone, ownerId: currentMerchantId
+            }, { merge: true });
+            alert("✅ บันทึกการตั้งค่าสำเร็จ");
+        } catch (error) {
+            alert("❌ บันทึกไม่สำเร็จ: " + error.message);
+        }
+    });
+
+    // เปิด/ปิดร้าน
+    document.getElementById('storeStatusToggle').addEventListener('change', async (e) => {
+        const isOpen = e.target.checked;
+        document.getElementById('storeStatusText').innerText = isOpen ? 'เปิดร้าน' : 'ปิดร้าน';
+        try {
+            await updateDoc(doc(db, "merchants", currentMerchantId), { isOpen });
+        } catch (error) {
+            console.error("Error updating store status:", error);
+        }
+    });
+
+    // ปุ่มเพิ่มเมนู
+    document.getElementById('addMenuBtn').addEventListener('click', () => {
+        document.getElementById('menuFormContainer').classList.remove('hidden');
+        document.getElementById('formTitle').innerText = "เพิ่มเมนูใหม่";
+        document.getElementById('menuIdInput').value = '';
+        document.getElementById('menuNameInput').value = '';
+        document.getElementById('menuPriceInput').value = '';
+        document.getElementById('menuDescInput').value = '';
+        document.getElementById('menuImageInput').value = '';
+    });
+
+    // ปุ่มยกเลิกฟอร์ม
+    document.getElementById('cancelMenuBtn').addEventListener('click', () => {
+        document.getElementById('menuFormContainer').classList.add('hidden');
+    });
+
+    // ปุ่มบันทึกเมนู
+    document.getElementById('saveMenuBtn').addEventListener('click', async () => {
+        const name = document.getElementById('menuNameInput').value;
+        const price = parseFloat(document.getElementById('menuPriceInput').value);
+        const description = document.getElementById('menuDescInput').value;
+        const imageUrl = document.getElementById('menuImageInput').value;
+
+        if (!name || !price || price <= 0) {
+            alert("⚠️ กรุณากรอกชื่อเมนูและราคาให้ถูกต้อง");
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, "menus"), {
+                merchantId: currentMerchantId,
+                name, price, description, imageUrl,
+                createdAt: serverTimestamp()
+            });
+            alert("✅ เพิ่มเมนูสำเร็จ");
+            document.getElementById('menuFormContainer').classList.add('hidden');
+            loadMenus();
+        } catch (error) {
+            alert("❌ เพิ่มเมนูไม่สำเร็จ: " + error.message);
+        }
+    });
+
+    // ปุ่มออกจากระบบ
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        signOut(auth).then(() => window.location.href = 'index.html');
+    });
+}
