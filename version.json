@@ -1,5 +1,12 @@
 {
   "version": "v3.3.0",
   "buildTime": "2026-10-07T12:00:00Z",
-  "deployedAt": "2026-10-07T12:00:00Z"
+  "deployedAt": "2026-10-07T12:00:00Z",
+  "features": [
+    "Force Auto-update",
+    "Merchant POS",
+    "Rider Dashboard v2",
+    "Admin Dashboard v2",
+    "GP 3% Tracking"
+  ]
 }
