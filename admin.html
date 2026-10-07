@@ -11,15 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <script>
-// ═══════════════════════════════════════════════════════════════════
-//  🔄 FORCE AUTO-UPDATE
-// ═══════════════════════════════════════════════════════════════════
 (function() {
   const APP_VERSION = 'v3.3.0';
   const savedVersion = localStorage.getItem('chauat_app_version');
-
   if (savedVersion && savedVersion !== APP_VERSION) {
-    console.log('[Update]', savedVersion, '→', APP_VERSION);
     localStorage.setItem('chauat_app_version', APP_VERSION);
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage('FORCE_UPDATE');
@@ -27,13 +22,10 @@
     if ('caches' in window) {
       caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
         .then(() => location.reload(true));
-    } else {
-      location.reload(true);
-    }
+    } else { location.reload(true); }
     return;
   }
   localStorage.setItem('chauat_app_version', APP_VERSION);
-
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
@@ -50,13 +42,10 @@
               }
             });
           });
-        })
-        .catch(err => console.warn('[SW]', err));
-
+        }).catch(err => console.warn('[SW]', err));
       navigator.serviceWorker.addEventListener('message', event => {
         if (event.data?.type === 'SW_UPDATED') location.reload(true);
       });
-
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
@@ -73,13 +62,9 @@
 :root{--brand:#00A651;--brand-dark:#008C45;--bg:#EDF6DC;--text:#1A1A1A;--mut:#6B7280;--danger:#E53935;--warn:#E65100;--blue:#1565C0;--purple:#9C27B0;--surface:#fff;--border:#e5e7eb}
 body{background:var(--bg);color:var(--text);max-width:1000px;margin:0 auto;min-height:100vh;padding-bottom:40px}
 .hidden{display:none!important}
-
-/* Ripple */
 .ripple{position:relative;overflow:hidden;isolation:isolate}
 .ripple::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle,rgba(255,255,255,.45) 10%,transparent 11%);background-position:center;background-size:0% 0%;background-repeat:no-repeat;transition:background-size .5s ease-out;pointer-events:none}
 .ripple:active::after{background-size:250% 250%}
-
-/* ─── Login ─── */
 #login{position:fixed;inset:0;background:linear-gradient(135deg,#76B82A,#3B7A16);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;overflow-y:auto}
 .box{background:#fff;border-radius:20px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.15);margin:auto}
 .box h1{font-size:22px;color:var(--brand);text-align:center;margin-bottom:20px;font-weight:900}
@@ -87,6 +72,7 @@ input,select,textarea{width:100%;padding:14px 16px;border:2px solid var(--border
 input:focus,select:focus,textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
 button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;transition:transform .1s;font-family:inherit;min-height:44px}
 button:active{transform:scale(.97)}
+button:disabled{opacity:.5;cursor:not-allowed}
 .pri{background:var(--brand);color:#fff}
 .sec{background:#f0f0f0;color:#555}
 .dan{background:#FFEBEE;color:var(--danger)}
@@ -95,21 +81,16 @@ button:active{transform:scale(.97)}
 .tab-btns{display:flex;gap:6px;margin-bottom:16px;background:#f5f5f5;padding:4px;border-radius:12px}
 .tab-btn{flex:1;padding:12px;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;background:transparent;color:var(--mut);transition:.2s;font-family:inherit}
 .tab-btn.active{background:#fff;color:var(--brand);box-shadow:0 2px 6px rgba(0,0,0,.08)}
-
-/* ─── App Layout ─── */
 header{background:linear-gradient(135deg,#76B82A,#3B7A16);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;border-radius:0 0 20px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1)}
-header h1{flex:1;font-size:18px;font-weight:900}
+header h1{flex:1;font-size:18px;font-weight:900;display:flex;align-items:center;gap:6px}
+header h1 .vbadge{font-size:10px;background:rgba(255,255,255,.25);padding:3px 8px;border-radius:10px;font-weight:700}
 header .admin-info{text-align:right;font-size:11px;opacity:.95;line-height:1.4}
 header .admin-info button{padding:8px 14px;font-size:11px;margin-top:4px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);min-height:36px}
-
 nav{display:flex;gap:6px;overflow-x:auto;padding:12px 16px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:40;-webkit-overflow-scrolling:touch}
 nav::-webkit-scrollbar{display:none}
 nav button{background:transparent;color:var(--mut);padding:12px 18px;font-size:13px;white-space:nowrap;border-radius:12px;font-weight:700;font-family:inherit;min-height:44px}
 nav button.on{background:#E8F5E9;color:var(--brand);font-weight:900}
-
 main{padding:16px}
-
-/* ─── Common ─── */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
 .card{background:var(--surface);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);transition:transform .15s}
 .card:active{transform:scale(.99)}
@@ -122,10 +103,10 @@ main{padding:16px}
 .tag.w{background:#FFF3E0;color:var(--warn)}
 .tag.x{background:#f0f0f0;color:#888}
 .tag.b{background:#E3F2FD;color:var(--blue)}
+.tag.p{background:#F3E5F5;color:var(--purple)}
+.tag.d{background:#FFEBEE;color:var(--danger)}
 .acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;background:var(--surface);border-radius:16px;font-weight:600}
-
-/* ─── Finance Table ─── */
 .fin-table-wrap{overflow-x:auto;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
 table.fin-table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
 table.fin-table th{background:#f8f9fa;padding:12px;text-align:left;border-bottom:2px solid #ddd;white-space:nowrap;font-weight:900}
@@ -136,8 +117,6 @@ table.fin-table tr:hover{background:#fafafa}
 .text-center{text-align:center}
 .money-pos{color:var(--brand);font-weight:900}
 .money-neg{color:var(--danger);font-weight:900}
-
-/* ─── Modal ─── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(0px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s,backdrop-filter .3s}
 .modal-overlay.show{opacity:1;pointer-events:auto;backdrop-filter:blur(4px)}
 .modal{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;transform:translateY(20px) scale(.95);transition:transform .35s cubic-bezier(.32,.72,0,1)}
@@ -146,13 +125,9 @@ table.fin-table tr:hover{background:#fafafa}
 .modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #eee}
 .modal-hdr h2{font-size:18px;font-weight:900}
 .close-btn{background:#f0f0f0;border:none;width:44px;height:44px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;min-height:44px}
-
-/* ─── Toast ─── */
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:#222;color:#fff;padding:14px 22px;border-radius:16px;font-size:14px;font-weight:800;opacity:0;pointer-events:none;transition:.3s;z-index:999;max-width:90%;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--danger)}
-
-/* ─── Dashboard Hero ─── */
 .hero-card{background:linear-gradient(135deg,#00A651 0%,#008C45 100%);border-radius:24px;padding:24px 20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,166,81,.25)}
 .hero-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 70%);border-radius:50%;pointer-events:none}
 .hero-card::after{content:'';position:absolute;bottom:-60px;left:-30px;width:140px;height:140px;background:radial-gradient(circle,rgba(255,255,255,.08),transparent 70%);border-radius:50%;pointer-events:none}
@@ -162,13 +137,9 @@ table.fin-table tr:hover{background:#fafafa}
 .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.2);position:relative;z-index:1}
 .hero-grid-cell .lbl{font-size:11px;opacity:.85;font-weight:700}
 .hero-grid-cell .val{font-size:20px;font-weight:900;margin-top:2px}
-
-/* ─── Section Divider ─── */
 .section-divider{display:flex;align-items:center;gap:8px;margin:24px 0 12px}
 .section-divider .title{font-size:14px;font-weight:900;color:var(--text)}
 .section-divider .line{flex:1;height:1px;background:linear-gradient(90deg,#ddd,transparent)}
-
-/* ─── Action Cards ─── */
 .action-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s;min-height:76px}
 .action-card:active{transform:scale(.98)}
 .action-card.warn{border-left:4px solid var(--warn);background:#FFFBEB}
@@ -194,8 +165,6 @@ table.fin-table tr:hover{background:#fafafa}
 .action-btn.orange{background:var(--warn);color:#fff;box-shadow:0 4px 12px rgba(230,81,0,.25)}
 .action-btn.red{background:var(--danger);color:#fff;box-shadow:0 4px 12px rgba(229,57,53,.25)}
 .action-btn.blue{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(21,101,192,.25)}
-
-/* ─── Data Card ─── */
 .data-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.04);transition:transform .15s}
 .data-card:active{transform:scale(.98)}
 .data-card-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -206,47 +175,77 @@ table.fin-table tr:hover{background:#fafafa}
 .data-card-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .data-card-actions button{padding:10px 14px;border-radius:10px;border:none;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;transition:transform .15s;min-height:44px}
 .data-card-actions button:active{transform:scale(.95)}
-.btn-sm-primary{background:var(--brand);color:#fff}
-.btn-sm-secondary{background:#f0f0f0;color:#666}
-.btn-sm-danger{background:#FFEBEE;color:var(--danger)}
-.btn-sm-warning{background:#FFF3E0;color:var(--warn)}
-
-/* ─── Status Badge ─── */
-.status-badge{display:inline-block;padding:5px 12px;border-radius:12px;font-size:11px;font-weight:900;min-height:26px;line-height:1.2}
-.status-badge.active{background:#E8F5E9;color:#2E7D32}
-.status-badge.pending{background:#FFF3E0;color:#E65100}
-.status-badge.inactive{background:#f0f0f0;color:#999}
-.status-badge.verified{background:#E3F2FD;color:#1565C0}
-.status-badge.unverified{background:#FFEBEE;color:#C62828}
-
 .search-box{background:#fff;border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:12px;min-height:52px}
 .search-box input{border:none;outline:none;font-size:14px;font-weight:600;flex:1;background:transparent;padding:0;margin:0;min-height:auto}
 .filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;-webkit-overflow-scrolling:touch}
 .filter-bar::-webkit-scrollbar{display:none}
 .filter-chip{padding:10px 16px;border-radius:16px;font-size:12px;font-weight:900;background:#fff;color:var(--mut);cursor:pointer;white-space:nowrap;border:1px solid var(--border);min-height:40px;display:flex;align-items:center;font-family:inherit}
 .filter-chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.place-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
+.place-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:.2s;box-shadow:0 2px 8px rgba(0,0,0,.04);position:relative}
+.place-card:active{transform:scale(.98);border-color:var(--brand)}
+.place-card.linked{border-color:var(--brand);background:#F0FDF4}
+.place-card.linked::before{content:'🔗';position:absolute;top:8px;right:8px;background:var(--brand);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;z-index:2;box-shadow:0 2px 8px rgba(0,166,81,.4)}
+.place-thumb{width:100%;height:110px;object-fit:cover;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);display:block}
+.place-body{padding:10px}
+.place-id{font-size:10px;color:var(--mut);font-family:monospace;font-weight:700}
+.place-name{font-weight:900;font-size:13px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place-cat{font-size:11px;color:var(--blue);margin-top:4px;font-weight:800}
+.place-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+.place-rating{font-size:10px;color:var(--warn);font-weight:900}
+.place-price{font-size:10px;color:var(--mut);font-weight:700}
+.place-linked{font-size:9px;color:var(--brand);font-weight:900;margin-top:4px;background:#E8F5E9;padding:3px 6px;border-radius:6px;display:inline-block}
+.pagination{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:20px;flex-wrap:wrap}
+.pagination button{min-width:44px;min-height:44px;border-radius:10px;background:#fff;border:1px solid var(--border);font-weight:800;font-size:13px;padding:8px;font-family:inherit}
+.pagination button.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.picker{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:12px;background:#fafafa}
+.picker label{display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;min-height:44px}
+.picker label:hover{background:#fff}
+.picker input[type=checkbox]{width:22px;height:22px;margin:0;min-height:22px;flex-shrink:0;accent-color:var(--brand)}
+.upload-banner{background:linear-gradient(135deg,#1565C0,#0D47A1);color:#fff;padding:14px 16px;border-radius:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(21,101,192,.25)}
+.upload-banner.done{background:linear-gradient(135deg,#00A651,#008C45);box-shadow:0 6px 20px rgba(0,166,81,.25)}
+.upload-banner .icon{font-size:24px;flex-shrink:0}
+.upload-banner .text{flex:1;font-size:13px;font-weight:800;line-height:1.3}
+.upload-banner .text small{display:block;font-size:11px;opacity:.85;font-weight:600;margin-top:2px}
+
+/* ─── SLIP UPLOAD ─── */
+.slip-upload-box{background:#F0FDF4;border:2px dashed #86efac;border-radius:14px;padding:20px;text-align:center;cursor:pointer;transition:.2s;margin-bottom:12px;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.slip-upload-box:active{transform:scale(.98);background:#DCFCE7}
+.slip-upload-box .icon{font-size:38px;line-height:1}
+.slip-upload-box .label{font-size:13px;font-weight:900;color:#166534}
+.slip-upload-box .hint{font-size:11px;color:#166534;opacity:.7;font-weight:600}
+.slip-preview{width:100%;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-bottom:12px;display:block;max-height:400px;object-fit:contain;background:#f5f5f5}
+.slip-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:12px}
+.slip-item{position:relative;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);aspect-ratio:1;background:#f5f5f5;cursor:pointer}
+.slip-item img{width:100%;height:100%;object-fit:cover;display:block}
+.slip-item .slip-badge{position:absolute;bottom:4px;left:4px;right:4px;background:rgba(0,0,0,.75);color:#fff;font-size:9px;font-weight:900;padding:3px 6px;border-radius:6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slip-item.verified .slip-badge{background:var(--brand)}
+.slip-item.pending .slip-badge{background:var(--warn)}
+.slip-progress{height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;margin-bottom:12px}
+.slip-progress-bar{height:100%;background:var(--brand);width:0%;transition:width .3s ease-out;border-radius:3px}
+.slip-status-banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-size:12px;font-weight:800}
+.slip-status-banner.pending{background:#FFFBEB;color:#92400e;border-left:4px solid var(--warn)}
+.slip-status-banner.ok{background:#F0FDF4;color:#166534;border-left:4px solid var(--brand)}
+.slip-status-banner.reject{background:#FFEBEE;color:#991b1b;border-left:4px solid var(--danger)}
 </style>
 </head>
 <body>
 
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════════ LOGIN ═══════════════ -->
 <div id="login">
   <form class="box" id="login-form">
     <h1>🛵 Chauat Go Admin</h1>
-
     <div class="tab-btns">
       <button type="button" class="tab-btn active" onclick="switchTab('login')">เข้าสู่ระบบ</button>
       <button type="button" class="tab-btn" onclick="switchTab('signup')">สมัครสมาชิก</button>
     </div>
-
     <div id="form-login">
       <input type="email" id="em" placeholder="อีเมลผู้ดูแล" autocomplete="username" required>
       <input type="password" id="pw" placeholder="รหัสผ่าน" autocomplete="current-password" required>
       <button class="pri big ripple" type="submit">เข้าสู่ระบบ</button>
     </div>
-
     <div id="form-signup" style="display:none">
       <input type="text" id="su-name" placeholder="ชื่อ-นามสกุล ผู้ดูแล" required>
       <input type="email" id="su-email" placeholder="อีเมล (เช่น admin@example.com)" required>
@@ -260,10 +259,9 @@ table.fin-table tr:hover{background:#fafafa}
   </form>
 </div>
 
-<!-- ═══════════════ APP ═══════════════ -->
 <div id="app" class="hidden">
   <header>
-    <h1>Chauat Go Admin</h1>
+    <h1>Chauat Go Admin <span class="vbadge">v3.3.0</span></h1>
     <div class="admin-info">
       <div id="who">admin@chauatgo.com</div>
       <button class="sec ripple" id="logout">ออกจากระบบ</button>
@@ -273,7 +271,6 @@ table.fin-table tr:hover{background:#fafafa}
   <main id="main"></main>
 </div>
 
-<!-- ═══════════════ MODAL ═══════════════ -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" id="modal-box">
     <div class="modal-hdr">
@@ -284,13 +281,488 @@ table.fin-table tr:hover{background:#fafafa}
   </div>
 </div>
 
-<!-- ═══════════════ FIREBASE ═══════════════ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script>
-// ─── Firebase Config ───
+// ═══════════════════════════════════════════════════════════════════
+//  📍 490 สถานที่ในชะอวด
+// ═══════════════════════════════════════════════════════════════════
+const PLACES_RAW = [
+["สเต็กลุงอ้วน by เชฟปืน",7.9725186,99.9958096,'r',"150-350฿","images/steak-lung-uan.jpg",4.6],
+["ขนมจีนลุงบ่าว",7.9670,99.9960,'r',"40-80฿","images/khanom-jeen-lung-bao.jpg",4.4],
+["เจ๊หญิงผัดไทย หอยทอด",7.9635936,99.9980924,'r',"40-80฿","images/jay-ying-padthai.jpg",4.5],
+["ข้าวขาหมูน้องออ",7.968951,99.995472,'r',"50-120฿","images/khao-kha-moo-nong-or.jpg",4.3],
+["FIVE STARS",7.9590838,99.9639115,'r',"45-120฿","⭐",4.1],
+["Samu sushi สาขาชะอวด",7.9705488,99.9963399,'r',"60-150฿","🍣",4.4],
+["กระทะทอง หมูกะทะ",7.9670749,100.0027069,'r',"150-300฿","",4.3],
+["ก๋วยจั๊บน้ำข้นแม่น้องอัญชัน",7.9670768,100.0027459,'r',"40-80฿","",4.5],
+["ก๋วยเตี๋ยวเรือ5",7.9662886,100.0104017,'r',"35-60฿","",4.4],
+["ก๋วยเตี๋ยวเรือบนเนิน",7.9672004,100.0070046,'r',"35-65฿","🍜",4.3],
+["ก๋วยเตี๋ยวเรือบ้านพ่อ@ท่าประจะ",7.9612968,99.9717433,'r',"35-70฿","🍜",4.5],
+["ข้าวต้มโกยศ&จุ๊บจิ๊บ",7.9696185,99.994334,'r',"40-100฿","🍚",4.3],
+["ข้าวหน้าเป็ด ข้าวหมูอบ",7.9688368,99.9946618,'r',"40-80฿","🍚",4.3],
+["ข้าวแกงกิ้มเตี้ยน",7.9652805,99.9975557,'r',"35-70฿","🍛",4.4],
+["ครัว ชานเมือง",7.9643424,99.9898984,'r',"60-150฿","🍽️",4.3],
+["ครัวขนมจีน คุณแม่",7.9692451,99.997884,'r',"40-80฿","",4.6],
+["ครัวต้นตอ",8.0070983,99.9797433,'r',"50-120฿","🍽️",4.2],
+["ครัวมะปราง",7.9939983,99.9615043,'r',"50-130฿","🍽️",4.3],
+["ครัวศรีเมือง",7.9639176,99.98905,'r',"50-120฿","🍽️",4.2],
+["ครัวอีสานใต้",7.9711681,99.963453,'r',"50-130฿","🌶️",4.3],
+["จำหน่ายลูกชิ้นทอดเจ๊กบ",7.9675258,99.9963719,'r',"20-50฿","",4.4],
+["ชาบูบ้านแม่",7.9623247,99.9854726,'r',"200-400฿","🍲",4.2],
+["ซีแซ่บ กุ้งแช่น้ำปลาชะอวด",7.9666804,99.998424,'r',"60-150฿","🦐",4.4],
+["ณ ที่เดิม",7.9643464,99.9899005,'r',"50-120฿","",4.3],
+["ตามสั่งท่าเสม็ดเดลิเวอรี่",7.9495929,100.0152696,'r',"40-100฿","🍱",4.2],
+["ตู้กับข้าว @ชะอวด",7.9704229,99.9980995,'r',"50-130฿","",4.4],
+["ทะเลดอง ชะอวด",7.9666467,99.9962655,'r',"80-200฿","🦐",4.4],
+["บ้าน ยายเลี่ยน ตาถวิล",7.9594066,99.9637612,'r',"50-120฿","🏠",4.3],
+["บ้านขนมจีน ปุ้ย",7.9877066,99.9890172,'r',"40-80฿","🍜",4.5],
+["บ้านปัญจ-รส",7.9841934,99.9808577,'r',"60-150฿","🍽️",4.4],
+["ปังปิ้งเตาถ่านร้าน2ปัง",7.9593949,99.963404,'r',"25-60฿","🍞",4.3],
+["ร้าน ขายปลาแดดเดียว",7.9713991,100.002393,'r',"50-120฿","",4.2],
+["ร้าน ทุ่งนาคาราโอเกะ",7.9620958,99.9941764,'r',"80-200฿","🎤",4.2],
+["ร้านก๋วยจั๊บรสเด็ด",7.9667677,99.9988822,'r',"40-80฿","🍜",4.4],
+["ร้านก๋วยเตี๋ยว เนื้อตุ่นเปื่อย",7.9724311,99.9959182,'r',"40-90฿","",4.3],
+["ร้านก๋วยเตี๋ยวน้องมรท่าเสม็ด",7.9529883,100.0102231,'r',"35-70฿","",4.2],
+["ร้านก๋วยเตี๋ยวสูตรโบราณ",7.9548062,100.0088371,'r',"35-70฿","🍜",4.5],
+["ร้านขนมจีนบนเนิน",7.9666807,100.0104124,'r',"40-80฿","",4.4],
+["ร้านขนมจีนป้าสาว",7.9647049,99.9904454,'r',"35-70฿","🍜",4.3],
+["ร้านขนมจีนยายจิตรตาพร",7.9595442,99.9695015,'r',"35-75฿","🍜",4.4],
+["ร้านข้าวมันไก่เจ๊นอม",7.9519858,100.0138437,'r',"40-80฿","🍛",4.3],
+["ร้านครัวคนเคร็ง",7.972678,99.9912826,'r',"50-120฿","🍽️",4.2],
+["ร้านชาบูเสียบไม้ice&c",7.9639698,99.9980227,'r',"100-250฿","🍲",4.3],
+["ร้านปั่นแหลกบุฟเฟ่ต์ผลไม้",7.968886,99.997976,'r',"40-100฿","🥤",4.4],
+["ร้านป้าเอียดหมูกระทะบุฟเฟต์",7.9726114,99.9957222,'r',"139฿","",4.3],
+["ร้านส้มตำป้าธรรม",7.9666962,100.0066603,'r',"40-100฿","🥗",4.4],
+["ร้านส้มตำสะดุ้งmyเพลง",7.9646839,99.9951063,'r',"40-100฿","🥗",4.2],
+["ร้านหนมจีนน้าตุ้น",7.9557042,99.999855,'r',"35-70฿","🍜",4.5],
+["ร้านหมูพวงรสเด็ด ชะอวด",7.9649516,99.9977638,'r',"50-120฿","🍖",4.3],
+["ร้านอาหารตารื่นยายแก้ว",7.9456361,99.9694289,'r',"50-130฿","",4.4],
+["ร้านอาหารนกน้อย",7.9711658,99.9926807,'r',"50-120฿","",4.2],
+["ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์",7.964281,99.9970526,'r',"100-250฿","🥩",4.3],
+["ร้านอาหารโอเค",7.967058,99.9966538,'r',"50-150฿","",4.2],
+["ร้านแกงใต้และขนมไทยบ้านอิ่มเอม",7.9666389,99.9947637,'r',"40-100฿","🍛",4.5],
+["ร้านแต่แรก The old time",7.9654721,99.9944093,'r',"50-130฿","🍽️",4.3],
+["ร้านแฮปปี้ โฟล์ค ตำแซ่บ",7.9631287,99.9883002,'r',"40-100฿","🥗",4.2],
+["ลาบอุดร(หน้าสวนหย่อม)",7.9662922,99.9975223,'r',"50-120฿","",4.4],
+["ลำภูหมูกะทะชะอวด",7.985507,99.989834,'r',"150-300฿","",4.3],
+["วารินทร์ ซาลาเปาทอด&ปาท่องโก๋",7.9680305,99.9952084,'r',"20-50฿","🥟",4.4],
+["สถานีของหรอย@ชะอวด",7.9654112,99.9905907,'r',"50-130฿","🍽️",4.3],
+["สถานียำตำแซ่บ",7.9704778,99.9961367,'r',"40-100฿","🥗",4.2],
+["สลัดไข่มุก สาขาชะอวด",7.9692051,99.9981353,'r',"50-120฿","🥗",4.3],
+["ส้มตำ เชลล์",7.9696555,99.9943106,'r',"40-100฿","",4.2],
+["ส้มตำครกทอง",7.9710256,99.9931146,'r',"40-100฿","🥗",4.3],
+["ส้มตำสองพี่น้อง ลาบอุบลฯ",7.9640635,99.9897116,'r',"40-100฿","🥗",4.4],
+["หม่าล่าเฮงเฮง",7.9637426,99.9985664,'r',"60-150฿","🌶️",4.2],
+["หอยครก...หรอยยกนิ้ว",7.9670202,99.9983783,'r',"40-100฿","🦪",4.3],
+["อีสานพลัดถิ่น (บ้านไร่เนิน)",7.9516409,100.0225923,'r',"50-130฿","🌶️",4.4],
+["เจ๊สาห์หมูกระทะ",7.9585347,99.9849734,'r',"150-300฿","",4.3],
+["เตี๋ยวตุ๋น หม้อไฟ INDY",7.9605533,99.9863734,'r',"100-250฿","🍲",4.4],
+["เมษา กาแฟ",7.9646839,99.9951063,'r',"40-100฿","",4.3],
+["เมามาย ชะอวด",7.9938386,99.9704377,'r',"80-200฿","🍻",4.2],
+["แม่พรขนมจีน",7.9751241,99.9632741,'r',"40-80฿","🍜",4.5],
+["แม่เพ็ญเครื่องแกง & ข้าวต้ม",7.9646317,99.9847939,'r',"40-100฿","🍲",4.3],
+["ไก่ทอดโอปป้า สาขาชะอวด",7.9662091,99.9930427,'r',"50-120฿","🍗",4.3],
+["ไก่โต้งข้าวมันไก่ไหหลำ",7.9662262,99.9929985,'r',"40-80฿","🍛",4.4],
+["ร้านเยี่ยมโอชา",7.9648964,99.9953573,'r',"50-150฿","🍛",4.5],
+["ชิปปิ้ง ชาบู&หมูกระทะ",7.9659063,99.9949039,'r',"150-300฿","🍲",4.4],
+["ร้านหนองคาย อาหารอิสาน",7.9657836,99.9922684,'r',"50-120฿","🌶️",4.4],
+["เต๋วเรือลานข่อย ณ ชะอวด",7.9681891,99.9959867,'r',"40-80฿","🍜",4.5],
+["Love Milk Cafe&Restaurant",7.9659765,99.9932246,'r',"45-150฿","🥛",4.5],
+["ปริ่มละมุล",7.9866593,99.9894992,'r',"60-180฿","🍰",4.6],
+["เหล่าเต๊ง Chauat",7.9654603,99.9943536,'r',"40-120฿","🍵",4.4],
+["ร้านหวานใจไอติม & พิซซ่าโคน",7.9675,99.9965,'f',"30-80฿","images/wan-jai-icecream-pizza.jpg",4.5],
+["Dew Coffee Cha-uat",7.9690861,99.9943373,'f',"45-120฿","☕",4.8],
+["Cafe.Lao",7.9649201,99.9951997,'f',"40-100฿","☕",4.3],
+["Cameron Cafe",7.9685043,99.994887,'f',"40-120฿","",4.5],
+["Mr.VAN Ice Cream",7.9821871,99.9666483,'f',"30-80฿","🍦",4.4],
+["กาแฟโบว์",7.9821889,99.9820569,'f',"35-90฿","☕",4.3],
+["กินติม @ชะอวด",7.9672812,99.9970054,'f',"25-60฿","🍦",4.5],
+["ข.ไข่คาเฟ่ ชะอวด",7.9669234,100.0233534,'f',"50-130฿","",4.3],
+["คอชาเย็น(สาขา สภ.ชะอวด)",7.9663835,99.9981566,'f',"30-70฿","🧋",4.2],
+["ชาช้าง หลาดชะอวด",7.9673797,99.9955824,'f',"35-80฿","🍵",4.4],
+["ชาทรตะโหมดสาขาชะอวด",7.9670326,99.9959598,'f',"35-85฿","🧋",4.3],
+["ชานมไข่มุกดอทคอม ชะอวด",7.9681854,99.9950467,'f',"30-75฿","🧋",4.2],
+["ชาฮีโร่ HERO",7.970075,99.9977912,'f',"35-90฿","🧋",4.4],
+["ชิลล์ - Chill",7.9630355,99.9984221,'f',"40-100฿","🍹",4.3],
+["ชีวิตดี๊ดี",7.9596369,99.9605265,'f',"40-110฿","☕",4.5],
+["ติดชาน้องนุช ต.ท่าประจะ",7.9554994,99.9632278,'f',"30-70฿","🧋",4.2],
+["ท่าน้ำชา คาเฟ่",7.9623699,99.9963144,'f',"40-100฿","☕",4.6],
+["นั่งเล่าหน้าบ้าน ณ ควนดินแดง",7.9416481,99.9643163,'f',"45-120฿","☕",4.4],
+["บ้านลูกชุบ บนเนิน",7.9670964,100.0088697,'f',"35-90฿","🍡",4.3],
+["บ้านเอ็มพิชซ่า",7.9646423,99.9901592,'f',"80-180฿","🍕",4.2],
+["ป้ายยักคอชะอวด",7.9751266,99.9960417,'f',"35-85฿","",4.3],
+["ภูซอนไอติมกระทิสด",7.9254483,100.0089881,'f',"25-60฿","🍦",4.5],
+["ร้านกาแฟเศรษฐี ท่าเสม็ด",7.9517624,100.0105614,'f',"35-90฿","☕",4.2],
+["ร้านคะวัน",7.9592561,99.9604253,'f',"40-100฿","🍰",4.3],
+["ร้านชาพะยอม",7.9608777,100.005908,'f',"30-75฿","🍵",4.2],
+["ร้านช้อนชาม.นครศรีธรรมราช",7.9695261,99.995251,'f',"35-85฿","",4.3],
+["ร้านธราธิป",7.9676412,99.9963438,'f',"40-100฿","☕",4.2],
+["ร้านน้ำชาบังกด",7.9648089,99.9956764,'f',"25-60฿","🍵",4.3],
+["ร้านน้ำชาเจ๊อ้อย",7.9649214,99.9918854,'f',"25-60฿","🍵",4.2],
+["ร้านน้ำน้องสาว",7.9692367,99.9965894,'f',"30-70฿","🍵",4.3],
+["ร้านน้ำน้องโอชิ",7.9751241,99.9632741,'f',"30-75฿","🍵",4.2],
+["ร้านน้ำอ้อย 3M",7.9590977,99.9564628,'f',"25-60฿","🥤",4.4],
+["ร้านฟอร์ยู@ชะอวด",7.9667841,99.9984914,'f',"30-80฿","🧋",4.3],
+["ร้านเพลินพุง'งง",7.9363545,100.0212613,'f',"40-110฿","",4.4],
+["ร้านไอติมใจยักษ์",7.9690185,99.9979403,'f',"25-65฿","🍦",4.5],
+["ลานชา สถานีคนง่วง",7.9673556,99.9955932,'f',"30-75฿","🍵",4.3],
+["วรรณภาพร",7.974785,99.9634335,'f',"35-85฿","☕",4.2],
+["หอมหวานชานม",7.9668981,100.0018463,'f',"30-80฿","🧋",4.3],
+["อาณาจักรชา บ้านเนินแขก",7.9641097,99.9897522,'f',"30-75฿","🍵",4.2],
+["โคกหนองนา ธนาคารอาหารสุขภาพ",7.964849,100.0164816,'f',"40-120฿","🥗",4.4],
+["7-Eleven สาขา ถนนอรุณประชา",7.96862,99.9946493,'c',"24 ชม.","images/7-eleven-arun-pracha.jpg",4.3],
+["7-Eleven สาขา ท่าประจะ",7.9590652,99.9639528,'c',"24 ชม.","🏪",4.3],
+["7-Eleven สาขา PTTOR ชะอวด",7.961493,99.987406,'c',"24 ชม.","🏪",4.2],
+["7-Eleven สาขา ชะอวด",7.9667964,99.9967819,'c',"24 ชม.","🏪",4.3],
+["7-Eleven สาขา ชะอวด 2",7.967021,99.9964999,'c',"24 ชม.","🏪",4.2],
+["โลตัส โก เฟรช ชะอวด",7.9670751,99.9968295,'c',"7:00-22:00","🛒",4.4],
+["KFC สาขาชะอวด",7.9616453,99.9875667,'c',"10:00-22:00","🍗",4.1],
+["Sod Station",7.96422,99.998431,'m',"7:00-20:00","images/sod-station.jpg",4.0],
+["ตลาดชะอวด",7.9716912,99.994021,'m',"6:00-18:00","🏪",4.2],
+["ตลาดร่วมใจ ถนนคนเดิน",7.964451,99.998216,'m',"17:00-22:00","🛍️",4.3],
+["ตลาดสดชะอวด",7.9652396,99.9967148,'m',"5:00-12:00","🥬",4.1],
+["อ่างเก็บน้ำห้วยน้ำใส",7.9520,99.9750,'t',"เปิดทุกวัน","images/huai-nam-sai-reservoir.jpg",4.7],
+["สวิสเซอร์แลนด์แดนชะอวด",7.9700,99.9850,'t',"เปิดทุกวัน","images/switzerland-chauat.jpg",4.8],
+["สะพานโค้ง100ปีชะอวด",7.9644,99.9982,'t',"เปิดทุกวัน","🌉",4.6],
+["หอนาฬิกาเทศบาลตำบลชะอวด",7.9670053,99.9973112,'t',"เปิดทุกวัน","🕐",4.2],
+["ล่องแพบ้านวังอ่าง",7.9025,99.9225,'t',"8:00-17:00","🛶",4.5],
+["ป่าพรุควนเคร็ง",7.8850,100.1150,'t',"8:00-17:00","🌿",4.6],
+["น้ำตกวังหอน",7.9000,99.9150,'t',"8:00-17:00","💧",4.4],
+["ท่องบ้านยวน",7.9618215,99.9560357,'t',"8:00-17:00","🏞️",4.5],
+["โรงแรมเฟื่องฟ้ารีสอร์ท",7.9650,99.9900,'h',"600-1200฿","images/fueangfa-resort.jpg",4.4],
+["บ้านแม่ ทุ่งหัวพาน",7.9417746,100.0080005,'h',"400-800฿","🏡",4.3],
+["โฮมสเตย์เรือนริมน้ำชะอวด",7.963346,100.0346649,'h',"500-1000฿","",4.5],
+["บ้านพัก ขวัญแก้ว",7.9694722,99.9934722,'h',"350-700฿","🏠",4.2],
+["ทองขาวบ้านสวนรีสอร์ท",7.9670818,100.0232993,'h',"600-1200฿","🌳",4.4],
+["เรือนกลางหลาด",7.9828841,99.9908841,'h',"600-1200฿","🏠",4.5],
+["สวนพลู รีสอร์ต",7.9644048,99.9808742,'h',"400-900฿","",4.3],
+["มะปรางค์ เอสบี รีสอร์ท",7.9924958,99.962219,'h',"500-1000฿","🌺",4.4],
+["บ้านนายหัวชาม โฮมสเตย์",8.0000644,100.0165882,'h',"400-800฿","",4.2],
+["ร้านเจริญ",7.9658759,99.9975259,'s',"8:00-18:00","images/ran-charoen.jpg",4.1],
+["A Coffee Bar",7.9244411,100.0005104,'s',"8:00-20:00","☕",4.2],
+["CP FreshMart",7.9666366,99.9954757,'s',"7:00-22:00","🛒",4.3],
+["Cozyday",7.9688835,99.9979628,'s',"8:00-20:00","☕",4.3],
+["GN FASHION",7.9675874,99.9963538,'s',"9:00-20:00","👗",4.1],
+["Indeed Tattoo @ ชะอวด",7.9679936,100.0026909,'s',"10:00-20:00","🎨",4.4],
+["Juicy ice สาขาชะอวด",7.9668703,100.0076342,'s',"10:00-21:00","🍦",4.3],
+["Kerry Express Parcel Service",7.9659091,99.992776,'s',"8:00-20:00","📦",4.1],
+["Mesa Coffee Roasters",7.9671216,100.0034409,'s',"7:00-18:00","☕",4.4],
+["Momocha สาขาชะอวด",7.9683637,99.9966894,'s',"10:00-21:00","🧋",4.3],
+["SB แบตเตอรี่เซอร์วิส ชะอวด",7.9930373,99.9632882,'s',"8:00-18:00","🔋",4.1],
+["Tattoo by kob",7.9765007,100.0018575,'s',"10:00-20:00","🎨",4.4],
+["กระจูด",7.9474587,100.0315216,'s',"8:00-17:00","🧺",4.3],
+["กระเป๋ากระจูดน้องมีตังค์",7.966165,100.0384609,'s',"9:00-18:00","👜",4.4],
+["กลุ่มมังคุดชะอวดพัฒนา",7.9369912,99.9713771,'s',"8:00-17:00","🥭",4.2],
+["กลุ่มแม่บ้านเกษตรกรบ้านเนินกลาง",7.9664473,99.9989433,'s',"8:00-17:00","",4.3],
+["กะปะ(เจ้าเก่า)",7.9751241,99.9632741,'s',"7:00-18:00","",4.1],
+["กาแฟบ้านสวนพ่อ",7.9650648,99.9960414,'s',"7:00-17:00","☕",4.3],
+["กิจเจริญอะไหล่ยนต์",7.9682661,99.9950978,'s',"8:00-18:00","🔧",4.2],
+["กินเส้นเย็นตาโฟ",7.980588,99.9838749,'s',"7:00-15:00","🍜",4.4],
+["ก๋วยเตี๋ยวทุ่งค่าย",8.0052774,99.9800295,'s',"7:00-15:00","🍜",4.3],
+["ก๋วยเตี๋ยวโบราณป้าแบน",7.9384267,99.9862992,'s',"7:00-14:00","🍜",4.5],
+["คอมพิวเตอร์ ปริ้นเตอร์ ชะอวด",7.9653003,99.9904537,'s',"9:00-18:00","💻",4.1],
+["คิดอิเล็กทรอนิกส์",7.9537965,99.9793065,'s',"8:00-20:00","🔌",4.6],
+["จงรักฟาร์ม",7.9669756,99.9960383,'s',"7:00-18:00","🐓",4.2],
+["จิระดาวเทียม",7.9660923,99.9922518,'s',"8:00-18:00","📡",4.3],
+["จิ๊บจิ๊บเทเลคอมชะอวด",7.9660663,99.9975462,'s',"9:00-18:00","📱",4.2],
+["ฉลองคอนกรีตบ้านไร่เนิน",7.9512888,100.0232375,'s',"7:00-17:00","🏗️",4.1],
+["ช.พรหมนิมิตวัสดุ",7.961592,99.9866635,'s',"7:00-18:00","🧱",4.2],
+["ชะอวดการพิมพ์",7.9665791,99.9964458,'s',"8:00-17:00","🖨️",4.1],
+["ชะอวดค้าเหล็ก",7.9746038,99.9900184,'s',"7:00-17:00","🔩",4.2],
+["ชะอวดค้าไม้",7.9859021,99.9896265,'s',"7:00-17:00","🪵",4.1],
+["ชะอวดนานาวัสดุ",7.9672967,99.9971594,'s',"7:00-18:00","🧱",4.2],
+["ชะอวดรถยก 24ชม.",7.9762937,99.9937471,'s',"24 ชม.","🚛",4.0],
+["ชะอวดรับอัดสายไฮดรอลิค",7.9610492,99.9864779,'s',"8:00-17:00","🔧",4.1],
+["ชะอวดแทรกเตอร์และอะไหล่ยนต์",7.971146,99.993145,'s',"8:00-17:00","🚜",4.2],
+["ชาคาร์ออดิโอ",7.9678611,99.9947721,'s',"9:00-18:00","🔊",4.1],
+["ชาลิสา",8.0009563,100.0035484,'s',"8:00-17:00","🍵",4.2],
+["ชำนาญวัสดุก่อสร้างสาขา2",7.9625152,99.9733502,'s',"7:00-18:00","🧱",4.3],
+["ซักผ้ายอดเหรียญ",7.9571749,100.0089802,'s',"24 ชม.","👕",4.0],
+["ซุปเปอร์ไอทีชะอวด",7.9611246,99.9870202,'s',"9:00-20:00","💻",4.2],
+["ณ บ้านเรา'Cafe @ชะอวด",7.9678976,99.9938578,'s',"8:00-20:00","☕",4.4],
+["ดาว อาหารตามสั่ง(ชะอวด)",7.9678669,99.9968779,'s',"7:00-15:00","🍱",4.2],
+["ดิ่งคาร์แคร์",7.9372222,99.992044,'s',"8:00-18:00","🚗",4.3],
+["ติ๋วมินิมาร์ทสาขาชะอวด",7.969446,99.9962909,'s',"7:00-22:00","🏪",4.2],
+["ทรัพย์ทองมาคาร์เซ็นเตอร์",7.974756,99.9898094,'s',"8:00-18:00","🚗",4.3],
+["ทวีศักดิ์การช่าง (ครูอ้น)",7.9719442,99.992528,'s',"8:00-17:00","🔧",4.4],
+["ธนพลการพิมพ์",7.96707,99.996564,'s',"8:00-17:00","🖨️",4.1],
+["ธรรมรงค์แอร์และเพื่อนชะอวด",7.9682327,99.9951198,'s',"8:00-18:00","❄️",4.2],
+["ธิระศักดิ์ รับซื้อผลไม้",7.9504847,100.0107644,'s',"7:00-17:00","🍎",4.1],
+["น้ำดื่มฉลอง",7.9513195,100.0231269,'s',"7:00-18:00","💧",4.2],
+["บ. หนูทับการเกษตร",7.9657711,99.9917063,'s',"7:00-17:00","🌾",4.4],
+["บจก.สมชัยค้าวัสดุ",7.966656,99.9965125,'s',"7:00-17:00","🏪",4.2],
+["บริษัท ชายการเกษตร จำกัด",7.9658651,99.9913734,'s',"7:00-17:00","🌾",4.1],
+["บริษัท ตั้งใจกลการ สาขาชะอวด1",7.9690475,99.9947566,'s',"8:00-17:00","⚙️",4.2],
+["บริษัท ตั้งใจกลการ สาขาชะอวด2",7.9663236,99.997442,'s',"8:00-17:00","⚙️",4.2],
+["บริษัท อีซูซุนครมอเตอร์เซลส์",7.9572099,99.9831465,'s',"8:00-17:00","🚗",4.3],
+["บริษัทเบาหวิวแคคตัสจำกัด",7.9615073,99.9937973,'s',"9:00-17:00","🌵",4.4],
+["บริษัทโมโตรถเกรดเอจำกัด",7.9675627,99.9954295,'s',"8:00-17:00","🏍️",4.2],
+["บาร์น้ำชา",7.9659753,99.9933271,'s',"10:00-22:00","🍵",4.1],
+["บ้าน",7.9641007,99.9956895,'s',"-","🏠",4.0],
+["บ้านฐานิตา",7.9664899,100.0045611,'s',"-","🏠",4.2],
+["บ้านต้นน้ำ",7.962868,99.998288,'s',"8:00-20:00","🏞️",4.4],
+["บ้านสวน โรงสี",7.9820602,99.9916192,'s',"7:00-17:00","🌾",4.1],
+["บ้านส้องคาร์เซอร์วิส",7.9758424,99.9874156,'s',"8:00-18:00","🚗",4.3],
+["พงศ์ศักดิ์อะไหล่",7.966812,99.995588,'s',"8:00-18:00","🔧",4.2],
+["พอเพียงเจริญยนต์",7.967389,99.99577,'s',"8:00-17:00","🚗",4.1],
+["พีพีโมบายชะอวด",7.9656434,99.9976052,'s',"9:00-20:00","📱",4.2],
+["ฟรายส์ชิค หิวโซ",7.9682172,99.996144,'s',"10:00-22:00","🍟",4.1],
+["ฟองน้ำ ฟิชชิ่ง",7.9650404,99.9954813,'s',"8:00-18:00","🎣",4.2],
+["ฟิน สเตชั่น",7.9668991,100.00902,'s',"8:00-20:00","⛽",4.1],
+["ยำเลย กะเทยชัวร์",7.9466793,100.0321721,'s',"10:00-21:00","🥗",4.3],
+["ยืนหนึ่งทุกอย่าง10บาท",7.9629146,99.9886005,'s',"8:00-20:00","🛍️",4.0],
+["ยุพา เบอเกอรี่ (YUPA Bakery)",7.968226,99.9949466,'s',"7:00-18:00","🥐",4.4],
+["รถยกชะอวดชะอวดรถยก24ชม.",7.9764136,99.9937492,'s',"24 ชม.","🚛",4.0],
+["รวมยาเภสัชชะอวด",7.9670495,99.9959625,'s',"8:00-21:00","💊",4.3],
+["รับอัดสายไฮดรอลิคชะอวด",7.9653697,99.9909332,'s',"8:00-17:00","🔧",4.1],
+["รัศมีคาราโอเกะ",7.968056,99.996966,'s',"12:00-24:00","🎤",4.2],
+["ร้าน ก.เกษตร",7.965925,99.9916897,'s',"7:00-17:00","🌾",4.2],
+["ร้าน ก.ไก่",7.9416754,99.9642163,'s',"7:00-17:00","🐓",4.1],
+["ร้าน ธารา ชะอวด",7.9664046,99.9970031,'s',"8:00-18:00","🏪",4.2],
+["ร้าน ป้าคองของชำ",7.959416,99.9678204,'s',"7:00-18:00","🏪",4.1],
+["ร้าน ลิขิตศิลป์",7.9666387,99.9954324,'s',"8:00-17:00","🎨",4.3],
+["ร้าน ส.เฟอร์นิช",7.9643015,99.9897614,'s',"8:00-18:00","🛋️",4.2],
+["ร้าน อ.สยามการไฟฟ้า",7.9913677,99.9602162,'s',"8:00-18:00","⚡",4.3],
+["ร้าน เท่ห์ที่ผม",7.9417967,99.9649284,'s',"9:00-20:00","💇",4.2],
+["ร้าน โอเค เครื่องนอน",7.9662539,99.9971589,'s',"9:00-20:00","🛏️",4.1],
+["ร้านจิบแฟแลพาน",7.9628229,99.9983403,'s',"8:00-20:00","☕",4.3],
+["ร้านBuddy Barber 2",7.9721503,99.9945084,'s',"9:00-20:00","💈",4.2],
+["ร้านMalaeta มาแลตะ",7.969358,99.9945232,'s',"10:00-21:00","🍽️",4.3],
+["ร้านPorkshopหมีหมูสด",7.9663689,99.9948628,'s',"7:00-18:00","🐷",4.2],
+["ร้านกัญชา G.Green420OG",7.9663914,99.9917815,'s',"10:00-20:00","🌿",4.0],
+["ร้านกัญชาWocogloy420",7.9685721,99.9957211,'s',"10:00-20:00","🌿",4.0],
+["ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",7.9705659,99.9963424,'s',"7:00-15:00","🍜",4.3],
+["ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",7.9774353,100.0042232,'s',"7:00-15:00","🍜",4.4],
+["ร้านชะอวดเครื่องใช้ไฟฟ้า",7.9677097,99.996893,'s',"8:00-18:00","📺",4.2],
+["ร้านชะอวดโอเอ กรุ๊ป",7.9369664,99.9809185,'s',"9:00-18:30","💻",3.3],
+["ร้านซักอบผ้าหยอดเหรียญ",7.9727137,99.9916718,'s',"24 ชม.","👕",4.0],
+["ร้านซักอบรีด ท่าประจะ คุณบี",7.9592208,99.9634293,'s',"8:00-18:00","👕",4.1],
+["ร้านซ่อมนาฬิกาPS Time to Smile",7.9706293,99.9984979,'s',"9:00-18:00","⌚",4.3],
+["ร้านซ่อมมือถือ Love Phone",7.9625546,99.9954734,'s',"9:00-20:00","📱",4.2],
+["ร้านดอกไม้",7.9679855,100.0036496,'s',"8:00-18:00","💐",4.3],
+["ร้านดอกไม้ บูมโบว์ ฟลาวเวอร์",7.9661577,99.9923842,'s',"8:00-18:00","💐",4.4],
+["ร้านต้นขาม",7.9670797,100.0084077,'s',"8:00-18:00","🌳",4.2],
+["ร้านท่านรอง คลองเกียบ",7.981452,99.983199,'s',"8:00-18:00","🍽️",4.3],
+["ร้านธงฟ้าประชารัฐ สวัสดิ์การค้า",7.9522223,100.0131292,'s',"7:00-18:00","🏪",4.1],
+["ร้านนิวแสงฟ้า",7.9666013,99.9958838,'s',"8:00-18:00","🏪",4.2],
+["ร้านน้องพรพันธุ์ไม้",7.9821802,99.9821234,'s',"8:00-17:00","🌱",4.3],
+["ร้านน้องโอมน้องออมการค้า",7.9769632,99.9941824,'s',"8:00-18:00","🏪",4.1],
+["ร้านน้องใบบัว",7.9653202,99.9954949,'s',"8:00-18:00","🏪",4.2],
+["ร้านน้ำชา&ข้าวต้ม เกาเหลา",7.9684229,99.9952169,'s',"6:00-15:00","🍵",4.3],
+["ร้านน้ำชาจ่าหมาย",7.968414,99.9952188,'s',"6:00-15:00","🍵",4.2],
+["ร้านน้ำหอม คาร์แคร์เซ็นเตอร์",7.98947,99.9862887,'s',"8:00-18:00","🚗",4.1],
+["ร้านบ้านต่อผมชะอวด",7.9788552,100.0121912,'s',"9:00-20:00","💇",4.3],
+["ร้านป้าสาวเจริญการค้า",7.9481078,99.9628092,'s',"7:00-18:00","🏪",4.1],
+["ร้านป้าไล (ของชำ,ขนมลา)",7.9652729,99.9955147,'s',"7:00-18:00","🏪",4.2],
+["ร้านพรพรรณ-กรอบรูป",7.967181,100.004165,'s',"9:00-18:00","🖼️",4.2],
+["ร้านพระเครื่องเทพสยาม",7.972115,99.992315,'s',"9:00-18:00","📿",4.3],
+["ร้านพิมนารา",7.9498413,99.9752208,'s',"10:30-21:00","🍽️",4.5],
+["ร้านมายเดียร์โมบาย",7.9650688,99.9977525,'s',"9:00-20:00","📱",4.2],
+["ร้านมีสุข ของชำ",7.9715976,100.0015811,'s',"7:00-20:00","🏪",4.1],
+["ร้านยงใจ",7.9410329,99.9656317,'s',"8:00-18:00","🏪",4.0],
+["ร้านสมเจตน์ ( ชะอวด )",8.001079,100.0024084,'s',"8:00-18:00","🏪",4.2],
+["ร้านสมใจ(พี่เพ็ญ)",7.9660122,99.9971465,'s',"7:00-18:00","🏪",4.1],
+["ร้านสมใจ2",7.9732734,99.9911663,'s',"7:00-18:00","🏪",4.1],
+["ร้านสักช่างแจ็คสักลายชะอวด",7.989631,99.987916,'s',"10:00-20:00","🎨",4.3],
+["ร้านสี เมืองทองเคหะภัณฑ์ชะอวด",7.9717666,99.9919556,'s',"8:00-18:00","🎨",4.2],
+["ร้านสุธรรมยานยนต์",7.9670093,99.996414,'s',"8:00-18:00","🏍️",4.2],
+["ร้านสุธรรมยานยนต์ (อะไหล่)",7.9674502,99.9969574,'s',"8:00-18:00","🏍️",4.2],
+["ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",7.962628,99.9883982,'s',"17:00-23:00","🥩",4.2],
+["ร้านหัวไทรเฟอร์นิเจอร์",7.9679619,99.9955467,'s',"9:00-18:00","🛋️",4.1],
+["ร้านอัครไวนิล",7.9687412,99.9945534,'s',"8:00-18:00","🎨",4.2],
+["ร้านอั๋นคอมพิวเตอร์",7.9651646,99.9958397,'s',"9:00-18:00","💻",4.1],
+["ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",8.0030681,99.9982724,'s',"7:00-15:00","🍜",4.2],
+["ร้านอาหารนั่งเล่นชะอวด",7.9687349,99.9955717,'s',"10:00-22:00","🍽️",4.3],
+["ร้านเครื่องเสียงแอนด์ซาวด์",7.9933797,99.9709374,'s',"9:00-18:00","🔊",4.2],
+["ร้านเจียมรัตน์",7.9664151,99.9950503,'s',"8:00-18:00","🏪",4.2],
+["ร้านเตือนใจ สาขาชะอวด",7.9701435,99.994102,'s',"8:00-20:00","🏪",4.2],
+["ร้านเท็น 2009",7.96408,99.9897567,'s',"8:00-20:00","🏪",4.1],
+["ร้านเพื่อนเด็ก",7.9667586,99.9969729,'s',"9:00-20:00","🧸",4.3],
+["ร้านเสริมสวย ครบวงจร",7.9758431,100.0025379,'s',"9:00-20:00","💇",4.2],
+["ร้านเอิร์นคอมพิวเตอร์",7.9599783,99.9707676,'s',"9:00-18:00","💻",4.1],
+["ร้านเอ็นวีกรุ๊ป",7.9637188,99.9887988,'s',"8:00-18:00","🏪",4.0],
+["ร้านแกงน้องรัตน์",7.9660722,99.9937653,'s',"7:00-15:00","🍛",4.3],
+["ร้านแยมการค้า",7.9373533,99.9921848,'s',"8:00-18:00","🏪",4.1],
+["ร้านแว่นบิวตี้ฟูลสาขาชะอวด",7.9667461,99.997057,'s',"9:00-20:00","👓",4.2],
+["ร้านโปร ณ คอนแอร์ แอนด์เซอร์วิส",7.9645868,99.9903681,'s',"8:00-18:00","❄️",4.3],
+["ร้านไฟฟ้านายหมึก",7.9667805,99.9967046,'s',"8:00-18:00","⚡",4.2],
+["ร้านไร ชะอวด (เสื้อผ้า รองเท้า)",7.9656011,99.9950366,'s',"9:00-20:00","👗",4.1],
+["ลานชา ใต้ขาม",7.93932,99.9894971,'s',"8:00-18:00","🍵",4.4],
+["ลานเทปาล์มสองพี่น้อง",7.9749773,100.0290413,'s',"8:00-17:00","🌴",4.2],
+["ว.ทรัพย์เกษตร",7.9370309,99.9814456,'s',"7:30-17:30","🌾",4.0],
+["สติ๊กเกอร์ชะอวด",7.9692995,99.9962469,'s',"8:00-18:00","🏷️",4.1],
+["สถานีตำแซ่บ",7.9643083,99.9984177,'s',"10:00-21:00","🥗",4.2],
+["สมยา พาณิชย์ & ชอการช่าง",7.9505714,99.9762045,'s',"8:00-18:00","🔧",4.3],
+["สหไพบูลย์",7.9669158,99.9973463,'s',"8:00-18:00","🏪",4.1],
+["สาวมินิมาร์ท",7.9751241,99.9632741,'s',"7:00-22:00","🏪",4.2],
+["สำนักงานตัวแทน วิริยะประกันภัย",7.9673134,99.995566,'s',"จ-ศ 8:30-17:00","🛡️",4.2],
+["สิริโภชนา",7.9676294,99.9982468,'s',"8:00-18:00","🍽️",4.3],
+["สีกัน๐ไม้",7.9667728,100.0011909,'s',"8:00-18:00","🎨",4.1],
+["สุกัลยาผ้าม่าน",7.970404,99.9961778,'s',"9:00-18:00","🪟",4.2],
+["หจก.สิทธิ์ออโต้ไลท์ติ้ง",7.9609565,99.9869111,'s',"8:00-18:00","💡",4.2],
+["ห้างทองศุภัทรา",7.946812,99.9716833,'s',"9:00-20:00","🥇",4.3],
+["ห้างหุ้นส่วนจำกัด อุดมกิจโฮมซัพพลาย",7.9672759,99.995865,'s',"8:00-18:00","🏠",4.2],
+["อร่าม รับหลอมทอง ชะอวด",7.9681359,99.9962286,'s',"9:00-17:00","🥇",4.1],
+["อินทร์ศรีทองคาร์แคร์",7.949173,99.973833,'s',"8:00-18:00","🚗",4.2],
+["อ้ายเกลอ คาร์แคร์",7.9760584,99.9943639,'s',"8:00-18:00","🚗",4.3],
+["เจี๊ยวหอมอะไหล่ซิ่งชะอวด",7.9693144,100.0026773,'s',"8:00-18:00","🏍️",4.2],
+["เชี่ยวชาญ การแว่น ชะอวด",7.9676616,99.9955794,'s',"9:00-20:00","👓",4.3],
+["เนื้อตุ๋นคุณพัฒน์",7.9709583,99.9962329,'s',"8:00-20:00","🥩",4.4],
+["เมษา กาแฟ (สาขา2)",7.9671037,100.003486,'s',"7:00-18:00","☕",4.3],
+["เรืองรินการเกษตร",7.9706107,99.9935979,'s',"7:00-17:00","🌾",4.2],
+["เลอศักดิ์ แบตเตอรี่ชะอวด",7.9609233,99.9936178,'s',"8:00-18:00","🔋",4.1],
+["เวชพงษ์โอสก",7.966812,99.9969907,'s',"8:00-20:00","💊",4.2],
+["เว่นท็อปเจริญสาขาชะอวด",7.9674521,99.9957602,'s',"9:00-20:00","👓",4.3],
+["แว่นตาพอเพียง",7.9622953,99.9880286,'s',"9:00-20:00","👓",4.2],
+["แฮปปี้โมบายชะอวด",7.9675345,99.9967919,'s',"9:00-21:00","📱",4.2],
+["โกดังมือถือ ชะอวด",7.9665149,99.9951063,'s',"9:00-20:00","📱",4.1],
+["โกเปรี้ยว แม็กซิ่ง ยาง",7.9739973,99.9906455,'s',"8:00-18:00","🏍️",4.2],
+["โซนคอม",7.9878118,99.9888319,'s',"9:00-20:00","💻",4.1],
+["โต๊ะเครื่องแป้ง ชะอวด",7.9670992,99.9972553,'s',"9:00-20:00","💄",4.2],
+["โรงอิฐตั้งเจริญกุล",7.9493223,99.9739756,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐว. อดุลย์ภัณฑ์",7.989432,99.978565,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐสมศักดิ์",7.9787636,99.9871513,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐเพชรทักสิน 3",7.9916428,99.9896513,'s',"7:00-17:00","🧱",4.0],
+["โรตีชะอวด หวานสั่งได้",7.9670099,99.9974378,'s',"7:00-20:00","🫓",4.3],
+["ไทยรุ่ง ชะอวด",7.9720844,99.9961561,'s',"8:00-20:00","🏪",4.2],
+["ไร่ย่านาทราย",7.9977282,100.0004285,'s',"7:00-17:00","🌾",4.1],
+["วัดหมื่นระงับรังสรรค์",7.967482,100.0011391,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดโทสิทธิวารีน้อย (วัดบางน้อย)",7.9443214,100.0320631,'w',"เปิดทุกวัน","🛕",4.4],
+["วัดบ่อน้ำดำ",7.9238441,99.9869303,'w',"เปิดทุกวัน","🛕",4.6],
+["วัดท่าเสม็ด",7.9545473,100.0079449,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดตะเคียนทอง",7.9567803,99.9704696,'w',"เปิดทุกวัน","🛕",4.3],
+["วัดศรีมาประสิทธ์",7.963936,99.9965192,'w',"เปิดทุกวัน","🛕",4.7],
+["วัดควนสมบูรณ์",7.9718178,99.9651773,'w',"เปิดทุกวัน","🛕",4.4],
+["วัดป่านาบน",7.939721,100.0263685,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดรักขิตวัน",7.9780661,99.9920701,'w',"เปิดทุกวัน","🛕",4.6],
+["วัดเลียบ",7.9798026,99.9701276,'w',"เปิดทุกวัน","🛕",4.3],
+["วัดดอนมะปราง",7.9906917,99.9609256,'w',"เปิดทุกวัน","🛕",4.5],
+["สำนักวิมานแก้ว",7.9617102,99.985519,'w',"เปิดทุกวัน","🏯",4.4],
+["วัดท่าสะท้อน",8.0000628,100.0182942,'w',"เปิดทุกวัน","🛕",4.7],
+["วัดไทรหัวม้า",7.9644527,100.0356972,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดเขาพระทอง",8.0250,100.0400,'w',"เปิดทุกวัน","⛰️",4.8],
+["PTT Station ปตท.ชะอวด (น้ำมัน+EV)",7.9616121,99.9874856,'g',"เปิด 24 ชม.","⛽",4.3],
+["PTT",7.9713988,99.9928366,'g',"เปิด 24 ชม.","⛽",4.2],
+["Caltex",7.968906,99.994871,'g',"เปิด 24 ชม.","⛽",4.3],
+["ปั๊มน้ำมัน PT (สาขาชะอวด 2)",7.9727798,99.9910928,'g',"เปิด 24 ชม.","⛽",4.1],
+["Sukhothai Gas Stations",7.972852,99.991155,'g',"เปิด 24 ชม.","⛽",4.0],
+["ปั๊มตราดาว เจ๊ยี่",7.9686435,99.9949754,'g',"เปิด 24 ชม.","⭐",4.2],
+["วีระพลปิโตรเลียม",8.001079,100.0024084,'g',"เปิด 24 ชม.","⛽",4.1],
+["ปั้มน้ำมัน พี่แกน",8.001674,100.0023387,'g',"เปิด 24 ชม.","⛽",4.0],
+["ธนาคารกรุงไทย สาขาชะอวด",7.9678545,99.9955985,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["ธนาคารออมสิน สาขาชะอวด",7.9681554,99.9966014,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+["ธนาคารเพื่อการเกษตรฯ สาขาชะอวด",7.9698444,99.9937785,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["ธนาคารไทยพาณิชย์ สาขาชะอวด",7.967917,99.9954819,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+["เงินติดล้อ สาขา ชะอวด",7.9676908,99.9953319,'b',"จ-ส 9:00-18:00","💰",4.0],
+["ศรีสวัสดิ์ เงินสดทันใจ (ท่าประจะ)",7.961113,99.987004,'b',"จ-ส 9:00-17:00","💰",3.9],
+["ศรีสวัสดิ์ เงินสดทันใจ (ชะอวด)",7.9751241,99.9632741,'b',"จ-ส 9:00-17:00","💰",3.9],
+["ศรีสวัสดิ์ เงินสดทันใจ (รพ.)",7.9693057,99.9963774,'b',"จ-ส 9:00-17:00","💰",4.0],
+["ศรีสวัสดิ์ เงินสดทันใจ (รร.)",7.966608,99.998516,'b',"จ-ส 9:00-17:00","💰",3.9],
+["สมหวัง เงินสั่งได้ สาขา ชะอวด",7.961227,99.987169,'b',"จ-ส 9:00-17:00","💰",4.0],
+["ห้างทองศักดิ์สุวรรณ2",7.9658472,99.9973143,'b',"9:00-20:00","🥇",4.3],
+["เงินเทอร์โบ สาขาชะอวด",7.9660515,99.9922354,'b',"จ-ส 9:00-17:00","💰",3.9],
+["เงินไชโยสาขาชะอวด",7.9673602,99.9957658,'b',"จ-ส 9:00-17:00","💰",4.0],
+["Omsin Sakha Cha-uat Banks",8.001079,100.0024084,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["โรงเรียนบ้านหนองหิน",7.9405707,99.9931927,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนบ้านห้วยโส",7.9527034,99.9797008,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+["โรงเรียนวัดท่าเสม็ด",7.9560129,100.0067071,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนบ้านชะอวด",7.9641603,100.0000337,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนชุมชนควนดินแดงมิตรภาพที่๓",7.9402422,99.9615976,'e',"จ-ศ 7:00-16:00","🏫",4.5],
+["โรงเรียนวัดควนสมบูรณ์",7.9715566,99.9663925,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนวัดรักขิตวัน",7.9776563,99.992897,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนวัดปากควน",7.9627771,100.0368423,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนบ้านบางน้อย",7.951818,100.0269177,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+["โรงเรียนชะอวด",7.969309,99.9987471,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนกุลวดีศึกษา",7.9667757,100.0036838,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนชะอวดวิทยา",7.9727688,99.9956609,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนวัดดอนมะปราง",7.9910655,99.9615524,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนวัดท่าสะท้อน",8.0006006,100.0178194,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนชะอวดวิทยาคาร",7.9712039,100.0052213,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนบ้านศาลาทวดทอง",7.9767231,100.0200571,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["ศูนย์การศึกษาพิเศษฯ หน่วยบริการชะอวด",7.9668154,99.9987599,'e',"จ-ศ 8:30-16:30","♿",4.4],
+["ศูนย์เด็กเล็กอำเภอชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["โรงเรียนอนุบาลลูกแก้ว",7.968188,99.99372,'e',"จ-ศ 8:00-15:00","🎓",4.5],
+["วิทยาลัยการอาชีพชะอวด",7.9800,100.0100,'e',"จ-ศ 8:00-16:00","🎓",4.4],
+["กศน.ตำบลท่าประจะ",7.9732835,99.9626224,'e',"จ-ศ 9:00-17:00","📚",4.2],
+["กศน.ตำบลท่าเสม็ด",7.9569534,100.0064912,'e',"จ-ศ 9:00-17:00","📚",4.2],
+["ครูออยสอนพิเศษ",7.9674348,99.9953067,'e',"ตามนัด","👩‍🏫",4.5],
+["ชมรมข้าราชการบำเหน็จบำนาญ",7.9648176,99.9989211,'e',"จ-ศ 9:00-16:00","🏛️",4.1],
+["ชะอวดติวเตอร์",7.9689317,99.9979594,'e',"ตามนัด","📖",4.4],
+["ชะอวดบุ๊คเซ็นเตอร์",7.9645596,99.989676,'e',"8:00-20:00","📚",4.3],
+["ร้านหนังสือพิมพ์จินตนา",7.9670515,99.9966782,'e',"7:00-18:00","📰",4.2],
+["ศูนย์การเรียนรู้(สวนมังคุด)",7.92678,99.9857367,'e',"จ-ศ 9:00-16:00","🥭",4.3],
+["ศูนย์การเรียนรู้ระดับตำบลชะอวด",7.9783738,100.0188994,'e',"จ-ศ 9:00-16:00","📚",4.2],
+["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.4],
+["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลท่าประจะ",7.9692849,99.9648115,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["ศูนย์พัฒนาเด็กเล็กโรงเรียนวัดปากควน",7.9641159,100.0362609,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["สกร.ระดับอำเภอชะอวด",7.9672545,99.998667,'e',"จ-ศ 8:30-16:30","📚",4.2],
+["ห้องสมุดประชาชนอำเภอชะอวด",7.967155,99.998853,'e',"จ-ศ 9:00-17:00","📚",4.3],
+["ไก่การพิมพ์",7.966144,99.9925204,'e',"8:00-17:00","🖨️",4.1],
+["ศพก.อำเภอชะอวด",7.927141,99.985738,'e',"จ-ศ 8:30-16:30","🌾",4.2],
+["ศูนย์การเรียนชุมชนวิถีไท",7.9947329,100.02409,'e',"จ-ศ 9:00-16:00","📖",4.3],
+["ที่ว่าการอำเภอชะอวด",7.9646,99.9951,'o',"จ-ศ 8:30-16:30","🏛️",4.5],
+["สถานีตำรวจภูธรชะอวด",7.9652,99.9958,'o',"24 ชม.","🚔",4.3],
+["เทศบาลตำบลชะอวด",7.9620,99.9935,'o',"จ-ศ 8:30-16:30","🏢",4.2],
+["อบต ท่าเสม็ด",7.9562142,100.0087033,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+["อบต ท่าประจะ",7.9720053,99.9634295,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+["โรงพยาบาลชะอวด",7.9813021,99.9916658,'o',"24 ชม.","🏥",4.3],
+["Ban Tungkhai",7.99401,99.9867609,'x',"เปิดทุกวัน","🚉",4.0],
+["Chauat Station",7.965,99.99833,'x',"เปิดทุกวัน","🚉",4.1],
+["ทางแยกชะอวด",7.9667387,99.9960237,'x',"เปิดทุกวัน","🛣️",3.8],
+["บ้านของสส.กฤต",7.9420445,99.9968167,'x',"-","🏠",3.5],
+["ร้านขนมปังปิ้งหอมโฉ",7.9643131,99.9980384,'l',"6:00-12:00","🍞",4.3],
+["สำนักงานสาธารณสุขอำเภอชะอวด",7.9641119,99.9977083,'l',"จ-ศ 8:30-16:30","🏥",4.2],
+["รพ.สต.บ้านควนสมบูรณ์",7.9731338,99.9634295,'l',"จ-ศ 8:30-16:30","🏥",4.1],
+["FlashHomeเมืองใหม่",7.9606922,99.9861881,'p',"8:00-20:00","📦",4.2],
+["SPX Express สาขาสี่แยกบนเนิน",7.9670161,100.0076208,'p',"8:00-20:00","📦",4.1],
+["Shippop สาขาชะอวด",7.9673865,99.9955265,'p',"8:00-18:00","📦",4.0],
+["ไปรษณีย์ไทย สาขาชะอวด",7.968176,99.9954555,'p',"จ-ส 8:30-16:30","📮",4.2],
+["กลุมมังคุดเมืองใหม่ก้าวหน้า",7.9596389,99.9850833,'y',"-","🥭",4.2],
+["กองทุนหมู่บ้าน บ้านสี่แยกโคกขันธ์",7.961342,99.9635418,'y',"จ-ศ 9:00-16:00","🏘️",4.0],
+["ค่ายไก่ส.สิทธิชัย",7.965189,99.9969038,'y',"-","🐓",4.3],
+["ที่ทำการผู้ใหญ่บ้านเนินอินทร์แก้ว",7.9784003,100.0188892,'y',"จ-ศ 8:30-16:30","🏘️",4.1],
+["สวนปาล์ม ผอ.อรอนงค์",7.9312206,100.0101695,'y',"-","🌴",4.2],
+["สวนป้านงค์",7.9346763,99.9903153,'y',"-","🌳",4.3],
+["สวนผลไม้ บ้านมังสัง",7.9478047,99.9594238,'y',"-","🍎",4.2],
+["สวนมังคุด คุณพ่อมนูญ",7.9637895,100.0285622,'y',"-","🥭",4.4],
+["เกมส์",7.951874,100.0357781,'y',"10:00-22:00","🎮",4.0]
+];
+
+const CATEGORIES = {
+  r: { name: 'ร้านอาหาร', icon: '🍜' },
+  f: { name: 'คาเฟ่',     icon: '☕' },
+  c: { name: 'สะดวกซื้อ', icon: '🏪' },
+  m: { name: 'ตลาด',      icon: '🛒' },
+  t: { name: 'ท่องเที่ยว', icon: '🏞️' },
+  h: { name: 'ที่พัก',    icon: '🏨' },
+  s: { name: 'ร้านค้า',   icon: '🛍️' },
+  w: { name: 'วัด',       icon: '🛕' },
+  g: { name: 'ปั๊มน้ำมัน', icon: '⛽' },
+  b: { name: 'ธนาคาร',    icon: '🏦' },
+  e: { name: 'สถานศึกษา', icon: '🏫' },
+  o: { name: 'ราชการ',    icon: '🏛️' },
+  x: { name: 'อื่นๆ',     icon: '📌' },
+  l: { name: 'สาธารณสุข', icon: '🏥' },
+  p: { name: 'ไปรษณีย์',  icon: '📦' },
+  y: { name: 'ชุมชน',     icon: '🏘️' }
+};
+
+const PLACES = PLACES_RAW.map((p, i) => ({
+  id: `LOC-${String(i+1).padStart(3,'0')}`,
+  name: p[0],
+  lat: p[1],
+  lng: p[2],
+  category: p[3],
+  price: p[4],
+  image: p[5],
+  rating: p[6]
+}));
+
+console.log('📍 Loaded', PLACES.length, 'places');
+
 firebase.initializeApp({
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
@@ -299,9 +771,10 @@ firebase.initializeApp({
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 });
-const auth = firebase.auth(), db = firebase.firestore();
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-// ─── Helpers ───
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(m, err) {
@@ -311,18 +784,21 @@ function toast(m, err) {
   clearTimeout(t._t);
   t._t = setTimeout(() => t.className = 'toast', 3000);
 }
+function osmThumb(lat, lng) {
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=16&size=240x160&maptype=mapnik&markers=${lat},${lng},red-pushpin`;
+}
 
-// ─── State ───
 const SECTIONS = [
   ['dashboard', '📊 แดชบอร์ด'],
   ['finance',   '💰 สรุปบัญชี'],
+  ['places',    '📍 สถานที่ (490)'],
   ['merchants', '🏪 ร้านค้า'],
   ['orders',    '📋 ออเดอร์'],
   ['riders',    '🛵 ไรเดอร์'],
   ['users',     '👥 ผู้ใช้']
 ];
-const store = { merchants: [], orders: [], riders: [], users: [] };
-const filters = { orders: 'all', q: '' };
+const store = { merchants: [], orders: [], riders: [], users: [], places: [] };
+const filters = { orders: 'all', q: '', placePage: 1, placePerPage: 24, placeCat: 'all', placeStatus: 'all', riderStatus: '' };
 let current = 'dashboard', unsubs = [];
 
 const STATUS = {
@@ -344,7 +820,6 @@ const toDate = t => {
   return isNaN(d) ? null : d;
 };
 
-// ─── Tab Switching ───
 function switchTab(tab) {
   const isLogin = tab === 'login';
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
@@ -354,7 +829,6 @@ function switchTab(tab) {
   $('form-signup').style.display = isLogin ? 'none' : 'block';
 }
 
-// ─── Auth ───
 $('login-form').addEventListener('submit', async e => {
   e.preventDefault();
   try {
@@ -411,7 +885,6 @@ auth.onAuthStateChanged(async user => {
   start();
 });
 
-// ─── Data Listeners ───
 function start() {
   for (const k of ['merchants','orders','riders','users']) {
     const unsub = db.collection(k).onSnapshot(s => {
@@ -423,6 +896,21 @@ function start() {
     });
     unsubs.push(unsub);
   }
+  const unsubPlaces = db.collection('places').onSnapshot(s => {
+    if (s.docs.length > 0) {
+      store.places = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      console.log('📍 Places from Firestore:', store.places.length);
+      render();
+    } else {
+      autoUploadPlaces();
+    }
+  }, err => {
+    console.error('[places]', err);
+    store.places = PLACES;
+    render();
+  });
+  unsubs.push(unsubPlaces);
+
   renderNav();
   render();
 }
@@ -432,22 +920,62 @@ function stop() {
   for (const k in store) store[k] = [];
 }
 
-// ─── Nav / Render ───
+async function autoUploadPlaces() {
+  const uploaded = localStorage.getItem('chauat_places_uploaded');
+  if (uploaded === 'v3.3.0') {
+    store.places = PLACES;
+    render();
+    return;
+  }
+  console.log('📤 Auto uploading 490 places...');
+  store.places = PLACES;
+  render();
+  try {
+    const batches = [db.batch(), db.batch()];
+    let count = 0;
+    for (const p of PLACES) {
+      const b = Math.floor(count / 250);
+      const ref = db.collection('places').doc(p.id);
+      batches[b].set(ref, { ...p, merchantId: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      count++;
+    }
+    await batches[0].commit();
+    await batches[1].commit();
+    localStorage.setItem('chauat_places_uploaded', 'v3.3.0');
+    console.log('✅ Uploaded 490 places');
+    toast('✅ อัปโหลด 490 สถานที่สำเร็จ');
+  } catch (e) {
+    console.error('Upload failed:', e);
+  }
+}
+
 function renderNav() {
   $('nav').innerHTML = SECTIONS.map(([k, l]) =>
     `<button class="ripple ${k === current ? 'on' : ''}" data-go="${k}">${l}</button>`
   ).join('');
 }
 function render() {
-  const fn = { dashboard, finance, merchants, orders, riders, users }[current];
-  $('main').innerHTML = fn();
+  const fn = { dashboard, finance, places, merchants, orders, riders, users }[current];
+  if (fn) $('main').innerHTML = fn();
 }
 function searchInput(ph) {
   return `<div class="search-box"><span style="font-size:18px;opacity:.5">🔍</span><input id="q" placeholder="${ph}" value="${esc(filters.q)}"></div>`;
 }
 
+// ─── STORAGE HELPERS ───
+async function uploadSlip(file, path) {
+  const ref = storage.ref(path);
+  const snap = await ref.put(file);
+  const url = await snap.ref.getDownloadURL();
+  return { url, path };
+}
+
+async function deleteSlip(path) {
+  try { await storage.ref(path).delete(); } catch (e) { console.warn('delete fail', e); }
+}
+
 // ══════════════════════════════════════════════════════════════════════
-//  📊 DASHBOARD v2 — "เห็นแล้วรู้ทันที"
+//  📊 DASHBOARD
 // ══════════════════════════════════════════════════════════════════════
 function dashboard() {
   const today = new Date(); today.setHours(0,0,0,0);
@@ -501,7 +1029,9 @@ function dashboard() {
     .sort((a, b) => b[1].owe - a[1].owe)
     .slice(0, 3);
 
-  // ─── Layer 1: HERO ───
+  // นับสลิปรอตรวจสอบ
+  const pendingSlips = store.orders.filter(o => o.riderSlipUrl && !o.riderSlipVerified && o.status === 'done').length;
+
   const heroSection = `
     <div class="hero-card">
       <div class="hero-label">💰 รายได้วันนี้</div>
@@ -520,8 +1050,21 @@ function dashboard() {
     </div>
   `;
 
-  // ─── Layer 2: ACTION ───
   const actionItems = [];
+
+  if (pendingSlips > 0) {
+    actionItems.push(`
+      <div class="action-card warn ripple" onclick="document.querySelector('[data-go=orders]').click()">
+        <div class="action-icon">📸</div>
+        <div class="action-info">
+          <div class="action-title">สลิปรอตรวจสอบ</div>
+          <div class="action-value">${pendingSlips} ใบ</div>
+          <div class="action-sub">จากไรเดอร์ — รอ Admin อนุมัติ</div>
+        </div>
+        <button class="action-btn orange">ตรวจสอบ →</button>
+      </div>
+    `);
+  }
 
   if (pendingRevenue > 0) {
     actionItems.push(`
@@ -546,6 +1089,21 @@ function dashboard() {
           <div class="action-title">ร้านค้ารออนุมัติ</div>
           <div class="action-value">${pendingMerchants} ร้าน</div>
           <div class="action-sub">ตรวจสอบและอนุมัติร้านใหม่</div>
+        </div>
+        <button class="action-btn blue">ตรวจสอบ →</button>
+      </div>
+    `);
+  }
+
+  const pendingRiders = store.riders.filter(r => r.verified === false).length;
+  if (pendingRiders > 0) {
+    actionItems.push(`
+      <div class="action-card blue ripple" onclick="document.querySelector('[data-go=riders]').click()">
+        <div class="action-icon">🛵</div>
+        <div class="action-info">
+          <div class="action-title">ไรเดอร์รออนุมัติ</div>
+          <div class="action-value">${pendingRiders} คน</div>
+          <div class="action-sub">ตรวจสอบและอนุมัติไรเดอร์ใหม่</div>
         </div>
         <button class="action-btn blue">ตรวจสอบ →</button>
       </div>
@@ -584,7 +1142,6 @@ function dashboard() {
     ${actionItems.join('')}
   `;
 
-  // ─── Layer 3: DETAIL ───
   const debtorList = topDebtors.length > 0 ? `
     <div class="card" style="padding:16px">
       <div style="font-weight:900;font-size:14px;margin-bottom:12px">⚠️ ไรเดอร์ที่มียอดค้าง (Top 3)</div>
@@ -764,19 +1321,226 @@ function finance() {
   `;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  📍 PLACES
+// ══════════════════════════════════════════════════════════════════════
+function places() {
+  const q = filters.q.toLowerCase();
+  const catFilter = filters.placeCat;
+  const statusFilter = filters.placeStatus;
+
+  const list = store.places.filter(p => {
+    const mQ = !q || p.name.toLowerCase().includes(q) || (p.id || '').toLowerCase().includes(q);
+    const mC = catFilter === 'all' || p.category === catFilter;
+    const mS = statusFilter === 'all'
+      || (statusFilter === 'linked' && p.merchantId)
+      || (statusFilter === 'unlinked' && !p.merchantId);
+    return mQ && mC && mS;
+  });
+
+  const totalPages = Math.ceil(list.length / filters.placePerPage) || 1;
+  if (filters.placePage > totalPages) filters.placePage = 1;
+  const start = (filters.placePage - 1) * filters.placePerPage;
+  const pageItems = list.slice(start, start + filters.placePerPage);
+
+  const linkedCount = store.places.filter(p => p.merchantId).length;
+  const unlinkedCount = store.places.length - linkedCount;
+
+  const statusChips = `
+    <div class="filter-bar">
+      <button class="filter-chip ${statusFilter === 'all' ? 'active' : ''}" onclick="filterPlaceStatus('all')">📋 ทั้งหมด (${store.places.length})</button>
+      <button class="filter-chip ${statusFilter === 'unlinked' ? 'active' : ''}" onclick="filterPlaceStatus('unlinked')">⚪ ยังว่าง (${unlinkedCount})</button>
+      <button class="filter-chip ${statusFilter === 'linked' ? 'active' : ''}" onclick="filterPlaceStatus('linked')">🔗 เชื่อมแล้ว (${linkedCount})</button>
+    </div>
+  `;
+
+  const catChips = `
+    <div class="filter-bar">
+      <button class="filter-chip ${catFilter === 'all' ? 'active' : ''}" onclick="filterPlaceCat('all')">🌏 ทั้งหมด</button>
+      ${Object.entries(CATEGORIES).map(([k, v]) =>
+        `<button class="filter-chip ${catFilter === k ? 'active' : ''}" onclick="filterPlaceCat('${k}')">${v.icon} ${v.name}</button>`
+      ).join('')}
+    </div>
+  `;
+
+  const grid = pageItems.length === 0
+    ? '<div class="empty">ไม่พบสถานที่</div>'
+    : `<div class="place-grid">${pageItems.map(p => {
+        const cat = CATEGORIES[p.category] || CATEGORIES.x;
+        const hasImg = p.image && p.image.startsWith('images/');
+        const thumbUrl = hasImg ? p.image : osmThumb(p.lat, p.lng);
+        const linked = !!p.merchantId;
+        return `
+          <div class="place-card ${linked ? 'linked' : ''}" onclick="placeDetail('${esc(p.id)}')">
+            <img class="place-thumb" src="${thumbUrl}" loading="lazy" onerror="this.src='${osmThumb(p.lat, p.lng)}'">
+            <div class="place-body">
+              <div class="place-id">${esc(p.id || '')}</div>
+              <div class="place-name">${esc(p.name)}</div>
+              <div class="place-cat">${cat.icon} ${cat.name}</div>
+              <div class="place-footer">
+                <span class="place-rating">⭐ ${p.rating}</span>
+                <span class="place-price">${esc(p.price)}</span>
+              </div>
+              ${linked ? `<div class="place-linked">🔗 ${esc(p.merchantId)}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('')}</div>`;
+
+  let pagination = '';
+  if (totalPages > 1) {
+    const pages = [];
+    const maxVis = 5;
+    let sp = Math.max(1, filters.placePage - 2);
+    let ep = Math.min(totalPages, sp + 4);
+    if (ep - sp < 4) sp = Math.max(1, ep - 4);
+    if (sp > 1) pages.push(`<button onclick="changePlacePage(1)">1</button><span style="padding:0 4px">…</span>`);
+    for (let i = sp; i <= ep; i++) pages.push(`<button class="${i === filters.placePage ? 'active' : ''}" onclick="changePlacePage(${i})">${i}</button>`);
+    if (ep < totalPages) pages.push(`<span style="padding:0 4px">…</span><button onclick="changePlacePage(${totalPages})">${totalPages}</button>`);
+    pagination = `<div class="pagination">
+      <button ${filters.placePage === 1 ? 'disabled' : ''} onclick="changePlacePage(${filters.placePage - 1})">◀</button>
+      ${pages.join('')}
+      <button ${filters.placePage === totalPages ? 'disabled' : ''} onclick="changePlacePage(${filters.placePage + 1})">▶</button>
+    </div>`;
+  }
+
+  const uploaded = localStorage.getItem('chauat_places_uploaded') === 'v3.3.0';
+  const banner = uploaded
+    ? `<div class="upload-banner done">
+         <div class="icon">✅</div>
+         <div class="text">อัปโหลด 490 สถานที่แล้ว<small>ข้อมูลพร้อมใช้งาน • ${linkedCount} เชื่อมแล้ว • ${unlinkedCount} ยังว่าง</small></div>
+       </div>`
+    : `<div class="upload-banner">
+         <div class="icon">⬆️</div>
+         <div class="text">กำลังอัปโหลด 490 สถานที่...<small>กรุณารอสักครู่</small></div>
+       </div>`;
+
+  return `
+    ${banner}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:900;font-size:15px">📍 สถานที่ในชะอวด</div>
+      <span class="tag b">${store.places.length} แห่ง</span>
+    </div>
+    ${statusChips}
+    ${catChips}
+    ${searchInput('ค้นหาชื่อสถานที่, รหัส...')}
+    <div style="font-size:11px;color:var(--mut);margin-bottom:10px;font-weight:700">
+      แสดง ${start + 1}-${Math.min(start + filters.placePerPage, list.length)} จาก ${list.length} แห่ง
+    </div>
+    ${grid}
+    ${pagination}
+  `;
+}
+
+function changePlacePage(p) { filters.placePage = p; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function filterPlaceCat(c) { filters.placeCat = c; filters.placePage = 1; render(); }
+function filterPlaceStatus(s) { filters.placeStatus = s; filters.placePage = 1; render(); }
+
+function placeDetail(id) {
+  const p = store.places.find(x => x.id === id);
+  if (!p) return;
+  const cat = CATEGORIES[p.category] || CATEGORIES.x;
+  const linkedMerchant = store.merchants.find(m => m.id === p.merchantId);
+
+  openModal(`${cat.icon} ${p.name}`, `
+    <img src="${osmThumb(p.lat, p.lng)}" style="width:100%;border-radius:12px;margin-bottom:12px" onerror="this.style.display='none'">
+    <div class="meta" style="font-family:monospace;font-weight:800">${esc(p.id)}</div>
+    <div class="nm" style="font-size:18px;margin:8px 0">${esc(p.name)}</div>
+    <div class="meta">${cat.icon} ${cat.name} • ⭐ ${p.rating}</div>
+    <div class="meta">💰 ${esc(p.price)}</div>
+    <div class="meta">📍 ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</div>
+
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">🔗 Merchant ที่เชื่อม:</div>
+      ${linkedMerchant ? `
+        <div class="card" style="background:#F0FDF4;border-left:3px solid var(--brand);padding:12px">
+          <div style="font-weight:900">${esc(linkedMerchant.name || '-')}</div>
+          <div class="meta" style="font-family:monospace">${esc(linkedMerchant.id)}</div>
+          <button class="dan ripple" style="margin-top:10px;width:100%;min-height:44px" onclick="unlinkPlace('${esc(p.id)}','${esc(linkedMerchant.id)}')">🔓 ยกเลิกการเชื่อมโยง</button>
+        </div>
+      ` : `
+        <div class="meta" style="color:var(--mut);margin-bottom:8px">ยังไม่มี Merchant เชื่อม</div>
+        <button class="pri ripple" style="width:100%;min-height:48px" onclick="linkPlaceToMerchant('${esc(p.id)}')">🔗 เชื่อมกับร้านค้า</button>
+      `}
+    </div>
+
+    <a href="https://www.google.com/maps?q=${p.lat},${p.lng}" target="_blank" style="display:block;text-align:center;background:var(--blue);color:#fff;text-decoration:none;padding:14px;border-radius:12px;font-weight:900;margin-top:16px">
+      📍 เปิดใน Google Maps
+    </a>
+  `);
+}
+
+function linkPlaceToMerchant(placeId) {
+  const p = store.places.find(x => x.id === placeId);
+  if (!p) return;
+  const availableMerchants = store.merchants.filter(m => !m.locationId || m.locationId === placeId);
+
+  if (availableMerchants.length === 0) {
+    closeModal();
+    return toast('ไม่มีร้านค้าที่ว่างให้เชื่อม', true);
+  }
+
+  const options = availableMerchants.map(m =>
+    `<option value="${esc(m.id)}">🏪 ${esc(m.name || 'ไม่ระบุ')} (${esc(m.id)})</option>`
+  ).join('');
+
+  openModal('🔗 เชื่อม Place กับร้านค้า', `
+    <div style="background:#F0FDF4;border:1px dashed #86efac;border-radius:12px;padding:12px;margin-bottom:16px">
+      <div style="font-size:11px;color:#166534;font-weight:800;margin-bottom:6px">📍 Place</div>
+      <div style="font-weight:900;font-size:15px">${esc(p.name)}</div>
+      <div class="meta" style="font-family:monospace">${esc(p.id)}</div>
+    </div>
+
+    <label style="font-weight:800;font-size:13px;display:block;margin-bottom:8px">🏪 เลือกร้านค้าที่จะเชื่อม</label>
+    <select id="link-merchant-select" style="margin-bottom:16px">
+      <option value="">-- เลือกร้านค้า --</option>
+      ${options}
+    </select>
+
+    <button class="pri big ripple" onclick="doLinkPlaceMerchant('${esc(placeId)}')">💾 บันทึกการเชื่อมโยง</button>
+  `);
+}
+
+async function doLinkPlaceMerchant(placeId) {
+  const merchantId = $('link-merchant-select').value;
+  if (!merchantId) return toast('กรุณาเลือกร้านค้า', true);
+  try {
+    await db.collection('places').doc(placeId).update({ merchantId });
+    await db.collection('merchants').doc(merchantId).update({ locationId: placeId });
+    toast('✅ เชื่อมโยงสำเร็จ');
+    closeModal();
+  } catch (e) {
+    console.error(e);
+    toast('❌ ' + e.message, true);
+  }
+}
+
+async function unlinkPlace(placeId, merchantId) {
+  if (!confirm('ยืนยันยกเลิกการเชื่อมโยง?')) return;
+  try {
+    await db.collection('places').doc(placeId).update({ merchantId: null });
+    await db.collection('merchants').doc(merchantId).update({ locationId: null });
+    toast('✅ ยกเลิกการเชื่อมโยงแล้ว');
+    closeModal();
+  } catch (e) {
+    toast('❌ ' + e.message, true);
+  }
+}
+
 // ─── Merchants ───
 function merchants() {
   const q = filters.q.toLowerCase();
   const list = store.merchants.filter(m => !q || String(m.name || '').toLowerCase().includes(q));
 
-  return searchInput('ค้นหาร้านค้า...') + (list.map(m => `
+  return searchInput('ค้นหาร้านค้า...') + (list.map(m => {
+    const linkedPlace = store.places.find(p => p.id === m.locationId);
+    return `
     <div class="data-card">
       <div class="data-card-header">
         <div class="data-card-icon" style="background:#E8F5E9">🏪</div>
         <div class="data-card-info">
           <div class="data-card-name">${esc(m.name || 'ไม่ระบุชื่อ')}</div>
           <div class="data-card-meta">⭐ ${esc(m.rating || 0)} • 📞 ${esc(m.phone || 'ไม่มีเบอร์')}</div>
-          <div class="data-card-meta">📍 ${esc(m.address || 'ไม่ระบุที่อยู่')}</div>
+          <div class="data-card-meta">📍 ${linkedPlace ? `<span style="color:var(--brand);font-weight:900">${esc(linkedPlace.id)} ${esc(linkedPlace.name)}</span>` : '<span style="color:var(--danger)">ยังไม่เชื่อม Place</span>'}</div>
         </div>
         <span class="tag ${m.verified ? '' : 'w'}">${m.verified ? 'อนุมัติแล้ว' : 'รอยืนยัน'}</span>
       </div>
@@ -786,7 +1550,8 @@ function merchants() {
         <button class="dan ripple" data-del="merchants:${esc(m.id)}">🗑️ ลบ</button>
       </div>
     </div>
-  `).join('') || '<div class="empty">ไม่พบร้านค้า</div>');
+  `;
+  }).join('') || '<div class="empty">ไม่พบร้านค้า</div>');
 }
 
 // ─── Orders ───
@@ -803,7 +1568,14 @@ function orders() {
     ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${filters.orders === k ? 'selected' : ''}>${v}</option>`).join('')}
   </select>`;
 
-  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => `
+  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => {
+    const hasSlip = !!o.riderSlipUrl;
+    const slipBadge = hasSlip
+      ? (o.riderSlipVerified
+          ? '<span class="tag">📸 สลิป✅</span>'
+          : '<span class="tag w">📸 สลิปรอ</span>')
+      : '';
+    return `
     <div class="data-card ripple" data-order="${esc(o.id)}" style="cursor:pointer">
       <div class="data-card-header">
         <div class="data-card-icon" style="background:#E3F2FD">📋</div>
@@ -811,11 +1583,12 @@ function orders() {
           <div class="data-card-name">${esc(o.title || 'ออเดอร์')}</div>
           <div class="data-card-meta">฿${esc(o.total || 0)} • 👤 ${esc(o.userName || 'ไม่ระบุ')}</div>
           <div class="data-card-meta">🕐 ${fmtTime(o.createdAt)} • 📍 ${esc(o.address || '')}</div>
+          ${slipBadge ? `<div class="data-card-meta" style="margin-top:6px">${slipBadge}</div>` : ''}
         </div>
         <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(STATUS[o.status] || o.status)}</span>
       </div>
-    </div>
-  `).join('') || '<div class="empty">ไม่พบออเดอร์</div>');
+    </div>`;
+  }).join('') || '<div class="empty">ไม่พบออเดอร์</div>');
 }
 
 // ─── Riders ───
@@ -825,7 +1598,30 @@ function riders() {
     !q || String(r.name || '').toLowerCase().includes(q) || String(r.phone || '').includes(q)
   );
 
-  return searchInput('ค้นหาไรเดอร์...') + (list.map(r => `
+  const verifiedCount = store.riders.filter(r => r.verified !== false).length;
+  const pendingCount = store.riders.filter(r => r.verified === false).length;
+
+  const filterBar = `
+    <div class="filter-bar">
+      <button class="filter-chip ${filters.riderStatus === '' ? 'active' : ''}" onclick="filterRiderStatus('')">📋 ทั้งหมด (${store.riders.length})</button>
+      <button class="filter-chip ${filters.riderStatus === 'pending' ? 'active' : ''}" onclick="filterRiderStatus('pending')">⏳ รออนุมัติ (${pendingCount})</button>
+      <button class="filter-chip ${filters.riderStatus === 'verified' ? 'active' : ''}" onclick="filterRiderStatus('verified')">✅ อนุมัติแล้ว (${verifiedCount})</button>
+    </div>
+  `;
+
+  const filteredList = list.filter(r => {
+    if (filters.riderStatus === 'pending') return r.verified === false;
+    if (filters.riderStatus === 'verified') return r.verified !== false;
+    return true;
+  });
+
+  return filterBar + searchInput('ค้นหาไรเดอร์...') + (filteredList.map(r => {
+    const merchantCount = (r.merchantIds || []).length;
+    const locationCount = (r.locationIds || []).length;
+    const verified = r.verified !== false;
+    const verifyTag = verified ? '<span class="tag">✅ อนุมัติแล้ว</span>' : '<span class="tag w">⏳ รออนุมัติ</span>';
+    const statusTag = r.status === 'active' ? '<span class="tag">🟢 ทำงาน</span>' : '<span class="tag x">⚫ หยุด</span>';
+    return `
     <div class="data-card">
       <div class="data-card-header">
         <div class="data-card-icon" style="background:#E8F5E9">🛵</div>
@@ -833,16 +1629,23 @@ function riders() {
           <div class="data-card-name">${esc(r.name || 'ไม่ระบุชื่อ')}</div>
           <div class="data-card-meta">📞 ${esc(r.phone || '—')} • ⭐ ${esc(r.rating || 0)} • 📦 ${esc(r.totalTrips || 0)} เที่ยว</div>
           <div class="data-card-meta">🛵 ${esc(r.vehicle || 'ไม่ระบุ')}</div>
+          ${(merchantCount > 0 || locationCount > 0) ? `<div class="data-card-meta" style="color:var(--brand);font-weight:900">🔗 ร้าน ${merchantCount} • สถานที่ ${locationCount}</div>` : ''}
         </div>
-        <span class="tag ${r.status === 'active' ? '' : 'x'}">${esc(r.status === 'active' ? '🟢 ทำงาน' : '⚫ หยุด')}</span>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          ${verifyTag}${statusTag}
+        </div>
       </div>
       <div class="data-card-actions">
-        <button class="pri ripple" data-rider="${esc(r.id)}">${r.status === 'active' ? '⏸️ หยุดงาน' : '▶️ เปิดงาน'}</button>
+        <button class="${verified ? 'dan' : 'pri'} ripple" data-verify-r="${esc(r.id)}">${verified ? '🚫 ยกเลิกอนุมัติ' : '✅ อนุมัติ'}</button>
+        <button class="blue ripple" data-edit-r="${esc(r.id)}">🔗 จัดการ Link</button>
+        <button class="${r.status === 'active' ? 'dan' : 'pri'} ripple" data-rider="${esc(r.id)}">${r.status === 'active' ? '⏸️ หยุด' : '▶️ เปิด'}</button>
         <button class="dan ripple" data-del="riders:${esc(r.id)}">🗑️ ลบ</button>
       </div>
-    </div>
-  `).join('') || '<div class="empty">ไม่พบไรเดอร์</div>');
+    </div>`;
+  }).join('') || '<div class="empty">ไม่พบไรเดอร์</div>');
 }
+
+function filterRiderStatus(s) { filters.riderStatus = s; render(); }
 
 // ─── Users ───
 function users() {
@@ -876,6 +1679,9 @@ function openModal(title, bodyHtml) {
 }
 function closeModal() { $('modal-overlay').classList.remove('show'); }
 
+// ══════════════════════════════════════════════════════════════════════
+//  📸 ORDER DETAIL + SLIP MANAGEMENT
+// ══════════════════════════════════════════════════════════════════════
 function orderDetail(id) {
   const o = store.orders.find(x => x.id === id);
   if (!o) return;
@@ -883,6 +1689,42 @@ function orderDetail(id) {
   const opts = Object.entries(STATUS).map(([k, v]) =>
     `<option value="${k}" ${o.status === k ? 'selected' : ''}>${v}</option>`
   ).join('');
+
+  // Slip section
+  const riderSlipSection = o.riderSlipUrl ? `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">📸 สลิปจากไรเดอร์</div>
+      ${o.riderSlipVerified
+        ? `<div class="slip-status-banner ok">✅ ตรวจสอบแล้ว ${o.riderSlipVerifiedAt ? '• ' + fmtTime(o.riderSlipVerifiedAt) : ''}</div>`
+        : `<div class="slip-status-banner pending">⏳ รอการตรวจสอบ</div>`}
+      <img src="${o.riderSlipUrl}" class="slip-preview" onclick="viewFullImage('${o.riderSlipUrl}')">
+      ${!o.riderSlipVerified ? `
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="pri ripple" style="flex:1" onclick="verifyRiderSlip('${esc(o.id)}')">✅ อนุมัติสลิป</button>
+          <button class="dan ripple" style="flex:1" onclick="rejectRiderSlip('${esc(o.id)}')">❌ ปฏิเสธ</button>
+        </div>
+      ` : ''}
+    </div>
+  ` : '';
+
+  const adminSlipSection = o.adminSlipUrl ? `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนให้ร้านค้า</div>
+      <img src="${o.adminSlipUrl}" class="slip-preview" onclick="viewFullImage('${o.adminSlipUrl}')">
+      <button class="dan ripple" style="width:100%;margin-top:8px" onclick="deleteAdminSlip('${esc(o.id)}')">🗑️ ลบสลิป</button>
+    </div>
+  ` : `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนให้ร้านค้า</div>
+      <div class="slip-upload-box" onclick="pickAdminSlip('${esc(o.id)}')">
+        <div class="icon">📤</div>
+        <div class="label">อัปโหลดสลิปโอนร้านค้า</div>
+        <div class="hint">แตะเพื่อเลือกรูป</div>
+      </div>
+      <input type="file" id="admin-slip-input-${esc(o.id)}" accept="image/*" capture="environment" style="display:none" onchange="uploadAdminSlip('${esc(o.id)}', this.files[0])">
+      <div class="slip-progress" id="admin-slip-progress-${esc(o.id)}" style="display:none"><div class="slip-progress-bar" id="admin-slip-bar-${esc(o.id)}"></div></div>
+    </div>
+  `;
 
   const html = `
     <div class="meta" style="font-family:monospace;font-size:12px;margin-bottom:8px">ID: ${esc(o.id)}</div>
@@ -898,24 +1740,125 @@ function orderDetail(id) {
         <div class="meta">ค่าสินค้า ฿${esc(o.price || 0)} + ค่าส่ง ฿${esc(o.fare || 0)}</div>
         <div style="font-size:20px;font-weight:900;color:var(--brand)">รวม ฿${esc(o.total || 0)}</div>
       </div>
-      <select id="ostatus" data-oid="${esc(o.id)}" style="width:auto;margin:0;padding:12px;font-weight:700;border-color:var(--brand);min-height:48px">
-        ${opts}
-      </select>
+      <select id="ostatus" data-oid="${esc(o.id)}" style="width:auto;margin:0;padding:12px;font-weight:700;border-color:var(--brand);min-height:48px">${opts}</select>
     </div>
+
+    ${riderSlipSection}
+    ${adminSlipSection}
+
     <button class="dan big ripple" style="margin-top:16px" onclick="cancelOrder('${esc(o.id)}')">❌ ยกเลิกออเดอร์นี้</button>
   `;
   openModal('📋 รายละเอียดออเดอร์', html);
 }
 
+function viewFullImage(url) {
+  window.open(url, '_blank');
+}
+
+// ─── Rider Slip Actions ───
+async function verifyRiderSlip(orderId) {
+  try {
+    await db.collection('orders').doc(orderId).update({
+      riderSlipVerified: true,
+      riderSlipVerifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ อนุมัติสลิปแล้ว');
+    closeModal();
+  } catch (e) { toast('❌ ' + e.message, true); }
+}
+
+async function rejectRiderSlip(orderId) {
+  if (!confirm('ยืนยันปฏิเสธสลิปนี้?\nระบบจะลบสลิปออก และแจ้งไรเดอร์ให้อัปโหลดใหม่')) return;
+  try {
+    const o = store.orders.find(x => x.id === orderId);
+    if (o.riderSlipPath) await deleteSlip(o.riderSlipPath);
+    await db.collection('orders').doc(orderId).update({
+      riderSlipUrl: null,
+      riderSlipPath: null,
+      riderSlipVerified: false,
+      riderSlipRejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('❌ ปฏิเสธสลิปแล้ว');
+    closeModal();
+  } catch (e) { toast('❌ ' + e.message, true); }
+}
+
+// ─── Admin Slip Upload ───
+function pickAdminSlip(orderId) {
+  $(`admin-slip-input-${orderId}`).click();
+}
+
+async function uploadAdminSlip(orderId, file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return toast('ไฟล์ใหญ่เกิน 5MB', true);
+  if (!file.type.startsWith('image/')) return toast('ต้องเป็นไฟล์รูปภาพเท่านั้น', true);
+
+  const progressBox = $(`admin-slip-progress-${orderId}`);
+  const progressBar = $(`admin-slip-bar-${orderId}`);
+  progressBox.style.display = 'block';
+
+  const timestamp = Date.now();
+  const ext = file.name.split('.').pop();
+  const path = `slips/orders/${orderId}/admin-${timestamp}.${ext}`;
+  const ref = storage.ref(path);
+
+  try {
+    const task = ref.put(file);
+    task.on('state_changed', snap => {
+      const pct = (snap.bytesTransferred / snap.totalBytes) * 100;
+      progressBar.style.width = pct + '%';
+    });
+    await task;
+    const url = await ref.getDownloadURL();
+
+    await db.collection('orders').doc(orderId).update({
+      adminSlipUrl: url,
+      adminSlipPath: path,
+      adminSlipUploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    toast('✅ อัปโหลดสลิปสำเร็จ');
+    orderDetail(orderId);
+  } catch (e) {
+    console.error(e);
+    toast('❌ อัปโหลดไม่สำเร็จ: ' + e.message, true);
+    progressBox.style.display = 'none';
+  }
+}
+
+async function deleteAdminSlip(orderId) {
+  if (!confirm('ยืนยันลบสลิปนี้?')) return;
+  try {
+    const o = store.orders.find(x => x.id === orderId);
+    if (o.adminSlipPath) await deleteSlip(o.adminSlipPath);
+    await db.collection('orders').doc(orderId).update({
+      adminSlipUrl: null,
+      adminSlipPath: null
+    });
+    toast('🗑️ ลบสลิปแล้ว');
+    closeModal();
+  } catch (e) { toast('❌ ' + e.message, true); }
+}
+
+// ─── Merchant Edit ───
 function editMerchantForm(id) {
   const m = store.merchants.find(x => x.id === id);
   if (!m) return;
+  const availablePlaces = store.places.filter(p => !p.merchantId || p.merchantId === id);
+
+  const placeOptions = '<option value="">-- ไม่ระบุ / ยกเลิกการเชื่อมโยง --</option>' +
+    availablePlaces.map(p => {
+      const cat = CATEGORIES[p.category] || CATEGORIES.x;
+      return `<option value="${esc(p.id)}" ${m.locationId === p.id ? 'selected' : ''}>${cat.icon} ${esc(p.id)} - ${esc(p.name)}</option>`;
+    }).join('');
 
   const html = `
     <label style="font-weight:800;font-size:13px">ชื่อร้าน *</label>
     <input type="text" id="edit-name" value="${esc(m.name || '')}">
     <label style="font-weight:800;font-size:13px">เบอร์โทร</label>
     <input type="tel" id="edit-phone" value="${esc(m.phone || '')}">
+    <label style="font-weight:800;font-size:13px">📍 เชื่อมโยงกับสถานที่ (จาก 490 แห่ง)</label>
+    <select id="edit-location" style="margin-bottom:16px">${placeOptions}</select>
     <label style="font-weight:800;font-size:13px">ที่อยู่</label>
     <textarea id="edit-address" rows="2">${esc(m.address || '')}</textarea>
     <label style="font-weight:800;font-size:13px">ละติจูด (Lat)</label>
@@ -924,26 +1867,103 @@ function editMerchantForm(id) {
     <input type="number" step="any" id="edit-lng" value="${m.lng || ''}">
     <button class="pri big ripple" onclick="saveMerchantEdit('${esc(id)}')">💾 บันทึกการแก้ไข</button>
   `;
-  openModal('✏️ แก้ไขร้านค้า', html);
+  openModal('✏️ แก้ไขร้านค้า + Link Place', html);
 }
 
 async function saveMerchantEdit(id) {
+  const m = store.merchants.find(x => x.id === id);
+  const oldLocationId = m?.locationId || null;
+  const newLocationId = $('edit-location').value || null;
+
   const updates = {
     name: $('edit-name').value.trim(),
     phone: $('edit-phone').value.trim(),
     address: $('edit-address').value.trim(),
+    locationId: newLocationId,
     lat: parseFloat($('edit-lat').value) || null,
     lng: parseFloat($('edit-lng').value) || null,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   if (!updates.name) return toast('กรุณากรอกชื่อร้าน', true);
+
   try {
     await db.collection('merchants').doc(id).update(updates);
-    toast('บันทึกเรียบร้อย');
+    if (oldLocationId !== newLocationId) {
+      const batch = db.batch();
+      if (oldLocationId) batch.update(db.collection('places').doc(oldLocationId), { merchantId: null });
+      if (newLocationId) batch.update(db.collection('places').doc(newLocationId), { merchantId: id });
+      await batch.commit();
+    }
+    toast('✅ บันทึกเรียบร้อย');
     closeModal();
-  } catch (e) {
-    toast('บันทึกไม่สำเร็จ: ' + e.message, true);
-  }
+  } catch (e) { toast('บันทึกไม่สำเร็จ: ' + e.message, true); }
+}
+
+// ─── Rider Link ───
+function editRiderForm(id) {
+  const r = store.riders.find(x => x.id === id);
+  if (!r) return;
+
+  const selectedMerchants = r.merchantIds || [];
+  const selectedLocations = r.locationIds || [];
+
+  const merchantPicker = store.merchants.length === 0
+    ? '<div class="meta">ยังไม่มีร้านค้าในระบบ</div>'
+    : `<div class="picker">
+        ${store.merchants.map(m => `
+          <label>
+            <input type="checkbox" class="merchant-check" value="${esc(m.id)}" ${selectedMerchants.includes(m.id) ? 'checked' : ''}>
+            <span>🏪 ${esc(m.name || 'ไม่ระบุ')} <small style="color:#888">(${esc(m.id)})</small></span>
+          </label>`).join('')}
+       </div>`;
+
+  const locationPicker = store.places.length === 0
+    ? '<div class="meta">ยังไม่มีสถานที่ในระบบ</div>'
+    : `<input type="text" id="loc-search" placeholder="🔍 ค้นหาสถานที่..." style="margin-bottom:8px;min-height:48px" oninput="filterLocPicker(this.value)">
+       <div class="picker" id="loc-picker">
+        ${store.places.map(p => {
+          const cat = CATEGORIES[p.category] || CATEGORIES.x;
+          return `
+          <label data-loc-name="${esc(p.name.toLowerCase())}">
+            <input type="checkbox" class="location-check" value="${esc(p.id)}" ${selectedLocations.includes(p.id) ? 'checked' : ''}>
+            <span>${cat.icon} ${esc(p.name)} <small style="color:#888">(${esc(p.id)})</small></span>
+          </label>`;
+        }).join('')}
+       </div>`;
+
+  openModal('🔗 จัดการ Link ไรเดอร์', `
+    <div style="background:#F0FDF4;border:1px dashed #86efac;border-radius:12px;padding:12px;margin-bottom:16px">
+      <div style="font-size:11px;color:#166534;font-weight:800;margin-bottom:6px">🛵 ไรเดอร์</div>
+      <div style="font-weight:900;font-size:15px">${esc(r.name || '-')}</div>
+      <div class="meta" style="font-family:monospace">${esc(r.id)}</div>
+    </div>
+    <label style="font-weight:800;font-size:13px;display:block;margin-bottom:8px">🏪 ร้านค้าที่ดูแล</label>
+    ${merchantPicker}
+    <label style="font-weight:800;font-size:13px;display:block;margin:16px 0 8px">📍 สถานที่ที่ดูแล</label>
+    ${locationPicker}
+    <button class="pri big ripple" style="margin-top:16px" onclick="saveRiderLink('${esc(id)}')">💾 บันทึก Link</button>
+  `);
+}
+
+function filterLocPicker(q) {
+  const term = q.toLowerCase();
+  document.querySelectorAll('#loc-picker label').forEach(lbl => {
+    const name = lbl.dataset.locName || '';
+    lbl.style.display = (!term || name.includes(term)) ? 'flex' : 'none';
+  });
+}
+
+async function saveRiderLink(id) {
+  const merchantIds = [...document.querySelectorAll('.merchant-check:checked')].map(cb => cb.value);
+  const locationIds = [...document.querySelectorAll('.location-check:checked')].map(cb => cb.value);
+  try {
+    await db.collection('riders').doc(id).update({
+      merchantIds, locationIds,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ บันทึก Link สำเร็จ');
+    closeModal();
+  } catch (e) { toast('❌ ' + e.message, true); }
 }
 
 async function cancelOrder(id) {
@@ -955,14 +1975,12 @@ async function cancelOrder(id) {
     });
     toast('ยกเลิกออเดอร์แล้ว');
     closeModal();
-  } catch (e) {
-    toast('ยกเลิกไม่สำเร็จ', true);
-  }
+  } catch (e) { toast('ยกเลิกไม่สำเร็จ', true); }
 }
 
 // ─── Event Delegation ───
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-go],[data-order],[data-verify],[data-rider],[data-del],[data-edit-m]');
+  const t = e.target.closest('[data-go],[data-order],[data-verify],[data-verify-r],[data-rider],[data-del],[data-edit-m],[data-edit-r]');
   if (!t) return;
 
   try {
@@ -973,12 +1991,9 @@ document.addEventListener('click', async e => {
       render();
       window.scrollTo(0, 0);
     }
-    else if (t.dataset.order) {
-      orderDetail(t.dataset.order);
-    }
-    else if (t.dataset.editM) {
-      editMerchantForm(t.dataset.editM);
-    }
+    else if (t.dataset.order) orderDetail(t.dataset.order);
+    else if (t.dataset.editM) editMerchantForm(t.dataset.editM);
+    else if (t.dataset.editR) editRiderForm(t.dataset.editR);
     else if (t.dataset.verify) {
       const m = store.merchants.find(x => x.id === t.dataset.verify);
       await db.collection('merchants').doc(m.id).update({
@@ -986,6 +2001,16 @@ document.addEventListener('click', async e => {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       toast('อัปเดตสถานะร้านสำเร็จ');
+    }
+    else if (t.dataset.verifyR) {
+      const r = store.riders.find(x => x.id === t.dataset.verifyR);
+      const newVal = r.verified === false ? true : false;
+      await db.collection('riders').doc(r.id).update({
+        verified: newVal,
+        verifiedAt: newVal ? firebase.firestore.FieldValue.serverTimestamp() : null,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast(newVal ? '✅ อนุมัติไรเดอร์แล้ว' : '🚫 ยกเลิกอนุมัติแล้ว');
     }
     else if (t.dataset.rider) {
       const r = store.riders.find(x => x.id === t.dataset.rider);
@@ -1030,9 +2055,7 @@ document.addEventListener('change', async e => {
       });
       toast('อัปเดตสถานะออเดอร์แล้ว');
       closeModal();
-    } catch (err) {
-      toast('ไม่สำเร็จ: ' + err.code, true);
-    }
+    } catch (err) { toast('ไม่สำเร็จ: ' + err.code, true); }
   }
 });
 
@@ -1040,7 +2063,6 @@ $('modal-overlay').addEventListener('click', e => {
   if (e.target === $('modal-overlay')) closeModal();
 });
 
-// ─── Ripple + Haptic ───
 document.addEventListener('touchstart', e => {
   const el = e.target.closest('.ripple, button, .action-card, .data-card, nav button');
   if (!el) return;
@@ -1054,7 +2076,9 @@ document.addEventListener('click', e => {
 }, { passive: true });
 
 console.log('%c🛵 Chauat Go Admin v3.3.0', 'color:#00A651;font-weight:900;font-size:16px');
-console.log('%c✓ Auto-update enabled', 'color:#1565C0;font-weight:700');
+console.log('%c✓ 490 Places loaded', 'color:#9C27B0;font-weight:700');
+console.log('%c✓ Rider approval enabled', 'color:#00A651;font-weight:700');
+console.log('%c✓ Slip upload enabled (Firebase Storage)', 'color:#1565C0;font-weight:700');
 </script>
 </body>
 </html>
