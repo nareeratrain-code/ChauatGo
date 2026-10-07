@@ -53,16 +53,15 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // ข้าม Firebase, Google, unpkg, Vercel
+  // ข้าม Firebase, Google, unpkg
   if (url.hostname.includes('firebase') ||
       url.hostname.includes('googleapis') ||
       url.hostname.includes('gstatic') ||
-      url.hostname.includes('unpkg') ||
-      url.hostname.includes('vercel')) {
+      url.hostname.includes('unpkg')) {
     return;
   }
 
-  // HTML → Network-first ไม่ cache
+  // HTML / navigation → Network-first ไม่ cache
   if (request.mode === 'navigate' ||
       (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))) {
     event.respondWith(
@@ -99,4 +98,4 @@ self.addEventListener('message', event => {
       .then(() => self.skipWaiting())
       .then(() => self.clients.claim());
   }
-}); 
+});
