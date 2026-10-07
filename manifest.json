@@ -1,96 +1,40 @@
 {
-  "name": "Chauat Go - แอปค้นหาสถานที่และสั่งอาหาร อ.ชะอวด",
+  "name": "Chauat Go — สั่งครบ จบที่เดียว",
   "short_name": "ChauatGo",
-  "description": "แพลตฟอร์มค้นหาสถานที่ ร้านอาหาร คาเฟ่ วัด โรงเรียน และบริการส่งด่วนในอำเภอชะอวด จังหวัดนครศรีธรรมราช",
+  "description": "แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด",
   "start_url": "/",
-  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f8f9fa",
+  "background_color": "#00A651",
   "theme_color": "#00A651",
+  "scope": "/",
   "lang": "th",
-  "categories": ["food", "shopping", "navigation", "lifestyle"],
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjMDBBNjUxIi8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn4ONPC90ZXh0Pjwvc3ZnPg==",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMCIgZmlsbD0iIzAwQTY1MSIvPjx0ZXh0IHg9IjI1NiIgeT0iMzIwIiBmb250LXNpemU9IjI2MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPvCfjY08L3RleHQ+PC9zdmc+",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/home.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "หน้าแรก Chauat Go"
-    },
-    {
-      "src": "/screenshots/map.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "แผนที่ อ.ชะอวด"
-    },
-    {
-      "src": "/screenshots/order.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "สั่งอาหารและเรียกไรเดอร์"
-    },
-    {
-      "src": "/screenshots/search.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "ค้นหาสถานที่ 490+ แห่ง"
     }
   ],
   "shortcuts": [
     {
       "name": "สั่งอาหาร",
       "short_name": "อาหาร",
-      "description": "สั่งอาหารจากร้านใกล้เคียง",
       "url": "/?action=order-food",
-      "icons": [
-        {
-          "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjRkY2QjM1Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn42NPC90ZXh0Pjwvc3ZnPg==",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "แผนที่",
+      "name": "เปิดแผนที่",
       "short_name": "แผนที่",
-      "description": "ดูแผนที่ อ.ชะอวด",
       "url": "/?action=map",
-      "icons": [
-        {
-          "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjNEE5MEQ5Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIj7wn5ejvDwvdGV4dD48L3N2Zz4=",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "ส่งด่วน",
-      "short_name": "ส่งด่วน",
-      "description": "เรียกไรเดอร์ส่งของ",
-      "url": "/?action=express",
-      "icons": [
-        {
-          "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjQwIiBmaWxsPSIjRjNFNUY1Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSIxMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiMzMzMiPvCfk4Y8L3RleHQ+PC9zdmc+",
-          "sizes": "192x192"
-        }
-      ]
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
-  ],
-  "prefer_related_applications": false
+  ]
 }
