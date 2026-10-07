@@ -99,4 +99,4 @@ self.addEventListener('message', event => {
       .then(() => self.skipWaiting())
       .then(() => self.clients.claim());
   }
-});
+}); 
