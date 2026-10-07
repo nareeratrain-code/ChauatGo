@@ -1,208 +1,43 @@
 <!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chauat Go Merchant — POS หลังร้าน</title>
-    <link rel="stylesheet" href="merchant.css">
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
+<html>
+<head><title>Test Firebase</title></head>
 <body>
-
-    <!-- 🔔 Toast Notification Container -->
-    <div id="toastContainer" class="toast-container"></div>
-
-    <!-- 🔄 Loading Screen -->
-    <div id="loadingScreen" class="screen active">
-        <div class="spinner"></div>
-        <p>กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...</p>
+    <div id="debugConsole" style="background:black; color:lime; padding:10px; font-family:monospace; min-height:100px;">
+        Starting test...<br>
     </div>
 
-    <!-- ❌ Error Screen -->
-    <div id="errorScreen" class="screen">
-        <div class="error-icon"><i class="fas fa-exclamation-triangle"></i></div>
-        <h2>ไม่มีสิทธิ์เข้าใช้งาน</h2>
-        <p id="errorMessage">บัญชีนี้ไม่ใช่บัญชีร้านค้า (Merchant)</p>
-        <button onclick="window.location.href='index.html'" class="btn btn-danger">กลับสู่หน้าแรก</button>
-    </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    <!-- ✅ Main Dashboard -->
-    <div id="dashboardScreen" class="screen">
-        
-        <!-- Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-brand">
-                <i class="fas fa-store"></i>
-                <h2>Chauat Go</h2>
-                <span class="badge">Merchant</span>
-            </div>
-            <ul class="nav-menu">
-                <li class="nav-item active" data-target="ordersSection"><i class="fas fa-receipt"></i> ออเดอร์ <span id="orderBadge" class="badge-alert hidden">0</span></li>
-                <li class="nav-item" data-target="menuSection"><i class="fas fa-utensils"></i> จัดการเมนู</li>
-                <li class="nav-item" data-target="settingsSection"><i class="fas fa-cog"></i> ตั้งค่าร้านค้า</li>
-            </ul>
-            <button id="logoutBtn" class="btn btn-logout"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
-        </nav>
+        // ⚠️ วาง Config ของคุณตรงนี้
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+            authDomain: "chauat-go-b9841.firebaseapp.com",
+            projectId: "chauat-go-b9841",
+            storageBucket: "chauat-go-b9841.firebasestorage.app",
+            messagingSenderId: "282197694521",
+            appId: "1:282197694521:web:0528c22747a0c04bd815e8"
+        };
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <header class="top-header">
-                <div class="header-info">
-                    <h1 id="merchantName"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</h1>
-                    <p id="storeStatusText" class="status-open"><i class="fas fa-circle"></i> เปิดร้าน</p>
-                </div>
-                <div class="status-toggle">
-                    <label class="switch">
-                        <input type="checkbox" id="storeStatusToggle" checked>
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-            </header>
+        const log = (msg) => {
+            document.getElementById('debugConsole').innerHTML += msg + '<br>';
+            console.log(msg);
+        };
 
-            <!-- Section 1: Orders -->
-            <section id="ordersSection" class="content-section active">
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon bg-yellow"><i class="fas fa-clock"></i></div>
-                        <div><p>ออเดอร์ใหม่</p><h3 id="statNewOrders">0</h3></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon bg-orange"><i class="fas fa-fire"></i></div>
-                        <div><p>กำลังทำอาหาร</p><h3 id="statPreparing">0</h3></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon bg-blue"><i class="fas fa-motorcycle"></i></div>
-                        <div><p>รอไรเดอร์รับ</p><h3 id="statReady">0</h3></div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon bg-green"><i class="fas fa-check-circle"></i></div>
-                        <div><p>สำเร็จวันนี้</p><h3 id="statCompleted">0</h3></div>
-                    </div>
-                </div>
+        log("1. เริ่มต้น initializeApp...");
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        log("2. เชื่อมต่อ Firebase สำเร็จ");
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-list"></i> รายการออเดอร์ล่าสุด</h2>
-                        <button onclick="loadOrders()" class="btn btn-secondary btn-sm"><i class="fas fa-sync"></i> รีเฟรช</button>
-                    </div>
-                    <div id="ordersList" class="list-container">
-                        <div class="skeleton-loader"></div>
-                        <div class="skeleton-loader"></div>
-                        <div class="skeleton-loader"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 2: Menu Management -->
-            <section id="menuSection" class="content-section">
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-hamburger"></i> เมนูของร้าน</h2>
-                        <button id="addMenuBtn" class="btn btn-primary"><i class="fas fa-plus"></i> เพิ่มเมนูใหม่</button>
-                    </div>
-                    
-                    <div id="menuList" class="list-container grid-2">
-                        <!-- Menu items will be injected here -->
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 3: Store Settings -->
-            <section id="settingsSection" class="content-section">
-                <div class="card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-store-alt"></i> ตั้งค่าร้านค้า</h2>
-                    </div>
-                    <div class="form-container grid-2">
-                        <div class="form-group">
-                            <label>ชื่อร้านค้า</label>
-                            <input type="text" id="shopNameInput" class="input-field" placeholder="เช่น ร้านป้าดา">
-                        </div>
-                        <div class="form-group">
-                            <label>เบอร์โทรศัพท์</label>
-                            <input type="tel" id="shopPhoneInput" class="input-field" placeholder="08X-XXX-XXXX">
-                        </div>
-                        <div class="form-group full-width">
-                            <label>ที่อยู่ร้านค้า</label>
-                            <textarea id="shopAddressInput" class="input-field" rows="3" placeholder="ที่อยู่สำหรับจัดส่ง..."></textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>เวลาทำการ</label>
-                            <div class="flex-row gap-2">
-                                <input type="time" id="openTimeInput" class="input-field">
-                                <span>ถึง</span>
-                                <input type="time" id="closeTimeInput" class="input-field">
-                            </div>
-                        </div>
-                        <div class="form-group full-width">
-                            <button id="saveSettingsBtn" class="btn btn-primary btn-block"><i class="fas fa-save"></i> บันทึกการตั้งค่า</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <!-- 🪟 MODAL: Order Details -->
-    <div id="orderModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-receipt"></i> รายละเอียดออเดอร์ #<span id="modalOrderId"></span></h3>
-                <span class="close-modal" onclick="closeModal('orderModal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div id="modalOrderContent">
-                    <!-- Order details injected here -->
-                </div>
-            </div>
-            <div class="modal-footer" id="modalOrderActions">
-                <!-- Actions injected here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- 🪟 MODAL: Add/Edit Menu -->
-    <div id="menuModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="formTitle"><i class="fas fa-plus"></i> เพิ่มเมนูใหม่</h3>
-                <span class="close-modal" onclick="closeModal('menuModal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="menuIdInput">
-                <div class="form-group">
-                    <label>ชื่อเมนู</label>
-                    <input type="text" id="menuNameInput" class="input-field" placeholder="เช่น ผัดไทยกุ้งสด">
-                </div>
-                <div class="form-group">
-                    <label>ราคา (บาท)</label>
-                    <input type="number" id="menuPriceInput" class="input-field" placeholder="0.00">
-                </div>
-                <div class="form-group">
-                    <label>หมวดหมู่</label>
-                    <select id="menuCategoryInput" class="input-field">
-                        <option value="food">อาหาร</option>
-                        <option value="drink">เครื่องดื่ม</option>
-                        <option value="dessert">ของหวาน</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>คำอธิบาย</label>
-                    <textarea id="menuDescInput" class="input-field" rows="2" placeholder="ส่วนผสม หรือรายละเอียดเพิ่มเติม..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>URL รูปภาพ</label>
-                    <input type="text" id="menuImageInput" class="input-field" placeholder="https://...">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('menuModal')">ยกเลิก</button>
-                <button id="saveMenuBtn" class="btn btn-primary"><i class="fas fa-save"></i> บันทึกเมนู</button>
-            </div>
-        </div>
-    </div>
-
-    <script type="module" src="merchant.js"></script>
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                log("3. ✅ ล็อกอินแล้ว UID: " + user.uid);
+                log("4. กำลังจะโหลดหน้าถัดไป...");
+            } else {
+                log("3. ⛔ ยังไม่ได้ล็อกอิน (ต้องไปล็อกอินก่อน)");
+            }
+        });
+    </script>
 </body>
 </html>
