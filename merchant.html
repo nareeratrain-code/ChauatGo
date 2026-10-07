@@ -8,13 +8,13 @@
 </head>
 <body>
 
-    <!-- 🔄 หน้าโหลด -->
+    <!-- 🔄 Loading Screen -->
     <div id="loadingScreen" class="screen active">
         <div class="spinner"></div>
         <p>กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...</p>
     </div>
 
-    <!-- ❌ หน้าแจ้ง Error -->
+    <!-- ❌ Error Screen -->
     <div id="errorScreen" class="screen">
         <div class="error-icon">⚠️</div>
         <h2>ไม่มีสิทธิ์เข้าใช้งาน</h2>
@@ -22,19 +22,18 @@
         <button onclick="window.location.href='index.html'" class="btn btn-danger">กลับสู่หน้าแรก</button>
     </div>
 
-    <!-- ✅ หน้าหลัก Dashboard -->
+    <!-- ✅ Main Dashboard -->
     <div id="dashboardScreen" class="screen">
-        
-        <!-- Sidebar (Desktop) / Bottom Nav (Mobile) -->
+        <!-- Sidebar / Bottom Nav -->
         <nav class="sidebar">
             <div class="sidebar-brand">
                 <h2>Chauat Go</h2>
                 <span class="badge">Merchant</span>
             </div>
             <ul class="nav-menu">
-                <li class="nav-item active" data-target="ordersSection">📦 จัดการออเดอร์</li>
-                <li class="nav-item" data-target="menuSection">🍔 จัดการเมนู</li>
-                <li class="nav-item" data-target="settingsSection">⚙️ ตั้งค่าร้านค้า</li>
+                <li class="nav-item active" data-target="ordersSection">📦 ออเดอร์</li>
+                <li class="nav-item" data-target="menuSection">🍔 เมนู</li>
+                <li class="nav-item" data-target="settingsSection">⚙️ ตั้งค่า</li>
             </ul>
             <button id="logoutBtn" class="btn btn-logout">ออกจากระบบ</button>
         </nav>
@@ -63,7 +62,7 @@
                 <div class="card">
                     <h2>📦 รายการออเดอร์ล่าสุด</h2>
                     <div id="ordersList" class="list-container">
-                        <p class="text-center text-gray-400 py-10">กำลังโหลดข้อมูล...</p>
+                        <p class="text-center">กำลังโหลดข้อมูล...</p>
                     </div>
                 </div>
             </section>
@@ -76,7 +75,6 @@
                         <button id="addMenuBtn" class="btn btn-primary">+ เพิ่มเมนูใหม่</button>
                     </div>
                     
-                    <!-- ฟอร์มเพิ่มเมนู (ซ่อนไว้ก่อน) -->
                     <div id="menuFormContainer" class="form-container hidden">
                         <h3 id="formTitle">เพิ่มเมนูใหม่</h3>
                         <input type="hidden" id="menuIdInput">
@@ -90,9 +88,7 @@
                         </div>
                     </div>
 
-                    <div id="menuList" class="list-container">
-                        <!-- Menu items will be injected here -->
-                    </div>
+                    <div id="menuList" class="list-container"></div>
                 </div>
             </section>
 
@@ -117,7 +113,6 @@
         </main>
     </div>
 
-    <!-- Firebase SDK (Modular) -->
     <script type="module" src="merchant.js"></script>
 </body>
 </html>
@@ -240,7 +235,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
     getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
-    collection, query, where, orderBy, getDocs, addDoc, serverTimestamp 
+    collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
@@ -263,39 +258,32 @@ const db = getFirestore(app);
 // 3. Global Variables
 // ==========================================
 let currentMerchantId = null;
-let currentUserRole = null;
+let unsubscribeOrders = null; // ตัวแปรสำหรับยกเลิก Listener
 
 // ==========================================
-// 4. ระบบตรวจสอบสิทธิ์ (Auth Guard)
+// 4. ระบบตรวจสอบสิทธิ์ (Auth Guard) - Production Level
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         try {
-            // ดึง Role จาก Collection users
             const userDoc = await getDoc(doc(db, "users", user.uid));
             
-            if (!userDoc.exists()) throw new Error("ไม่พบข้อมูลผู้ใช้ในระบบ");
+            if (!userDoc.exists()) throw new Error("ไม่พบข้อมูลผู้ใช้ในระบบ (users collection)");
             
             const userData = userDoc.data();
-            currentUserRole = userData.role;
 
-            if (currentUserRole === 'merchant') {
-                // ✅ ผ่าน! แสดง Dashboard
+            if (userData.role === 'merchant') {
                 currentMerchantId = user.uid;
-                document.getElementById('merchantName').innerText = userData.shopName || userData.name || "ร้านค้าของฉัน";
+                document.getElementById('merchantName').innerText = userData.name || "ร้านค้าของฉัน";
                 
+                // แสดง Dashboard
                 document.getElementById('loadingScreen').classList.remove('active');
+                document.getElementById('errorScreen').classList.remove('active');
                 document.getElementById('dashboardScreen').classList.add('active');
                 
-                // โหลดข้อมูลเริ่มต้น
-                loadOrders();
-                loadStoreSettings();
-                loadMenus();
-                
-                setupNavigation();
-                setupEventListeners();
+                // เริ่มระบบ
+                initDashboard();
             } else {
-                // ❌ ไม่ใช่ Merchant
                 showError("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานหลังบ้าน (ต้องเป็น Role: merchant)");
             }
         } catch (error) {
@@ -303,19 +291,30 @@ onAuthStateChanged(auth, async (user) => {
             showError("ไม่สามารถตรวจสอบสิทธิ์ได้: " + error.message);
         }
     } else {
-        // ❌ ยังไม่ได้ล็อกอิน
         window.location.href = 'index.html';
     }
 });
 
 function showError(msg) {
     document.getElementById('loadingScreen').classList.remove('active');
+    document.getElementById('dashboardScreen').classList.remove('active');
     document.getElementById('errorScreen').classList.add('active');
     document.getElementById('errorMessage').innerText = msg;
 }
 
 // ==========================================
-// 5. Navigation Logic (Tab Switching)
+// 5. เริ่มต้น Dashboard
+// ==========================================
+function initDashboard() {
+    setupNavigation();
+    setupEventListeners();
+    loadStoreSettings();
+    listenToOrders(); // ใช้ onSnapshot เพื่อ Real-time
+    loadMenus();
+}
+
+// ==========================================
+// 6. Navigation Logic
 // ==========================================
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -323,54 +322,47 @@ function setupNavigation() {
 
     navItems.forEach(item => {
         item.addEventListener('click', () => {
-            // Remove active from all
             navItems.forEach(nav => nav.classList.remove('active'));
             sections.forEach(sec => sec.classList.remove('active'));
-
-            // Add active to clicked
             item.classList.add('active');
-            const targetId = item.getAttribute('data-target');
-            document.getElementById(targetId).classList.add('active');
+            document.getElementById(item.getAttribute('data-target')).classList.add('active');
         });
     });
 }
 
 // ==========================================
-// 6. ระบบจัดการออเดอร์ (Orders)
+// 7. ระบบจัดการออเดอร์ (Real-time)
 // ==========================================
-async function loadOrders() {
+function listenToOrders() {
     const ordersList = document.getElementById('ordersList');
-    ordersList.innerHTML = '<p class="text-center">กำลังโหลด...</p>';
+    
+    // ยกเลิก Listener เก่าถ้ามี
+    if (unsubscribeOrders) unsubscribeOrders();
 
-    try {
-        // ⚠️ ต้องสร้าง Composite Index: merchantId (Asc) + createdAt (Desc)
-        const q = query(
-            collection(db, "orders"),
-            where("merchantId", "==", currentMerchantId),
-            orderBy("createdAt", "desc")
-        );
+    // ⚠️ ต้องสร้าง Composite Index: merchantId (Asc) + createdAt (Desc)
+    const q = query(
+        collection(db, "orders"),
+        where("merchantId", "==", currentMerchantId),
+        orderBy("createdAt", "desc")
+    );
 
-        const snapshot = await getDocs(q);
+    unsubscribeOrders = onSnapshot(q, (snapshot) => {
         ordersList.innerHTML = '';
-        
+        let stats = { pending: 0, preparing: 0, ready: 0, completed: 0 };
+
         if (snapshot.empty) {
             ordersList.innerHTML = '<p class="text-center text-gray-400 py-10">ยังไม่มีออเดอร์ในขณะนี้</p>';
-            return;
         }
-
-        let stats = { pending: 0, preparing: 0, ready: 0, completed: 0 };
 
         snapshot.forEach((doc) => {
             const order = doc.data();
             const id = doc.id;
             
-            // นับสถิติ
             if (order.status === 'pending') stats.pending++;
             else if (order.status === 'preparing') stats.preparing++;
             else if (order.status === 'ready_for_pickup') stats.ready++;
             else if (order.status === 'delivered') stats.completed++;
 
-            // สร้างการ์ดออเดอร์
             const card = document.createElement('div');
             card.className = 'order-card';
             
@@ -395,34 +387,30 @@ async function loadOrders() {
             ordersList.appendChild(card);
         });
 
-        // อัปเดต Stats
         document.getElementById('statNewOrders').innerText = stats.pending;
         document.getElementById('statPreparing').innerText = stats.preparing;
         document.getElementById('statReady').innerText = stats.ready;
         document.getElementById('statCompleted').innerText = stats.completed;
 
-    } catch (error) {
-        console.error("Error loading orders:", error);
-        ordersList.innerHTML = `<p class="text-danger text-center">เกิดข้อผิดพลาด: ${error.message}</p>`;
-    }
+    }, (error) => {
+        console.error("Error listening to orders:", error);
+        if (error.message.includes("index")) {
+            ordersList.innerHTML = `<p class="text-danger text-center">⚠️ ต้องการสร้าง Index ใน Firestore (คลิกที่ลิงก์ใน Console)</p>`;
+        }
+    });
 }
 
 window.updateOrderStatus = async (orderId, newStatus) => {
     if (!confirm(`ยืนยันเปลี่ยนสถานะเป็น "${newStatus}" ?`)) return;
     try {
-        await updateDoc(doc(db, "orders", orderId), {
-            status: newStatus,
-            updatedAt: serverTimestamp()
-        });
-        alert("✅ อัปเดตสถานะสำเร็จ");
-        loadOrders(); // โหลดใหม่
+        await updateDoc(doc(db, "orders", orderId), { status: newStatus, updatedAt: serverTimestamp() });
     } catch (error) {
         alert("❌ ไม่สามารถอัปเดตได้: " + error.message);
     }
 };
 
 // ==========================================
-// 7. ระบบจัดการเมนู (Menu Management)
+// 8. ระบบจัดการเมนู
 // ==========================================
 async function loadMenus() {
     const menuList = document.getElementById('menuList');
@@ -440,8 +428,6 @@ async function loadMenus() {
 
         snapshot.forEach((doc) => {
             const menu = doc.data();
-            const id = doc.id;
-
             const card = document.createElement('div');
             card.className = 'order-card';
             card.innerHTML = `
@@ -451,9 +437,7 @@ async function loadMenus() {
                         <p style="color:var(--primary); font-weight:bold;">฿${menu.price}</p>
                         <small>${menu.description || ''}</small>
                     </div>
-                    <div class="flex-end gap-2">
-                        <button onclick="deleteMenu('${id}')" class="btn btn-danger">ลบ</button>
-                    </div>
+                    <button onclick="deleteMenu('${doc.id}')" class="btn btn-danger">ลบ</button>
                 </div>
             `;
             menuList.appendChild(card);
@@ -463,12 +447,10 @@ async function loadMenus() {
     }
 }
 
-// ฟังก์ชันลบเมนู
 window.deleteMenu = async (menuId) => {
     if (!confirm("คุณต้องการลบเมนูนี้ใช่หรือไม่?")) return;
     try {
         await deleteDoc(doc(db, "menus", menuId));
-        alert("🗑️ ลบเมนูสำเร็จ");
         loadMenus();
     } catch (error) {
         alert("❌ ลบไม่สำเร็จ: " + error.message);
@@ -476,21 +458,18 @@ window.deleteMenu = async (menuId) => {
 };
 
 // ==========================================
-// 8. ระบบตั้งค่าร้านค้า (Store Settings)
+// 9. ระบบตั้งค่าร้านค้า
 // ==========================================
 async function loadStoreSettings() {
     try {
-        const docRef = doc(db, "merchants", currentMerchantId);
-        const docSnap = await getDoc(docRef);
-
+        const docSnap = await getDoc(doc(db, "merchants", currentMerchantId));
         if (docSnap.exists()) {
             const data = docSnap.data();
             document.getElementById('shopNameInput').value = data.shopName || '';
             document.getElementById('shopAddressInput').value = data.address || '';
             document.getElementById('shopPhoneInput').value = data.phone || '';
             
-            // เช็คสถานะร้านเปิด/ปิด
-            const isOpen = data.isOpen !== false; // Default to true
+            const isOpen = data.isOpen !== false;
             document.getElementById('storeStatusToggle').checked = isOpen;
             document.getElementById('storeStatusText').innerText = isOpen ? 'เปิดร้าน' : 'ปิดร้าน';
         }
@@ -500,18 +479,17 @@ async function loadStoreSettings() {
 }
 
 // ==========================================
-// 9. Event Listeners (ปุ่มกดต่างๆ)
+// 10. Event Listeners
 // ==========================================
 function setupEventListeners() {
     // บันทึกการตั้งค่าร้าน
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-        const shopName = document.getElementById('shopNameInput').value;
-        const address = document.getElementById('shopAddressInput').value;
-        const phone = document.getElementById('shopPhoneInput').value;
-
         try {
             await setDoc(doc(db, "merchants", currentMerchantId), {
-                shopName, address, phone, ownerId: currentMerchantId
+                shopName: document.getElementById('shopNameInput').value,
+                address: document.getElementById('shopAddressInput').value,
+                phone: document.getElementById('shopPhoneInput').value,
+                ownerId: currentMerchantId
             }, { merge: true });
             alert("✅ บันทึกการตั้งค่าสำเร็จ");
         } catch (error) {
@@ -533,7 +511,6 @@ function setupEventListeners() {
     // ปุ่มเพิ่มเมนู
     document.getElementById('addMenuBtn').addEventListener('click', () => {
         document.getElementById('menuFormContainer').classList.remove('hidden');
-        document.getElementById('formTitle').innerText = "เพิ่มเมนูใหม่";
         document.getElementById('menuIdInput').value = '';
         document.getElementById('menuNameInput').value = '';
         document.getElementById('menuPriceInput').value = '';
@@ -550,8 +527,6 @@ function setupEventListeners() {
     document.getElementById('saveMenuBtn').addEventListener('click', async () => {
         const name = document.getElementById('menuNameInput').value;
         const price = parseFloat(document.getElementById('menuPriceInput').value);
-        const description = document.getElementById('menuDescInput').value;
-        const imageUrl = document.getElementById('menuImageInput').value;
 
         if (!name || !price || price <= 0) {
             alert("⚠️ กรุณากรอกชื่อเมนูและราคาให้ถูกต้อง");
@@ -561,7 +536,9 @@ function setupEventListeners() {
         try {
             await addDoc(collection(db, "menus"), {
                 merchantId: currentMerchantId,
-                name, price, description, imageUrl,
+                name, price,
+                description: document.getElementById('menuDescInput').value,
+                imageUrl: document.getElementById('menuImageInput').value,
                 createdAt: serverTimestamp()
             });
             alert("✅ เพิ่มเมนูสำเร็จ");
@@ -574,6 +551,7 @@ function setupEventListeners() {
 
     // ปุ่มออกจากระบบ
     document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (unsubscribeOrders) unsubscribeOrders(); // ยกเลิก Listener ก่อนออก
         signOut(auth).then(() => window.location.href = 'index.html');
     });
 }
