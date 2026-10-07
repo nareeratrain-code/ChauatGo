@@ -1,61 +1,102 @@
-// Chauat Go Service Worker v1.0
-const CACHE_NAME = 'chauat-go-v1';
-const TILE_CACHE_NAME = 'chauat-go-tiles-v1';
-const TILE_URL_PATTERN = /tile\.openstreetmap\.org/;
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.json'];
+// ═══════════════════════════════════════════════════════════════════
+//  Chauat Go Service Worker — FORCE UPDATE EDITION v3.3.0
+//  ⚠️ เปลี่ยน CACHE_VERSION ทุกครั้งที่ deploy!
+// ═══════════════════════════════════════════════════════════════════
 
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
+const CACHE_VERSION = 'chauat-v3.3.0'; // ← เปลี่ยนเลขทุกครั้ง!
+const STATIC_CACHE = `static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `dynamic-${CACHE_VERSION}`;
+
+const STATIC_ASSETS = [
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/manifest.json'
+];
+
+// ─── Install: บังคับให้ SW ใหม่接管ทันที ───
+self.addEventListener('install', event => {
+  console.log('[SW] Installing', CACHE_VERSION);
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(err => { console.warn('[SW] Failed to cache some assets:', err); });
-    })
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.filter(name => name.startsWith('chauat-go-') && name !== CACHE_NAME && name !== TILE_CACHE_NAME).map(name => caches.delete(name))
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // 1. Map tiles - Network-first with cache fallback
-  if (TILE_URL_PATTERN.test(url.hostname)) {
-    event.respondWith(
-      caches.open(TILE_CACHE_NAME).then((cache) => {
-        return fetch(event.request).then((response) => {
-          if (response.ok) { cache.put(event.request, response.clone()); }
-          return response;
-        }).catch(() => { return cache.match(event.request); });
+    caches.open(STATIC_CACHE)
+      .then(cache => cache.addAll(STATIC_ASSETS).catch(() => {}))
+      .then(() => {
+        console.log('[SW] Force skipWaiting');
+        return self.skipWaiting();
       })
+  );
+});
+
+// ─── Activate: ลบ cache เก่าทั้งหมด ───
+self.addEventListener('activate', event => {
+  console.log('[SW] Activating', CACHE_VERSION);
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(key => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
+          .map(key => {
+            console.log('[SW] Deleting old cache:', key);
+            return caches.delete(key);
+          })
+      ))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+        });
+      })
+  );
+});
+
+// ─── Fetch: Network-first สำหรับ HTML ───
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  // ข้าม Firebase, Google, unpkg, Vercel
+  if (url.hostname.includes('firebase') ||
+      url.hostname.includes('googleapis') ||
+      url.hostname.includes('gstatic') ||
+      url.hostname.includes('unpkg') ||
+      url.hostname.includes('vercel')) {
+    return;
+  }
+
+  // HTML → Network-first ไม่ cache
+  if (request.mode === 'navigate' ||
+      (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .catch(() => caches.match(request).then(c => c || caches.match('/index.html')))
     );
     return;
   }
 
-  // 2. Static assets - Cache-first
-  if (STATIC_ASSETS.some(asset => url.pathname.endsWith(asset) || url.pathname === asset)) {
-    event.respondWith(caches.match(event.request).then((response) => { return response || fetch(event.request); }));
-    return;
-  }
-
-  // 3. Everything else - Network-first with stale-while-revalidate
+  // Static → Cache-first
   event.respondWith(
-    fetch(event.request).then((response) => {
-      if (response.ok) {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => { cache.put(event.request, responseClone); });
-      }
-      return response;
-    }).catch(() => { return caches.match(event.request); })
+    caches.match(request).then(cached => {
+      if (cached) return cached;
+      return fetch(request).then(response => {
+        if (response.ok && request.method === 'GET') {
+          const clone = response.clone();
+          caches.open(DYNAMIC_CACHE).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => {
+        if (request.destination === 'style') return new Response('', { headers: { 'Content-Type': 'text/css' } });
+        if (request.destination === 'script') return new Response('', { headers: { 'Content-Type': 'application/javascript' } });
+      });
+    })
   );
+});
+
+// ─── Message handler ───
+self.addEventListener('message', event => {
+  console.log('[SW] Message:', event.data);
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  if (event.data === 'FORCE_UPDATE') {
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.skipWaiting())
+      .then(() => self.clients.claim());
+  }
 });
