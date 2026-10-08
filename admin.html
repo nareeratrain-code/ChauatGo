@@ -4,37 +4,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#00A651">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chauat Admin">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>Chauat Go Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Thai',sans-serif;-webkit-tap-highlight-color:transparent}
-:root{--brand:#00A651;--bg:#EDF6DC;--text:#1A1A1A;--mut:#6B7280;--danger:#E53935;--warn:#E65100;--blue:#1565C0;--purple:#9C27B0;--teal:#00897B;--indigo:#3F51B5;--border:#e5e7eb}
+:root{--brand:#00A651;--bg:#EDF6DC;--text:#1A1A1A;--mut:#6B7280;--danger:#E53935;--warn:#E65100;--blue:#1565C0;--purple:#9C27B0;--teal:#00897B;--border:#e5e7eb}
 body{background:var(--bg);color:var(--text);max-width:1000px;margin:0 auto;min-height:100vh;padding-bottom:40px}
 .hidden{display:none!important}
-
-/* ═══ LOGIN ═══ */
 #login{position:fixed;inset:0;background:linear-gradient(135deg,#76B82A,#3B7A16);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;overflow-y:auto}
 .box{background:#fff;border-radius:20px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.15);margin:auto}
 .box h1{font-size:22px;color:var(--brand);text-align:center;margin-bottom:20px;font-weight:900}
-input,select,textarea{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;transition:border-color .2s;font-family:inherit;font-weight:600;min-height:52px;outline:none;background:#fafafa}
-input:focus,select:focus,textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
-button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;transition:transform .1s;font-family:inherit;min-height:44px}
-button:active{transform:scale(.97)}
-button:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;font-family:inherit;font-weight:600;min-height:52px;outline:none;background:#fafafa}
+input:focus,textarea:focus,select:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
+button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;font-family:inherit;min-height:44px}
+button:disabled{opacity:.5}
 .pri{background:var(--brand);color:#fff}.sec{background:#f0f0f0;color:#555}.dan{background:#FFEBEE;color:var(--danger)}.blue{background:var(--blue);color:#fff}
 .big{width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:8px;min-height:56px}
 
-/* ═══ HEADER ═══ */
+/* PWA Install Button */
+#installBtn{position:fixed;bottom:20px;left:20px;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;font-weight:900;box-shadow:0 8px 24px rgba(0,166,81,.4);z-index:9990;display:none;gap:8px;align-items:center;border:2px solid #fff}
+#installBtn.show{display:flex}
+
 header{background:linear-gradient(135deg,#76B82A,#3B7A16);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;border-radius:0 0 20px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1)}
 header h1{flex:1;font-size:18px;font-weight:900}
 header .admin-info{text-align:right;font-size:11px;line-height:1.4}
 header .admin-info button{padding:8px 14px;font-size:11px;margin-top:4px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);min-height:36px}
 
-/* ═══ NAV ═══ */
 nav{background:#fff;padding:12px 8px;border-bottom:1px solid var(--border);position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:40;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 nav button{background:transparent;color:var(--mut);padding:10px 4px;border-radius:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:auto;position:relative}
 nav button .nav-icon{font-size:26px;line-height:1;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#f5f5f5}
@@ -42,13 +44,11 @@ nav button .nav-label{font-size:10px;font-weight:900;text-align:center;line-heig
 nav button .nav-badge{position:absolute;top:2px;right:6px;background:var(--danger);color:#fff;font-size:9px;font-weight:900;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff;z-index:2}
 nav button.on{color:var(--brand)}
 nav button.on .nav-icon{background:#E8F5E9}
-
 main{padding:16px}
 
-/* ═══ CARDS ═══ */
-.stat-card{border-radius:16px;padding:16px;color:#fff;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08);min-height:110px}
+.stat-card{border-radius:16px;padding:16px;color:#fff;min-height:110px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
 .stat-card .stat-icon{font-size:28px;margin-bottom:8px}
-.stat-card .stat-value{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
+.stat-card .stat-value{font-size:28px;font-weight:900;line-height:1;letter-spacing:-1px}
 .stat-card .stat-label{font-size:12px;font-weight:700;margin-top:6px;opacity:.95}
 .stat-card .stat-sub{font-size:10px;opacity:.8;margin-top:2px;font-weight:700}
 .stat-card.green{background:linear-gradient(135deg,#00A651,#008C45)}
@@ -86,9 +86,10 @@ main{padding:16px}
 .tag.w{background:#FFF3E0;color:var(--warn)}
 .tag.x{background:#f0f0f0;color:#888}
 .tag.d{background:#FFEBEE;color:var(--danger)}
+.tag.b{background:#E3F2FD;color:var(--blue)}
+.tag.p{background:#F3E5F5;color:var(--purple)}
 
 .empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;background:#fff;border-radius:16px;font-weight:600}
-
 .search-box{background:#fff;border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:12px;min-height:52px}
 .search-box input{border:none;outline:none;font-size:14px;font-weight:600;flex:1;background:transparent;padding:0;margin:0;min-height:auto}
 
@@ -105,7 +106,6 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
 .text-right{text-align:right}
 .text-center{text-align:center}
 
-/* ═══ MODAL ═══ */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.show{display:flex}
 .modal{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
@@ -113,12 +113,11 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
 .modal-hdr h2{font-size:18px;font-weight:900}
 .close-btn{background:#f0f0f0;width:44px;height:44px;border-radius:50%;font-size:18px;display:flex;align-items:center;justify-content:center}
 
-/* ═══ TOAST ═══ */
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:#222;color:#fff;padding:14px 22px;border-radius:16px;font-size:14px;font-weight:800;opacity:0;pointer-events:none;transition:.3s;z-index:999;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:var(--danger)}
 
-/* ═══ CHAT ═══ */
+/* Chat */
 .chat-container{position:fixed;inset:0;background:#EDF6DC;z-index:300;display:none;flex-direction:column}
 .chat-container.show{display:flex}
 .chat-header{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;display:flex;align-items:center;gap:12px}
@@ -127,23 +126,40 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
 .chat-header .chat-name{font-size:15px;font-weight:900}
 .chat-header .chat-sub{font-size:11px;opacity:.85;font-weight:600;margin-top:2px}
 .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
-.chat-msg{max-width:75%;padding:10px 14px;border-radius:16px;font-size:14px;font-weight:600;line-height:1.4}
+.chat-msg{max-width:80%;padding:10px 14px;border-radius:16px;font-size:14px;font-weight:600;line-height:1.4;word-wrap:break-word}
 .chat-msg.out{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
-.chat-msg.in{align-self:flex-start;background:#fff;border-bottom-left-radius:4px}
+.chat-msg.in{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
 .chat-msg .msg-time{font-size:10px;opacity:.7;margin-top:4px;font-weight:700}
+.chat-msg .msg-image{max-width:100%;border-radius:10px;margin-bottom:6px;display:block;cursor:pointer}
+.chat-msg .msg-slip{max-width:100%;border-radius:10px;margin-bottom:6px;display:block;cursor:pointer;border:2px solid #FFA500}
+.chat-msg .msg-label{font-size:10px;opacity:.85;font-weight:800;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
 .chat-input-bar{background:#fff;padding:12px 12px calc(12px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--border)}
 .chat-input-bar textarea{flex:1;margin:0;min-height:44px;max-height:120px;padding:10px 14px;resize:none;border-radius:22px;line-height:1.4;font-weight:600}
-.chat-input-bar .send-btn{width:44px;height:44px;background:var(--brand);color:#fff;font-size:20px;padding:0;border-radius:50%}
+.chat-input-bar .icon-btn{width:44px;height:44px;min-height:44px;border-radius:50%;background:#f0f0f0;color:#555;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
+.chat-input-bar .slip-btn{background:#FFF3E0;color:var(--warn)}
+.chat-input-bar .send-btn{width:44px;height:44px;min-height:44px;border-radius:50%;background:var(--brand);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0}
 .chat-list-item{background:#fff;border-radius:14px;padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer}
-.chat-list-item .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center}
+.chat-list-item .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .chat-list-item .chat-info{flex:1;min-width:0}
-.chat-list-item .chat-title{font-size:14px;font-weight:900}
+.chat-list-item .chat-title{font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-list-item .chat-preview{font-size:12px;color:var(--mut);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-list-item .chat-meta{text-align:right;flex-shrink:0}
+.chat-list-item .chat-time{font-size:10px;color:var(--mut);font-weight:700}
+.chat-list-item .chat-unread{background:var(--danger);color:#fff;font-size:10px;font-weight:900;border-radius:10px;padding:2px 6px;min-width:20px;text-align:center;margin-top:4px;display:inline-block}
 
-/* ═══ DEBUG ═══ */
+.slip-badge{display:inline-flex;align-items:center;gap:4px;background:#FFF3E0;color:var(--warn);padding:2px 8px;border-radius:8px;font-size:10px;font-weight:900;margin-top:4px}
+
 #debugConsole{position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.9);color:#0f0;font-size:11px;font-family:monospace;padding:8px 12px;max-height:100px;overflow-y:auto;z-index:9999;display:none;border-top:2px solid #333}
 #debugConsole.show{display:block}
 #debugToggle{position:fixed;bottom:100px;right:12px;background:rgba(0,0,0,.7);color:#0f0;width:44px;height:44px;border-radius:50%;font-size:18px;z-index:9998;display:flex;align-items:center;justify-content:center;padding:0}
+
+.install-banner{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:14px 16px;border-radius:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,166,81,.3)}
+.install-banner .txt{flex:1;font-size:13px;font-weight:700;line-height:1.4}
+.install-banner button{background:#fff;color:var(--brand);padding:10px 16px;font-size:12px;font-weight:900;min-height:40px;flex-shrink:0}
+
+.gp-progress{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.gp-progress-bar{height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;margin:8px 0}
+.gp-progress-fill{height:100%;background:linear-gradient(90deg,#FFA500,#E65100);border-radius:5px;transition:width .5s}
 </style>
 </head>
 <body>
@@ -151,8 +167,12 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
 <div class="toast" id="toast"></div>
 <button id="debugToggle" onclick="toggleDebug()">🐞</button>
 <div id="debugConsole"></div>
+<button id="installBtn" onclick="installPWA()">
+  <span style="font-size:20px">📲</span>
+  <span>ติดตั้งแอป</span>
+</button>
 
-<!-- ═══════════ LOGIN ═══════════ -->
+<!-- LOGIN -->
 <div id="login">
   <div class="box">
     <h1>🛵 Chauat Go Admin</h1>
@@ -163,7 +183,7 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
   </div>
 </div>
 
-<!-- ═══════════ APP ═══════════ -->
+<!-- APP -->
 <div id="app" class="hidden">
   <header>
     <h1>Chauat Go Admin</h1>
@@ -176,7 +196,7 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
   <main id="main"></main>
 </div>
 
-<!-- ═══════════ CHAT ═══════════ -->
+<!-- CHAT -->
 <div class="chat-container" id="chat-container">
   <div class="chat-header">
     <button class="back-btn" onclick="closeChat()">←</button>
@@ -187,12 +207,16 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
   </div>
   <div class="chat-messages" id="chat-messages"></div>
   <div class="chat-input-bar">
+    <button class="icon-btn" onclick="pickChatImage()">📷</button>
+    <button class="icon-btn slip-btn" onclick="pickChatSlip()">🧾</button>
+    <input type="file" id="chat-image-input" accept="image/*" style="display:none">
+    <input type="file" id="chat-slip-input" accept="image/*" style="display:none">
     <textarea id="chat-input" placeholder="พิมพ์ข้อความ..." rows="1"></textarea>
     <button class="send-btn" onclick="sendChatText()">➤</button>
   </div>
 </div>
 
-<!-- ═══════════ MODAL ═══════════ -->
+<!-- MODAL -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <div class="modal-hdr">
@@ -203,14 +227,15 @@ table.gp-table td{padding:12px;border-bottom:1px solid #eee;font-weight:600}
   </div>
 </div>
 
-<!-- ═══════════ FIREBASE SDK ═══════════ -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-//  🛵 CHAUAT GO ADMIN v4.0 - Single File Production Ready
+//  🛵 CHAUAT GO ADMIN v5.0 - PWA + GP 3% + Chat Images
 // ═══════════════════════════════════════════════════════════════════
 
 // ─── Firebase Init ───
@@ -225,20 +250,24 @@ firebase.initializeApp({
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 
-// ─── Global State ───
-const store = { merchants: [], orders: [], riders: [], users: [], chats: [] };
-const filters = { orders: 'all', q: '', riderStatus: '', merchantStatus: 'all', gpRange: 'today' };
+// ─── Constants ───
+const GP_MERCHANT_RATE = 0.03;    // ร้านค้าจ่าย 3%
+const GP_RIDER_RATE = 0.02;       // ไรเดอร์ได้ 2%
+const GP_PLATFORM_RATE = 0.01;    // แพลตฟอร์มได้ 1%
+const GP_FREE_DAYS = 60;          // 60 วันแรกฟรี
+const GP_CYCLE_DAYS = 14;         // รอบตัดทุก 2 สัปดาห์
+
+const store = { merchants: [], orders: [], riders: [], users: [], chats: [], gpSettlements: [] };
+const filters = { orders: 'all', q: '', riderStatus: '', merchantStatus: 'all', gpRange: 'today', gpView: 'cycle' };
 let current = 'dashboard';
 let unsubs = [];
 let activeChatId = null;
 let activeChatUnsub = null;
+let deferredPrompt = null;
 
-const MASTER_ADMINS = [
-  'adminchauatgo@gmail.com',
-  'admin@chauatgo.com',
-  'chauatgo@gmail.com'
-];
+const MASTER_ADMINS = ['adminchauatgo@gmail.com', 'admin@chauatgo.com', 'chauatgo@gmail.com'];
 
 const SECTIONS = [
   ['dashboard', '📊', 'แดชบอร์ด'],
@@ -259,10 +288,11 @@ const STATUS = {
 // ─── Helpers ───
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtInt = n => Number(n || 0).toLocaleString('th-TH');
 
 function toast(m, err) {
   const t = $('toast');
-  if (!t) return;
   t.textContent = m;
   t.className = 'toast show' + (err ? ' err' : '');
   clearTimeout(t._t);
@@ -271,25 +301,218 @@ function toast(m, err) {
 
 function logToScreen(msg, isError = false) {
   const el = $('debugConsole');
-  if (!el) { console.log(msg); return; }
-  const color = isError ? '#ff4444' : '#00ff00';
-  el.innerHTML += `<div style="color:${color}">> ${msg}</div>`;
+  if (!el) return;
+  el.innerHTML += `<div style="color:${isError ? '#ff4444' : '#00ff00'}">> ${msg}</div>`;
   el.scrollTop = el.scrollHeight;
-  console.log(msg);
 }
 
-function toggleDebug() {
-  $('debugConsole').classList.toggle('show');
-}
+function toggleDebug() { $('debugConsole').classList.toggle('show'); }
 
 const ts = o => o.createdAt?.seconds || 0;
 const toDate = t => { if (!t) return null; const d = t.toDate ? t.toDate() : new Date(t); return isNaN(d) ? null : d; };
 const fmtTime = t => { if (!t) return '—'; const d = toDate(t); return d ? d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'; };
 const fmtTimeShort = t => { if (!t) return ''; const d = toDate(t); return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''; };
+const fmtDate = t => { if (!t) return '—'; const d = toDate(t); return d ? d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'; };
 const itemsText = i => Array.isArray(i) ? i.map(x => `${x.name} x${x.qty}`).join(', ') : String(i ?? '');
 
 // ═══════════════════════════════════════════════════════════════════
-//  🔐 LOGIN / LOGOUT
+//  📲 PWA INSTALL
+// ═══════════════════════════════════════════════════════════════════
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw-admin.js').catch(e => console.warn('SW', e));
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  $('installBtn').classList.add('show');
+  logToScreen('📲 พร้อมติดตั้ง PWA');
+});
+
+function installPWA() {
+  if (!deferredPrompt) {
+    toast('เปิดเมนู Chrome → "เพิ่มไปที่หน้าจอหลัก"', true);
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') toast('✅ ติดตั้งสำเร็จ!');
+    deferredPrompt = null;
+    $('installBtn').classList.remove('show');
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  logToScreen('✅ ติดตั้ง PWA สำเร็จ');
+  $('installBtn').classList.remove('show');
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  💰 GP CALCULATION
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * คำนวณวันหมดอายุ GP ฟรี
+ */
+function getGPFreeEndDate(merchant) {
+  const created = toDate(merchant.createdAt || merchant.gpAcceptedAt);
+  if (!created) return null;
+  const end = new Date(created);
+  end.setDate(end.getDate() + GP_FREE_DAYS);
+  return end;
+}
+
+/**
+ * เช็คว่าร้านค้าเริ่มจ่าย GP หรือยัง
+ */
+function isMerchantGPActive(merchant) {
+  const end = getGPFreeEndDate(merchant);
+  if (!end) return false;
+  return new Date() >= end;
+}
+
+/**
+ * วันเหลือ GP ฟรี
+ */
+function getDaysLeftGP(merchant) {
+  const end = getGPFreeEndDate(merchant);
+  if (!end) return 0;
+  const diff = Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diff);
+}
+
+/**
+ * คำนวณ GP จากยอดขาย
+ */
+function calcGP(amount, merchant) {
+  if (!isMerchantGPActive(merchant)) {
+    return { total: 0, rider: 0, platform: 0, free: true };
+  }
+  const total = Math.round(amount * GP_MERCHANT_RATE * 100) / 100;
+  const rider = Math.round(amount * GP_RIDER_RATE * 100) / 100;
+  const platform = Math.round(amount * GP_PLATFORM_RATE * 100) / 100;
+  return { total, rider, platform, free: false };
+}
+
+/**
+ * หา Round ของรอบ 2 สัปดาห์ (นับจากวันแรกของเดือน หรือวันสมัคร)
+ */
+function getCurrentCycle() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  // รอบที่ 1: วันที่ 1-14, รอบที่ 2: วันที่ 15-สิ้นเดือน
+  const day = now.getDate();
+  let start, end, cycleNum;
+  if (day <= 14) {
+    start = new Date(year, month, 1, 0, 0, 0);
+    end = new Date(year, month, 14, 23, 59, 59);
+    cycleNum = 1;
+  } else {
+    start = new Date(year, month, 15, 0, 0, 0);
+    end = new Date(year, month + 1, 0, 23, 59, 59); // วันสุดท้ายของเดือน
+    cycleNum = 2;
+  }
+  return { start, end, cycleNum, label: `${start.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })} - ${end.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}` };
+}
+
+function getPreviousCycle() {
+  const curr = getCurrentCycle();
+  const prevEnd = new Date(curr.start);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  prevEnd.setHours(23, 59, 59);
+  const day = prevEnd.getDate();
+  const year = prevEnd.getFullYear();
+  const month = prevEnd.getMonth();
+  let start, cycleNum;
+  if (day <= 14) {
+    start = new Date(year, month, 1, 0, 0, 0);
+    cycleNum = 1;
+  } else {
+    start = new Date(year, month, 15, 0, 0, 0);
+    cycleNum = 2;
+  }
+  return { start, end: prevEnd, cycleNum, label: `${start.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })} - ${prevEnd.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}` };
+}
+
+/**
+ * คำนวณ GP ของร้านค้า ตามช่วงเวลา
+ */
+function getMerchantGPByRange(range) {
+  const now = new Date();
+  let from = new Date();
+  let to = new Date();
+  let label = '';
+
+  if (range === 'today') {
+    from.setHours(0, 0, 0, 0);
+    label = 'วันนี้';
+  } else if (range === 'yesterday') {
+    from.setDate(from.getDate() - 1);
+    from.setHours(0, 0, 0, 0);
+    to.setDate(to.getDate() - 1);
+    to.setHours(23, 59, 59);
+    label = 'เมื่อวาน';
+  } else if (range === 'cycle') {
+    const c = getCurrentCycle();
+    from = c.start;
+    to = c.end;
+    label = `รอบปัจจุบัน (${c.label})`;
+  } else if (range === 'prev_cycle') {
+    const c = getPreviousCycle();
+    from = c.start;
+    to = c.end;
+    label = `รอบที่แล้ว (${c.label})`;
+  } else if (range === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    label = 'เดือนนี้';
+  }
+
+  const completed = store.orders.filter(o => {
+    if (o.status !== 'done') return false;
+    const d = toDate(o.createdAt);
+    return d && d >= from && d <= to;
+  });
+
+  let totalSales = 0, totalGP = 0, riderShare = 0, platformShare = 0, count = 0;
+  const byMerchant = {};
+
+  completed.forEach(o => {
+    const fare = Number(o.fare || 0);
+    const merchantId = o.merchantId || 'unknown';
+    const merchant = store.merchants.find(m => m.id === merchantId);
+    if (!merchant) return;
+
+    const gp = calcGP(fare, merchant);
+    
+    const mName = merchant.name || 'ไม่ระบุ';
+    if (!byMerchant[merchantId]) {
+      byMerchant[merchantId] = {
+        name: mName, sales: 0, gp: 0, riderShare: 0, platformShare: 0, count: 0,
+        isActive: isMerchantGPActive(merchant),
+        daysLeft: getDaysLeftGP(merchant)
+      };
+    }
+    byMerchant[merchantId].sales += fare;
+    byMerchant[merchantId].gp += gp.total;
+    byMerchant[merchantId].riderShare += gp.rider;
+    byMerchant[merchantId].platformShare += gp.platform;
+    byMerchant[merchantId].count++;
+
+    totalSales += fare;
+    totalGP += gp.total;
+    riderShare += gp.rider;
+    platformShare += gp.platform;
+    count++;
+  });
+
+  return { totalSales, totalGP, riderShare, platformShare, count, byMerchant, label, from, to };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🔐 AUTH
 // ═══════════════════════════════════════════════════════════════════
 
 async function handleLogin() {
@@ -297,10 +520,7 @@ async function handleLogin() {
   const email = $('em').value.trim().toLowerCase();
   const pw = $('pw').value;
 
-  if (!email || !pw) {
-    toast('กรอกอีเมลและรหัสผ่าน', true);
-    return;
-  }
+  if (!email || !pw) return toast('กรอกอีเมลและรหัสผ่าน', true);
 
   btn.disabled = true;
   btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
@@ -308,13 +528,12 @@ async function handleLogin() {
 
   try {
     const cred = await auth.signInWithEmailAndPassword(email, pw);
-    logToScreen(`✅ ล็อกอินสำเร็จ: ${cred.user.email}`);
+    logToScreen(`✅ ${cred.user.email}`);
     toast('✅ เข้าสู่ระบบสำเร็จ');
   } catch (err) {
-    logToScreen(`❌ ล้มเหลว: ${err.code}`, true);
+    logToScreen(`❌ ${err.code}`, true);
     const msg = err.code === 'auth/wrong-password' ? 'รหัสผ่านไม่ถูกต้อง'
       : err.code === 'auth/user-not-found' ? 'ไม่พบบัญชีนี้'
-      : err.code === 'auth/invalid-email' ? 'อีเมลไม่ถูกต้อง'
       : err.code === 'auth/invalid-credential' ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
       : err.code === 'auth/too-many-requests' ? 'ลองหลายครั้งเกินไป รอ 5 นาที'
       : err.code === 'auth/network-request-failed' ? 'ไม่มีการเชื่อมต่อ'
@@ -331,8 +550,8 @@ async function handleForgot() {
   if (!email) return toast('กรอกอีเมลก่อน', true);
   try {
     await auth.sendPasswordResetEmail(email);
-    toast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
-  } catch (err) { toast('ส่งไม่สำเร็จ: ' + err.message, true); }
+    toast('📧 ส่งลิงก์รีเซ็ตแล้ว');
+  } catch (err) { toast('ส่งไม่สำเร็จ', true); }
 }
 
 async function handleLogout() {
@@ -341,15 +560,10 @@ async function handleLogout() {
   await auth.signOut();
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  🔄 AUTH STATE CHANGE
-// ═══════════════════════════════════════════════════════════════════
-
 auth.onAuthStateChanged(async user => {
   stop();
-
   if (!user) {
-    logToScreen('⛔ ยังไม่มีผู้ใช้ล็อกอิน');
+    logToScreen('⛔ ยังไม่ล็อกอิน');
     $('login').classList.remove('hidden');
     $('app').classList.add('hidden');
     return;
@@ -357,37 +571,27 @@ auth.onAuthStateChanged(async user => {
 
   const userEmail = (user.email || '').toLowerCase().trim();
   const isMasterAdmin = MASTER_ADMINS.some(e => e.toLowerCase() === userEmail);
+  logToScreen(`👤 ${userEmail}`);
 
-  logToScreen(`👤 ล็อกอิน: ${userEmail}`);
-  logToScreen(`🔑 Master: ${isMasterAdmin ? 'ใช่' : 'ไม่ใช่'}`);
-
-  // เช็คสิทธิ์ Admin
   if (!isMasterAdmin) {
     try {
-      logToScreen('🔍 เช็คสิทธิ์...');
       const adminSnap = await db.collection('admins').doc(user.uid).get();
       const isFirestoreAdmin = adminSnap.exists && ['active', 'super', 'admin'].includes(adminSnap.data().role);
       if (!isFirestoreAdmin) {
-        logToScreen('❌ ไม่พบสิทธิ์ Admin', true);
         toast('บัญชีนี้ไม่มีสิทธิ์เป็นผู้ดูแล', true);
         await auth.signOut();
         return;
       }
-      logToScreen('✅ พบสิทธิ์ Admin');
     } catch (err) {
-      logToScreen(`❌ Firestore Error: ${err.code}`, true);
-      if (err.code === 'permission-denied') {
-        // อนุญาตถ้าเป็น Master Admin
-        if (!isMasterAdmin) {
-          toast('ไม่มีสิทธิ์ - ตรวจสอบ Firestore Rules', true);
-          await auth.signOut();
-          return;
-        }
+      if (err.code === 'permission-denied' && !isMasterAdmin) {
+        toast('ไม่มีสิทธิ์', true);
+        await auth.signOut();
+        return;
       }
     }
   }
 
-  logToScreen('🚀 เข้าสู่ Dashboard');
+  logToScreen('🚀 เข้า Dashboard');
   $('who').textContent = user.email;
   $('login').classList.add('hidden');
   $('app').classList.remove('hidden');
@@ -395,7 +599,7 @@ auth.onAuthStateChanged(async user => {
 });
 
 // ═══════════════════════════════════════════════════════════════════
-//  📡 SUBSCRIPTIONS
+//  📡 SUBSCRIBE
 // ═══════════════════════════════════════════════════════════════════
 
 function start() {
@@ -403,7 +607,7 @@ function start() {
     const unsub = db.collection(k).onSnapshot(s => {
       store[k] = s.docs.map(d => ({ id: d.id, ...d.data() }));
       render();
-    }, err => { logToScreen(`❌ [${k}] ${err.code}`, true); });
+    }, err => logToScreen(`❌ [${k}] ${err.code}`, true));
     unsubs.push(unsub);
   }
   renderNav();
@@ -417,7 +621,7 @@ function stop() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  📊 BADGES
+//  🎨 RENDER
 // ═══════════════════════════════════════════════════════════════════
 
 function getBadgeCounts() {
@@ -427,10 +631,6 @@ function getBadgeCounts() {
   const unreadChats = store.chats.reduce((sum, c) => sum + (c.unreadAdmin || 0), 0);
   return { pendingMerchants, pendingRiders, newOrders, unreadChats };
 }
-
-// ═══════════════════════════════════════════════════════════════════
-//  🎨 RENDER
-// ═══════════════════════════════════════════════════════════════════
 
 function renderNav() {
   const b = getBadgeCounts();
@@ -472,25 +672,25 @@ function dashboard() {
   let todayRevenue = 0, todayOrders = 0, yesterdayRevenue = 0;
   completedAll.forEach(o => {
     const fare = Number(o.fare || 0);
-    const myCut = Math.round(fare * 0.20 * 100) / 100;
+    const merchant = store.merchants.find(m => m.id === o.merchantId);
+    const gp = merchant ? calcGP(fare, merchant) : { total: 0 };
     const d = toDate(o.createdAt);
     if (!d) return;
-    if (d >= today) { todayRevenue += myCut; todayOrders++; }
-    else if (d >= yesterday && d < today) { yesterdayRevenue += myCut; }
+    if (d >= today) { todayRevenue += gp.total; todayOrders++; }
+    else if (d >= yesterday && d < today) { yesterdayRevenue += gp.total; }
   });
 
   const trend = yesterdayRevenue > 0 ? Math.round((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100) : (todayRevenue > 0 ? 100 : 0);
-  const trendUp = trend >= 0;
-
   const b = getBadgeCounts();
   const totalMerchants = store.merchants.filter(m => m.verified).length;
   const activeRiders = store.riders.filter(r => r.status === 'active' && r.verified !== false).length;
+  const cycle = getCurrentCycle();
 
   const heroSection = `
     <div class="hero-card">
-      <div class="hero-label">💰 รายได้วันนี้</div>
-      <div class="hero-amount">฿${todayRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
-      <div class="hero-trend">${trendUp ? '📈' : '📉'} ${trendUp ? '+' : ''}${trend}% เทียบเมื่อวาน (฿${yesterdayRevenue.toFixed(0)})</div>
+      <div class="hero-label">💰 GP รับวันนี้</div>
+      <div class="hero-amount">฿${fmt(todayRevenue)}</div>
+      <div class="hero-trend">📅 รอบปัจจุบัน: ${cycle.label}</div>
       <div class="hero-grid">
         <div class="hero-grid-cell"><div class="lbl">📦 งานเสร็จ</div><div class="val">${todayOrders} งาน</div></div>
         <div class="hero-grid-cell"><div class="lbl">🛵 กำลังทำ</div><div class="val">${activeOrders.length} งาน</div></div>
@@ -502,32 +702,32 @@ function dashboard() {
       <div class="stat-card blue" data-go="merchants">
         <div class="stat-icon">🏪</div>
         <div class="stat-value">${store.merchants.length}</div>
-        <div class="stat-label">ร้านค้าทั้งหมด</div>
-        ${b.pendingMerchants > 0 ? `<div class="stat-sub">⏳ ${b.pendingMerchants} รออนุมัติ</div>` : `<div class="stat-sub">✅ อนุมัติ ${totalMerchants}</div>`}
+        <div class="stat-label">ร้านค้า</div>
+        ${b.pendingMerchants > 0 ? `<div class="stat-sub">⏳ ${b.pendingMerchants} รออนุมัติ</div>` : `<div class="stat-sub">✅ ${totalMerchants} อนุมัติ</div>`}
       </div>
       <div class="stat-card purple" data-go="riders">
         <div class="stat-icon">🛵</div>
         <div class="stat-value">${store.riders.length}</div>
-        <div class="stat-label">ไรเดอร์ทั้งหมด</div>
-        ${b.pendingRiders > 0 ? `<div class="stat-sub">⏳ ${b.pendingRiders} รออนุมัติ</div>` : `<div class="stat-sub">🟢 ทำงาน ${activeRiders}</div>`}
+        <div class="stat-label">ไรเดอร์</div>
+        ${b.pendingRiders > 0 ? `<div class="stat-sub">⏳ ${b.pendingRiders} รออนุมัติ</div>` : `<div class="stat-sub">🟢 ${activeRiders} ทำงาน</div>`}
       </div>
       <div class="stat-card orange" data-go="orders">
         <div class="stat-icon">📋</div>
         <div class="stat-value">${store.orders.length}</div>
-        <div class="stat-label">ออเดอร์ทั้งหมด</div>
-        ${b.newOrders > 0 ? `<div class="stat-sub">🔔 ใหม่ ${b.newOrders}</div>` : `<div class="stat-sub">✅ เสร็จ ${completedAll.length}</div>`}
+        <div class="stat-label">ออเดอร์</div>
+        ${b.newOrders > 0 ? `<div class="stat-sub">🔔 ${b.newOrders} ใหม่</div>` : `<div class="stat-sub">✅ ${completedAll.length} เสร็จ</div>`}
       </div>
       <div class="stat-card teal" data-go="users">
         <div class="stat-icon">👥</div>
         <div class="stat-value">${store.users.length}</div>
-        <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+        <div class="stat-label">ผู้ใช้</div>
         <div class="stat-sub">ลูกค้าในระบบ</div>
       </div>
       <div class="stat-card gold" data-go="gp">
         <div class="stat-icon">💰</div>
         <div class="stat-value">฿${todayRevenue.toFixed(0)}</div>
-        <div class="stat-label">รายได้วันนี้ (GP)</div>
-        <div class="stat-sub">GP 20% รวม</div>
+        <div class="stat-label">GP วันนี้</div>
+        <div class="stat-sub">3% จากร้านค้า</div>
       </div>
       <div class="stat-card green" data-go="chats">
         <div class="stat-icon">💬</div>
@@ -554,95 +754,115 @@ function dashboard() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  💰 GP
+//  💰 GP PAGE (มี 2 tabs: ตามช่วงเวลา / ตามรอบ)
 // ═══════════════════════════════════════════════════════════════════
-
-function getGPByRange(range) {
-  let from = new Date();
-  if (range === 'today') from.setHours(0, 0, 0, 0);
-  else if (range === 'yesterday') { from.setDate(from.getDate() - 1); from.setHours(0, 0, 0, 0); }
-  else if (range === 'week') { from.setDate(from.getDate() - 7); from.setHours(0, 0, 0, 0); }
-  else if (range === 'month') { from.setDate(from.getDate() - 30); from.setHours(0, 0, 0, 0); }
-
-  const filtered = store.orders.filter(o => {
-    if (o.status !== 'done') return false;
-    const d = toDate(o.createdAt);
-    return d && d >= from;
-  });
-
-  let total = 0, totalFare = 0, count = 0;
-  const byRider = {}, byMerchant = {};
-  filtered.forEach(o => {
-    const fare = Number(o.fare || 0);
-    const gp = Math.round(fare * 0.20 * 100) / 100;
-    total += gp; totalFare += fare; count++;
-    const rId = o.riderId || 'unknown';
-    const rName = o.riderName || 'ไม่ระบุ';
-    if (!byRider[rId]) byRider[rId] = { name: rName, gp: 0, count: 0 };
-    byRider[rId].gp += gp; byRider[rId].count++;
-    const mId = o.merchantId || 'unknown';
-    const mName = o.merchantName || store.merchants.find(m => m.id === mId)?.name || 'ไม่ระบุ';
-    if (!byMerchant[mId]) byMerchant[mId] = { name: mName, gp: 0, count: 0 };
-    byMerchant[mId].gp += gp; byMerchant[mId].count++;
-  });
-  return { total, totalFare, count, byRider, byMerchant };
-}
 
 function gp() {
   const range = filters.gpRange;
-  const today = getGPByRange('today');
-  const current = { today, yesterday: getGPByRange('yesterday'), week: getGPByRange('week'), month: getGPByRange('month') }[range];
+  const view = filters.gpView;
+
+  const data = getMerchantGPByRange(range);
+  const cycle = getCurrentCycle();
 
   const rangeTabs = `<div class="filter-bar">
     <button class="filter-chip ${range === 'today' ? 'active' : ''}" data-gp="today">📅 วันนี้</button>
     <button class="filter-chip ${range === 'yesterday' ? 'active' : ''}" data-gp="yesterday">⏪ เมื่อวาน</button>
-    <button class="filter-chip ${range === 'week' ? 'active' : ''}" data-gp="week">📆 7 วัน</button>
-    <button class="filter-chip ${range === 'month' ? 'active' : ''}" data-gp="month">🗓️ 30 วัน</button>
+    <button class="filter-chip ${range === 'cycle' ? 'active' : ''}" data-gp="cycle">🔄 รอบนี้</button>
+    <button class="filter-chip ${range === 'prev_cycle' ? 'active' : ''}" data-gp="prev_cycle">⏮️ รอบที่แล้ว</button>
+    <button class="filter-chip ${range === 'month' ? 'active' : ''}" data-gp="month">🗓️ เดือนนี้</button>
   </div>`;
 
-  const summaryCards = `<div class="stat-grid">
-    <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">฿${current.total.toFixed(0)}</div><div class="stat-label">GP รวม</div><div class="stat-sub">${current.count} ออเดอร์</div></div>
-    <div class="stat-card blue"><div class="stat-icon">📊</div><div class="stat-value">฿${current.totalFare.toFixed(0)}</div><div class="stat-label">ยอดขายรวม</div><div class="stat-sub">ก่อนหัก GP</div></div>
-    <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">฿${today.total.toFixed(0)}</div><div class="stat-label">GP วันนี้</div><div class="stat-sub">${today.count} ออเดอร์</div></div>
-    <div class="stat-card purple"><div class="stat-icon">🛵</div><div class="stat-value">฿${(current.total * 4).toFixed(0)}</div><div class="stat-label">ไรเดอร์ได้ 80%</div><div class="stat-sub">จาก GP</div></div>
+  const summary = `<div class="stat-grid">
+    <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">฿${data.totalGP.toFixed(0)}</div><div class="stat-label">GP รวม</div><div class="stat-sub">${data.label}</div></div>
+    <div class="stat-card blue"><div class="stat-icon">📊</div><div class="stat-value">฿${data.totalSales.toFixed(0)}</div><div class="stat-label">ยอดขายรวม</div><div class="stat-sub">${data.count} ออเดอร์</div></div>
+    <div class="stat-card green"><div class="stat-icon">🛵</div><div class="stat-value">฿${data.riderShare.toFixed(0)}</div><div class="stat-label">ไรเดอร์ (2%)</div><div class="stat-sub">ส่วนแบ่งไรเดอร์</div></div>
+    <div class="stat-card purple"><div class="stat-icon">🏢</div><div class="stat-value">฿${data.platformShare.toFixed(0)}</div><div class="stat-label">แพลตฟอร์ม (1%)</div><div class="stat-sub">ส่วนแบ่งระบบ</div></div>
   </div>`;
 
-  const riderRows = Object.entries(current.byRider).sort((a, b) => b[1].gp - a[1].gp);
-  const riderTable = riderRows.length === 0
-    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
-    : riderRows.map(([id, r]) => `<tr>
-        <td style="font-weight:900">🛵 ${esc(r.name)}</td>
-        <td class="text-center">${r.count}</td>
-        <td class="text-right money-pos">฿${r.gp.toFixed(2)}</td>
-        <td class="text-right" style="color:var(--mut);font-weight:700">฿${(r.gp * 4).toFixed(0)}</td>
-      </tr>`).join('');
+  const cycleInfo = `
+    <div class="gp-progress">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:900;font-size:14px">🔄 รอบตัด GP ทุก 2 สัปดาห์</div>
+        <span class="tag b">${cycle.label}</span>
+      </div>
+      <div style="font-size:12px;color:var(--mut);font-weight:600;margin-bottom:8px">
+        รอบปัจจุบัน: วันที่ 1-14 และ 15-สิ้นเดือน
+      </div>
+      <div style="font-size:12px;color:var(--mut);font-weight:700">
+        📅 ตั้งแต่ ${cycle.start.toLocaleDateString('th-TH')} ถึง ${cycle.end.toLocaleDateString('th-TH')}
+      </div>
+    </div>`;
 
-  const merchantRows = Object.entries(current.byMerchant).sort((a, b) => b[1].gp - a[1].gp);
+  const merchantRows = Object.entries(data.byMerchant).sort((a, b) => b[1].gp - a[1].gp);
   const merchantTable = merchantRows.length === 0
-    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
+    ? '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
     : merchantRows.map(([id, m]) => `<tr>
         <td style="font-weight:900">🏪 ${esc(m.name)}</td>
         <td class="text-center">${m.count}</td>
+        <td class="text-right">฿${m.sales.toFixed(0)}</td>
         <td class="text-right money-pos">฿${m.gp.toFixed(2)}</td>
-        <td class="text-right" style="color:var(--mut);font-weight:700">฿${(m.gp * 4).toFixed(0)}</td>
+        <td class="text-right" style="color:#FF6B35;font-weight:700">฿${m.riderShare.toFixed(2)}</td>
+        <td class="text-right" style="color:#1565C0;font-weight:700">฿${m.platformShare.toFixed(2)}</td>
       </tr>`).join('');
 
+  const merchantStatusList = store.merchants.map(m => {
+    const active = isMerchantGPActive(m);
+    const daysLeft = getDaysLeftGP(m);
+    return `<div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:${active ? '#FFF3E0' : '#E8F5E9'}">${active ? '💸' : '🎁'}</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(m.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">สมัครเมื่อ ${fmtDate(m.createdAt || m.gpAcceptedAt)}</div>
+        </div>
+        <span class="tag ${active ? 'w' : ''}">${active ? '💰 จ่าย GP' : '🎁 ฟรี GP'}</span>
+      </div>
+      ${!active ? `
+        <div class="gp-progress-bar" style="margin-top:8px">
+          <div class="gp-progress-fill" style="width:${Math.round((1 - daysLeft / GP_FREE_DAYS) * 100)}%"></div>
+        </div>
+        <div style="font-size:11px;color:var(--mut);font-weight:700;margin-top:4px">
+          ⏰ เหลืออีก ${daysLeft} วัน จะเริ่มจ่าย GP 3%
+        </div>
+      ` : `
+        <div style="font-size:11px;color:var(--warn);font-weight:700;margin-top:8px">
+          💰 จ่าย GP 3% (ไรเดอร์ 2% + แพลตฟอร์ม 1%)
+        </div>
+      `}
+    </div>`;
+  }).join('');
+
+  const viewTabs = `<div class="filter-bar">
+    <button class="filter-chip ${view === 'summary' ? 'active' : ''}" data-gpview="summary">📊 สรุป</button>
+    <button class="filter-chip ${view === 'merchants' ? 'active' : ''}" data-gpview="merchants">🏪 สถานะร้านค้า</button>
+  </div>`;
+
   return `<h2 style="font-weight:900;font-size:18px;margin-bottom:12px">💰 GP Dashboard</h2>
-    ${rangeTabs}${summaryCards}
-    <div class="section-divider"><div class="title">🛵 GP รายไรเดอร์</div><div class="line"></div></div>
-    <div class="table-wrap"><table class="gp-table">
-      <thead><tr><th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">GP 20%</th><th class="text-right">ได้ 80%</th></tr></thead>
-      <tbody>${riderTable}</tbody>
-    </table></div>
-    <div class="section-divider"><div class="title">🏪 GP รายร้านค้า</div><div class="line"></div></div>
-    <div class="table-wrap"><table class="gp-table">
-      <thead><tr><th>ร้านค้า</th><th class="text-center">งาน</th><th class="text-right">GP 20%</th><th class="text-right">ได้ 80%</th></tr></thead>
-      <tbody>${merchantTable}</tbody>
-    </table></div>`;
+    ${viewTabs}
+    ${view === 'summary' ? `
+      ${rangeTabs}${summary}${cycleInfo}
+      <div class="section-divider"><div class="title">🏪 GP รายร้านค้า</div><div class="line"></div></div>
+      <div class="table-wrap"><table class="gp-table">
+        <thead><tr>
+          <th>ร้านค้า</th>
+          <th class="text-center">งาน</th>
+          <th class="text-right">ยอดขาย</th>
+          <th class="text-right">GP 3%</th>
+          <th class="text-right" style="color:#FF6B35">ไรเดอร์ 2%</th>
+          <th class="text-right" style="color:#1565C0">แพลตฟอร์ม 1%</th>
+        </tr></thead>
+        <tbody>${merchantTable}</tbody>
+      </table></div>
+    ` : `
+      <div style="font-size:12px;color:var(--mut);font-weight:700;margin-bottom:12px;padding:12px;background:#fff;border-radius:12px">
+        ℹ️ ร้านค้าที่สมัครใหม่จะได้ฟรี GP 60 วันแรก หลังจากนั้นเริ่มจ่าย 3% (ไรเดอร์ 2% + แพลตฟอร์ม 1%)
+      </div>
+      ${merchantStatusList}
+    `}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  💬 CHATS
+//  💬 CHATS (with image + slip)
 // ═══════════════════════════════════════════════════════════════════
 
 function chats() {
@@ -661,9 +881,9 @@ function chats() {
         <div class="chat-title">${esc(title)}</div>
         <div class="chat-preview">${esc((c.lastMessage || '—').substring(0, 50))}</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:10px;color:var(--mut);font-weight:700">${fmtTimeShort(c.lastMessageAt || c.createdAt)}</div>
-        ${unread > 0 ? `<div style="background:var(--danger);color:#fff;font-size:10px;font-weight:900;border-radius:10px;padding:2px 6px;margin-top:4px;display:inline-block">${unread}</div>` : ''}
+      <div class="chat-meta">
+        <div class="chat-time">${fmtTimeShort(c.lastMessageAt || c.createdAt)}</div>
+        ${unread > 0 ? `<div class="chat-unread">${unread}</div>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -699,7 +919,14 @@ function renderChatMessages(msgs) {
     const isAdmin = m.senderRole === 'admin';
     const cls = isAdmin ? 'out' : 'in';
     const senderName = !isAdmin && m.senderName ? `<div style="font-size:10px;font-weight:900;opacity:.8;margin-bottom:4px">${esc(m.senderName)}</div>` : '';
-    return `<div class="chat-msg ${cls}">${senderName}${m.text ? `<div>${esc(m.text)}</div>` : ''}<div class="msg-time">${fmtTimeShort(m.createdAt)}</div></div>`;
+    let content = '';
+    if (m.imageUrl) {
+      const isSlip = m.type === 'slip';
+      content += `<img src="${esc(m.imageUrl)}" class="msg-image${isSlip ? ' msg-slip' : ''}" onclick="window.open('${esc(m.imageUrl)}','_blank')">`;
+      if (isSlip) content += `<div class="msg-label">🧾 สลิปโอนเงิน</div>`;
+    }
+    if (m.text) content += `<div>${esc(m.text)}</div>`;
+    return `<div class="chat-msg ${cls}">${senderName}${content}<div class="msg-time">${fmtTimeShort(m.createdAt)}</div></div>`;
   }).join('');
   $('chat-messages').innerHTML = html;
   setTimeout(() => { $('chat-messages').scrollTop = $('chat-messages').scrollHeight; }, 50);
@@ -719,6 +946,45 @@ async function sendChatText() {
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (e) { toast('ส่งไม่สำเร็จ', true); }
+}
+
+function pickChatImage() {
+  const input = $('chat-image-input');
+  input.onchange = (e) => sendChatImage(e.target.files[0], false);
+  input.click();
+}
+
+function pickChatSlip() {
+  const input = $('chat-slip-input');
+  input.onchange = (e) => sendChatImage(e.target.files[0], true);
+  input.click();
+}
+
+async function sendChatImage(file, isSlip) {
+  if (!file || !activeChatId) return;
+  if (file.size > 5 * 1024 * 1024) return toast('รูปใหญ่เกิน 5MB', true);
+  toast('⏳ กำลังอัปโหลด...');
+  try {
+    const folder = isSlip ? 'slips' : 'images';
+    const path = `chats/${activeChatId}/${folder}/${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    await db.collection('chats').doc(activeChatId).collection('messages').add({
+      imageUrl: url,
+      type: isSlip ? 'slip' : 'image',
+      senderRole: 'admin',
+      senderName: 'Admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(activeChatId).update({
+      lastMessage: `[Admin] ${isSlip ? '🧾 สลิป' : '📷 รูปภาพ'}`,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast(isSlip ? '✅ ส่งสลิปแล้ว' : '✅ ส่งรูปแล้ว');
+  } catch (e) {
+    toast('อัปโหลดไม่สำเร็จ: ' + e.message, true);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -741,21 +1007,29 @@ function merchants() {
     <button class="filter-chip ${st === 'verified' ? 'active' : ''}" data-mfilter="verified">✅ อนุมัติ (${verifiedCount})</button>
   </div>`;
 
-  return filterBar + searchInput('ค้นหาร้านค้า...') + (list.map(m => `
-    <div class="data-card">
+  return filterBar + searchInput('ค้นหาร้านค้า...') + (list.map(m => {
+    const active = isMerchantGPActive(m);
+    const daysLeft = getDaysLeftGP(m);
+    return `<div class="data-card">
       <div class="data-card-header">
         <div class="data-card-icon" style="background:#E8F5E9">🏪</div>
         <div class="data-card-info">
           <div class="data-card-name">${esc(m.name || 'ไม่ระบุ')}</div>
           <div class="data-card-meta">📞 ${esc(m.phone || '—')} • ⭐ ${esc(m.rating || 0)}</div>
+          <div class="data-card-meta">สมัคร ${fmtDate(m.createdAt || m.gpAcceptedAt)}</div>
         </div>
         <span class="tag ${m.verified ? '' : 'w'}">${m.verified ? '✅' : '⏳'}</span>
       </div>
+      <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+        <span class="slip-badge">${active ? '💰 จ่าย GP 3%' : `🎁 ฟรี GP (${daysLeft} วัน)`}</span>
+      </div>
       <div class="data-card-actions">
         <button class="${m.verified ? 'dan' : 'pri'}" data-verify-m="${esc(m.id)}">${m.verified ? '🚫 ยกเลิก' : '✅ อนุมัติ'}</button>
+        <button class="blue" data-reset-gp="${esc(m.id)}">🔄 รีเซ็ตวัน GP</button>
         <button class="dan" data-del="merchants:${esc(m.id)}">🗑️ ลบ</button>
       </div>
-    </div>`).join('') || '<div class="empty">ไม่พบร้านค้า</div>');
+    </div>`;
+  }).join('') || '<div class="empty">ไม่พบร้านค้า</div>');
 }
 
 function orders() {
@@ -771,18 +1045,21 @@ function orders() {
     ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${filters.orders === k ? 'selected' : ''}>${v}</option>`).join('')}
   </select>`;
 
-  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => `
-    <div class="data-card" data-order="${esc(o.id)}" style="cursor:pointer">
+  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => {
+    const merchant = store.merchants.find(m => m.id === o.merchantId);
+    const gp = merchant ? calcGP(Number(o.fare || 0), merchant) : { total: 0 };
+    return `<div class="data-card" data-order="${esc(o.id)}" style="cursor:pointer">
       <div class="data-card-header">
         <div class="data-card-icon" style="background:#E3F2FD">📋</div>
         <div class="data-card-info">
           <div class="data-card-name">${esc(o.title || 'ออเดอร์')}</div>
-          <div class="data-card-meta">฿${esc(o.total || 0)} • 👤 ${esc(o.userName || '—')}</div>
+          <div class="data-card-meta">฿${esc(o.total || 0)} • GP ฿${gp.total.toFixed(2)}</div>
           <div class="data-card-meta">🕐 ${fmtTime(o.createdAt)}</div>
         </div>
         <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(STATUS[o.status] || o.status)}</span>
       </div>
-    </div>`).join('') || '<div class="empty">ไม่พบออเดอร์</div>');
+    </div>`;
+  }).join('') || '<div class="empty">ไม่พบออเดอร์</div>');
 }
 
 function riders() {
@@ -843,24 +1120,34 @@ function users() {
 
 function settings() {
   return `<div class="card">
-    <h2 style="font-size:16px;font-weight:900;margin-bottom:12px">⚙️ ตั้งค่า</h2>
-    <div style="padding:12px 0;border-bottom:1px solid #eee">
-      <div style="font-weight:800">📊 สถิติระบบ</div>
-      <div style="font-size:13px;color:var(--mut);margin-top:4px">ร้านค้า: ${store.merchants.length} • ไรเดอร์: ${store.riders.length} • ผู้ใช้: ${store.users.length} • ออเดอร์: ${store.orders.length}</div>
+    <h2 style="font-size:16px;font-weight:900;margin-bottom:12px">📲 ติดตั้งแอป (PWA)</h2>
+    <div style="font-size:13px;color:var(--mut);font-weight:600;margin-bottom:12px">
+      ติดตั้ง Chauat Go Admin เป็นแอปบนหน้าจอหลัก เพื่อเปิดใช้งานได้เร็วขึ้น ไม่ต้องพิมพ์ URL ทุกครั้ง
     </div>
-    <div style="padding:12px 0;border-bottom:1px solid #eee">
-      <div style="font-weight:800">🔔 แชททั้งหมด</div>
-      <div style="font-size:13px;color:var(--mut);margin-top:4px">${store.chats.length} การสนทนา</div>
+    <button class="pri big" onclick="installPWA()">📲 ติดตั้งแอปเดี๋ยวนี้</button>
+  </div>
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:900;margin-bottom:12px">💰 นโยบาย GP</h2>
+    <div style="font-size:13px;line-height:1.8;font-weight:600">
+      • 🎁 ร้านค้าใหม่: <b>ฟรี GP 60 วัน</b> นับจากวันสมัคร<br>
+      • 💰 หลังจาก 60 วัน: <b>หัก GP 3%</b> จากยอดขาย<br>
+      • 🛵 ไรเดอร์ได้: <b>2%</b> ของยอดขาย<br>
+      • 🏢 แพลตฟอร์มได้: <b>1%</b> ของยอดขาย<br>
+      • 🔄 รอบตัด: <b>ทุก 2 สัปดาห์</b> (วันที่ 1-14 และ 15-สิ้นเดือน)
     </div>
-    <div style="padding:12px 0">
-      <div style="font-weight:800">🐞 Debug Console</div>
-      <div style="font-size:13px;color:var(--mut);margin-top:4px">กดปุ่ม 🐞 มุมขวาล่าง เพื่อดู Log</div>
+  </div>
+  <div class="card">
+    <h2 style="font-size:16px;font-weight:900;margin-bottom:12px">📊 สถิติระบบ</h2>
+    <div style="font-size:13px;color:var(--mut);font-weight:600;line-height:1.8">
+      ร้านค้า: ${store.merchants.length} • ไรเดอร์: ${store.riders.length}<br>
+      ผู้ใช้: ${store.users.length} • ออเดอร์: ${store.orders.length}<br>
+      แชท: ${store.chats.length} การสนทนา
     </div>
   </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  🪟 MODAL
+//  MODAL
 // ═══════════════════════════════════════════════════════════════════
 
 function openModal(t, h) {
@@ -869,20 +1156,29 @@ function openModal(t, h) {
   $('modal-overlay').classList.add('show');
 }
 
-function closeModal() {
-  $('modal-overlay').classList.remove('show');
-}
+function closeModal() { $('modal-overlay').classList.remove('show'); }
 
 function orderDetail(id) {
   const o = store.orders.find(x => x.id === id);
   if (!o) return;
   const opts = Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${o.status === k ? 'selected' : ''}>${v}</option>`).join('');
+  const merchant = store.merchants.find(m => m.id === o.merchantId);
+  const gp = merchant ? calcGP(Number(o.fare || 0), merchant) : null;
+  const gpInfo = gp ? (gp.free
+    ? `<div style="background:#E8F5E9;padding:10px;border-radius:10px;font-size:12px;font-weight:700;color:#2E7D32;margin-top:12px">🎁 ร้านค้าอยู่ในช่วงฟรี GP — ไม่มีค่าธรรมเนียม</div>`
+    : `<div style="background:#FFF3E0;padding:10px;border-radius:10px;font-size:12px;font-weight:700;color:var(--warn);margin-top:12px">
+        💰 GP 3%: <b>฿${gp.total.toFixed(2)}</b><br>
+        🛵 ไรเดอร์ 2%: ฿${gp.rider.toFixed(2)}<br>
+        🏢 แพลตฟอร์ม 1%: ฿${gp.platform.toFixed(2)}
+      </div>`) : '';
+
   openModal('📋 ออเดอร์', `
     <div style="font-size:11px;color:var(--mut);font-family:monospace">ID: ${esc(o.id)}</div>
     <div style="font-weight:900;font-size:18px;margin:8px 0">${esc(o.title || '')}</div>
     <div style="font-size:12px;background:#f8f9fa;padding:12px;border-radius:10px;white-space:pre-wrap">${esc(itemsText(o.items))}</div>
     <div style="font-size:12px;margin-top:12px">👤 ${esc(o.userName || '')} • ${esc(o.userPhone || '')}</div>
     <div style="font-size:12px">📍 ${esc(o.address || '')}</div>
+    ${gpInfo}
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div>
         <div style="font-size:11px;color:var(--mut)">ค่าส่ง ฿${esc(o.fare || 0)}</div>
@@ -899,14 +1195,15 @@ function orderDetail(id) {
 // ═══════════════════════════════════════════════════════════════════
 
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-go],[data-order],[data-verify-m],[data-verify-r],[data-del],[data-mfilter],[data-rfilter],[data-gp],[data-chat],[data-cancel-order]');
+  const t = e.target.closest('[data-go],[data-order],[data-verify-m],[data-verify-r],[data-del],[data-mfilter],[data-rfilter],[data-gp],[data-gpview],[data-chat],[data-cancel-order],[data-reset-gp]');
   if (!t) return;
 
   try {
     if (t.dataset.go) { current = t.dataset.go; filters.q = ''; render(); window.scrollTo(0, 0); return; }
     if (t.dataset.gp) { filters.gpRange = t.dataset.gp; render(); return; }
-    if (t.dataset.mfilter !== undefined && t.hasAttribute('data-mfilter')) { filters.merchantStatus = t.dataset.mfilter; render(); return; }
-    if (t.dataset.rfilter !== undefined && t.hasAttribute('data-rfilter')) { filters.riderStatus = t.dataset.rfilter; render(); return; }
+    if (t.dataset.gpview) { filters.gpView = t.dataset.gpview; render(); return; }
+    if (t.hasAttribute('data-mfilter')) { filters.merchantStatus = t.dataset.mfilter; render(); return; }
+    if (t.hasAttribute('data-rfilter')) { filters.riderStatus = t.dataset.rfilter; render(); return; }
     if (t.dataset.chat) { openChat(t.dataset.chat); return; }
     if (t.dataset.order) { orderDetail(t.dataset.order); return; }
 
@@ -918,6 +1215,17 @@ document.addEventListener('click', async e => {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       toast('✅ อัปเดตแล้ว');
+      return;
+    }
+
+    if (t.dataset.resetGp) {
+      if (!confirm('รีเซ็ตวันเริ่ม GP ของร้านนี้เป็นวันนี้?\n\n(ร้านจะได้ฟรี GP อีก 60 วัน)')) return;
+      await db.collection('merchants').doc(t.dataset.resetGp).update({
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        gpAcceptedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        gpResetAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast('🔄 รีเซ็ตวัน GP สำเร็จ');
       return;
     }
 
@@ -992,11 +1300,10 @@ $('chat-input').addEventListener('keydown', e => {
   }
 });
 
-// ─── Init Log ───
-console.log('%c🛵 Chauat Go Admin v4.0', 'color:#00A651;font-weight:900;font-size:16px');
-console.log('%c✓ Single File | ✓ No SW | ✓ Event Delegation', 'color:#1565C0;font-weight:700');
-logToScreen('🚀 ระบบเริ่มทำงาน');
-logToScreen('👤 รอผู้ใช้ล็อกอิน...');
+console.log('%c🛵 Chauat Go Admin v5.0', 'color:#00A651;font-weight:900;font-size:16px');
+console.log('%c✓ PWA Install | ✓ GP 3% (60d free) | ✓ Chat Images', 'color:#1565C0;font-weight:700');
+logToScreen('🚀 ระบบ v5.0 เริ่มทำงาน');
+logToScreen('📲 PWA: ' + (deferredPrompt ? 'พร้อมติดตั้ง' : 'รอ...'));
 </script>
 </body>
 </html>
