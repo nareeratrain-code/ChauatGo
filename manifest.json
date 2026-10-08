@@ -1,40 +1,24 @@
 {
-  "name": "Chauat Go — สั่งครบ จบที่เดียว",
-  "short_name": "ChauatGo",
-  "description": "แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด",
-  "start_url": "/",
+  "name": "Chauat Go Admin",
+  "short_name": "Chauat Admin",
+  "description": "ระบบจัดการ Chauat Go",
+  "start_url": "/admin.html",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#00A651",
   "theme_color": "#00A651",
-  "scope": "/",
-  "lang": "th",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "สั่งอาหาร",
-      "short_name": "อาหาร",
-      "url": "/?action=order-food",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "เปิดแผนที่",
-      "short_name": "แผนที่",
-      "url": "/?action=map",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
