@@ -38,7 +38,7 @@ main{padding:16px}
 .stat-card:active{transform:scale(.98)}
 .stat-card::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(255,255,255,.2),transparent 70%);border-radius:50%;pointer-events:none}
 .stat-card .stat-icon{font-size:28px;margin-bottom:8px;opacity:.95}
-.stat-card .stat-value{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
+.stat-card .stat-value{font-size:28px;font-weight:900;line-height:1;letter-spacing:-1px}
 .stat-card .stat-label{font-size:12px;font-weight:700;margin-top:6px;opacity:.95}
 .stat-card .stat-sub{font-size:10px;opacity:.8;margin-top:2px;font-weight:700}
 .stat-card.green{background:linear-gradient(135deg,#00A651,#008C45)}
@@ -52,7 +52,7 @@ main{padding:16px}
 .stat-card.indigo{background:linear-gradient(135deg,#3F51B5,#283593)}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
 
-.hero-card{background:linear-gradient(135deg,#00A651 0%,#008C45 100%);border-radius:24px;padding:24px 20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,166,81,.25)}
+.hero-card{background:linear-gradient(135deg,#00A651 0%,#008C45 100%);border-radius:24px;padding:24px 20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,166,81,.25);cursor:pointer}
 .hero-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 70%);border-radius:50%;pointer-events:none}
 .hero-label{font-size:13px;opacity:.9;font-weight:700;margin-bottom:6px;position:relative;z-index:1}
 .hero-amount{font-size:44px;font-weight:900;line-height:1;letter-spacing:-1px;position:relative;z-index:1}
@@ -144,6 +144,7 @@ table.gp-table tr:hover{background:#fafafa}
 .slip-status-banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-size:12px;font-weight:800}
 .slip-status-banner.pending{background:#FFFBEB;color:#92400e;border-left:4px solid var(--warn)}
 .slip-status-banner.ok{background:#F0FDF4;color:#166534;border-left:4px solid var(--brand)}
+.slip-status-banner.reject{background:#FFEBEE;color:#991b1b;border-left:4px solid var(--danger)}
 
 .chat-container{position:fixed;inset:0;background:#EDF6DC;z-index:300;display:flex;flex-direction:column;max-width:1000px;margin:0 auto;opacity:0;pointer-events:none;transition:opacity .25s}
 .chat-container.show{opacity:1;pointer-events:auto}
@@ -181,3 +182,10 @@ table.gp-table tr:hover{background:#fafafa}
 .picker{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:12px;background:#fafafa}
 .picker label{display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;min-height:44px}
 .picker input[type=checkbox]{width:22px;height:22px;margin:0;min-height:22px;flex-shrink:0;accent-color:var(--brand)}
+
+.daily-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer}
+.daily-row:last-child{border-bottom:none}
+.daily-row:active{background:#f8f9fa}
+.daily-row-date{font-weight:900;font-size:13px;color:var(--text)}
+.daily-row-sub{font-size:11px;color:var(--mut);font-weight:600;margin-top:2px}
+.daily-row-amount{font-weight:900;font-size:16px;color:var(--brand)}
