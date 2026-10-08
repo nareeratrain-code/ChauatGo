@@ -26,7 +26,6 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
 <link rel="stylesheet" href="index.css?v=3.3.3">
 
 <script>
@@ -133,9 +132,9 @@
   <div class="header-top">
     <div class="search-bar">
       <span style="font-size:18px;opacity:.6">🔍</span>
-      <input type="text" id="search-input" placeholder="ค้นหาจาก 490+ สถานที่..." oninput="doSearch(this.value)">
+      <input type="text" id="search-input" placeholder="ค้นหาจาก 490+ สถานที่...">
     </div>
-    <div class="profile-avatar ripple" id="profile-avatar-btn">
+    <div class="profile-avatar ripple" id="profile-avatar-btn" style="position:relative">
       <span id="profile-avatar-emoji">👤</span>
     </div>
   </div>
@@ -395,23 +394,18 @@
   </div>
 </div>
 
-<!-- ═══ STAGE 1: External Libraries ═══ -->
+<!-- STAGE 1: External Libraries -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
-<!-- ═══ STAGE 2: Data ═══ -->
+<!-- STAGE 2: Data -->
 <script src="locations-data.js?v=3.3.3"></script>
 
-<!-- ═══ STAGE 3: APP LOGIC (ฝังในไฟล์เดียว) ═══ -->
+<!-- STAGE 3: APP LOGIC (v3.3.3 Inline) -->
 <script>
-/* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO — v3.3.3 Main Application Logic
-   ═══════════════════════════════════════════════════════════════════ */
-
-// ═══ DEBUG (ต้องมีก่อน) ═══
 window.debugLog = function(msg, isError) {
   const el = document.getElementById('debugConsole');
   if (el) {
@@ -430,7 +424,6 @@ window.addEventListener('unhandledrejection', function(e) {
   window.debugLog('❌ PROMISE: ' + (e.reason && e.reason.message || e.reason), true);
 });
 
-// ═══ FIREBASE CONFIG ═══
 const firebaseConfig = {
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
@@ -451,7 +444,6 @@ try {
   }
 } catch (e) { console.error('Firebase init failed:', e); }
 
-// ═══ STATE ═══
 let PLACES = [];
 let currentUser = null;
 let userProfile = null;
@@ -480,7 +472,6 @@ const CATEGORIES = {
   p: { name: 'ไปรษณีย์', icon: '📦' }, y: { name: 'ชุมชน', icon: '🏘️' }
 };
 
-// ═══ HELPERS ═══
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = n => Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
@@ -510,7 +501,6 @@ function fmtDistance(km) {
 }
 function hasRealImage(img) { return !!(img && img.indexOf('images/') === 0); }
 
-// ═══ INIT ═══
 document.addEventListener('DOMContentLoaded', function() {
   window.debugLog('🚀 Chauat Go v3.3.3 เริ่มทำงาน');
   loadPlaces();
@@ -520,6 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
   checkPDPA();
   updateCartBar();
   window.debugLog('✅ Init complete');
+  setTimeout(runPatches, 1500);
 });
 
 function loadPlaces() {
@@ -527,6 +518,7 @@ function loadPlaces() {
     PLACES = window.PLACES_RAW.map(function(p, i) {
       return { id: 'LOC-' + String(i + 1).padStart(3, '0'), name: p[0], lat: p[1], lng: p[2], category: p[3], price: p[4], image: p[5], rating: p[6] };
     });
+    window.PLACES = PLACES;
     window.debugLog('📍 โหลด ' + PLACES.length + ' สถานที่ ✅');
     updateStatsBar();
   } else {
@@ -541,14 +533,12 @@ function updateStatsBar() {
   const rest = PLACES.filter(p => p.category === 'r').length;
   const cafe = PLACES.filter(p => p.category === 'f').length;
   const shop = PLACES.filter(p => ['s', 'c', 'm'].includes(p.category)).length;
-
   const setT = function(id, v) { const el = $(id); if (el) el.textContent = v; };
   setT('stat-total', total);
   setT('stat-rest', rest);
   setT('stat-cafe', cafe);
   setT('stat-shop', shop);
   window.debugLog('📊 Stats: ' + total + '/' + rest + '/' + cafe + '/' + shop);
-
   renderGrid('restaurant-grid', PLACES.filter(p => p.category === 'r' && hasRealImage(p.image)).slice(0, 6));
   renderGrid('convenience-grid', PLACES.filter(p => p.category === 'c' && hasRealImage(p.image)).slice(0, 6));
   renderGrid('cafe-grid', PLACES.filter(p => p.category === 'f' && hasRealImage(p.image)).slice(0, 6));
@@ -573,26 +563,42 @@ function renderGrid(gridId, items) {
   }).join('');
 }
 
-// ═══ AUTH ═══
 function initAuth() {
   if (!auth) { window.debugLog('❌ Firebase Auth ไม่พร้อม', true); return; }
   auth.onAuthStateChanged(async function(user) {
     currentUser = user;
+    window.currentUser = user;
     if (user) {
       window.debugLog('👤 ล็อกอิน: ' + user.email);
       try {
         const snap = await db.collection('users').doc(user.uid).get();
         userProfile = snap.exists ? Object.assign({ uid: user.uid }, snap.data()) : null;
+        window.userProfile = userProfile;
       } catch (e) { console.warn(e); }
       const av = $('profile-avatar-emoji');
       if (av) av.textContent = '✅';
+      const badge = $('login-hint-badge');
+      if (badge) badge.remove();
     } else {
       window.debugLog('⛔ ยังไม่ได้ล็อกอิน');
       userProfile = null;
+      window.userProfile = null;
       const av = $('profile-avatar-emoji');
       if (av) av.textContent = '👤';
+      addLoginBadge();
     }
   });
+}
+
+function addLoginBadge() {
+  const avatar = $('profile-avatar-btn');
+  if (!avatar) return;
+  if (document.getElementById('login-hint-badge')) return;
+  const badge = document.createElement('div');
+  badge.id = 'login-hint-badge';
+  badge.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#E53935;color:#fff;font-size:9px;font-weight:900;padding:3px 7px;border-radius:10px;white-space:nowrap;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.3);animation:pulse 2s infinite';
+  badge.textContent = 'เข้าสู่ระบบ';
+  avatar.appendChild(badge);
 }
 
 window.switchAuthTab = function(tab) {
@@ -673,7 +679,6 @@ window.handleLogout = async function() {
   closeProfileSheet();
 };
 
-// ═══ PROFILE ═══
 window.openProfileSheet = function() {
   window.debugLog('👆 เปิด Profile Sheet');
   const sheet = $('profile-sheet');
@@ -746,7 +751,6 @@ window.saveProfile = async function() {
   } catch (e) { showToast('บันทึกไม่สำเร็จ', 'error'); }
 };
 
-// ═══ SEARCH ═══
 window.doSearch = function(q) {
   const results = $('search-results');
   if (!results) return;
@@ -760,14 +764,13 @@ window.doSearch = function(q) {
   results.innerHTML = matches.map(function(p) {
     const hasImg = hasRealImage(p.image);
     const imgHtml = hasImg ? '<img src="' + esc(p.image) + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : (CATEGORIES[p.category] ? CATEGORIES[p.category].icon : '📍');
-    return '<div class="food-card ripple" data-place-id="' + esc(p.id) + '" style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px">' +
+    return '<div class="food-card ripple" data-place-id="' + esc(p.id) + '" style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px;cursor:pointer">' +
       '<div style="width:50px;height:50px;border-radius:12px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:22px">' + imgHtml + '</div>' +
       '<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(p.name) + '</div>' +
       '<div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:2px">' + (CATEGORIES[p.category] ? CATEGORIES[p.category].icon : '') + ' ' + esc(CATEGORIES[p.category] ? CATEGORIES[p.category].name : '') + (p.price ? ' • ' + p.price : '') + '</div></div></div>';
   }).join('');
 };
 
-// ═══ MERCHANT VIEW ═══
 window.openMerchantView = async function(type) {
   window.debugLog('🏪 เปิด Merchant View: ' + type);
   const hc = $('home-content'), sr = $('search-results'), cv = $('category-view'), mv = $('merchant-view');
@@ -784,11 +787,11 @@ window.openMerchantView = async function(type) {
   try {
     const snap = await db.collection('merchants').where('verified', '==', true).get();
     merchantsCache = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-    if (!merchantsCache.length) { list.innerHTML = '<div class="empty-state"><div class="icon">🏪</div><div>ยังไม่มีร้านค้าเข้าร่วม</div></div>'; return; }
+    if (!merchantsCache.length) { list.innerHTML = '<div class="empty-state"><div class="icon">🏪</div><div>ยังไม่มีร้านค้าเข้าร่วม<br><small style="color:#999">เร็วๆ นี้</small></div></div>'; return; }
     renderMerchantList(merchantsCache);
   } catch (err) {
     window.debugLog('❌ Merchant: ' + err.code, true);
-    list.innerHTML = '<div class="empty-state"><div class="icon">❌</div><div>โหลดไม่สำเร็จ</div></div>';
+    list.innerHTML = '<div class="empty-state"><div class="icon">🏪</div><div>ยังไม่มีร้านค้าเข้าร่วม<br><small style="color:#999">เร็วๆ นี้</small></div></div>';
   }
 };
 
@@ -850,7 +853,6 @@ window.openMerchantDetail = async function(merchantId) {
   } catch (e) { showToast('โหลดไม่สำเร็จ', 'error'); }
 };
 
-// ═══ MAP ═══
 window.openMapPage = function() {
   window.debugLog('🗺️ เปิดแผนที่');
   const mp = $('map-page');
@@ -903,7 +905,6 @@ window.callRiderFromMap = function() {
   openOrderForm('ride', { lat: pos.lat, lng: pos.lng });
 };
 
-// ═══ CATEGORY VIEW ═══
 window.showCategory = function(cat) {
   const map2 = { hotel: 'h', tourist: 't', restaurant: 'r', cafe: 'f', convenience: 'c', shop: 's', market: 'm' };
   const code = map2[cat] || cat;
@@ -936,7 +937,6 @@ function renderPlaceCard(p) {
     (p.price ? '<div class="food-price">' + esc(p.price) + '</div>' : '') + '</div></div>';
 }
 
-// ═══ ORDER FORM ═══
 window.openTravelView = function() { openOrderForm('ride'); };
 window.openOrderForm = function(type, dest) {
   const titles = { express: '📦 ส่งด่วน', ride: '🚗 เรียกรถ', food: '🍽️ สั่งอาหาร', shopping: '🛒 สั่งของ' };
@@ -979,7 +979,6 @@ window.submitOrder = async function(type) {
   }
 };
 
-// ═══ TABS ═══
 window.switchTab = function(tab, el) {
   currentTab = tab;
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
@@ -1019,10 +1018,8 @@ function renderUserOrderCard(o) {
     '<div style="font-size:11px;color:#999;margin-top:4px">📍 ' + esc(String(o.to || o.address || '').slice(0, 60)) + '</div></div>';
 }
 
-// ═══ CHAT ═══
 window.openChat = function() { if (!currentUser) return showLoginModal(); showToast('💬 เปิดหน้าแชท'); };
 
-// ═══ CART ═══
 window.addToCart = function(merchantId, merchantName, menuId, menuName, price) {
   if (cartShop && cartShop !== merchantId) {
     if (!confirm('เปลี่ยนร้าน? ตะกร้าปัจจุบันจะถูกล้าง')) return;
@@ -1100,7 +1097,6 @@ window.clearCart = function() {
   closeModal();
 };
 
-// ═══ MODAL ═══
 window.openModal = function() { const m = $('modal'); if (m) m.classList.add('show'); };
 window.closeModal = function() {
   const m = $('modal');
@@ -1108,14 +1104,12 @@ window.closeModal = function() {
   if ($('modal-body')) $('modal-body').innerHTML = '';
 };
 
-// ═══ LIGHTBOX ═══
 window.openLightbox = function(src) {
   if ($('lightbox-img')) $('lightbox-img').src = src;
   if ($('img-lightbox')) $('img-lightbox').classList.add('show');
 };
 window.closeLightbox = function() { if ($('img-lightbox')) $('img-lightbox').classList.remove('show'); };
 
-// ═══ NETWORK ═══
 function setupNetwork() {
   window.addEventListener('online', function() {
     if ($('offline-banner')) $('offline-banner').classList.remove('show');
@@ -1127,7 +1121,6 @@ function setupNetwork() {
   if (!navigator.onLine && $('offline-banner')) $('offline-banner').classList.add('show');
 }
 
-// ═══ PWA ═══
 function setupPWA() {
   window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
@@ -1156,7 +1149,6 @@ window.dismissPWA = function() {
   localStorage.setItem('chauat_pwa_dismissed', '1');
 };
 
-// ═══ PDPA ═══
 function checkPDPA() {
   if (!localStorage.getItem('chauat_pdpa_accepted')) {
     if ($('pdpa-overlay')) $('pdpa-overlay').classList.remove('hidden');
@@ -1188,7 +1180,6 @@ window.skipLocation = function() {
   if ($('loc-popup-overlay')) $('loc-popup-overlay').classList.add('hidden');
 };
 
-// ═══ PLACE DETAIL ═══
 window.showPlaceDetail = function(placeId) {
   const p = PLACES.find(function(x) { return x.id === placeId; });
   if (!p) return;
@@ -1216,10 +1207,52 @@ window.openInMaps = function(lat, lng) {
   window.open('https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng, '_blank');
 };
 
-// ═══ EVENT DELEGATION ═══
+function runPatches() {
+  window.debugLog('🔧 Applying patches v3.3.3...');
+  addLoginBadge();
+  fixSearchInput();
+  fixProfileClick();
+  addImageStyles();
+  window.debugLog('✅ Patches applied v3.3.3');
+}
+
+function fixSearchInput() {
+  const input = $('search-input');
+  if (!input) return;
+  input.removeAttribute('oninput');
+  input.addEventListener('input', function(e) {
+    if (typeof window.doSearch === 'function') window.doSearch(e.target.value);
+  });
+  window.debugLog('🔧 Search input fixed');
+}
+
+function fixProfileClick() {
+  const avatar = $('profile-avatar-btn');
+  if (!avatar) return;
+  avatar.onclick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof window.openProfileSheet === 'function') window.openProfileSheet();
+  };
+  window.debugLog('🔧 Profile click fixed');
+}
+
+function addImageStyles() {
+  if (document.getElementById('patch-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'patch-styles';
+  style.textContent = 
+    '.food-img { min-height: 120px; background: #f5f5f5; position: relative; overflow: hidden; }' +
+    '.food-img img { width: 100%; height: 100%; object-fit: cover; display: block; }' +
+    '.food-img-fallback { width: 100%; height: 120px; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; }' +
+    '@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }';
+  document.head.appendChild(style);
+  window.debugLog('🔧 Image styles added');
+}
+
 document.addEventListener('click', function(e) {
   const avatar = e.target.closest('#profile-avatar-btn');
-  if (avatar) { openProfileSheet(); return; }
+  if (avatar && !avatar.onclick) { openProfileSheet(); return; }
   const placeCard = e.target.closest('[data-place-id]');
   if (placeCard) { showPlaceDetail(placeCard.dataset.placeId); return; }
   const merchantCard = e.target.closest('[data-merchant-id]');
@@ -1230,40 +1263,28 @@ document.addEventListener('click', function(e) {
   }
 });
 
-document.addEventListener('input', function(e) {
-  if (e.target.id === 'search-input' && !e.target.value) {
-    const sr = $('search-results');
-    if (sr) sr.classList.remove('show');
-  }
-});
-
 document.addEventListener('click', function(e) {
   const btn = e.target.closest('button, .food-card, .menu-item, .nav-item');
   if (btn && navigator.vibrate) navigator.vibrate(10);
 }, { passive: true });
 
-// ═══ LOAD EVENT ═══
 window.addEventListener('load', function() {
   setTimeout(function() {
     document.body.style.overflow = 'auto';
     document.documentElement.style.overflow = 'auto';
     window.debugLog('✅ Page loaded v3.3.3');
     window.debugLog('📦 PLACES_RAW: ' + (typeof PLACES_RAW !== 'undefined' ? PLACES_RAW.length + ' items' : 'undefined ❌'), typeof PLACES_RAW === 'undefined');
-    window.debugLog('📦 PLACES: ' + (typeof PLACES !== 'undefined' && PLACES.length ? PLACES.length + ' items ✅' : 'undefined ❌'), !PLACES.length);
+    window.debugLog('📦 PLACES: ' + (PLACES.length ? PLACES.length + ' items ✅' : 'undefined ❌'), !PLACES.length);
     window.debugLog('🔥 Firebase: ' + (typeof firebase !== 'undefined' ? 'OK' : 'undefined ❌'), typeof firebase === 'undefined');
     window.debugLog('🗺️ Leaflet: ' + (typeof L !== 'undefined' ? 'OK' : 'undefined ❌'), typeof L === 'undefined');
     window.debugLog('🔧 openProfileSheet: ' + (typeof window.openProfileSheet === 'function' ? 'OK ✅' : 'MISSING ❌'), typeof window.openProfileSheet !== 'function');
   }, 1500);
 });
 
-// ═══ SERVICE WORKER ═══
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-      .then(function(reg) {
-        reg.update();
-        setInterval(function() { reg.update(); }, 60000);
-      })
+      .then(function(reg) { reg.update(); setInterval(function() { reg.update(); }, 60000); })
       .catch(function(err) { console.warn('[SW]', err); });
   });
 }
