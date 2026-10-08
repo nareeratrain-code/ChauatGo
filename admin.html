@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Chauat Go Admin</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="login">
+  <form class="box" id="login-form" onsubmit="handleLoginSubmit(event)">
+    <h1>🛵 Chauat Go Admin</h1>
+    <div class="tab-btns">
+      <button type="button" class="tab-btn active" id="tab-login-btn" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+      <button type="button" class="tab-btn" id="tab-signup-btn" onclick="switchTab('signup')">สมัครสมาชิก</button>
+    </div>
+    <div id="form-login">
+      <input type="email" id="em" placeholder="อีเมลผู้ดูแล" autocomplete="username" required>
+      <input type="password" id="pw" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+      <button class="pri big ripple" type="submit" id="btn-login">เข้าสู่ระบบ</button>
+      <button type="button" class="sec big ripple" style="margin-top:8px" onclick="handleForgot()">🔑 ลืมรหัสผ่าน</button>
+    </div>
+    <div id="form-signup" style="display:none">
+      <input type="text" id="su-name" placeholder="ชื่อ-นามสกุล" required>
+      <input type="email" id="su-email" placeholder="อีเมล" required>
+      <input type="password" id="su-pw" placeholder="รหัสผ่าน (6+ ตัว)" minlength="6" required>
+      <input type="password" id="su-pw2" placeholder="ยืนยันรหัสผ่าน" minlength="6" required>
+      <button class="pri big ripple" type="button" onclick="handleSignup()">✅ สมัครสมาชิก</button>
+    </div>
+  </form>
+</div>
+
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="app" class="hidden">
+  <header>
+    <h1>Chauat Go Admin <span class="vbadge">v3.3.0</span></h1>
+    <div class="admin-info">
+      <div id="who">-</div>
+      <button class="sec ripple" id="logout">ออกจากระบบ</button>
+    </div>
+  </header>
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+
+<!-- ═══════════════ CHAT OVERLAY ═══════════════ -->
+<div class="chat-container" id="chat-container">
+  <div class="chat-header">
+    <button class="back-btn ripple" onclick="closeChat()">←</button>
+    <div class="chat-info">
+      <div class="chat-name" id="chat-name">-</div>
+      <div class="chat-sub" id="chat-sub">-</div>
+    </div>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-bar">
+    <button class="icon-btn ripple" onclick="pickChatImage()">📷</button>
+    <input type="file" id="chat-image-input" accept="image/*" style="display:none" onchange="sendChatImage(this.files[0])">
+    <textarea id="chat-input" placeholder="พิมพ์ข้อความ..." rows="1" oninput="autoResize(this)"></textarea>
+    <button class="send-btn ripple" onclick="sendChatText()">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL ═══════════════ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="modal-title">Title</h2>
+      <button class="close-btn ripple" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ DEBUG CONSOLE ═══════════════ -->
+<div id="debugConsole" style="position:fixed;bottom:0;left:0;width:100%;height:120px;background:rgba(0,0,0,0.92);color:#0f0;font-size:11px;font-family:monospace;overflow-y:auto;padding:10px;z-index:99999;display:none;border-top:2px solid #333;">
+  <strong>Debug Console:</strong><br>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Thai',sans-serif;-webkit-tap-highlight-color:transparent}
+:root{--brand:#00A651;--bg:#EDF6DC;--text:#1A1A1A;--mut:#6B7280;--danger:#E53935;--warn:#E65100;--blue:#1565C0;--purple:#9C27B0;--pink:#E91E63;--teal:#00897B;--indigo:#3F51B5;--border:#e5e7eb}
+body{background:var(--bg);color:var(--text);max-width:1000px;margin:0 auto;min-height:100vh;padding-bottom:40px}
+.hidden{display:none!important}
+.ripple{position:relative;overflow:hidden;isolation:isolate}
+.ripple::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle,rgba(255,255,255,.45) 10%,transparent 11%);background-position:center;background-size:0% 0%;background-repeat:no-repeat;transition:background-size .5s ease-out;pointer-events:none}
+.ripple:active::after{background-size:250% 250%}
+#login{position:fixed;inset:0;background:linear-gradient(135deg,#76B82A,#3B7A16);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;overflow-y:auto}
+.box{background:#fff;border-radius:20px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.15);margin:auto}
+.box h1{font-size:22px;color:var(--brand);text-align:center;margin-bottom:20px;font-weight:900}
+input,select,textarea{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;transition:border-color .2s;font-family:inherit;font-weight:600;min-height:52px;outline:none;background:#fafafa}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
+button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;transition:transform .1s;font-family:inherit;min-height:44px}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.pri{background:var(--brand);color:#fff}.sec{background:#f0f0f0;color:#555}.dan{background:#FFEBEE;color:var(--danger)}.blue{background:var(--blue);color:#fff}
+.big{width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:8px;min-height:56px}
+.tab-btns{display:flex;gap:6px;margin-bottom:16px;background:#f5f5f5;padding:4px;border-radius:12px}
+.tab-btn{flex:1;padding:12px;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;background:transparent;color:var(--mut);transition:.2s;font-family:inherit}
+.tab-btn.active{background:#fff;color:var(--brand);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+header{background:linear-gradient(135deg,#76B82A,#3B7A16);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;border-radius:0 0 20px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+header h1{flex:1;font-size:18px;font-weight:900;display:flex;align-items:center;gap:6px}
+header h1 .vbadge{font-size:10px;background:rgba(255,255,255,.25);padding:3px 8px;border-radius:10px;font-weight:700}
+header .admin-info{text-align:right;font-size:11px;opacity:.95;line-height:1.4}
+header .admin-info button{padding:8px 14px;font-size:11px;margin-top:4px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);min-height:36px}
+
+nav{background:#fff;padding:12px 8px;border-bottom:1px solid var(--border);position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:40;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+nav button{background:transparent;color:var(--mut);padding:10px 4px;border-radius:12px;font-weight:700;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.2s;min-height:auto;position:relative}
+nav button .nav-icon{font-size:26px;line-height:1;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#f5f5f5;transition:.2s}
+nav button .nav-label{font-size:10px;font-weight:900;text-align:center;line-height:1.2}
+nav button .nav-badge{position:absolute;top:2px;right:6px;background:var(--danger);color:#fff;font-size:9px;font-weight:900;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff;animation:pulse 2s infinite;z-index:2}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+nav button.on{color:var(--brand)}
+nav button.on .nav-icon{background:#E8F5E9;box-shadow:0 4px 12px rgba(0,166,81,.2)}
+
+main{padding:16px}
+.stat-card{border-radius:16px;padding:16px;color:#fff;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08);cursor:pointer;transition:transform .15s;min-height:110px}
+.stat-card:active{transform:scale(.98)}
+.stat-card::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(255,255,255,.2),transparent 70%);border-radius:50%;pointer-events:none}
+.stat-card .stat-icon{font-size:28px;margin-bottom:8px;opacity:.95}
+.stat-card .stat-value{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
+.stat-card .stat-label{font-size:12px;font-weight:700;margin-top:6px;opacity:.95}
+.stat-card .stat-sub{font-size:10px;opacity:.8;margin-top:2px;font-weight:700}
+.stat-card.green{background:linear-gradient(135deg,#00A651,#008C45)}
+.stat-card.blue{background:linear-gradient(135deg,#1565C0,#0D47A1)}
+.stat-card.orange{background:linear-gradient(135deg,#FF6B35,#E55A2B)}
+.stat-card.purple{background:linear-gradient(135deg,#9C27B0,#6A1B9A)}
+.stat-card.pink{background:linear-gradient(135deg,#E91E63,#AD1457)}
+.stat-card.teal{background:linear-gradient(135deg,#00897B,#00695C)}
+.stat-card.red{background:linear-gradient(135deg,#E53935,#C62828)}
+.stat-card.gold{background:linear-gradient(135deg,#F57C00,#E65100)}
+.stat-card.indigo{background:linear-gradient(135deg,#3F51B5,#283593)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+
+.hero-card{background:linear-gradient(135deg,#00A651 0%,#008C45 100%);border-radius:24px;padding:24px 20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,166,81,.25)}
+.hero-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 70%);border-radius:50%;pointer-events:none}
+.hero-label{font-size:13px;opacity:.9;font-weight:700;margin-bottom:6px;position:relative;z-index:1}
+.hero-amount{font-size:44px;font-weight:900;line-height:1;letter-spacing:-1px;position:relative;z-index:1}
+.hero-trend{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.2);padding:4px 12px;border-radius:12px;font-size:12px;font-weight:800;margin-top:10px;position:relative;z-index:1}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.2);position:relative;z-index:1}
+.hero-grid-cell .lbl{font-size:11px;opacity:.85;font-weight:700}
+.hero-grid-cell .val{font-size:20px;font-weight:900;margin-top:2px}
+
+.section-divider{display:flex;align-items:center;gap:8px;margin:24px 0 12px}
+.section-divider .title{font-size:14px;font-weight:900;color:var(--text)}
+.section-divider .line{flex:1;height:1px;background:linear-gradient(90deg,#ddd,transparent)}
+
+.action-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s;min-height:76px}
+.action-card:active{transform:scale(.98)}
+.action-card.warn{border-left:4px solid var(--warn);background:#FFFBEB}
+.action-card.danger{border-left:4px solid var(--danger);background:#FFEBEE}
+.action-card.blue{border-left:4px solid var(--blue);background:#EFF6FF}
+.action-card.green{border-left:4px solid var(--brand);background:#F0FDF4}
+.action-icon{font-size:28px;flex-shrink:0}
+.action-info{flex:1;min-width:0}
+.action-title{font-size:14px;font-weight:800;line-height:1.3}
+.action-value{font-size:20px;font-weight:900;margin-top:2px}
+.action-sub{font-size:11px;color:var(--mut);margin-top:2px;font-weight:700}
+.action-btn{flex-shrink:0;padding:10px 14px;border-radius:12px;font-size:12px;font-weight:900;border:none;cursor:pointer;font-family:inherit;min-height:44px}
+.action-btn.orange{background:var(--warn);color:#fff}
+.action-btn.blue{background:var(--blue);color:#fff}
+
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.data-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.04);transition:transform .15s}
+.data-card:active{transform:scale(.98)}
+.data-card-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.data-card-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.data-card-info{flex:1;min-width:0}
+.data-card-name{font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.data-card-meta{font-size:11px;color:var(--mut);font-weight:700;margin-top:2px}
+.data-card-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.data-card-actions button{padding:10px 14px;border-radius:10px;border:none;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;min-height:44px}
+
+.tag{font-size:11px;font-weight:900;padding:6px 12px;border-radius:12px;background:#E8F5E9;color:#2E7D32;display:inline-block;min-height:28px;line-height:1.2}
+.tag.w{background:#FFF3E0;color:var(--warn)}
+.tag.x{background:#f0f0f0;color:#888}
+.tag.b{background:#E3F2FD;color:var(--blue)}
+.tag.d{background:#FFEBEE;color:var(--danger)}
+
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;background:#fff;border-radius:16px;font-weight:600}
+.meta{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.5;font-weight:600}
+.nm{font-weight:900;font-size:15px}
+
+.search-box{background:#fff;border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:12px;min-height:52px}
+.search-box input{border:none;outline:none;font-size:14px;font-weight:600;flex:1;background:transparent;padding:0;margin:0;min-height:auto}
+.filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;scrollbar-width:none}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{padding:10px 16px;border-radius:16px;font-size:12px;font-weight:900;background:#fff;color:var(--mut);cursor:pointer;white-space:nowrap;border:1px solid var(--border);min-height:40px;display:flex;align-items:center;font-family:inherit}
+.filter-chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+.range-tabs{display:flex;gap:6px;background:#fff;padding:4px;border-radius:14px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.range-tab{flex:1;padding:10px;border:none;border-radius:10px;font-weight:800;font-size:12px;background:transparent;color:var(--mut);cursor:pointer;font-family:inherit;min-height:44px;transition:.2s}
+.range-tab.active{background:var(--brand);color:#fff;box-shadow:0 2px 6px rgba(0,166,81,.3)}
+
+.table-wrap{overflow-x:auto;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+table.gp-table{width:100%;border-collapse:collapse;font-size:13px;min-width:500px}
+table.gp-table th{background:#f8f9fa;padding:12px;text-align:left;border-bottom:2px solid #ddd;white-space:nowrap;font-weight:900;font-size:12px}
+table.gp-table td{padding:12px;border-bottom:1px solid #eee;vertical-align:middle;font-weight:600}
+table.gp-table tr:hover{background:#fafafa}
+.money-pos{color:var(--brand);font-weight:900}
+.text-right{text-align:right}
+.text-center{text-align:center}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(0px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:.2s}
+.modal-overlay.show{opacity:1;pointer-events:auto;backdrop-filter:blur(4px)}
+.modal{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;transform:translateY(20px) scale(.95);transition:.35s cubic-bezier(.32,.72,0,1)}
+.modal-overlay.show .modal{transform:translateY(0) scale(1);animation:modalBounce .4s cubic-bezier(.32,.72,0,1)}
+@keyframes modalBounce{0%{transform:translateY(20px) scale(.95)}55%{transform:translateY(-4px) scale(1.01)}100%{transform:translateY(0) scale(1)}}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #eee}
+.modal-hdr h2{font-size:18px;font-weight:900}
+.close-btn{background:#f0f0f0;border:none;width:44px;height:44px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;min-height:44px}
+
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:#222;color:#fff;padding:14px 22px;border-radius:16px;font-size:14px;font-weight:800;opacity:0;pointer-events:none;transition:.3s;z-index:999;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--danger)}
+
+.slip-upload-box{background:#F0FDF4;border:2px dashed #86efac;border-radius:14px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.slip-upload-box .icon{font-size:38px}
+.slip-upload-box .label{font-size:13px;font-weight:900;color:#166534}
+.slip-upload-box .hint{font-size:11px;color:#166534;opacity:.7;font-weight:600}
+.slip-preview{width:100%;border-radius:12px;margin-bottom:12px;display:block;max-height:400px;object-fit:contain;background:#f5f5f5}
+.slip-progress{height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;margin-bottom:12px}
+.slip-progress-bar{height:100%;background:var(--brand);width:0%;transition:width .3s}
+.slip-status-banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-size:12px;font-weight:800}
+.slip-status-banner.pending{background:#FFFBEB;color:#92400e;border-left:4px solid var(--warn)}
+.slip-status-banner.ok{background:#F0FDF4;color:#166534;border-left:4px solid var(--brand)}
+
+.chat-container{position:fixed;inset:0;background:#EDF6DC;z-index:300;display:flex;flex-direction:column;max-width:1000px;margin:0 auto;opacity:0;pointer-events:none;transition:opacity .25s}
+.chat-container.show{opacity:1;pointer-events:auto}
+.chat-header{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;display:flex;align-items:center;gap:12px}
+.chat-header .back-btn{background:rgba(255,255,255,.2);color:#fff;width:44px;height:44px;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;font-family:inherit;padding:0;min-height:44px}
+.chat-header .chat-info{flex:1;min-width:0}
+.chat-header .chat-name{font-size:15px;font-weight:900}
+.chat-header .chat-sub{font-size:11px;opacity:.85;font-weight:600;margin-top:2px}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:75%;padding:10px 14px;border-radius:16px;font-size:14px;font-weight:600;line-height:1.4;word-wrap:break-word}
+.chat-msg.out{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.in{align-self:flex-start;background:#fff;color:var(--text);border-bottom-left-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.chat-msg .msg-time{font-size:10px;opacity:.7;margin-top:4px;font-weight:700}
+.chat-msg .msg-image{max-width:100%;border-radius:10px;margin-bottom:6px;display:block;cursor:pointer}
+.chat-msg.from-admin{background:linear-gradient(135deg,#9C27B0,#6A1B9A)}
+.chat-input-bar{background:#fff;padding:12px 12px calc(12px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--border)}
+.chat-input-bar textarea{flex:1;margin:0;min-height:44px;max-height:120px;padding:10px 14px;font-size:14px;resize:none;border-radius:22px;line-height:1.4;font-weight:600}
+.chat-input-bar .icon-btn{width:44px;height:44px;min-height:44px;border-radius:50%;background:#f0f0f0;color:#555;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0}
+.chat-input-bar .send-btn{width:44px;height:44px;min-height:44px;border-radius:50%;background:var(--brand);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0}
+.chat-empty{text-align:center;padding:40px 20px;color:var(--mut);font-size:13px;font-weight:600}
+.chat-day-divider{text-align:center;font-size:11px;color:var(--mut);font-weight:800;margin:12px 0;padding:4px 12px;background:rgba(255,255,255,.7);border-radius:12px;align-self:center}
+.chat-list-item{background:#fff;border-radius:14px;padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer}
+.chat-list-item .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chat-list-item .chat-info{flex:1;min-width:0}
+.chat-list-item .chat-title{font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-list-item .chat-preview{font-size:12px;color:var(--mut);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.chat-list-item .chat-time{font-size:10px;color:var(--mut);font-weight:700}
+.chat-list-item .chat-unread{background:var(--danger);color:#fff;font-size:10px;font-weight:900;border-radius:10px;padding:2px 6px;min-width:20px;text-align:center;margin-top:4px;display:inline-block}
+
+.chart-bars{display:flex;align-items:flex-end;gap:4px;height:120px;padding:8px 0}
+.chart-bar{flex:1;background:linear-gradient(180deg,#00A651,#008C45);border-radius:6px 6px 0 0;min-height:4px;position:relative;transition:.3s}
+.chart-bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--mut);font-weight:800;white-space:nowrap}
+.chart-bar-value{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--brand);font-weight:900;white-space:nowrap}
+
+.picker{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:12px;background:#fafafa}
+.picker label{display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;min-height:44px}
+.picker input[type=checkbox]{width:22px;height:22px;margin:0;min-height:22px;flex-shrink:0;accent-color:var(--brand)}
+// ═══════════════════════════════════════════════════════════════════
+//  🛵 CHAUAT GO ADMIN v3.3.0 - Production Ready
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Firebase Config ───
+firebase.initializeApp({
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8"
+});
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// ─── Global State ───
+const store = { merchants: [], orders: [], riders: [], users: [], places: [], chats: [] };
+const filters = { orders: 'all', q: '', riderStatus: '', merchantStatus: 'all', gpRange: 'today' };
+let current = 'dashboard';
+let unsubs = [];
+let activeChatId = null;
+let activeChatUnsub = null;
+
+const MASTER_ADMINS = [
+  'adminchauatgo@gmail.com',
+  'admin@chauatgo.com',
+  'chauatgo@gmail.com'
+];
+
+const SECTIONS = [
+  ['dashboard', '📊', 'แดชบอร์ด'],
+  ['gp',        '💰', 'GP'],
+  ['finance',   '🧾', 'บัญชี'],
+  ['chats',     '💬', 'แชท'],
+  ['merchants', '🏪', 'ร้านค้า'],
+  ['orders',    '📋', 'ออเดอร์'],
+  ['riders',    '🛵', 'ไรเดอร์'],
+  ['users',     '👥', 'ผู้ใช้']
+];
+
+const STATUS = {
+  searching:'⏳ หาไรเดอร์', pending:'🔔 รอรับ', accepted:'🛵 รับแล้ว',
+  picked_up:'📦 รับของ', on_the_way:'🚀 กำลังส่ง', done:'✅ เสร็จ', cancelled:'❌ ยกเลิก'
+};
+
+// ─── Helpers ───
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(m, err) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = m;
+  t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = 'toast', 3000);
+}
+
+function logToScreen(msg, isError = false) {
+  const el = $('debugConsole');
+  if (el) {
+    el.style.display = 'block';
+    el.innerHTML += `<span style="color:${isError ? '#ff4444' : '#00ff00'}">> ${msg}</span><br>`;
+    el.scrollTop = el.scrollHeight;
+  }
+  console.log(msg);
+}
+
+const ts = o => o.createdAt?.seconds || 0;
+const toDate = t => { if (!t) return null; const d = t.toDate ? t.toDate() : new Date(t); return isNaN(d) ? null : d; };
+const fmtTime = t => { if (!t) return '—'; const d = toDate(t); return d ? d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'; };
+const fmtTimeShort = t => { if (!t) return ''; const d = toDate(t); return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''; };
+const itemsText = i => Array.isArray(i) ? i.map(x => `${x.name} x${x.qty}`).join(', ') : String(i ?? '');
+
+// ═══════════════════════════════════════════════════════════════════
+//  🔐 AUTH - LOGIN / SIGNUP / LOGOUT
+// ═══════════════════════════════════════════════════════════════════
+
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  $('tab-login-btn').classList.toggle('active', isLogin);
+  $('tab-signup-btn').classList.toggle('active', !isLogin);
+  $('form-login').style.display = isLogin ? 'block' : 'none';
+  $('form-signup').style.display = isLogin ? 'none' : 'block';
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const btn = $('btn-login');
+  const email = $('em').value.trim().toLowerCase();
+  const pw = $('pw').value;
+  
+  if (!email || !pw) { toast('กรอกอีเมลและรหัสผ่าน', true); return; }
+  
+  btn.disabled = true;
+  const origTxt = btn.textContent;
+  btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+  logToScreen(`🔐 ล็อกอิน: ${email}`);
+  
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, pw);
+    logToScreen(`✅ ล็อกอินสำเร็จ: ${cred.user.email}`);
+    toast('✅ เข้าสู่ระบบสำเร็จ');
+  } catch (err) {
+    logToScreen(`❌ ล็อกอินล้มเหลว: ${err.code}`, true);
+    const msg = err.code === 'auth/wrong-password' ? 'รหัสผ่านไม่ถูกต้อง'
+      : err.code === 'auth/user-not-found' ? 'ไม่พบบัญชีนี้ในระบบ'
+      : err.code === 'auth/invalid-email' ? 'รูปแบบอีเมลไม่ถูกต้อง'
+      : err.code === 'auth/invalid-credential' ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+      : err.code === 'auth/too-many-requests' ? 'ลองหลายครั้งเกินไป รอ 5 นาที'
+      : err.code === 'auth/network-request-failed' ? 'ไม่มีการเชื่อมต่อ'
+      : 'เข้าสู่ระบบไม่สำเร็จ: ' + err.code;
+    toast(msg, true);
+    btn.disabled = false;
+    btn.textContent = origTxt;
+  }
+  $('pw').value = '';
+}
+
+async function handleForgot() {
+  const email = $('em').value.trim();
+  if (!email) return toast('กรอกอีเมลก่อน', true);
+  try {
+    await auth.sendPasswordResetEmail(email);
+    toast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
+  } catch (err) { toast('ส่งไม่สำเร็จ: ' + err.message, true); }
+}
+
+async function handleSignup() {
+  const name = $('su-name').value.trim(), email = $('su-email').value.trim();
+  const pw = $('su-pw').value, pw2 = $('su-pw2').value;
+  if (!name || !email || !pw) return toast('กรอกให้ครบ', true);
+  if (pw.length < 6) return toast('รหัสผ่าน 6+ ตัว', true);
+  if (pw !== pw2) return toast('รหัสไม่ตรงกัน', true);
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pw);
+    await cred.user.updateProfile({ displayName: name });
+    await db.collection('admins').doc(cred.user.uid).set({
+      name, email, role: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ สมัครสำเร็จ! รออนุมัติ');
+    switchTab('login');
+    $('em').value = email;
+  } catch (err) { toast('สมัครไม่สำเร็จ: ' + err.message, true); }
+}
+
+$('logout').addEventListener('click', async () => {
+  stop();
+  await auth.signOut();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  🔄 AUTH STATE CHANGE
+// ═══════════════════════════════════════════════════════════════════
+
+auth.onAuthStateChanged(async user => {
+  stop();
+  if (!user) {
+    logToScreen('⛔ ไม่มีผู้ใช้ล็อกอิน');
+    $('login').classList.remove('hidden');
+    $('app').classList.add('hidden');
+    return;
+  }
+  
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const isMasterAdmin = MASTER_ADMINS.some(e => e.toLowerCase() === userEmail);
+  
+  logToScreen(`👤 ล็อกอิน: ${userEmail}`);
+  logToScreen(`🔑 Master Admin: ${isMasterAdmin ? 'ใช่' : 'ไม่ใช่'}`);
+  
+  if (!isMasterAdmin) {
+    try {
+      logToScreen('🔍 เช็คสิทธิ์ใน Firestore (admins)...');
+      const adminSnap = await db.collection('admins').doc(user.uid).get();
+      const isFirestoreAdmin = adminSnap.exists && ['active', 'super'].includes(adminSnap.data().role);
+      if (!isFirestoreAdmin) {
+        logToScreen('❌ ไม่พบสิทธิ์ Admin', true);
+        toast('บัญชีนี้ไม่มีสิทธิ์เป็นผู้ดูแล', true);
+        await auth.signOut();
+        return;
+      }
+      logToScreen('✅ พบสิทธิ์ Admin');
+    } catch (err) {
+      logToScreen(`❌ Firestore Error: ${err.code}`, true);
+      // ถ้า Master Admin อยู่แล้วให้ผ่าน แต่ถ้าไม่ใช่ให้เด้ง
+      if (!isMasterAdmin) {
+        toast('บัญชีนี้ไม่มีสิทธิ์เป็นผู้ดูแล', true);
+        await auth.signOut();
+        return;
+      }
+    }
+  }
+  
+  logToScreen('🚀 เข้าสู่ระบบ Admin สำเร็จ!');
+  $('who').textContent = user.email;
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  start();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+//  📡 START / STOP SUBSCRIPTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function start() {
+  for (const k of ['merchants', 'orders', 'riders', 'users', 'chats']) {
+    const unsub = db.collection(k).onSnapshot(s => {
+      store[k] = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+    }, err => { logToScreen(`❌ [${k}] ${err.code}`, true); });
+    unsubs.push(unsub);
+  }
+  
+  const unsubPlaces = db.collection('places').limit(500).onSnapshot(s => {
+    store.places = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, err => { logToScreen(`❌ [places] ${err.code}`, true); });
+  unsubs.push(unsubPlaces);
+  
+  renderNav();
+  render();
+}
+
+function stop() {
+  unsubs.forEach(u => u());
+  unsubs = [];
+  for (const k in store) store[k] = [];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  📊 BADGE COUNTS
+// ═══════════════════════════════════════════════════════════════════
+
+function getBadgeCounts() {
+  const pendingMerchants = store.merchants.filter(m => !m.verified).length;
+  const pendingRiders = store.riders.filter(r => r.verified === false).length;
+  const newOrders = store.orders.filter(o => ['searching', 'pending'].includes(o.status)).length;
+  const pendingSlips = store.orders.filter(o => o.riderSlipUrl && !o.riderSlipVerified).length;
+  const unreadChats = store.chats.reduce((sum, c) => sum + (c.unreadAdmin || 0), 0);
+  const staleOrders = store.orders.filter(o => {
+    if (!['searching', 'pending'].includes(o.status)) return false;
+    const d = toDate(o.createdAt);
+    if (!d) return false;
+    return (Date.now() - d.getTime()) > 15 * 60 * 1000;
+  }).length;
+  return { pendingMerchants, pendingRiders, newOrders, pendingSlips, unreadChats, staleOrders };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🎨 RENDER
+// ═══════════════════════════════════════════════════════════════════
+
+function renderNav() {
+  const b = getBadgeCounts();
+  $('nav').innerHTML = SECTIONS.map(([k, icon, label]) => {
+    let badge = '';
+    if (k === 'merchants' && b.pendingMerchants > 0) badge = `<span class="nav-badge">${b.pendingMerchants}</span>`;
+    else if (k === 'riders' && b.pendingRiders > 0) badge = `<span class="nav-badge">${b.pendingRiders}</span>`;
+    else if (k === 'orders' && b.newOrders > 0) badge = `<span class="nav-badge">${b.newOrders}</span>`;
+    else if (k === 'chats' && b.unreadChats > 0) badge = `<span class="nav-badge">${b.unreadChats}</span>`;
+    return `<button class="ripple ${k === current ? 'on' : ''}" data-go="${k}">
+      ${badge}
+      <div class="nav-icon">${icon}</div>
+      <div class="nav-label">${label}</div>
+    </button>`;
+  }).join('');
+}
+
+function render() {
+  const fn = { dashboard, gp, finance, chats, merchants, orders, riders, users }[current];
+  if (fn) $('main').innerHTML = fn();
+  renderNav();
+}
+
+function searchInput(ph) {
+  return `<div class="search-box"><span style="font-size:18px;opacity:.5">🔍</span><input id="q" placeholder="${ph}" value="${esc(filters.q)}"></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  📊 DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+
+function dashboard() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+
+  const completedAll = store.orders.filter(o => o.status === 'done');
+  const activeOrders = store.orders.filter(o => ['searching','pending','accepted','picked_up','on_the_way'].includes(o.status));
+
+  let todayRevenue = 0, todayOrders = 0, yesterdayRevenue = 0;
+  completedAll.forEach(o => {
+    const fare = Number(o.fare || 0);
+    const myCut = Math.round(fare * 0.20 * 100) / 100;
+    const d = toDate(o.createdAt); if (!d) return;
+    if (d >= today) { todayRevenue += myCut; todayOrders++; }
+    else if (d >= yesterday && d < today) { yesterdayRevenue += myCut; }
+  });
+
+  const trend = yesterdayRevenue > 0 ? Math.round((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100) : (todayRevenue > 0 ? 100 : 0);
+  const trendUp = trend >= 0;
+
+  const b = getBadgeCounts();
+  const activeRiders = store.riders.filter(r => r.status === 'active' && r.verified !== false).length;
+  const totalMerchants = store.merchants.filter(m => m.verified).length;
+
+  const heroSection = `
+    <div class="hero-card">
+      <div class="hero-label">💰 รายได้วันนี้</div>
+      <div class="hero-amount">฿${todayRevenue.toLocaleString('th-TH', {minimumFractionDigits:2})}</div>
+      <div class="hero-trend">${trendUp ? '📈' : '📉'} ${trendUp ? '+' : ''}${trend}% เทียบเมื่อวาน (฿${yesterdayRevenue.toFixed(0)})</div>
+      <div class="hero-grid">
+        <div class="hero-grid-cell"><div class="lbl">📦 งานเสร็จ</div><div class="val">${todayOrders} งาน</div></div>
+        <div class="hero-grid-cell"><div class="lbl">🛵 กำลังทำ</div><div class="val">${activeOrders.length} งาน</div></div>
+      </div>
+    </div>`;
+
+  const statCards = `
+    <div class="stat-grid">
+      <div class="stat-card blue ripple" data-go="merchants">
+        <div class="stat-icon">🏪</div>
+        <div class="stat-value">${store.merchants.length}</div>
+        <div class="stat-label">ร้านค้าทั้งหมด</div>
+        ${b.pendingMerchants > 0 ? `<div class="stat-sub">⏳ ${b.pendingMerchants} รออนุมัติ</div>` : `<div class="stat-sub">✅ อนุมัติแล้ว ${totalMerchants}</div>`}
+      </div>
+      <div class="stat-card purple ripple" data-go="riders">
+        <div class="stat-icon">🛵</div>
+        <div class="stat-value">${store.riders.length}</div>
+        <div class="stat-label">ไรเดอร์ทั้งหมด</div>
+        ${b.pendingRiders > 0 ? `<div class="stat-sub">⏳ ${b.pendingRiders} รออนุมัติ</div>` : `<div class="stat-sub">🟢 ทำงาน ${activeRiders}</div>`}
+      </div>
+      <div class="stat-card orange ripple" data-go="orders">
+        <div class="stat-icon">📋</div>
+        <div class="stat-value">${store.orders.length}</div>
+        <div class="stat-label">ออเดอร์ทั้งหมด</div>
+        ${b.newOrders > 0 ? `<div class="stat-sub">🔔 ใหม่ ${b.newOrders}</div>` : `<div class="stat-sub">✅ เสร็จ ${completedAll.length}</div>`}
+      </div>
+      <div class="stat-card teal ripple" data-go="users">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value">${store.users.length}</div>
+        <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+        <div class="stat-sub">ลูกค้าในระบบ</div>
+      </div>
+      <div class="stat-card gold ripple" data-go="gp">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value">฿${todayRevenue.toFixed(0)}</div>
+        <div class="stat-label">รายได้วันนี้ (GP)</div>
+        <div class="stat-sub">GP 20% รวม</div>
+      </div>
+      <div class="stat-card ${b.pendingSlips > 0 ? 'red' : 'green'} ripple" data-go="orders">
+        <div class="stat-icon">📸</div>
+        <div class="stat-value">${b.pendingSlips}</div>
+        <div class="stat-label">สลิปรอตรวจสอบ</div>
+        <div class="stat-sub">${b.pendingSlips > 0 ? '⏳ ต้องอนุมัติ' : '✅ ว่าง'}</div>
+      </div>
+    </div>`;
+
+  const actionItems = [];
+  if (b.staleOrders > 0) actionItems.push(`
+    <div class="action-card danger ripple" data-go="orders">
+      <div class="action-icon">⏰</div>
+      <div class="action-info">
+        <div class="action-title" style="color:#991b1b">ออเดอร์ค้างเกิน 15 นาที</div>
+        <div class="action-value" style="color:var(--danger)">${b.staleOrders} รายการ</div>
+      </div>
+      <button class="action-btn orange">ดูเลย →</button>
+    </div>`);
+  if (b.pendingSlips > 0) actionItems.push(`
+    <div class="action-card warn ripple" data-go="orders">
+      <div class="action-icon">📸</div>
+      <div class="action-info">
+        <div class="action-title">สลิปรอตรวจสอบ</div>
+        <div class="action-value">${b.pendingSlips} ใบ</div>
+      </div>
+      <button class="action-btn orange">ตรวจสอบ →</button>
+    </div>`);
+  if (b.pendingMerchants > 0) actionItems.push(`
+    <div class="action-card blue ripple" data-go="merchants">
+      <div class="action-icon">🏪</div>
+      <div class="action-info">
+        <div class="action-title">ร้านค้ารออนุมัติ</div>
+        <div class="action-value">${b.pendingMerchants} ร้าน</div>
+      </div>
+      <button class="action-btn blue">ตรวจสอบ →</button>
+    </div>`);
+  if (b.pendingRiders > 0) actionItems.push(`
+    <div class="action-card blue ripple" data-go="riders">
+      <div class="action-icon">🛵</div>
+      <div class="action-info">
+        <div class="action-title">ไรเดอร์รออนุมัติ</div>
+        <div class="action-value">${b.pendingRiders} คน</div>
+      </div>
+      <button class="action-btn blue">ตรวจสอบ →</button>
+    </div>`);
+  if (actionItems.length === 0) actionItems.push(`
+    <div class="action-card green" style="text-align:center;flex-direction:column;gap:6px;padding:24px">
+      <div style="font-size:48px">✅</div>
+      <div class="action-title" style="font-size:15px">ทุกอย่างเรียบร้อย!</div>
+      <div class="action-sub">ไม่มีงานค้าง</div>
+    </div>`);
+
+  const recentOrders = [...store.orders].sort((a, b) => ts(b) - ts(a)).slice(0, 5).map(o => {
+    const statusColor = { done:'#00A651', cancelled:'#999', searching:'#E65100', accepted:'#1565C0', picked_up:'#9C27B0', on_the_way:'#00A651' }[o.status] || '#666';
+    return `
+      <div class="ripple" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;min-height:60px" data-order="${esc(o.id)}">
+        <div style="width:10px;height:10px;border-radius:50%;background:${statusColor};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(o.title || 'ออเดอร์')}</div>
+          <div style="font-size:11px;color:var(--mut);margin-top:2px">${fmtTime(o.createdAt)} • ${esc(STATUS[o.status] || o.status)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `${heroSection}${statCards}
+    <div class="section-divider"><div class="title">🎯 ต้องทำอะไรต่อ</div><div class="line"></div></div>
+    ${actionItems.join('')}
+    <div class="section-divider"><div class="title">🕐 ออเดอร์ล่าสุด</div><div class="line"></div></div>
+    <div class="card" style="padding:16px">
+      ${recentOrders || '<div style="text-align:center;padding:20px;color:#999;font-weight:600">ยังไม่มีออเดอร์</div>'}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  💰 GP DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+
+function getGPByRange(range) {
+  let from = new Date();
+  if (range === 'today') { from.setHours(0,0,0,0); }
+  else if (range === 'yesterday') { from.setDate(from.getDate() - 1); from.setHours(0,0,0,0); }
+  else if (range === 'week') { from.setDate(from.getDate() - 7); from.setHours(0,0,0,0); }
+  else if (range === 'month') { from.setDate(from.getDate() - 30); from.setHours(0,0,0,0); }
+
+  const filtered = store.orders.filter(o => {
+    if (o.status !== 'done') return false;
+    const d = toDate(o.createdAt);
+    return d && d >= from;
+  });
+
+  let total = 0, totalFare = 0, count = 0;
+  const byRider = {}, byMerchant = {};
+  filtered.forEach(o => {
+    const fare = Number(o.fare || 0);
+    const gp = Math.round(fare * 0.20 * 100) / 100;
+    total += gp; totalFare += fare; count++;
+    const rId = o.riderId || 'unknown';
+    const rName = o.rider?.name || o.riderName || 'ไม่ระบุ';
+    if (!byRider[rId]) byRider[rId] = { name: rName, gp: 0, count: 0 };
+    byRider[rId].gp += gp; byRider[rId].count++;
+    const mId = o.merchantId || 'unknown';
+    const mName = o.merchant?.name || o.merchantName || store.merchants.find(m => m.id === mId)?.name || 'ไม่ระบุ';
+    if (!byMerchant[mId]) byMerchant[mId] = { name: mName, gp: 0, count: 0 };
+    byMerchant[mId].gp += gp; byMerchant[mId].count++;
+  });
+
+  return { total, totalFare, count, byRider, byMerchant };
+}
+
+function gp() {
+  const range = filters.gpRange;
+  const today = getGPByRange('today');
+  const current = { today, yesterday: getGPByRange('yesterday'), week: getGPByRange('week'), month: getGPByRange('month') }[range];
+
+  const rangeTabs = `
+    <div class="range-tabs">
+      <button class="range-tab ${range === 'today' ? 'active' : ''}" data-gp-range="today">📅 วันนี้</button>
+      <button class="range-tab ${range === 'yesterday' ? 'active' : ''}" data-gp-range="yesterday">⏪ เมื่อวาน</button>
+      <button class="range-tab ${range === 'week' ? 'active' : ''}" data-gp-range="week">📆 7 วัน</button>
+      <button class="range-tab ${range === 'month' ? 'active' : ''}" data-gp-range="month">🗓️ 30 วัน</button>
+    </div>`;
+
+  const totalPending = store.orders.filter(o => o.status === 'done' && !o.riderPaid).reduce((sum, o) => {
+    return sum + Math.round(Number(o.fare || 0) * 0.20 * 100) / 100;
+  }, 0);
+
+  const summaryCards = `
+    <div class="stat-grid">
+      <div class="stat-card gold"><div class="stat-icon">💰</div><div class="stat-value">฿${current.total.toFixed(0)}</div><div class="stat-label">GP ${range === 'today' ? 'วันนี้' : range === 'yesterday' ? 'เมื่อวาน' : range === 'week' ? '7 วัน' : '30 วัน'}</div><div class="stat-sub">${current.count} ออเดอร์</div></div>
+      <div class="stat-card blue"><div class="stat-icon">📊</div><div class="stat-value">฿${current.totalFare.toFixed(0)}</div><div class="stat-label">ยอดรวม</div><div class="stat-sub">ก่อนหัก GP</div></div>
+      <div class="stat-card green"><div class="stat-icon">✅</div><div class="stat-value">฿${today.total.toFixed(0)}</div><div class="stat-label">GP วันนี้</div><div class="stat-sub">${today.count} ออเดอร์</div></div>
+      <div class="stat-card red"><div class="stat-icon">💸</div><div class="stat-value">฿${totalPending.toFixed(0)}</div><div class="stat-label">GP ค้างเก็บ</div><div class="stat-sub">จากไรเดอร์</div></div>
+    </div>`;
+
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+    const next = new Date(d); next.setDate(next.getDate() + 1);
+    const dayOrders = store.orders.filter(o => {
+      if (o.status !== 'done') return false;
+      const od = toDate(o.createdAt);
+      return od && od >= d && od < next;
+    });
+    last7.push({ label: d.toLocaleDateString('th-TH', { day: '2-digit' }), value: dayOrders.reduce((s, o) => s + (Number(o.fare || 0) * 0.20), 0) });
+  }
+  const maxVal = Math.max(...last7.map(d => d.value), 1);
+  const chartHtml = `
+    <div class="card" style="padding:16px">
+      <div style="font-weight:900;font-size:14px;margin-bottom:12px">📈 GP 7 วันล่าสุด</div>
+      <div class="chart-bars">
+        ${last7.map(d => `<div class="chart-bar" style="height:${Math.max(4, (d.value / maxVal) * 100)}%">
+          ${d.value > 0 ? `<div class="chart-bar-value">฿${d.value.toFixed(0)}</div>` : ''}
+          <div class="chart-bar-label">${d.label}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+
+  const riderRows = Object.entries(current.byRider).sort((a, b) => b[1].gp - a[1].gp);
+  const riderTable = riderRows.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
+    : riderRows.map(([id, r]) => `<tr>
+      <td style="font-weight:900">🛵 ${esc(r.name)}</td>
+      <td class="text-center">${r.count}</td>
+      <td class="text-right money-pos">฿${r.gp.toFixed(2)}</td>
+      <td class="text-right" style="color:var(--mut);font-weight:700">฿${(r.gp * 4).toFixed(0)}</td>
+    </tr>`).join('');
+
+  const merchantRows = Object.entries(current.byMerchant).sort((a, b) => b[1].gp - a[1].gp);
+  const merchantTable = merchantRows.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
+    : merchantRows.map(([id, m]) => `<tr>
+      <td style="font-weight:900">🏪 ${esc(m.name)}</td>
+      <td class="text-center">${m.count}</td>
+      <td class="text-right money-pos">฿${m.gp.toFixed(2)}</td>
+      <td class="text-right" style="color:var(--mut);font-weight:700">฿${(m.gp * 4).toFixed(0)}</td>
+    </tr>`).join('');
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:900;font-size:18px">💰 GP Dashboard</div>
+      <span class="tag b">GP 20%</span>
+    </div>
+    ${rangeTabs}${summaryCards}${chartHtml}
+    <div class="section-divider"><div class="title">🛵 GP รายไรเดอร์</div><div class="line"></div></div>
+    <div class="table-wrap"><table class="gp-table">
+      <thead><tr><th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">GP (20%)</th><th class="text-right">ไรเดอร์ได้ (80%)</th></tr></thead>
+      <tbody>${riderTable}</tbody>
+    </table></div>
+    <div class="section-divider" style="margin-top:20px"><div class="title">🏪 GP รายร้านค้า</div><div class="line"></div></div>
+    <div class="table-wrap"><table class="gp-table">
+      <thead><tr><th>ร้านค้า</th><th class="text-center">งาน</th><th class="text-right">GP (20%)</th><th class="text-right">ร้านได้ (80%)</th></tr></thead>
+      <tbody>${merchantTable}</tbody>
+    </table></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🧾 FINANCE
+// ═══════════════════════════════════════════════════════════════════
+
+function finance() {
+  const completedOrders = store.orders.filter(o => o.status === 'done');
+  let totalGrossAll = 0, totalPlatformFeeAll = 0, totalRiderEarnAll = 0;
+  const riderStats = {};
+  completedOrders.forEach(o => {
+    const fare = Number(o.fare || 0);
+    if (fare <= 0) return;
+    const platformFee = Math.round(fare * 0.20 * 100) / 100;
+    const riderEarn = fare - platformFee;
+    const rId = o.riderId || 'unknown';
+    const rName = o.rider?.name || o.riderName || 'ไม่ระบุ';
+    if (!riderStats[rId]) riderStats[rId] = { name: rName, total: {c:0,a:0} };
+    totalGrossAll += fare; totalPlatformFeeAll += platformFee; totalRiderEarnAll += riderEarn;
+    riderStats[rId].total.c++; riderStats[rId].total.a += riderEarn;
+  });
+  const rows = Object.values(riderStats).sort((a, b) => b.total.a - a.total.a).map(r => `
+    <tr>
+      <td style="font-weight:900">${esc(r.name)}</td>
+      <td class="text-center">${r.total.c}</td>
+      <td class="text-right money-pos">฿${r.total.a.toFixed(2)}</td>
+      <td class="text-right" style="color:var(--warn);font-weight:900">฿${(r.total.a * 0.25).toFixed(2)}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="stat-grid">
+      <div class="stat-card blue"><div class="stat-icon">💰</div><div class="stat-value">฿${totalGrossAll.toFixed(0)}</div><div class="stat-label">ยอดขายรวม</div></div>
+      <div class="stat-card gold"><div class="stat-icon">📊</div><div class="stat-value">฿${totalPlatformFeeAll.toFixed(0)}</div><div class="stat-label">GP แพลตฟอร์ม</div></div>
+      <div class="stat-card green"><div class="stat-icon">🛵</div><div class="stat-value">฿${totalRiderEarnAll.toFixed(0)}</div><div class="stat-label">ไรเดอร์ 80%</div></div>
+      <div class="stat-card purple"><div class="stat-icon">📋</div><div class="stat-value">${completedOrders.length}</div><div class="stat-label">ออเดอร์เสร็จ</div></div>
+    </div>
+    <div class="table-wrap"><table class="gp-table">
+      <thead><tr><th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">ไรเดอร์ได้</th><th class="text-right" style="color:var(--warn)">GP ค้าง</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ยังไม่มีข้อมูล</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  💬 CHATS
+// ═══════════════════════════════════════════════════════════════════
+
+function chats() {
+  const list = [...store.chats].sort((a, b) => ts(b) - ts(a));
+  if (list.length === 0) {
+    return `<div class="empty">
+      <div style="font-size:48px;margin-bottom:8px">💬</div>
+      <div style="font-weight:800;font-size:15px;margin-bottom:6px">ยังไม่มีการสนทนา</div>
+      <div style="font-size:12px;font-weight:600">แชทระหว่างไรเดอร์ ↔ ร้านค้า จะปรากฏที่นี่</div>
+    </div>`;
+  }
+  return list.map(c => {
+    const title = c.participants?.map(p => p.name).join(' ↔ ') || 'การสนทนา';
+    const unread = c.unreadAdmin || 0;
+    return `
+      <div class="chat-list-item" data-open-chat="${esc(c.id)}">
+        <div class="avatar">💬</div>
+        <div class="chat-info">
+          <div class="chat-title">${esc(title)}</div>
+          <div class="chat-preview">${esc((c.lastMessage || '—').substring(0, 50))}</div>
+        </div>
+        <div class="chat-meta">
+          <div class="chat-time">${fmtTimeShort(c.lastMessageAt || c.createdAt)}</div>
+          ${unread > 0 ? `<div class="chat-unread">${unread}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openChat(chatId) {
+  activeChatId = chatId;
+  const c = store.chats.find(x => x.id === chatId);
+  if (!c) return;
+  $('chat-name').textContent = c.participants?.map(p => p.name).join(' ↔ ') || 'แชท';
+  $('chat-sub').textContent = c.type === 'rider_merchant' ? 'ไรเดอร์ ↔ ร้านค้า' : 'การสนทนา';
+  $('chat-container').classList.add('show');
+  $('chat-input').value = '';
+  if (c.unreadAdmin > 0) db.collection('chats').doc(chatId).update({ unreadAdmin: 0 }).catch(() => {});
+  if (activeChatUnsub) activeChatUnsub();
+  activeChatUnsub = db.collection('chats').doc(chatId).collection('messages')
+    .orderBy('createdAt', 'asc').limitToLast(100)
+    .onSnapshot(snap => renderChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+function closeChat() {
+  $('chat-container').classList.remove('show');
+  if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
+  activeChatId = null;
+}
+
+function renderChatMessages(msgs) {
+  if (msgs.length === 0) { $('chat-messages').innerHTML = '<div class="chat-empty">เริ่มสนทนาได้เลย</div>'; return; }
+  let lastDay = '';
+  const html = msgs.map(m => {
+    const isAdmin = m.senderRole === 'admin';
+    const d = toDate(m.createdAt) || new Date();
+    const day = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
+    let dayDiv = '';
+    if (day !== lastDay) { dayDiv = `<div class="chat-day-divider">${day}</div>`; lastDay = day; }
+    const cls = isAdmin ? 'out from-admin' : 'in';
+    const imageHtml = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
+    const senderName = !isAdmin && m.senderName ? `<div style="font-size:10px;font-weight:900;opacity:.8;margin-bottom:4px">${esc(m.senderName)}</div>` : '';
+    return `${dayDiv}<div class="chat-msg ${cls}">${senderName}${imageHtml}${m.text ? `<div>${esc(m.text)}</div>` : ''}<div class="msg-time">${fmtTimeShort(m.createdAt)}</div></div>`;
+  }).join('');
+  $('chat-messages').innerHTML = html;
+  setTimeout(() => { $('chat-messages').scrollTop = $('chat-messages').scrollHeight; }, 50);
+}
+
+async function sendChatText() {
+  const text = $('chat-input').value.trim();
+  if (!text || !activeChatId) return;
+  $('chat-input').value = ''; $('chat-input').style.height = 'auto';
+  try {
+    await db.collection('chats').doc(activeChatId).collection('messages').add({
+      text, senderRole: 'admin', senderName: 'Admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(activeChatId).update({
+      lastMessage: `[Admin] ${text}`,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) { toast('ส่งไม่สำเร็จ', true); }
+}
+
+function pickChatImage() { $('chat-image-input').click(); }
+
+async function sendChatImage(file) {
+  if (!file || !activeChatId) return;
+  if (file.size > 5 * 1024 * 1024) return toast('รูปใหญ่เกิน 5MB', true);
+  toast('⏳ กำลังอัปโหลด...');
+  try {
+    const path = `chats/${activeChatId}/${Date.now()}_${file.name}`;
+    const ref = storage.ref(path);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    await db.collection('chats').doc(activeChatId).collection('messages').add({
+      imageUrl: url, senderRole: 'admin', senderName: 'Admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(activeChatId).update({
+      lastMessage: '[Admin] 📷 รูปภาพ',
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ ส่งรูปแล้ว');
+  } catch (e) { toast('อัปโหลดไม่สำเร็จ', true); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🏪 MERCHANTS / 📋 ORDERS / 🛵 RIDERS / 👥 USERS
+// ═══════════════════════════════════════════════════════════════════
+
+function merchants() {
+  const q = filters.q.toLowerCase(), st = filters.merchantStatus;
+  const list = store.merchants.filter(m => {
+    const mQ = !q || String(m.name || '').toLowerCase().includes(q);
+    const mS = st === 'all' || (st === 'pending' && !m.verified) || (st === 'verified' && m.verified);
+    return mQ && mS;
+  });
+  const pendingCount = store.merchants.filter(m => !m.verified).length;
+  const verifiedCount = store.merchants.length - pendingCount;
+
+  const filterBar = `
+    <div class="filter-bar">
+      <button class="filter-chip ${st === 'all' ? 'active' : ''}" data-merchant-status="all">📋 ทั้งหมด (${store.merchants.length})</button>
+      <button class="filter-chip ${st === 'pending' ? 'active' : ''}" data-merchant-status="pending">⏳ รอ (${pendingCount})</button>
+      <button class="filter-chip ${st === 'verified' ? 'active' : ''}" data-merchant-status="verified">✅ อนุมัติ (${verifiedCount})</button>
+    </div>`;
+
+  return filterBar + searchInput('ค้นหาร้านค้า...') + (list.map(m => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E8F5E9">🏪</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(m.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">📞 ${esc(m.phone || '—')} • ⭐ ${esc(m.rating || 0)}</div>
+        </div>
+        <span class="tag ${m.verified ? '' : 'w'}">${m.verified ? '✅ อนุมัติ' : '⏳ รอ'}</span>
+      </div>
+      <div class="data-card-actions">
+        <button class="${m.verified ? 'dan' : 'pri'} ripple" data-verify="${esc(m.id)}">${m.verified ? '🚫 ยกเลิก' : '✅ อนุมัติ'}</button>
+        <button class="blue ripple" data-edit-m="${esc(m.id)}">✏️ แก้ไข</button>
+        <button class="dan ripple" data-del="merchants:${esc(m.id)}">🗑️ ลบ</button>
+      </div>
+    </div>`).join('') || '<div class="empty">ไม่พบร้านค้า</div>');
+}
+
+function orders() {
+  const q = filters.q.toLowerCase();
+  let list = store.orders.filter(o =>
+    (filters.orders === 'all' || o.status === filters.orders) &&
+    (!q || [o.title, o.userName, o.id].some(v => String(v || '').toLowerCase().includes(q)))
+  );
+  list = [...list].sort((a, b) => ts(b) - ts(a));
+  const sel = `<select id="ofilter" style="margin-bottom:16px;padding:12px;min-height:52px;max-width:200px">
+    <option value="all">ทุกสถานะ</option>
+    ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${filters.orders === k ? 'selected' : ''}>${v}</option>`).join('')}
+  </select>`;
+  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => {
+    const slipBadge = o.riderSlipUrl ? (o.riderSlipVerified ? '<span class="tag">📸 ✅</span>' : '<span class="tag w">📸 รอ</span>') : '';
+    return `
+    <div class="data-card ripple" data-order="${esc(o.id)}" style="cursor:pointer">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E3F2FD">📋</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(o.title || 'ออเดอร์')}</div>
+          <div class="data-card-meta">฿${esc(o.total || 0)} • 👤 ${esc(o.userName || '—')}</div>
+          <div class="data-card-meta">🕐 ${fmtTime(o.createdAt)}</div>
+          ${slipBadge ? `<div style="margin-top:6px">${slipBadge}</div>` : ''}
+        </div>
+        <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(STATUS[o.status] || o.status)}</span>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">ไม่พบออเดอร์</div>');
+}
+
+function riders() {
+  const q = filters.q.toLowerCase();
+  const verifiedCount = store.riders.filter(r => r.verified !== false).length;
+  const pendingCount = store.riders.filter(r => r.verified === false).length;
+  const filterBar = `
+    <div class="filter-bar">
+      <button class="filter-chip ${filters.riderStatus === '' ? 'active' : ''}" data-rider-status="">📋 ทั้งหมด (${store.riders.length})</button>
+      <button class="filter-chip ${filters.riderStatus === 'pending' ? 'active' : ''}" data-rider-status="pending">⏳ รอ (${pendingCount})</button>
+      <button class="filter-chip ${filters.riderStatus === 'verified' ? 'active' : ''}" data-rider-status="verified">✅ อนุมัติ (${verifiedCount})</button>
+    </div>`;
+  const filteredList = store.riders.filter(r => {
+    const mQ = !q || String(r.name || '').toLowerCase().includes(q);
+    if (filters.riderStatus === 'pending') return mQ && r.verified === false;
+    if (filters.riderStatus === 'verified') return mQ && r.verified !== false;
+    return mQ;
+  });
+  return filterBar + searchInput('ค้นหาไรเดอร์...') + (filteredList.map(r => {
+    const verified = r.verified !== false;
+    return `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E8F5E9">🛵</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(r.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">📞 ${esc(r.phone || '—')} • ⭐ ${esc(r.rating || 0)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          <span class="tag ${verified ? '' : 'w'}">${verified ? '✅' : '⏳'}</span>
+          <span class="tag ${r.status === 'active' ? '' : 'x'}">${r.status === 'active' ? '🟢' : '⚫'}</span>
+        </div>
+      </div>
+      <div class="data-card-actions">
+        <button class="${verified ? 'dan' : 'pri'} ripple" data-verify-r="${esc(r.id)}">${verified ? '🚫 ยกเลิก' : '✅ อนุมัติ'}</button>
+        <button class="blue ripple" data-edit-r="${esc(r.id)}">🔗 Link</button>
+        <button class="${r.status === 'active' ? 'dan' : 'pri'} ripple" data-rider="${esc(r.id)}">${r.status === 'active' ? '⏸️ หยุด' : '▶️ เปิด'}</button>
+        <button class="dan ripple" data-del="riders:${esc(r.id)}">🗑️</button>
+      </div>
+    </div>`; }).join('') || '<div class="empty">ไม่พบไรเดอร์</div>');
+}
+
+function users() {
+  const q = filters.q.toLowerCase();
+  const list = store.users.filter(u => !q || [u.name, u.email, u.phone].some(v => String(v || '').toLowerCase().includes(q)));
+  return searchInput('ค้นหาผู้ใช้...') + (list.map(u => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E3F2FD">👤</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(u.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">📧 ${esc(u.email || '—')} • 📞 ${esc(u.phone || '—')}</div>
+        </div>
+      </div>
+      <div class="data-card-actions"><button class="dan ripple" data-del="users:${esc(u.id)}">🗑️ ลบ</button></div>
+    </div>`).join('') || '<div class="empty">ไม่พบผู้ใช้</div>');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════════════════════════════════
+
+function openModal(t, h) { $('modal-title').textContent = t; $('modal-body').innerHTML = h; $('modal-overlay').classList.add('show'); }
+function closeModal() { $('modal-overlay').classList.remove('show'); }
+
+function orderDetail(id) {
+  const o = store.orders.find(x => x.id === id); if (!o) return;
+  const opts = Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${o.status === k ? 'selected' : ''}>${v}</option>`).join('');
+  const riderSlipSection = o.riderSlipUrl ? `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">📸 สลิปจากไรเดอร์</div>
+      ${o.riderSlipVerified ? `<div class="slip-status-banner ok">✅ ตรวจสอบแล้ว</div>` : `<div class="slip-status-banner pending">⏳ รอตรวจสอบ</div>`}
+      <img src="${o.riderSlipUrl}" class="slip-preview" onclick="window.open('${o.riderSlipUrl}','_blank')">
+      ${!o.riderSlipVerified ? `<div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="pri ripple" style="flex:1" data-verify-slip="${esc(o.id)}">✅ อนุมัติ</button>
+        <button class="dan ripple" style="flex:1" data-reject-slip="${esc(o.id)}">❌ ปฏิเสธ</button>
+      </div>` : ''}
+    </div>` : '';
+  const adminSlipSection = o.adminSlipUrl ? `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนร้าน</div>
+      <img src="${o.adminSlipUrl}" class="slip-preview" onclick="window.open('${o.adminSlipUrl}','_blank')">
+      <button class="dan ripple" style="width:100%;margin-top:8px" data-delete-slip="${esc(o.id)}">🗑️ ลบ</button>
+    </div>` : `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนร้าน</div>
+      <div class="slip-upload-box" data-upload-admin-slip="${esc(o.id)}">
+        <div class="icon">📤</div><div class="label">อัปโหลดสลิป</div><div class="hint">แตะเลือกรูป</div>
+      </div>
+      <input type="file" id="admin-slip-input-${esc(o.id)}" accept="image/*" style="display:none">
+      <div class="slip-progress" id="admin-slip-progress-${esc(o.id)}" style="display:none"><div class="slip-progress-bar" id="admin-slip-bar-${esc(o.id)}"></div></div>
+    </div>`;
+  openModal('📋 ออเดอร์', `
+    <div class="meta" style="font-family:monospace">ID: ${esc(o.id)}</div>
+    <div class="nm" style="font-size:18px;margin:8px 0">${esc(o.title || '')}</div>
+    <div class="meta" style="white-space:pre-wrap;background:#f8f9fa;padding:12px;border-radius:10px">${esc(itemsText(o.items))}</div>
+    <div class="meta" style="margin-top:12px">👤 ${esc(o.userName || '')} • ${esc(o.userPhone || '')}</div>
+    <div class="meta">📍 ${esc(o.address || '')}</div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div><div class="meta">ค่าส่ง ฿${esc(o.fare||0)}</div><div style="font-size:20px;font-weight:900;color:var(--brand)">รวม ฿${esc(o.total||0)}</div></div>
+      <select id="ostatus" data-oid="${esc(o.id)}" style="width:auto;padding:12px;min-height:48px">${opts}</select>
+    </div>
+    ${riderSlipSection}${adminSlipSection}
+    <button class="dan big ripple" style="margin-top:16px" data-cancel-order="${esc(o.id)}">❌ ยกเลิกออเดอร์</button>
+  `);
+}
+
+function editMerchantForm(id) {
+  const m = store.merchants.find(x => x.id === id); if (!m) return;
+  openModal('✏️ แก้ไขร้าน', `
+    <label style="font-weight:800;font-size:13px">ชื่อร้าน</label>
+    <input type="text" id="edit-name" value="${esc(m.name || '')}">
+    <label style="font-weight:800;font-size:13px">เบอร์</label>
+    <input type="tel" id="edit-phone" value="${esc(m.phone || '')}">
+    <label style="font-weight:800;font-size:13px">ที่อยู่</label>
+    <textarea id="edit-address" rows="2">${esc(m.address || '')}</textarea>
+    <button class="pri big ripple" data-save-merchant="${esc(id)}">💾 บันทึก</button>
+  `);
+}
+
+function editRiderForm(id) {
+  const r = store.riders.find(x => x.id === id); if (!r) return;
+  const selM = r.merchantIds || [], selL = r.locationIds || [];
+  const merchantPicker = `<div class="picker">${store.merchants.map(m => `<label><input type="checkbox" class="merchant-check" value="${esc(m.id)}" ${selM.includes(m.id) ? 'checked' : ''}><span>🏪 ${esc(m.name || '-')}</span></label>`).join('')}</div>`;
+  const locationPicker = `<div class="picker">${store.places.map(p => `<label><input type="checkbox" class="location-check" value="${esc(p.id)}" ${selL.includes(p.id) ? 'checked' : ''}><span>📍 ${esc(p.name)}</span></label>`).join('')}</div>`;
+  openModal('🔗 Link ไรเดอร์', `
+    <div style="font-weight:900;margin-bottom:12px">${esc(r.name || '-')}</div>
+    <label style="font-weight:800;font-size:13px;display:block;margin-bottom:8px">🏪 ร้านที่ดูแล</label>
+    ${merchantPicker}
+    <label style="font-weight:800;font-size:13px;display:block;margin:16px 0 8px">📍 สถานที่ที่ดูแล</label>
+    ${locationPicker}
+    <button class="pri big ripple" style="margin-top:16px" data-save-rider-link="${esc(id)}">💾 บันทึก</button>
+  `);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  🎯 EVENT LISTENERS (ใช้ Event Delegation ทั้งหมด)
+// ═══════════════════════════════════════════════════════════════════
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-go],[data-order],[data-verify],[data-verify-r],[data-rider],[data-del],[data-edit-m],[data-edit-r],[data-merchant-status],[data-rider-status],[data-gp-range],[data-open-chat],[data-verify-slip],[data-reject-slip],[data-delete-slip],[data-upload-admin-slip],[data-cancel-order],[data-save-merchant],[data-save-rider-link]');
+  if (!t) return;
+
+  try {
+    // ─── Navigation ───
+    if (t.dataset.go) { current = t.dataset.go; filters.q = ''; render(); window.scrollTo(0, 0); return; }
+
+    // ─── GP Range ───
+    if (t.dataset.gpRange) { filters.gpRange = t.dataset.gpRange; render(); return; }
+
+    // ─── Filter Status ───
+    if (t.dataset.merchantStatus) { filters.merchantStatus = t.dataset.merchantStatus; render(); return; }
+    if (t.dataset.riderStatus !== undefined && t.hasAttribute('data-rider-status')) { filters.riderStatus = t.dataset.riderStatus; render(); return; }
+
+    // ─── Open Chat ───
+    if (t.dataset.openChat) { openChat(t.dataset.openChat); return; }
+
+    // ─── Order Detail ───
+    if (t.dataset.order) { orderDetail(t.dataset.order); return; }
+
+    // ─── Merchant Actions ───
+    if (t.dataset.editM) { editMerchantForm(t.dataset.editM); return; }
+    if (t.dataset.verify) {
+      const m = store.merchants.find(x => x.id === t.dataset.verify);
+      if (!m) return;
+      await db.collection('merchants').doc(m.id).update({ verified: !m.verified, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast('✅ อัปเดตแล้ว');
+      return;
+    }
+    if (t.dataset.saveMerchant) {
+      await db.collection('merchants').doc(t.dataset.saveMerchant).update({
+        name: $('edit-name').value.trim(),
+        phone: $('edit-phone').value.trim(),
+        address: $('edit-address').value.trim(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast('✅ บันทึกแล้ว'); closeModal();
+      return;
+    }
+
+    // ─── Rider Actions ───
+    if (t.dataset.editR) { editRiderForm(t.dataset.editR); return; }
+    if (t.dataset.verifyR) {
+      const r = store.riders.find(x => x.id === t.dataset.verifyR);
+      if (!r) return;
+      const nv = r.verified === false;
+      await db.collection('riders').doc(r.id).update({ verified: nv, verifiedAt: nv ? firebase.firestore.FieldValue.serverTimestamp() : null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast(nv ? '✅ อนุมัติไรเดอร์' : '🚫 ยกเลิก');
+      return;
+    }
+    if (t.dataset.rider) {
+      const r = store.riders.find(x => x.id === t.dataset.rider);
+      if (!r) return;
+      await db.collection('riders').doc(r.id).update({ status: r.status === 'active' ? 'inactive' : 'active' });
+      toast('✅ อัปเดตแล้ว');
+      return;
+    }
+    if (t.dataset.saveRiderLink) {
+      const mIds = [...document.querySelectorAll('.merchant-check:checked')].map(cb => cb.value);
+      const lIds = [...document.querySelectorAll('.location-check:checked')].map(cb => cb.value);
+      await db.collection('riders').doc(t.dataset.saveRiderLink).update({ merchantIds: mIds, locationIds: lIds, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast('✅ บันทึกแล้ว'); closeModal();
+      return;
+    }
+
+    // ─── Order Slip Actions ───
+    if (t.dataset.verifySlip) {
+      await db.collection('orders').doc(t.dataset.verifySlip).update({ riderSlipVerified: true, riderSlipVerifiedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast('✅ อนุมัติสลิป'); orderDetail(t.dataset.verifySlip);
+      return;
+    }
+    if (t.dataset.rejectSlip) {
+      if (!confirm('ปฏิเสธสลิปนี้?')) return;
+      const o = store.orders.find(x => x.id === t.dataset.rejectSlip);
+      if (o?.riderSlipPath) try { await storage.ref(o.riderSlipPath).delete(); } catch(_) {}
+      await db.collection('orders').doc(t.dataset.rejectSlip).update({ riderSlipUrl: null, riderSlipPath: null, riderSlipVerified: false });
+      toast('❌ ปฏิเสธ'); orderDetail(t.dataset.rejectSlip);
+      return;
+    }
+    if (t.dataset.deleteSlip) {
+      if (!confirm('ลบสลิป?')) return;
+      const o = store.orders.find(x => x.id === t.dataset.deleteSlip);
+      if (o?.adminSlipPath) try { await storage.ref(o.adminSlipPath).delete(); } catch(_) {}
+      await db.collection('orders').doc(t.dataset.deleteSlip).update({ adminSlipUrl: null, adminSlipPath: null });
+      toast('🗑️ ลบแล้ว'); orderDetail(t.dataset.deleteSlip);
+      return;
+    }
+    if (t.dataset.uploadAdminSlip) {
+      const input = $(`admin-slip-input-${t.dataset.uploadAdminSlip}`);
+      if (!input) return;
+      input.onchange = (e) => uploadAdminSlip(t.dataset.uploadAdminSlip, e.target.files[0]);
+      input.click();
+      return;
+    }
+    if (t.dataset.cancelOrder) {
+      if (!confirm('ยกเลิกออเดอร์?')) return;
+      await db.collection('orders').doc(t.dataset.cancelOrder).update({ status: 'cancelled', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast('ยกเลิกแล้ว'); closeModal();
+      return;
+    }
+
+    // ─── Delete ───
+    if (t.dataset.del) {
+      const [col, id] = t.dataset.del.split(':');
+      if (confirm('⚠️ ยืนยันการลบ?')) {
+        await db.collection(col).doc(id).delete();
+        toast('ลบแล้ว');
+      }
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    toast('ไม่สำเร็จ: ' + (err.message || err.code), true);
+  }
+});
+
+async function uploadAdminSlip(orderId, file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return toast('ไฟล์เกิน 5MB', true);
+  const pB = $(`admin-slip-progress-${orderId}`), bar = $(`admin-slip-bar-${orderId}`);
+  if (pB) pB.style.display = 'block';
+  const path = `slips/orders/${orderId}/admin-${Date.now()}.jpg`;
+  const ref = storage.ref(path);
+  try {
+    const task = ref.put(file);
+    task.on('state_changed', s => { if (bar) bar.style.width = (s.bytesTransferred / s.totalBytes * 100) + '%'; });
+    await task;
+    const url = await ref.getDownloadURL();
+    await db.collection('orders').doc(orderId).update({ adminSlipUrl: url, adminSlipPath: path });
+    toast('✅ อัปโหลดสำเร็จ');
+    orderDetail(orderId);
+  } catch (e) { toast('❌ ' + e.message, true); }
+}
+
+// ─── Search Input ───
+document.addEventListener('input', e => {
+  if (e.target.id === 'q') {
+    filters.q = e.target.value;
+    const pos = e.target.selectionStart;
+    render();
+    const q = $('q'); if (q) { q.focus(); q.setSelectionRange(pos, pos); }
+  }
+});
+
+// ─── Select Dropdowns ───
+document.addEventListener('change', async e => {
+  if (e.target.id === 'ofilter') { filters.orders = e.target.value; render(); }
+  if (e.target.id === 'ostatus') {
+    await db.collection('orders').doc(e.target.dataset.oid).update({ status: e.target.value, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    toast('✅ อัปเดต'); closeModal();
+  }
+});
+
+// ─── Modal Close ───
+$('modal-overlay').addEventListener('click', e => { if (e.target === $('modal-overlay')) closeModal(); });
+$('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatText(); } });
+
+// ─── Haptic ───
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, .data-card, nav button, .stat-card, .action-card');
+  if (el && navigator.vibrate) navigator.vibrate(10);
+}, { passive: true });
+
+console.log('%c🛵 Chauat Go Admin v3.3.0', 'color:#00A651;font-weight:900;font-size:16px');
+console.log('%c✓ Fixed Syntax Error | ✓ Event Delegation | ✓ No SW Cache Issue', 'color:#1565C0;font-weight:700');
