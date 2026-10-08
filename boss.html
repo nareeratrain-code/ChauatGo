@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Chauat Go Admin</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<script>
+(function() {
+  const APP_VERSION = 'v3.3.0';
+  const savedVersion = localStorage.getItem('chauat_app_version');
+  if (savedVersion && savedVersion !== APP_VERSION) {
+    localStorage.setItem('chauat_app_version', APP_VERSION);
+    if ('caches' in window) {
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+        .then(() => location.reload(true));
+    } else { location.reload(true); }
+    return;
+  }
+  localStorage.setItem('chauat_app_version', APP_VERSION);
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then(reg => { setInterval(() => reg.update(), 30000); reg.update(); })
+        .catch(err => console.warn('[SW]', err));
+    });
+  }
+})();
+</script>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'IBM Plex Sans Thai',sans-serif;-webkit-tap-highlight-color:transparent}
+:root{--brand:#00A651;--bg:#EDF6DC;--text:#1A1A1A;--mut:#6B7280;--danger:#E53935;--warn:#E65100;--blue:#1565C0;--purple:#9C27B0;--pink:#E91E63;--teal:#00897B;--indigo:#3F51B5;--border:#e5e7eb}
+body{background:var(--bg);color:var(--text);max-width:1000px;margin:0 auto;min-height:100vh;padding-bottom:40px}
+.hidden{display:none!important}
+.ripple{position:relative;overflow:hidden;isolation:isolate}
+.ripple::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle,rgba(255,255,255,.45) 10%,transparent 11%);background-position:center;background-size:0% 0%;background-repeat:no-repeat;transition:background-size .5s ease-out;pointer-events:none}
+.ripple:active::after{background-size:250% 250%}
+#login{position:fixed;inset:0;background:linear-gradient(135deg,#76B82A,#3B7A16);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;overflow-y:auto}
+.box{background:#fff;border-radius:20px;padding:32px 24px;width:100%;max-width:380px;box-shadow:0 10px 40px rgba(0,0,0,.15);margin:auto}
+.box h1{font-size:22px;color:var(--brand);text-align:center;margin-bottom:20px;font-weight:900}
+input,select,textarea{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;transition:border-color .2s;font-family:inherit;font-weight:600;min-height:52px;outline:none;background:#fafafa}
+input:focus,select:focus,textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
+button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;transition:transform .1s;font-family:inherit;min-height:44px}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.pri{background:var(--brand);color:#fff}.sec{background:#f0f0f0;color:#555}.dan{background:#FFEBEE;color:var(--danger)}.blue{background:var(--blue);color:#fff}
+.big{width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:8px;min-height:56px}
+.tab-btns{display:flex;gap:6px;margin-bottom:16px;background:#f5f5f5;padding:4px;border-radius:12px}
+.tab-btn{flex:1;padding:12px;border:none;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer;background:transparent;color:var(--mut);transition:.2s;font-family:inherit}
+.tab-btn.active{background:#fff;color:var(--brand);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+header{background:linear-gradient(135deg,#76B82A,#3B7A16);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 14px;border-radius:0 0 20px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+header h1{flex:1;font-size:18px;font-weight:900;display:flex;align-items:center;gap:6px}
+header h1 .vbadge{font-size:10px;background:rgba(255,255,255,.25);padding:3px 8px;border-radius:10px;font-weight:700}
+header .admin-info{text-align:right;font-size:11px;opacity:.95;line-height:1.4}
+header .admin-info button{padding:8px 14px;font-size:11px;margin-top:4px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3);min-height:36px}
+
+/* ─── NAV Grid 4×2 ─── */
+nav{background:#fff;padding:12px 8px;border-bottom:1px solid var(--border);position:sticky;top:calc(60px + env(safe-area-inset-top));z-index:40;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+nav button{background:transparent;color:var(--mut);padding:10px 4px;border-radius:12px;font-weight:700;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;transition:.2s;min-height:auto;position:relative}
+nav button .nav-icon{font-size:26px;line-height:1;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#f5f5f5;transition:.2s}
+nav button .nav-label{font-size:10px;font-weight:900;text-align:center;line-height:1.2}
+nav button .nav-badge{position:absolute;top:2px;right:6px;background:var(--danger);color:#fff;font-size:9px;font-weight:900;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff;animation:pulse 2s infinite;z-index:2}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+nav button.on{color:var(--brand)}
+nav button.on .nav-icon{background:#E8F5E9;box-shadow:0 4px 12px rgba(0,166,81,.2)}
+
+main{padding:16px}
+
+/* ─── Dashboard Cards สีต่างกัน ─── */
+.stat-card{border-radius:16px;padding:16px;color:#fff;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08);cursor:pointer;transition:transform .15s;min-height:110px}
+.stat-card:active{transform:scale(.98)}
+.stat-card::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(255,255,255,.2),transparent 70%);border-radius:50%;pointer-events:none}
+.stat-card .stat-icon{font-size:28px;margin-bottom:8px;opacity:.95}
+.stat-card .stat-value{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
+.stat-card .stat-label{font-size:12px;font-weight:700;margin-top:6px;opacity:.95}
+.stat-card .stat-sub{font-size:10px;opacity:.8;margin-top:2px;font-weight:700}
+.stat-card.green{background:linear-gradient(135deg,#00A651,#008C45)}
+.stat-card.blue{background:linear-gradient(135deg,#1565C0,#0D47A1)}
+.stat-card.orange{background:linear-gradient(135deg,#FF6B35,#E55A2B)}
+.stat-card.purple{background:linear-gradient(135deg,#9C27B0,#6A1B9A)}
+.stat-card.pink{background:linear-gradient(135deg,#E91E63,#AD1457)}
+.stat-card.teal{background:linear-gradient(135deg,#00897B,#00695C)}
+.stat-card.red{background:linear-gradient(135deg,#E53935,#C62828)}
+.stat-card.gold{background:linear-gradient(135deg,#F57C00,#E65100)}
+.stat-card.indigo{background:linear-gradient(135deg,#3F51B5,#283593)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+
+/* ─── Hero ─── */
+.hero-card{background:linear-gradient(135deg,#00A651 0%,#008C45 100%);border-radius:24px;padding:24px 20px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,166,81,.25)}
+.hero-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 70%);border-radius:50%;pointer-events:none}
+.hero-label{font-size:13px;opacity:.9;font-weight:700;margin-bottom:6px;position:relative;z-index:1}
+.hero-amount{font-size:44px;font-weight:900;line-height:1;letter-spacing:-1px;position:relative;z-index:1}
+.hero-trend{display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.2);padding:4px 12px;border-radius:12px;font-size:12px;font-weight:800;margin-top:10px;position:relative;z-index:1}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.2);position:relative;z-index:1}
+.hero-grid-cell .lbl{font-size:11px;opacity:.85;font-weight:700}
+.hero-grid-cell .val{font-size:20px;font-weight:900;margin-top:2px}
+
+.section-divider{display:flex;align-items:center;gap:8px;margin:24px 0 12px}
+.section-divider .title{font-size:14px;font-weight:900;color:var(--text)}
+.section-divider .line{flex:1;height:1px;background:linear-gradient(90deg,#ddd,transparent)}
+
+/* ─── Action Cards ─── */
+.action-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s;min-height:76px}
+.action-card:active{transform:scale(.98)}
+.action-card.warn{border-left:4px solid var(--warn);background:#FFFBEB}
+.action-card.danger{border-left:4px solid var(--danger);background:#FFEBEE}
+.action-card.blue{border-left:4px solid var(--blue);background:#EFF6FF}
+.action-card.green{border-left:4px solid var(--brand);background:#F0FDF4}
+.action-icon{font-size:28px;flex-shrink:0}
+.action-info{flex:1;min-width:0}
+.action-title{font-size:14px;font-weight:800;line-height:1.3}
+.action-card.warn .action-title{color:#92400e}
+.action-card.blue .action-title{color:#1e40af}
+.action-card.green .action-title{color:#166534}
+.action-value{font-size:20px;font-weight:900;margin-top:2px}
+.action-sub{font-size:11px;color:var(--mut);margin-top:2px;font-weight:700}
+.action-btn{flex-shrink:0;padding:10px 14px;border-radius:12px;font-size:12px;font-weight:900;border:none;cursor:pointer;font-family:inherit;min-height:44px}
+.action-btn.orange{background:var(--warn);color:#fff}
+.action-btn.blue{background:var(--blue);color:#fff}
+
+/* ─── Data Cards ─── */
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+.data-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.04);transition:transform .15s}
+.data-card:active{transform:scale(.98)}
+.data-card-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.data-card-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.data-card-info{flex:1;min-width:0}
+.data-card-name{font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.data-card-meta{font-size:11px;color:var(--mut);font-weight:700;margin-top:2px}
+.data-card-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.data-card-actions button{padding:10px 14px;border-radius:10px;border:none;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;min-height:44px}
+
+.tag{font-size:11px;font-weight:900;padding:6px 12px;border-radius:12px;background:#E8F5E9;color:#2E7D32;display:inline-block;min-height:28px;line-height:1.2}
+.tag.w{background:#FFF3E0;color:var(--warn)}
+.tag.x{background:#f0f0f0;color:#888}
+.tag.b{background:#E3F2FD;color:var(--blue)}
+.tag.d{background:#FFEBEE;color:var(--danger)}
+
+.empty{text-align:center;color:var(--mut);padding:40px 20px;font-size:14px;background:#fff;border-radius:16px;font-weight:600}
+.meta{font-size:12px;color:var(--mut);margin-top:4px;line-height:1.5;font-weight:600}
+.nm{font-weight:900;font-size:15px}
+
+/* ─── Search / Filter ─── */
+.search-box{background:#fff;border-radius:12px;padding:8px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:12px;min-height:52px}
+.search-box input{border:none;outline:none;font-size:14px;font-weight:600;flex:1;background:transparent;padding:0;margin:0;min-height:auto}
+.filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;scrollbar-width:none}
+.filter-bar::-webkit-scrollbar{display:none}
+.filter-chip{padding:10px 16px;border-radius:16px;font-size:12px;font-weight:900;background:#fff;color:var(--mut);cursor:pointer;white-space:nowrap;border:1px solid var(--border);min-height:40px;display:flex;align-items:center;font-family:inherit}
+.filter-chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* ─── GP: Range tabs ─── */
+.range-tabs{display:flex;gap:6px;background:#fff;padding:4px;border-radius:14px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.range-tab{flex:1;padding:10px;border:none;border-radius:10px;font-weight:800;font-size:12px;background:transparent;color:var(--mut);cursor:pointer;font-family:inherit;min-height:44px;transition:.2s}
+.range-tab.active{background:var(--brand);color:#fff;box-shadow:0 2px 6px rgba(0,166,81,.3)}
+
+/* ─── Table ─── */
+.table-wrap{overflow-x:auto;background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
+table.gp-table{width:100%;border-collapse:collapse;font-size:13px;min-width:500px}
+table.gp-table th{background:#f8f9fa;padding:12px;text-align:left;border-bottom:2px solid #ddd;white-space:nowrap;font-weight:900;font-size:12px}
+table.gp-table td{padding:12px;border-bottom:1px solid #eee;vertical-align:middle;font-weight:600}
+table.gp-table tr:hover{background:#fafafa}
+.money-pos{color:var(--brand);font-weight:900}
+.text-right{text-align:right}
+.text-center{text-align:center}
+
+/* ─── Modal ─── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(0px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:.2s}
+.modal-overlay.show{opacity:1;pointer-events:auto;backdrop-filter:blur(4px)}
+.modal{background:#fff;border-radius:20px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;transform:translateY(20px) scale(.95);transition:.35s cubic-bezier(.32,.72,0,1)}
+.modal-overlay.show .modal{transform:translateY(0) scale(1);animation:modalBounce .4s cubic-bezier(.32,.72,0,1)}
+@keyframes modalBounce{0%{transform:translateY(20px) scale(.95)}55%{transform:translateY(-4px) scale(1.01)}100%{transform:translateY(0) scale(1)}}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #eee}
+.modal-hdr h2{font-size:18px;font-weight:900}
+.close-btn{background:#f0f0f0;border:none;width:44px;height:44px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;min-height:44px}
+
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:#222;color:#fff;padding:14px 22px;border-radius:16px;font-size:14px;font-weight:800;opacity:0;pointer-events:none;transition:.3s;z-index:999;max-width:90%;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--danger)}
+
+/* ─── Slip ─── */
+.slip-upload-box{background:#F0FDF4;border:2px dashed #86efac;border-radius:14px;padding:20px;text-align:center;cursor:pointer;margin-bottom:12px;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.slip-upload-box .icon{font-size:38px}
+.slip-upload-box .label{font-size:13px;font-weight:900;color:#166534}
+.slip-upload-box .hint{font-size:11px;color:#166534;opacity:.7;font-weight:600}
+.slip-preview{width:100%;border-radius:12px;margin-bottom:12px;display:block;max-height:400px;object-fit:contain;background:#f5f5f5}
+.slip-progress{height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;margin-bottom:12px}
+.slip-progress-bar{height:100%;background:var(--brand);width:0%;transition:width .3s}
+.slip-status-banner{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-size:12px;font-weight:800}
+.slip-status-banner.pending{background:#FFFBEB;color:#92400e;border-left:4px solid var(--warn)}
+.slip-status-banner.ok{background:#F0FDF4;color:#166534;border-left:4px solid var(--brand)}
+
+/* ─── Chat ─── */
+.chat-container{position:fixed;inset:0;background:#EDF6DC;z-index:300;display:flex;flex-direction:column;max-width:1000px;margin:0 auto;opacity:0;pointer-events:none;transition:opacity .25s}
+.chat-container.show{opacity:1;pointer-events:auto}
+.chat-header{background:linear-gradient(135deg,#00A651,#008C45);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;display:flex;align-items:center;gap:12px}
+.chat-header .back-btn{background:rgba(255,255,255,.2);color:#fff;width:44px;height:44px;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;font-family:inherit;padding:0;min-height:44px}
+.chat-header .chat-info{flex:1;min-width:0}
+.chat-header .chat-name{font-size:15px;font-weight:900}
+.chat-header .chat-sub{font-size:11px;opacity:.85;font-weight:600;margin-top:2px}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:75%;padding:10px 14px;border-radius:16px;font-size:14px;font-weight:600;line-height:1.4;word-wrap:break-word}
+.chat-msg.out{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.in{align-self:flex-start;background:#fff;color:var(--text);border-bottom-left-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.chat-msg .msg-time{font-size:10px;opacity:.7;margin-top:4px;font-weight:700}
+.chat-msg .msg-image{max-width:100%;border-radius:10px;margin-bottom:6px;display:block;cursor:pointer}
+.chat-msg.from-admin{background:linear-gradient(135deg,#9C27B0,#6A1B9A)}
+.chat-input-bar{background:#fff;padding:12px 12px calc(12px + env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end;border-top:1px solid var(--border)}
+.chat-input-bar textarea{flex:1;margin:0;min-height:44px;max-height:120px;padding:10px 14px;font-size:14px;resize:none;border-radius:22px;line-height:1.4;font-weight:600}
+.chat-input-bar .icon-btn{width:44px;height:44px;min-height:44px;border-radius:50%;background:#f0f0f0;color:#555;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0}
+.chat-input-bar .send-btn{width:44px;height:44px;min-height:44px;border-radius:50%;background:var(--brand);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0}
+.chat-empty{text-align:center;padding:40px 20px;color:var(--mut);font-size:13px;font-weight:600}
+.chat-day-divider{text-align:center;font-size:11px;color:var(--mut);font-weight:800;margin:12px 0;padding:4px 12px;background:rgba(255,255,255,.7);border-radius:12px;align-self:center}
+.chat-list-item{background:#fff;border-radius:14px;padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer}
+.chat-list-item .avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#00A651,#008C45);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chat-list-item .chat-info{flex:1;min-width:0}
+.chat-list-item .chat-title{font-size:14px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-list-item .chat-preview{font-size:12px;color:var(--mut);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.chat-list-item .chat-time{font-size:10px;color:var(--mut);font-weight:700}
+.chat-list-item .chat-unread{background:var(--danger);color:#fff;font-size:10px;font-weight:900;border-radius:10px;padding:2px 6px;min-width:20px;text-align:center;margin-top:4px;display:inline-block}
+
+/* ─── GP Chart ─── */
+.chart-bars{display:flex;align-items:flex-end;gap:4px;height:120px;padding:8px 0}
+.chart-bar{flex:1;background:linear-gradient(180deg,#00A651,#008C45);border-radius:6px 6px 0 0;min-height:4px;position:relative;transition:.3s}
+.chart-bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--mut);font-weight:800;white-space:nowrap}
+.chart-bar-value{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--brand);font-weight:900;white-space:nowrap}
+
+/* ─── Merchant Mini ─── */
+.merchant-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;margin-bottom:12px}
+.merchant-scroll::-webkit-scrollbar{display:none}
+.merchant-mini{flex-shrink:0;width:140px;background:#fff;border-radius:14px;padding:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer;border:2px solid transparent}
+.merchant-mini .mini-icon{font-size:32px;margin-bottom:6px}
+.merchant-mini .mini-name{font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.merchant-mini .mini-verified{font-size:10px;font-weight:900}
+.merchant-mini.verified{border-color:#86efac}
+.merchant-mini.pending{border-color:#fdba74}
+
+.picker{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:8px;margin-bottom:12px;background:#fafafa}
+.picker label{display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;min-height:44px}
+.picker input[type=checkbox]{width:22px;height:22px;margin:0;min-height:22px;flex-shrink:0;accent-color:var(--brand)}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div id="login">
+  <form class="box" id="login-form">
+    <h1>🛵 Chauat Go Admin</h1>
+    <div class="tab-btns">
+      <button type="button" class="tab-btn active" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+      <button type="button" class="tab-btn" onclick="switchTab('signup')">สมัครสมาชิก</button>
+    </div>
+    <div id="form-login">
+      <input type="email" id="em" placeholder="อีเมลผู้ดูแล" autocomplete="username" required>
+      <input type="password" id="pw" placeholder="รหัสผ่าน" autocomplete="current-password" required>
+      <button class="pri big ripple" type="submit">เข้าสู่ระบบ</button>
+      <button type="button" class="sec big ripple" style="margin-top:8px" onclick="handleForgot()">🔑 ลืมรหัสผ่าน</button>
+    </div>
+    <div id="form-signup" style="display:none">
+      <input type="text" id="su-name" placeholder="ชื่อ-นามสกุล" required>
+      <input type="email" id="su-email" placeholder="อีเมล" required>
+      <input type="password" id="su-pw" placeholder="รหัสผ่าน (6+ ตัว)" minlength="6" required>
+      <input type="password" id="su-pw2" placeholder="ยืนยันรหัสผ่าน" minlength="6" required>
+      <button class="pri big ripple" type="button" onclick="handleSignup()">✅ สมัครสมาชิก</button>
+    </div>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>Chauat Go Admin <span class="vbadge">v3.3.0</span></h1>
+    <div class="admin-info">
+      <div id="who">admin@chauatgo.com</div>
+      <button class="sec ripple" id="logout">ออกจากระบบ</button>
+    </div>
+  </header>
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+
+<div class="chat-container" id="chat-container">
+  <div class="chat-header">
+    <button class="back-btn ripple" onclick="closeChat()">←</button>
+    <div class="chat-info">
+      <div class="chat-name" id="chat-name">-</div>
+      <div class="chat-sub" id="chat-sub">-</div>
+    </div>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <div class="chat-input-bar">
+    <button class="icon-btn ripple" onclick="pickChatImage()">📷</button>
+    <input type="file" id="chat-image-input" accept="image/*" style="display:none" onchange="sendChatImage(this.files[0])">
+    <textarea id="chat-input" placeholder="พิมพ์ข้อความ..." rows="1" oninput="autoResize(this)"></textarea>
+    <button class="send-btn ripple" onclick="sendChatText()">➤</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="modal-title">Title</h2>
+      <button class="close-btn ripple" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  📍 490 สถานที่ในชะอวด
+// ═══════════════════════════════════════════════════════════════════
+const PLACES_RAW = [
+["สเต็กลุงอ้วน by เชฟปืน",7.9725186,99.9958096,'r',"150-350฿","images/steak-lung-uan.jpg",4.6],
+["ขนมจีนลุงบ่าว",7.9670,99.9960,'r',"40-80฿","images/khanom-jeen-lung-bao.jpg",4.4],
+["เจ๊หญิงผัดไทย หอยทอด",7.9635936,99.9980924,'r',"40-80฿","images/jay-ying-padthai.jpg",4.5],
+["ข้าวขาหมูน้องออ",7.968951,99.995472,'r',"50-120฿","images/khao-kha-moo-nong-or.jpg",4.3],
+["FIVE STARS",7.9590838,99.9639115,'r',"45-120฿","⭐",4.1],
+["Samu sushi สาขาชะอวด",7.9705488,99.9963399,'r',"60-150฿","🍣",4.4],
+["กระทะทอง หมูกะทะ",7.9670749,100.0027069,'r',"150-300฿","",4.3],
+["ก๋วยจั๊บน้ำข้นแม่น้องอัญชัน",7.9670768,100.0027459,'r',"40-80฿","",4.5],
+["ก๋วยเตี๋ยวเรือ5",7.9662886,100.0104017,'r',"35-60฿","",4.4],
+["ก๋วยเตี๋ยวเรือบนเนิน",7.9672004,100.0070046,'r',"35-65฿","🍜",4.3],
+["ก๋วยเตี๋ยวเรือบ้านพ่อ@ท่าประจะ",7.9612968,99.9717433,'r',"35-70฿","🍜",4.5],
+["ข้าวต้มโกยศ&จุ๊บจิ๊บ",7.9696185,99.994334,'r',"40-100฿","🍚",4.3],
+["ข้าวหน้าเป็ด ข้าวหมูอบ",7.9688368,99.9946618,'r',"40-80฿","🍚",4.3],
+["ข้าวแกงกิ้มเตี้ยน",7.9652805,99.9975557,'r',"35-70฿","🍛",4.4],
+["ครัว ชานเมือง",7.9643424,99.9898984,'r',"60-150฿","🍽️",4.3],
+["ครัวขนมจีน คุณแม่",7.9692451,99.997884,'r',"40-80฿","",4.6],
+["ครัวต้นตอ",8.0070983,99.9797433,'r',"50-120฿","🍽️",4.2],
+["ครัวมะปราง",7.9939983,99.9615043,'r',"50-130฿","🍽️",4.3],
+["ครัวศรีเมือง",7.9639176,99.98905,'r',"50-120฿","🍽️",4.2],
+["ครัวอีสานใต้",7.9711681,99.963453,'r',"50-130฿","🌶️",4.3],
+["จำหน่ายลูกชิ้นทอดเจ๊กบ",7.9675258,99.9963719,'r',"20-50฿","",4.4],
+["ชาบูบ้านแม่",7.9623247,99.9854726,'r',"200-400฿","🍲",4.2],
+["ซีแซ่บ กุ้งแช่น้ำปลาชะอวด",7.9666804,99.998424,'r',"60-150฿","🦐",4.4],
+["ณ ที่เดิม",7.9643464,99.9899005,'r',"50-120฿","",4.3],
+["ตามสั่งท่าเสม็ดเดลิเวอรี่",7.9495929,100.0152696,'r',"40-100฿","🍱",4.2],
+["ตู้กับข้าว @ชะอวด",7.9704229,99.9980995,'r',"50-130฿","",4.4],
+["ทะเลดอง ชะอวด",7.9666467,99.9962655,'r',"80-200฿","🦐",4.4],
+["บ้าน ยายเลี่ยน ตาถวิล",7.9594066,99.9637612,'r',"50-120฿","🏠",4.3],
+["บ้านขนมจีน ปุ้ย",7.9877066,99.9890172,'r',"40-80฿","🍜",4.5],
+["บ้านปัญจ-รส",7.9841934,99.9808577,'r',"60-150฿","🍽️",4.4],
+["ปังปิ้งเตาถ่านร้าน2ปัง",7.9593949,99.963404,'r',"25-60฿","🍞",4.3],
+["ร้าน ขายปลาแดดเดียว",7.9713991,100.002393,'r',"50-120฿","",4.2],
+["ร้าน ทุ่งนาคาราโอเกะ",7.9620958,99.9941764,'r',"80-200฿","🎤",4.2],
+["ร้านก๋วยจั๊บรสเด็ด",7.9667677,99.9988822,'r',"40-80฿","🍜",4.4],
+["ร้านก๋วยเตี๋ยว เนื้อตุ่นเปื่อย",7.9724311,99.9959182,'r',"40-90฿","",4.3],
+["ร้านก๋วยเตี๋ยวน้องมรท่าเสม็ด",7.9529883,100.0102231,'r',"35-70฿","",4.2],
+["ร้านก๋วยเตี๋ยวสูตรโบราณ",7.9548062,100.0088371,'r',"35-70฿","🍜",4.5],
+["ร้านขนมจีนบนเนิน",7.9666807,100.0104124,'r',"40-80฿","",4.4],
+["ร้านขนมจีนป้าสาว",7.9647049,99.9904454,'r',"35-70฿","🍜",4.3],
+["ร้านขนมจีนยายจิตรตาพร",7.9595442,99.9695015,'r',"35-75฿","🍜",4.4],
+["ร้านข้าวมันไก่เจ๊นอม",7.9519858,100.0138437,'r',"40-80฿","🍛",4.3],
+["ร้านครัวคนเคร็ง",7.972678,99.9912826,'r',"50-120฿","🍽️",4.2],
+["ร้านชาบูเสียบไม้ice&c",7.9639698,99.9980227,'r',"100-250฿","🍲",4.3],
+["ร้านปั่นแหลกบุฟเฟ่ต์ผลไม้",7.968886,99.997976,'r',"40-100฿","🥤",4.4],
+["ร้านป้าเอียดหมูกระทะบุฟเฟต์",7.9726114,99.9957222,'r',"139฿","",4.3],
+["ร้านส้มตำป้าธรรม",7.9666962,100.0066603,'r',"40-100฿","🥗",4.4],
+["ร้านส้มตำสะดุ้งmyเพลง",7.9646839,99.9951063,'r',"40-100฿","🥗",4.2],
+["ร้านหนมจีนน้าตุ้น",7.9557042,99.999855,'r',"35-70฿","🍜",4.5],
+["ร้านหมูพวงรสเด็ด ชะอวด",7.9649516,99.9977638,'r',"50-120฿","🍖",4.3],
+["ร้านอาหารตารื่นยายแก้ว",7.9456361,99.9694289,'r',"50-130฿","",4.4],
+["ร้านอาหารนกน้อย",7.9711658,99.9926807,'r',"50-120฿","",4.2],
+["ร้านอาหารบ้านเฟื่องฟ้าสเต็กเฮาส์",7.964281,99.9970526,'r',"100-250฿","🥩",4.3],
+["ร้านอาหารโอเค",7.967058,99.9966538,'r',"50-150฿","",4.2],
+["ร้านแกงใต้และขนมไทยบ้านอิ่มเอม",7.9666389,99.9947637,'r',"40-100฿","🍛",4.5],
+["ร้านแต่แรก The old time",7.9654721,99.9944093,'r',"50-130฿","🍽️",4.3],
+["ร้านแฮปปี้ โฟล์ค ตำแซ่บ",7.9631287,99.9883002,'r',"40-100฿","🥗",4.2],
+["ลาบอุดร(หน้าสวนหย่อม)",7.9662922,99.9975223,'r',"50-120฿","",4.4],
+["ลำภูหมูกะทะชะอวด",7.985507,99.989834,'r',"150-300฿","",4.3],
+["วารินทร์ ซาลาเปาทอด&ปาท่องโก๋",7.9680305,99.9952084,'r',"20-50฿","🥟",4.4],
+["สถานีของหรอย@ชะอวด",7.9654112,99.9905907,'r',"50-130฿","🍽️",4.3],
+["สถานียำตำแซ่บ",7.9704778,99.9961367,'r',"40-100฿","🥗",4.2],
+["สลัดไข่มุก สาขาชะอวด",7.9692051,99.9981353,'r',"50-120฿","🥗",4.3],
+["ส้มตำ เชลล์",7.9696555,99.9943106,'r',"40-100฿","",4.2],
+["ส้มตำครกทอง",7.9710256,99.9931146,'r',"40-100฿","🥗",4.3],
+["ส้มตำสองพี่น้อง ลาบอุบลฯ",7.9640635,99.9897116,'r',"40-100฿","🥗",4.4],
+["หม่าล่าเฮงเฮง",7.9637426,99.9985664,'r',"60-150฿","🌶️",4.2],
+["หอยครก...หรอยยกนิ้ว",7.9670202,99.9983783,'r',"40-100฿","🦪",4.3],
+["อีสานพลัดถิ่น (บ้านไร่เนิน)",7.9516409,100.0225923,'r',"50-130฿","🌶️",4.4],
+["เจ๊สาห์หมูกระทะ",7.9585347,99.9849734,'r',"150-300฿","",4.3],
+["เตี๋ยวตุ๋น หม้อไฟ INDY",7.9605533,99.9863734,'r',"100-250฿","🍲",4.4],
+["เมษา กาแฟ",7.9646839,99.9951063,'r',"40-100฿","",4.3],
+["เมามาย ชะอวด",7.9938386,99.9704377,'r',"80-200฿","🍻",4.2],
+["แม่พรขนมจีน",7.9751241,99.9632741,'r',"40-80฿","🍜",4.5],
+["แม่เพ็ญเครื่องแกง & ข้าวต้ม",7.9646317,99.9847939,'r',"40-100฿","🍲",4.3],
+["ไก่ทอดโอปป้า สาขาชะอวด",7.9662091,99.9930427,'r',"50-120฿","🍗",4.3],
+["ไก่โต้งข้าวมันไก่ไหหลำ",7.9662262,99.9929985,'r',"40-80฿","🍛",4.4],
+["ร้านเยี่ยมโอชา",7.9648964,99.9953573,'r',"50-150฿","🍛",4.5],
+["ชิปปิ้ง ชาบู&หมูกระทะ",7.9659063,99.9949039,'r',"150-300฿","🍲",4.4],
+["ร้านหนองคาย อาหารอิสาน",7.9657836,99.9922684,'r',"50-120฿","🌶️",4.4],
+["เต๋วเรือลานข่อย ณ ชะอวด",7.9681891,99.9959867,'r',"40-80฿","🍜",4.5],
+["Love Milk Cafe&Restaurant",7.9659765,99.9932246,'r',"45-150฿","🥛",4.5],
+["ปริ่มละมุล",7.9866593,99.9894992,'r',"60-180฿","🍰",4.6],
+["เหล่าเต๊ง Chauat",7.9654603,99.9943536,'r',"40-120฿","🍵",4.4],
+["ร้านหวานใจไอติม & พิซซ่าโคน",7.9675,99.9965,'f',"30-80฿","images/wan-jai-icecream-pizza.jpg",4.5],
+["Dew Coffee Cha-uat",7.9690861,99.9943373,'f',"45-120฿","☕",4.8],
+["Cafe.Lao",7.9649201,99.9951997,'f',"40-100฿","☕",4.3],
+["Cameron Cafe",7.9685043,99.994887,'f',"40-120฿","",4.5],
+["Mr.VAN Ice Cream",7.9821871,99.9666483,'f',"30-80฿","🍦",4.4],
+["กาแฟโบว์",7.9821889,99.9820569,'f',"35-90฿","☕",4.3],
+["กินติม @ชะอวด",7.9672812,99.9970054,'f',"25-60฿","🍦",4.5],
+["ข.ไข่คาเฟ่ ชะอวด",7.9669234,100.0233534,'f',"50-130฿","",4.3],
+["คอชาเย็น(สาขา สภ.ชะอวด)",7.9663835,99.9981566,'f',"30-70฿","🧋",4.2],
+["ชาช้าง หลาดชะอวด",7.9673797,99.9955824,'f',"35-80฿","🍵",4.4],
+["ชาทรตะโหมดสาขาชะอวด",7.9670326,99.9959598,'f',"35-85฿","🧋",4.3],
+["ชานมไข่มุกดอทคอม ชะอวด",7.9681854,99.9950467,'f',"30-75฿","🧋",4.2],
+["ชาฮีโร่ HERO",7.970075,99.9977912,'f',"35-90฿","🧋",4.4],
+["ชิลล์ - Chill",7.9630355,99.9984221,'f',"40-100฿","🍹",4.3],
+["ชีวิตดี๊ดี",7.9596369,99.9605265,'f',"40-110฿","☕",4.5],
+["ติดชาน้องนุช ต.ท่าประจะ",7.9554994,99.9632278,'f',"30-70฿","🧋",4.2],
+["ท่าน้ำชา คาเฟ่",7.9623699,99.9963144,'f',"40-100฿","☕",4.6],
+["นั่งเล่าหน้าบ้าน ณ ควนดินแดง",7.9416481,99.9643163,'f',"45-120฿","☕",4.4],
+["บ้านลูกชุบ บนเนิน",7.9670964,100.0088697,'f',"35-90฿","🍡",4.3],
+["บ้านเอ็มพิชซ่า",7.9646423,99.9901592,'f',"80-180฿","🍕",4.2],
+["ป้ายยักคอชะอวด",7.9751266,99.9960417,'f',"35-85฿","",4.3],
+["ภูซอนไอติมกระทิสด",7.9254483,100.0089881,'f',"25-60฿","🍦",4.5],
+["ร้านกาแฟเศรษฐี ท่าเสม็ด",7.9517624,100.0105614,'f',"35-90฿","☕",4.2],
+["ร้านคะวัน",7.9592561,99.9604253,'f',"40-100฿","🍰",4.3],
+["ร้านชาพะยอม",7.9608777,100.005908,'f',"30-75฿","🍵",4.2],
+["ร้านช้อนชาม.นครศรีธรรมราช",7.9695261,99.995251,'f',"35-85฿","",4.3],
+["ร้านธราธิป",7.9676412,99.9963438,'f',"40-100฿","☕",4.2],
+["ร้านน้ำชาบังกด",7.9648089,99.9956764,'f',"25-60฿","🍵",4.3],
+["ร้านน้ำชาเจ๊อ้อย",7.9649214,99.9918854,'f',"25-60฿","🍵",4.2],
+["ร้านน้ำน้องสาว",7.9692367,99.9965894,'f',"30-70฿","🍵",4.3],
+["ร้านน้ำน้องโอชิ",7.9751241,99.9632741,'f',"30-75฿","🍵",4.2],
+["ร้านน้ำอ้อย 3M",7.9590977,99.9564628,'f',"25-60฿","🥤",4.4],
+["ร้านฟอร์ยู@ชะอวด",7.9667841,99.9984914,'f',"30-80฿","🧋",4.3],
+["ร้านเพลินพุง'งง",7.9363545,100.0212613,'f',"40-110฿","",4.4],
+["ร้านไอติมใจยักษ์",7.9690185,99.9979403,'f',"25-65฿","🍦",4.5],
+["ลานชา สถานีคนง่วง",7.9673556,99.9955932,'f',"30-75฿","🍵",4.3],
+["วรรณภาพร",7.974785,99.9634335,'f',"35-85฿","☕",4.2],
+["หอมหวานชานม",7.9668981,100.0018463,'f',"30-80฿","🧋",4.3],
+["อาณาจักรชา บ้านเนินแขก",7.9641097,99.9897522,'f',"30-75฿","🍵",4.2],
+["โคกหนองนา ธนาคารอาหารสุขภาพ",7.964849,100.0164816,'f',"40-120฿","🥗",4.4],
+["7-Eleven สาขา ถนนอรุณประชา",7.96862,99.9946493,'c',"24 ชม.","images/7-eleven-arun-pracha.jpg",4.3],
+["7-Eleven สาขา ท่าประจะ",7.9590652,99.9639528,'c',"24 ชม.","🏪",4.3],
+["7-Eleven สาขา PTTOR ชะอวด",7.961493,99.987406,'c',"24 ชม.","🏪",4.2],
+["7-Eleven สาขา ชะอวด",7.9667964,99.9967819,'c',"24 ชม.","🏪",4.3],
+["7-Eleven สาขา ชะอวด 2",7.967021,99.9964999,'c',"24 ชม.","🏪",4.2],
+["โลตัส โก เฟรช ชะอวด",7.9670751,99.9968295,'c',"7:00-22:00","🛒",4.4],
+["KFC สาขาชะอวด",7.9616453,99.9875667,'c',"10:00-22:00","🍗",4.1],
+["Sod Station",7.96422,99.998431,'m',"7:00-20:00","images/sod-station.jpg",4.0],
+["ตลาดชะอวด",7.9716912,99.994021,'m',"6:00-18:00","🏪",4.2],
+["ตลาดร่วมใจ ถนนคนเดิน",7.964451,99.998216,'m',"17:00-22:00","🛍️",4.3],
+["ตลาดสดชะอวด",7.9652396,99.9967148,'m',"5:00-12:00","🥬",4.1],
+["อ่างเก็บน้ำห้วยน้ำใส",7.9520,99.9750,'t',"เปิดทุกวัน","images/huai-nam-sai-reservoir.jpg",4.7],
+["สวิสเซอร์แลนด์แดนชะอวด",7.9700,99.9850,'t',"เปิดทุกวัน","images/switzerland-chauat.jpg",4.8],
+["สะพานโค้ง100ปีชะอวด",7.9644,99.9982,'t',"เปิดทุกวัน","🌉",4.6],
+["หอนาฬิกาเทศบาลตำบลชะอวด",7.9670053,99.9973112,'t',"เปิดทุกวัน","🕐",4.2],
+["ล่องแพบ้านวังอ่าง",7.9025,99.9225,'t',"8:00-17:00","🛶",4.5],
+["ป่าพรุควนเคร็ง",7.8850,100.1150,'t',"8:00-17:00","🌿",4.6],
+["น้ำตกวังหอน",7.9000,99.9150,'t',"8:00-17:00","💧",4.4],
+["ท่องบ้านยวน",7.9618215,99.9560357,'t',"8:00-17:00","🏞️",4.5],
+["โรงแรมเฟื่องฟ้ารีสอร์ท",7.9650,99.9900,'h',"600-1200฿","images/fueangfa-resort.jpg",4.4],
+["บ้านแม่ ทุ่งหัวพาน",7.9417746,100.0080005,'h',"400-800฿","🏡",4.3],
+["โฮมสเตย์เรือนริมน้ำชะอวด",7.963346,100.0346649,'h',"500-1000฿","",4.5],
+["บ้านพัก ขวัญแก้ว",7.9694722,99.9934722,'h',"350-700฿","🏠",4.2],
+["ทองขาวบ้านสวนรีสอร์ท",7.9670818,100.0232993,'h',"600-1200฿","🌳",4.4],
+["เรือนกลางหลาด",7.9828841,99.9908841,'h',"600-1200฿","🏠",4.5],
+["สวนพลู รีสอร์ต",7.9644048,99.9808742,'h',"400-900฿","",4.3],
+["มะปรางค์ เอสบี รีสอร์ท",7.9924958,99.962219,'h',"500-1000฿","🌺",4.4],
+["บ้านนายหัวชาม โฮมสเตย์",8.0000644,100.0165882,'h',"400-800฿","",4.2],
+["ร้านเจริญ",7.9658759,99.9975259,'s',"8:00-18:00","images/ran-charoen.jpg",4.1],
+["A Coffee Bar",7.9244411,100.0005104,'s',"8:00-20:00","☕",4.2],
+["CP FreshMart",7.9666366,99.9954757,'s',"7:00-22:00","🛒",4.3],
+["Cozyday",7.9688835,99.9979628,'s',"8:00-20:00","☕",4.3],
+["GN FASHION",7.9675874,99.9963538,'s',"9:00-20:00","👗",4.1],
+["Indeed Tattoo @ ชะอวด",7.9679936,100.0026909,'s',"10:00-20:00","🎨",4.4],
+["Juicy ice สาขาชะอวด",7.9668703,100.0076342,'s',"10:00-21:00","🍦",4.3],
+["Kerry Express Parcel Service",7.9659091,99.992776,'s',"8:00-20:00","📦",4.1],
+["Mesa Coffee Roasters",7.9671216,100.0034409,'s',"7:00-18:00","☕",4.4],
+["Momocha สาขาชะอวด",7.9683637,99.9966894,'s',"10:00-21:00","🧋",4.3],
+["SB แบตเตอรี่เซอร์วิส ชะอวด",7.9930373,99.9632882,'s',"8:00-18:00","🔋",4.1],
+["Tattoo by kob",7.9765007,100.0018575,'s',"10:00-20:00","🎨",4.4],
+["กระจูด",7.9474587,100.0315216,'s',"8:00-17:00","🧺",4.3],
+["กระเป๋ากระจูดน้องมีตังค์",7.966165,100.0384609,'s',"9:00-18:00","👜",4.4],
+["กลุ่มมังคุดชะอวดพัฒนา",7.9369912,99.9713771,'s',"8:00-17:00","🥭",4.2],
+["กลุ่มแม่บ้านเกษตรกรบ้านเนินกลาง",7.9664473,99.9989433,'s',"8:00-17:00","",4.3],
+["กะปะ(เจ้าเก่า)",7.9751241,99.9632741,'s',"7:00-18:00","",4.1],
+["กาแฟบ้านสวนพ่อ",7.9650648,99.9960414,'s',"7:00-17:00","☕",4.3],
+["กิจเจริญอะไหล่ยนต์",7.9682661,99.9950978,'s',"8:00-18:00","🔧",4.2],
+["กินเส้นเย็นตาโฟ",7.980588,99.9838749,'s',"7:00-15:00","🍜",4.4],
+["ก๋วยเตี๋ยวทุ่งค่าย",8.0052774,99.9800295,'s',"7:00-15:00","🍜",4.3],
+["ก๋วยเตี๋ยวโบราณป้าแบน",7.9384267,99.9862992,'s',"7:00-14:00","🍜",4.5],
+["คอมพิวเตอร์ ปริ้นเตอร์ ชะอวด",7.9653003,99.9904537,'s',"9:00-18:00","💻",4.1],
+["คิดอิเล็กทรอนิกส์",7.9537965,99.9793065,'s',"8:00-20:00","🔌",4.6],
+["จงรักฟาร์ม",7.9669756,99.9960383,'s',"7:00-18:00","🐓",4.2],
+["จิระดาวเทียม",7.9660923,99.9922518,'s',"8:00-18:00","📡",4.3],
+["จิ๊บจิ๊บเทเลคอมชะอวด",7.9660663,99.9975462,'s',"9:00-18:00","📱",4.2],
+["ฉลองคอนกรีตบ้านไร่เนิน",7.9512888,100.0232375,'s',"7:00-17:00","🏗️",4.1],
+["ช.พรหมนิมิตวัสดุ",7.961592,99.9866635,'s',"7:00-18:00","🧱",4.2],
+["ชะอวดการพิมพ์",7.9665791,99.9964458,'s',"8:00-17:00","🖨️",4.1],
+["ชะอวดค้าเหล็ก",7.9746038,99.9900184,'s',"7:00-17:00","🔩",4.2],
+["ชะอวดค้าไม้",7.9859021,99.9896265,'s',"7:00-17:00","🪵",4.1],
+["ชะอวดนานาวัสดุ",7.9672967,99.9971594,'s',"7:00-18:00","🧱",4.2],
+["ชะอวดรถยก 24ชม.",7.9762937,99.9937471,'s',"24 ชม.","🚛",4.0],
+["ชะอวดรับอัดสายไฮดรอลิค",7.9610492,99.9864779,'s',"8:00-17:00","🔧",4.1],
+["ชะอวดแทรกเตอร์และอะไหล่ยนต์",7.971146,99.993145,'s',"8:00-17:00","🚜",4.2],
+["ชาคาร์ออดิโอ",7.9678611,99.9947721,'s',"9:00-18:00","🔊",4.1],
+["ชาลิสา",8.0009563,100.0035484,'s',"8:00-17:00","🍵",4.2],
+["ชำนาญวัสดุก่อสร้างสาขา2",7.9625152,99.9733502,'s',"7:00-18:00","🧱",4.3],
+["ซักผ้ายอดเหรียญ",7.9571749,100.0089802,'s',"24 ชม.","👕",4.0],
+["ซุปเปอร์ไอทีชะอวด",7.9611246,99.9870202,'s',"9:00-20:00","💻",4.2],
+["ณ บ้านเรา'Cafe @ชะอวด",7.9678976,99.9938578,'s',"8:00-20:00","☕",4.4],
+["ดาว อาหารตามสั่ง(ชะอวด)",7.9678669,99.9968779,'s',"7:00-15:00","🍱",4.2],
+["ดิ่งคาร์แคร์",7.9372222,99.992044,'s',"8:00-18:00","🚗",4.3],
+["ติ๋วมินิมาร์ทสาขาชะอวด",7.969446,99.9962909,'s',"7:00-22:00","🏪",4.2],
+["ทรัพย์ทองมาคาร์เซ็นเตอร์",7.974756,99.9898094,'s',"8:00-18:00","🚗",4.3],
+["ทวีศักดิ์การช่าง (ครูอ้น)",7.9719442,99.992528,'s',"8:00-17:00","🔧",4.4],
+["ธนพลการพิมพ์",7.96707,99.996564,'s',"8:00-17:00","🖨️",4.1],
+["ธรรมรงค์แอร์และเพื่อนชะอวด",7.9682327,99.9951198,'s',"8:00-18:00","❄️",4.2],
+["ธิระศักดิ์ รับซื้อผลไม้",7.9504847,100.0107644,'s',"7:00-17:00","🍎",4.1],
+["น้ำดื่มฉลอง",7.9513195,100.0231269,'s',"7:00-18:00","💧",4.2],
+["บ. หนูทับการเกษตร",7.9657711,99.9917063,'s',"7:00-17:00","🌾",4.4],
+["บจก.สมชัยค้าวัสดุ",7.966656,99.9965125,'s',"7:00-17:00","🏪",4.2],
+["บริษัท ชายการเกษตร จำกัด",7.9658651,99.9913734,'s',"7:00-17:00","🌾",4.1],
+["บริษัท ตั้งใจกลการ สาขาชะอวด1",7.9690475,99.9947566,'s',"8:00-17:00","⚙️",4.2],
+["บริษัท ตั้งใจกลการ สาขาชะอวด2",7.9663236,99.997442,'s',"8:00-17:00","⚙️",4.2],
+["บริษัท อีซูซุนครมอเตอร์เซลส์",7.9572099,99.9831465,'s',"8:00-17:00","🚗",4.3],
+["บริษัทเบาหวิวแคคตัสจำกัด",7.9615073,99.9937973,'s',"9:00-17:00","🌵",4.4],
+["บริษัทโมโตรถเกรดเอจำกัด",7.9675627,99.9954295,'s',"8:00-17:00","🏍️",4.2],
+["บาร์น้ำชา",7.9659753,99.9933271,'s',"10:00-22:00","🍵",4.1],
+["บ้าน",7.9641007,99.9956895,'s',"-","🏠",4.0],
+["บ้านฐานิตา",7.9664899,100.0045611,'s',"-","🏠",4.2],
+["บ้านต้นน้ำ",7.962868,99.998288,'s',"8:00-20:00","🏞️",4.4],
+["บ้านสวน โรงสี",7.9820602,99.9916192,'s',"7:00-17:00","🌾",4.1],
+["บ้านส้องคาร์เซอร์วิส",7.9758424,99.9874156,'s',"8:00-18:00","🚗",4.3],
+["พงศ์ศักดิ์อะไหล่",7.966812,99.995588,'s',"8:00-18:00","🔧",4.2],
+["พอเพียงเจริญยนต์",7.967389,99.99577,'s',"8:00-17:00","🚗",4.1],
+["พีพีโมบายชะอวด",7.9656434,99.9976052,'s',"9:00-20:00","📱",4.2],
+["ฟรายส์ชิค หิวโซ",7.9682172,99.996144,'s',"10:00-22:00","🍟",4.1],
+["ฟองน้ำ ฟิชชิ่ง",7.9650404,99.9954813,'s',"8:00-18:00","🎣",4.2],
+["ฟิน สเตชั่น",7.9668991,100.00902,'s',"8:00-20:00","⛽",4.1],
+["ยำเลย กะเทยชัวร์",7.9466793,100.0321721,'s',"10:00-21:00","🥗",4.3],
+["ยืนหนึ่งทุกอย่าง10บาท",7.9629146,99.9886005,'s',"8:00-20:00","🛍️",4.0],
+["ยุพา เบอเกอรี่ (YUPA Bakery)",7.968226,99.9949466,'s',"7:00-18:00","🥐",4.4],
+["รถยกชะอวดชะอวดรถยก24ชม.",7.9764136,99.9937492,'s',"24 ชม.","🚛",4.0],
+["รวมยาเภสัชชะอวด",7.9670495,99.9959625,'s',"8:00-21:00","💊",4.3],
+["รับอัดสายไฮดรอลิคชะอวด",7.9653697,99.9909332,'s',"8:00-17:00","🔧",4.1],
+["รัศมีคาราโอเกะ",7.968056,99.996966,'s',"12:00-24:00","🎤",4.2],
+["ร้าน ก.เกษตร",7.965925,99.9916897,'s',"7:00-17:00","🌾",4.2],
+["ร้าน ก.ไก่",7.9416754,99.9642163,'s',"7:00-17:00","🐓",4.1],
+["ร้าน ธารา ชะอวด",7.9664046,99.9970031,'s',"8:00-18:00","🏪",4.2],
+["ร้าน ป้าคองของชำ",7.959416,99.9678204,'s',"7:00-18:00","🏪",4.1],
+["ร้าน ลิขิตศิลป์",7.9666387,99.9954324,'s',"8:00-17:00","🎨",4.3],
+["ร้าน ส.เฟอร์นิช",7.9643015,99.9897614,'s',"8:00-18:00","🛋️",4.2],
+["ร้าน อ.สยามการไฟฟ้า",7.9913677,99.9602162,'s',"8:00-18:00","⚡",4.3],
+["ร้าน เท่ห์ที่ผม",7.9417967,99.9649284,'s',"9:00-20:00","💇",4.2],
+["ร้าน โอเค เครื่องนอน",7.9662539,99.9971589,'s',"9:00-20:00","🛏️",4.1],
+["ร้านจิบแฟแลพาน",7.9628229,99.9983403,'s',"8:00-20:00","☕",4.3],
+["ร้านBuddy Barber 2",7.9721503,99.9945084,'s',"9:00-20:00","💈",4.2],
+["ร้านMalaeta มาแลตะ",7.969358,99.9945232,'s',"10:00-21:00","🍽️",4.3],
+["ร้านPorkshopหมีหมูสด",7.9663689,99.9948628,'s',"7:00-18:00","🐷",4.2],
+["ร้านกัญชา G.Green420OG",7.9663914,99.9917815,'s',"10:00-20:00","🌿",4.0],
+["ร้านกัญชาWocogloy420",7.9685721,99.9957211,'s',"10:00-20:00","🌿",4.0],
+["ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",7.9705659,99.9963424,'s',"7:00-15:00","🍜",4.3],
+["ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",7.9774353,100.0042232,'s',"7:00-15:00","🍜",4.4],
+["ร้านชะอวดเครื่องใช้ไฟฟ้า",7.9677097,99.996893,'s',"8:00-18:00","📺",4.2],
+["ร้านชะอวดโอเอ กรุ๊ป",7.9369664,99.9809185,'s',"9:00-18:30","💻",3.3],
+["ร้านซักอบผ้าหยอดเหรียญ",7.9727137,99.9916718,'s',"24 ชม.","👕",4.0],
+["ร้านซักอบรีด ท่าประจะ คุณบี",7.9592208,99.9634293,'s',"8:00-18:00","👕",4.1],
+["ร้านซ่อมนาฬิกาPS Time to Smile",7.9706293,99.9984979,'s',"9:00-18:00","⌚",4.3],
+["ร้านซ่อมมือถือ Love Phone",7.9625546,99.9954734,'s',"9:00-20:00","📱",4.2],
+["ร้านดอกไม้",7.9679855,100.0036496,'s',"8:00-18:00","💐",4.3],
+["ร้านดอกไม้ บูมโบว์ ฟลาวเวอร์",7.9661577,99.9923842,'s',"8:00-18:00","💐",4.4],
+["ร้านต้นขาม",7.9670797,100.0084077,'s',"8:00-18:00","🌳",4.2],
+["ร้านท่านรอง คลองเกียบ",7.981452,99.983199,'s',"8:00-18:00","🍽️",4.3],
+["ร้านธงฟ้าประชารัฐ สวัสดิ์การค้า",7.9522223,100.0131292,'s',"7:00-18:00","🏪",4.1],
+["ร้านนิวแสงฟ้า",7.9666013,99.9958838,'s',"8:00-18:00","🏪",4.2],
+["ร้านน้องพรพันธุ์ไม้",7.9821802,99.9821234,'s',"8:00-17:00","🌱",4.3],
+["ร้านน้องโอมน้องออมการค้า",7.9769632,99.9941824,'s',"8:00-18:00","🏪",4.1],
+["ร้านน้องใบบัว",7.9653202,99.9954949,'s',"8:00-18:00","🏪",4.2],
+["ร้านน้ำชา&ข้าวต้ม เกาเหลา",7.9684229,99.9952169,'s',"6:00-15:00","🍵",4.3],
+["ร้านน้ำชาจ่าหมาย",7.968414,99.9952188,'s',"6:00-15:00","🍵",4.2],
+["ร้านน้ำหอม คาร์แคร์เซ็นเตอร์",7.98947,99.9862887,'s',"8:00-18:00","🚗",4.1],
+["ร้านบ้านต่อผมชะอวด",7.9788552,100.0121912,'s',"9:00-20:00","💇",4.3],
+["ร้านป้าสาวเจริญการค้า",7.9481078,99.9628092,'s',"7:00-18:00","🏪",4.1],
+["ร้านป้าไล (ของชำ,ขนมลา)",7.9652729,99.9955147,'s',"7:00-18:00","🏪",4.2],
+["ร้านพรพรรณ-กรอบรูป",7.967181,100.004165,'s',"9:00-18:00","🖼️",4.2],
+["ร้านพระเครื่องเทพสยาม",7.972115,99.992315,'s',"9:00-18:00","📿",4.3],
+["ร้านพิมนารา",7.9498413,99.9752208,'s',"10:30-21:00","🍽️",4.5],
+["ร้านมายเดียร์โมบาย",7.9650688,99.9977525,'s',"9:00-20:00","📱",4.2],
+["ร้านมีสุข ของชำ",7.9715976,100.0015811,'s',"7:00-20:00","🏪",4.1],
+["ร้านยงใจ",7.9410329,99.9656317,'s',"8:00-18:00","🏪",4.0],
+["ร้านสมเจตน์ ( ชะอวด )",8.001079,100.0024084,'s',"8:00-18:00","🏪",4.2],
+["ร้านสมใจ(พี่เพ็ญ)",7.9660122,99.9971465,'s',"7:00-18:00","🏪",4.1],
+["ร้านสมใจ2",7.9732734,99.9911663,'s',"7:00-18:00","🏪",4.1],
+["ร้านสักช่างแจ็คสักลายชะอวด",7.989631,99.987916,'s',"10:00-20:00","🎨",4.3],
+["ร้านสี เมืองทองเคหะภัณฑ์ชะอวด",7.9717666,99.9919556,'s',"8:00-18:00","🎨",4.2],
+["ร้านสุธรรมยานยนต์",7.9670093,99.996414,'s',"8:00-18:00","🏍️",4.2],
+["ร้านสุธรรมยานยนต์ (อะไหล่)",7.9674502,99.9969574,'s',"8:00-18:00","🏍️",4.2],
+["ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",7.962628,99.9883982,'s',"17:00-23:00","🥩",4.2],
+["ร้านหัวไทรเฟอร์นิเจอร์",7.9679619,99.9955467,'s',"9:00-18:00","🛋️",4.1],
+["ร้านอัครไวนิล",7.9687412,99.9945534,'s',"8:00-18:00","🎨",4.2],
+["ร้านอั๋นคอมพิวเตอร์",7.9651646,99.9958397,'s',"9:00-18:00","💻",4.1],
+["ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",8.0030681,99.9982724,'s',"7:00-15:00","🍜",4.2],
+["ร้านอาหารนั่งเล่นชะอวด",7.9687349,99.9955717,'s',"10:00-22:00","🍽️",4.3],
+["ร้านเครื่องเสียงแอนด์ซาวด์",7.9933797,99.9709374,'s',"9:00-18:00","🔊",4.2],
+["ร้านเจียมรัตน์",7.9664151,99.9950503,'s',"8:00-18:00","🏪",4.2],
+["ร้านเตือนใจ สาขาชะอวด",7.9701435,99.994102,'s',"8:00-20:00","🏪",4.2],
+["ร้านเท็น 2009",7.96408,99.9897567,'s',"8:00-20:00","🏪",4.1],
+["ร้านเพื่อนเด็ก",7.9667586,99.9969729,'s',"9:00-20:00","🧸",4.3],
+["ร้านเสริมสวย ครบวงจร",7.9758431,100.0025379,'s',"9:00-20:00","💇",4.2],
+["ร้านเอิร์นคอมพิวเตอร์",7.9599783,99.9707676,'s',"9:00-18:00","💻",4.1],
+["ร้านเอ็นวีกรุ๊ป",7.9637188,99.9887988,'s',"8:00-18:00","🏪",4.0],
+["ร้านแกงน้องรัตน์",7.9660722,99.9937653,'s',"7:00-15:00","🍛",4.3],
+["ร้านแยมการค้า",7.9373533,99.9921848,'s',"8:00-18:00","🏪",4.1],
+["ร้านแว่นบิวตี้ฟูลสาขาชะอวด",7.9667461,99.997057,'s',"9:00-20:00","👓",4.2],
+["ร้านโปร ณ คอนแอร์ แอนด์เซอร์วิส",7.9645868,99.9903681,'s',"8:00-18:00","❄️",4.3],
+["ร้านไฟฟ้านายหมึก",7.9667805,99.9967046,'s',"8:00-18:00","⚡",4.2],
+["ร้านไร ชะอวด (เสื้อผ้า รองเท้า)",7.9656011,99.9950366,'s',"9:00-20:00","👗",4.1],
+["ลานชา ใต้ขาม",7.93932,99.9894971,'s',"8:00-18:00","🍵",4.4],
+["ลานเทปาล์มสองพี่น้อง",7.9749773,100.0290413,'s',"8:00-17:00","🌴",4.2],
+["ว.ทรัพย์เกษตร",7.9370309,99.9814456,'s',"7:30-17:30","🌾",4.0],
+["สติ๊กเกอร์ชะอวด",7.9692995,99.9962469,'s',"8:00-18:00","🏷️",4.1],
+["สถานีตำแซ่บ",7.9643083,99.9984177,'s',"10:00-21:00","🥗",4.2],
+["สมยา พาณิชย์ & ชอการช่าง",7.9505714,99.9762045,'s',"8:00-18:00","🔧",4.3],
+["สหไพบูลย์",7.9669158,99.9973463,'s',"8:00-18:00","🏪",4.1],
+["สาวมินิมาร์ท",7.9751241,99.9632741,'s',"7:00-22:00","🏪",4.2],
+["สำนักงานตัวแทน วิริยะประกันภัย",7.9673134,99.995566,'s',"จ-ศ 8:30-17:00","🛡️",4.2],
+["สิริโภชนา",7.9676294,99.9982468,'s',"8:00-18:00","🍽️",4.3],
+["สีกัน๐ไม้",7.9667728,100.0011909,'s',"8:00-18:00","🎨",4.1],
+["สุกัลยาผ้าม่าน",7.970404,99.9961778,'s',"9:00-18:00","🪟",4.2],
+["หจก.สิทธิ์ออโต้ไลท์ติ้ง",7.9609565,99.9869111,'s',"8:00-18:00","💡",4.2],
+["ห้างทองศุภัทรา",7.946812,99.9716833,'s',"9:00-20:00","🥇",4.3],
+["ห้างหุ้นส่วนจำกัด อุดมกิจโฮมซัพพลาย",7.9672759,99.995865,'s',"8:00-18:00","🏠",4.2],
+["อร่าม รับหลอมทอง ชะอวด",7.9681359,99.9962286,'s',"9:00-17:00","🥇",4.1],
+["อินทร์ศรีทองคาร์แคร์",7.949173,99.973833,'s',"8:00-18:00","🚗",4.2],
+["อ้ายเกลอ คาร์แคร์",7.9760584,99.9943639,'s',"8:00-18:00","🚗",4.3],
+["เจี๊ยวหอมอะไหล่ซิ่งชะอวด",7.9693144,100.0026773,'s',"8:00-18:00","🏍️",4.2],
+["เชี่ยวชาญ การแว่น ชะอวด",7.9676616,99.9955794,'s',"9:00-20:00","👓",4.3],
+["เนื้อตุ๋นคุณพัฒน์",7.9709583,99.9962329,'s',"8:00-20:00","🥩",4.4],
+["เมษา กาแฟ (สาขา2)",7.9671037,100.003486,'s',"7:00-18:00","☕",4.3],
+["เรืองรินการเกษตร",7.9706107,99.9935979,'s',"7:00-17:00","🌾",4.2],
+["เลอศักดิ์ แบตเตอรี่ชะอวด",7.9609233,99.9936178,'s',"8:00-18:00","🔋",4.1],
+["เวชพงษ์โอสก",7.966812,99.9969907,'s',"8:00-20:00","💊",4.2],
+["เว่นท็อปเจริญสาขาชะอวด",7.9674521,99.9957602,'s',"9:00-20:00","👓",4.3],
+["แว่นตาพอเพียง",7.9622953,99.9880286,'s',"9:00-20:00","👓",4.2],
+["แฮปปี้โมบายชะอวด",7.9675345,99.9967919,'s',"9:00-21:00","📱",4.2],
+["โกดังมือถือ ชะอวด",7.9665149,99.9951063,'s',"9:00-20:00","📱",4.1],
+["โกเปรี้ยว แม็กซิ่ง ยาง",7.9739973,99.9906455,'s',"8:00-18:00","🏍️",4.2],
+["โซนคอม",7.9878118,99.9888319,'s',"9:00-20:00","💻",4.1],
+["โต๊ะเครื่องแป้ง ชะอวด",7.9670992,99.9972553,'s',"9:00-20:00","💄",4.2],
+["โรงอิฐตั้งเจริญกุล",7.9493223,99.9739756,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐว. อดุลย์ภัณฑ์",7.989432,99.978565,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐสมศักดิ์",7.9787636,99.9871513,'s',"7:00-17:00","🧱",4.0],
+["โรงอิฐเพชรทักสิน 3",7.9916428,99.9896513,'s',"7:00-17:00","🧱",4.0],
+["โรตีชะอวด หวานสั่งได้",7.9670099,99.9974378,'s',"7:00-20:00","🫓",4.3],
+["ไทยรุ่ง ชะอวด",7.9720844,99.9961561,'s',"8:00-20:00","🏪",4.2],
+["ไร่ย่านาทราย",7.9977282,100.0004285,'s',"7:00-17:00","🌾",4.1],
+["วัดหมื่นระงับรังสรรค์",7.967482,100.0011391,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดโทสิทธิวารีน้อย (วัดบางน้อย)",7.9443214,100.0320631,'w',"เปิดทุกวัน","🛕",4.4],
+["วัดบ่อน้ำดำ",7.9238441,99.9869303,'w',"เปิดทุกวัน","🛕",4.6],
+["วัดท่าเสม็ด",7.9545473,100.0079449,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดตะเคียนทอง",7.9567803,99.9704696,'w',"เปิดทุกวัน","🛕",4.3],
+["วัดศรีมาประสิทธ์",7.963936,99.9965192,'w',"เปิดทุกวัน","🛕",4.7],
+["วัดควนสมบูรณ์",7.9718178,99.9651773,'w',"เปิดทุกวัน","🛕",4.4],
+["วัดป่านาบน",7.939721,100.0263685,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดรักขิตวัน",7.9780661,99.9920701,'w',"เปิดทุกวัน","🛕",4.6],
+["วัดเลียบ",7.9798026,99.9701276,'w',"เปิดทุกวัน","🛕",4.3],
+["วัดดอนมะปราง",7.9906917,99.9609256,'w',"เปิดทุกวัน","🛕",4.5],
+["สำนักวิมานแก้ว",7.9617102,99.985519,'w',"เปิดทุกวัน","🏯",4.4],
+["วัดท่าสะท้อน",8.0000628,100.0182942,'w',"เปิดทุกวัน","🛕",4.7],
+["วัดไทรหัวม้า",7.9644527,100.0356972,'w',"เปิดทุกวัน","🛕",4.5],
+["วัดเขาพระทอง",8.0250,100.0400,'w',"เปิดทุกวัน","⛰️",4.8],
+["PTT Station ปตท.ชะอวด (น้ำมัน+EV)",7.9616121,99.9874856,'g',"เปิด 24 ชม.","⛽",4.3],
+["PTT",7.9713988,99.9928366,'g',"เปิด 24 ชม.","⛽",4.2],
+["Caltex",7.968906,99.994871,'g',"เปิด 24 ชม.","⛽",4.3],
+["ปั๊มน้ำมัน PT (สาขาชะอวด 2)",7.9727798,99.9910928,'g',"เปิด 24 ชม.","⛽",4.1],
+["Sukhothai Gas Stations",7.972852,99.991155,'g',"เปิด 24 ชม.","⛽",4.0],
+["ปั๊มตราดาว เจ๊ยี่",7.9686435,99.9949754,'g',"เปิด 24 ชม.","⭐",4.2],
+["วีระพลปิโตรเลียม",8.001079,100.0024084,'g',"เปิด 24 ชม.","⛽",4.1],
+["ปั้มน้ำมัน พี่แกน",8.001674,100.0023387,'g',"เปิด 24 ชม.","⛽",4.0],
+["ธนาคารกรุงไทย สาขาชะอวด",7.9678545,99.9955985,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["ธนาคารออมสิน สาขาชะอวด",7.9681554,99.9966014,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+["ธนาคารเพื่อการเกษตรฯ สาขาชะอวด",7.9698444,99.9937785,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["ธนาคารไทยพาณิชย์ สาขาชะอวด",7.967917,99.9954819,'b',"จ-ศ 8:30-15:30","🏦",4.3],
+["เงินติดล้อ สาขา ชะอวด",7.9676908,99.9953319,'b',"จ-ส 9:00-18:00","💰",4.0],
+["ศรีสวัสดิ์ เงินสดทันใจ (ท่าประจะ)",7.961113,99.987004,'b',"จ-ส 9:00-17:00","💰",3.9],
+["ศรีสวัสดิ์ เงินสดทันใจ (ชะอวด)",7.9751241,99.9632741,'b',"จ-ส 9:00-17:00","💰",3.9],
+["ศรีสวัสดิ์ เงินสดทันใจ (รพ.)",7.9693057,99.9963774,'b',"จ-ส 9:00-17:00","💰",4.0],
+["ศรีสวัสดิ์ เงินสดทันใจ (รร.)",7.966608,99.998516,'b',"จ-ส 9:00-17:00","💰",3.9],
+["สมหวัง เงินสั่งได้ สาขา ชะอวด",7.961227,99.987169,'b',"จ-ส 9:00-17:00","💰",4.0],
+["ห้างทองศักดิ์สุวรรณ2",7.9658472,99.9973143,'b',"9:00-20:00","🥇",4.3],
+["เงินเทอร์โบ สาขาชะอวด",7.9660515,99.9922354,'b',"จ-ส 9:00-17:00","💰",3.9],
+["เงินไชโยสาขาชะอวด",7.9673602,99.9957658,'b',"จ-ส 9:00-17:00","💰",4.0],
+["Omsin Sakha Cha-uat Banks",8.001079,100.0024084,'b',"จ-ศ 8:30-15:30","🏦",4.2],
+["โรงเรียนบ้านหนองหิน",7.9405707,99.9931927,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนบ้านห้วยโส",7.9527034,99.9797008,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+["โรงเรียนวัดท่าเสม็ด",7.9560129,100.0067071,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนบ้านชะอวด",7.9641603,100.0000337,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนชุมชนควนดินแดงมิตรภาพที่๓",7.9402422,99.9615976,'e',"จ-ศ 7:00-16:00","🏫",4.5],
+["โรงเรียนวัดควนสมบูรณ์",7.9715566,99.9663925,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนวัดรักขิตวัน",7.9776563,99.992897,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนวัดปากควน",7.9627771,100.0368423,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนบ้านบางน้อย",7.951818,100.0269177,'e',"จ-ศ 8:00-16:00","🏫",4.2],
+["โรงเรียนชะอวด",7.969309,99.9987471,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนกุลวดีศึกษา",7.9667757,100.0036838,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนชะอวดวิทยา",7.9727688,99.9956609,'e',"จ-ศ 8:00-16:00","🏫",4.4],
+["โรงเรียนวัดดอนมะปราง",7.9910655,99.9615524,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["โรงเรียนวัดท่าสะท้อน",8.0006006,100.0178194,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนชะอวดวิทยาคาร",7.9712039,100.0052213,'e',"จ-ศ 8:00-16:00","🏫",4.5],
+["โรงเรียนบ้านศาลาทวดทอง",7.9767231,100.0200571,'e',"จ-ศ 8:00-16:00","🏫",4.3],
+["ศูนย์การศึกษาพิเศษฯ หน่วยบริการชะอวด",7.9668154,99.9987599,'e',"จ-ศ 8:30-16:30","♿",4.4],
+["ศูนย์เด็กเล็กอำเภอชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["โรงเรียนอนุบาลลูกแก้ว",7.968188,99.99372,'e',"จ-ศ 8:00-15:00","🎓",4.5],
+["วิทยาลัยการอาชีพชะอวด",7.9800,100.0100,'e',"จ-ศ 8:00-16:00","🎓",4.4],
+["กศน.ตำบลท่าประจะ",7.9732835,99.9626224,'e',"จ-ศ 9:00-17:00","📚",4.2],
+["กศน.ตำบลท่าเสม็ด",7.9569534,100.0064912,'e',"จ-ศ 9:00-17:00","📚",4.2],
+["ครูออยสอนพิเศษ",7.9674348,99.9953067,'e',"ตามนัด","👩‍🏫",4.5],
+["ชมรมข้าราชการบำเหน็จบำนาญ",7.9648176,99.9989211,'e',"จ-ศ 9:00-16:00","🏛️",4.1],
+["ชะอวดติวเตอร์",7.9689317,99.9979594,'e',"ตามนัด","📖",4.4],
+["ชะอวดบุ๊คเซ็นเตอร์",7.9645596,99.989676,'e',"8:00-20:00","📚",4.3],
+["ร้านหนังสือพิมพ์จินตนา",7.9670515,99.9966782,'e',"7:00-18:00","📰",4.2],
+["ศูนย์การเรียนรู้(สวนมังคุด)",7.92678,99.9857367,'e',"จ-ศ 9:00-16:00","🥭",4.3],
+["ศูนย์การเรียนรู้ระดับตำบลชะอวด",7.9783738,100.0188994,'e',"จ-ศ 9:00-16:00","📚",4.2],
+["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลชะอวด",7.9672741,99.9994167,'e',"จ-ศ 8:00-16:00","👶",4.4],
+["ศูนย์พัฒนาเด็กเล็กเทศบาลตำบลท่าประจะ",7.9692849,99.9648115,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["ศูนย์พัฒนาเด็กเล็กโรงเรียนวัดปากควน",7.9641159,100.0362609,'e',"จ-ศ 8:00-16:00","👶",4.3],
+["สกร.ระดับอำเภอชะอวด",7.9672545,99.998667,'e',"จ-ศ 8:30-16:30","📚",4.2],
+["ห้องสมุดประชาชนอำเภอชะอวด",7.967155,99.998853,'e',"จ-ศ 9:00-17:00","📚",4.3],
+["ไก่การพิมพ์",7.966144,99.9925204,'e',"8:00-17:00","🖨️",4.1],
+["ศพก.อำเภอชะอวด",7.927141,99.985738,'e',"จ-ศ 8:30-16:30","🌾",4.2],
+["ศูนย์การเรียนชุมชนวิถีไท",7.9947329,100.02409,'e',"จ-ศ 9:00-16:00","📖",4.3],
+["ที่ว่าการอำเภอชะอวด",7.9646,99.9951,'o',"จ-ศ 8:30-16:30","🏛️",4.5],
+["สถานีตำรวจภูธรชะอวด",7.9652,99.9958,'o',"24 ชม.","🚔",4.3],
+["เทศบาลตำบลชะอวด",7.9620,99.9935,'o',"จ-ศ 8:30-16:30","🏢",4.2],
+["อบต ท่าเสม็ด",7.9562142,100.0087033,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+["อบต ท่าประจะ",7.9720053,99.9634295,'o',"จ-ศ 8:30-16:30","🏢",4.1],
+["โรงพยาบาลชะอวด",7.9813021,99.9916658,'o',"24 ชม.","🏥",4.3],
+["Ban Tungkhai",7.99401,99.9867609,'x',"เปิดทุกวัน","🚉",4.0],
+["Chauat Station",7.965,99.99833,'x',"เปิดทุกวัน","🚉",4.1],
+["ทางแยกชะอวด",7.9667387,99.9960237,'x',"เปิดทุกวัน","🛣️",3.8],
+["บ้านของสส.กฤต",7.9420445,99.9968167,'x',"-","🏠",3.5],
+["ร้านขนมปังปิ้งหอมโฉ",7.9643131,99.9980384,'l',"6:00-12:00","🍞",4.3],
+["สำนักงานสาธารณสุขอำเภอชะอวด",7.9641119,99.9977083,'l',"จ-ศ 8:30-16:30","🏥",4.2],
+["รพ.สต.บ้านควนสมบูรณ์",7.9731338,99.9634295,'l',"จ-ศ 8:30-16:30","🏥",4.1],
+["FlashHomeเมืองใหม่",7.9606922,99.9861881,'p',"8:00-20:00","📦",4.2],
+["SPX Express สาขาสี่แยกบนเนิน",7.9670161,100.0076208,'p',"8:00-20:00","📦",4.1],
+["Shippop สาขาชะอวด",7.9673865,99.9955265,'p',"8:00-18:00","📦",4.0],
+["ไปรษณีย์ไทย สาขาชะอวด",7.968176,99.9954555,'p',"จ-ส 8:30-16:30","📮",4.2],
+["กลุมมังคุดเมืองใหม่ก้าวหน้า",7.9596389,99.9850833,'y',"-","🥭",4.2],
+["กองทุนหมู่บ้าน บ้านสี่แยกโคกขันธ์",7.961342,99.9635418,'y',"จ-ศ 9:00-16:00","🏘️",4.0],
+["ค่ายไก่ส.สิทธิชัย",7.965189,99.9969038,'y',"-","🐓",4.3],
+["ที่ทำการผู้ใหญ่บ้านเนินอินทร์แก้ว",7.9784003,100.0188892,'y',"จ-ศ 8:30-16:30","🏘️",4.1],
+["สวนปาล์ม ผอ.อรอนงค์",7.9312206,100.0101695,'y',"-","🌴",4.2],
+["สวนป้านงค์",7.9346763,99.9903153,'y',"-","🌳",4.3],
+["สวนผลไม้ บ้านมังสัง",7.9478047,99.9594238,'y',"-","🍎",4.2],
+["สวนมังคุด คุณพ่อมนูญ",7.9637895,100.0285622,'y',"-","🥭",4.4],
+["เกมส์",7.951874,100.0357781,'y',"10:00-22:00","🎮",4.0]
+];
+
+const CATEGORIES = {
+  r: { name: 'ร้านอาหาร', icon: '🍜' },
+  f: { name: 'คาเฟ่',     icon: '☕' },
+  c: { name: 'สะดวกซื้อ', icon: '🏪' },
+  m: { name: 'ตลาด',      icon: '🛒' },
+  t: { name: 'ท่องเที่ยว', icon: '🏞️' },
+  h: { name: 'ที่พัก',    icon: '🏨' },
+  s: { name: 'ร้านค้า',   icon: '🛍️' },
+  w: { name: 'วัด',       icon: '🛕' },
+  g: { name: 'ปั๊มน้ำมัน', icon: '⛽' },
+  b: { name: 'ธนาคาร',    icon: '🏦' },
+  e: { name: 'สถานศึกษา', icon: '🏫' },
+  o: { name: 'ราชการ',    icon: '🏛️' },
+  x: { name: 'อื่นๆ',     icon: '📌' },
+  l: { name: 'สาธารณสุข', icon: '🏥' },
+  p: { name: 'ไปรษณีย์',  icon: '📦' },
+  y: { name: 'ชุมชน',     icon: '🏘️' }
+};
+
+const PLACES = PLACES_RAW.map((p, i) => ({
+  id: `LOC-${String(i+1).padStart(3,'0')}`,
+  name: p[0], lat: p[1], lng: p[2], category: p[3],
+  price: p[4], image: p[5], rating: p[6]
+}));
+
+console.log('📍 Loaded', PLACES.length, 'places');
+
+firebase.initializeApp({
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8"
+});
+const auth = firebase.auth(), db = firebase.firestore(), storage = firebase.storage();
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m, err) {
+  const t = $('toast');
+  t.textContent = m;
+  t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = 'toast', 3000);
+}
+function osmThumb(lat, lng) {
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lng}&zoom=16&size=240x160&maptype=mapnik&markers=${lat},${lng},red-pushpin`;
+}
+
+// ─── Nav 8 เมนู (ไม่มี สถานที่) ───
+const SECTIONS = [
+  ['dashboard', '📊', 'แดชบอร์ด'],
+  ['gp',        '💰', 'GP'],
+  ['finance',   '🧾', 'บัญชี'],
+  ['chats',     '💬', 'แชท'],
+  ['merchants', '🏪', 'ร้านค้า'],
+  ['orders',    '📋', 'ออเดอร์'],
+  ['riders',    '🛵', 'ไรเดอร์'],
+  ['users',     '👥', 'ผู้ใช้']
+];
+
+const store = { merchants: [], orders: [], riders: [], users: [], places: [], chats: [] };
+const filters = { orders: 'all', q: '', riderStatus: '', merchantStatus: 'all', gpRange: 'today' };
+let current = 'dashboard', unsubs = [];
+
+const STATUS = {
+  searching:'⏳ หาไรเดอร์', pending:'🔔 รอรับ', accepted:'🛵 รับแล้ว',
+  picked_up:'📦 รับของ',    on_the_way:'🚀 กำลังส่ง', done:'✅ เสร็จ', cancelled:'❌ ยกเลิก'
+};
+
+const fmtTime = t => { if (!t) return '—'; const d = t.toDate ? t.toDate() : new Date(t); return isNaN(d) ? '—' : d.toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+const fmtTimeShort = t => { if (!t) return ''; const d = t.toDate ? t.toDate() : new Date(t); return isNaN(d) ? '' : d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }); };
+const ts = o => o.createdAt?.seconds || 0;
+const toDate = t => { if (!t) return null; const d = t.toDate ? t.toDate() : new Date(t); return isNaN(d) ? null : d; };
+const itemsText = i => Array.isArray(i) ? i.map(x => `${x.name} x${x.qty}`).join(', ') : String(i ?? '');
+
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0 && isLogin) || (i === 1 && !isLogin));
+  });
+  $('form-login').style.display = isLogin ? 'block' : 'none';
+  $('form-signup').style.display = isLogin ? 'none' : 'block';
+}
+
+$('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('em').value.trim().toLowerCase();
+  const pw = $('pw').value;
+  try {
+    console.log('🔐 Login attempt:', email);
+    const cred = await auth.signInWithEmailAndPassword(email, pw);
+    console.log('✅ Auth OK:', cred.user.email);
+    toast('✅ เข้าสู่ระบบสำเร็จ');
+  } catch (err) {
+    console.error('❌ Login fail:', err.code, err.message);
+    const msg = err.code === 'auth/wrong-password' ? 'รหัสผ่านไม่ถูกต้อง'
+      : err.code === 'auth/user-not-found' ? 'ไม่พบบัญชีนี้ในระบบ — กรุณาสมัครก่อน'
+      : err.code === 'auth/invalid-email' ? 'รูปแบบอีเมลไม่ถูกต้อง'
+      : err.code === 'auth/too-many-requests' ? 'ลองหลายครั้งเกินไป รอ 5 นาที'
+      : 'เข้าสู่ระบบไม่สำเร็จ: ' + err.code;
+    toast(msg, true);
+  }
+  $('pw').value = '';
+});
+
+async function handleForgot() {
+  const email = $('em').value.trim();
+  if (!email) return toast('กรอกอีเมลก่อน', true);
+  try {
+    await auth.sendPasswordResetEmail(email);
+    toast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
+  } catch (err) { toast('ส่งไม่สำเร็จ: ' + err.message, true); }
+}
+
+async function handleSignup() {
+  const name = $('su-name').value.trim(), email = $('su-email').value.trim();
+  const pw = $('su-pw').value, pw2 = $('su-pw2').value;
+  if (!name || !email || !pw) return toast('กรอกให้ครบ', true);
+  if (pw.length < 6) return toast('รหัสผ่าน 6+ ตัว', true);
+  if (pw !== pw2) return toast('รหัสไม่ตรงกัน', true);
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pw);
+    await cred.user.updateProfile({ displayName: name });
+    await db.collection('admins').doc(cred.user.uid).set({
+      name, email, role: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ สมัครสำเร็จ! รออนุมัติ');
+    switchTab('login');
+    $('em').value = email;
+  } catch (err) { toast('สมัครไม่สำเร็จ: ' + err.message, true); }
+}
+
+$('logout').addEventListener('click', () => { stop(); auth.signOut(); });
+
+// ═══════════════════════════════════════════════════════════════════
+//  🔐 MASTER BYPASS — อีเมลที่เข้าได้เลย
+// ═══════════════════════════════════════════════════════════════════
+const MASTER_ADMINS = [
+  'adminchauatgo@gmail.com',
+  'admin@chauatgo.com',
+  'chauatgo@gmail.com'
+];
+
+auth.onAuthStateChanged(async user => {
+  stop();
+  if (!user) {
+    $('login').classList.remove('hidden');
+    $('app').classList.add('hidden');
+    return;
+  }
+  
+  const userEmail = (user.email || '').toLowerCase().trim();
+  const isMasterAdmin = MASTER_ADMINS.some(e => e.toLowerCase() === userEmail);
+  
+  console.log('🔎 Check admin:', userEmail, '→', isMasterAdmin ? 'MASTER ✅' : 'checking Firestore...');
+  
+  if (!isMasterAdmin) {
+    // ไม่ใช่ master → ตรวจสอบ Firestore
+    try {
+      const adminSnap = await db.collection('admins').doc(user.uid).get();
+      const isFirestoreAdmin = adminSnap.exists && ['active', 'super'].includes(adminSnap.data().role);
+      if (!isFirestoreAdmin) {
+        console.warn('❌ Not admin in Firestore:', userEmail);
+        toast('บัญชีนี้ไม่มีสิทธิ์เป็นผู้ดูแล', true);
+        await auth.signOut();
+        return;
+      }
+    } catch (err) {
+      console.warn('Firestore check failed:', err);
+      toast('บัญชีนี้ไม่มีสิทธิ์เป็นผู้ดูแล', true);
+      await auth.signOut();
+      return;
+    }
+  }
+  
+  console.log('✅ Enter app:', user.email);
+  $('who').textContent = user.email;
+  $('login').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  start();
+});
+
+function start() {
+  for (const k of ['merchants','orders','riders','users','chats']) {
+    const unsub = db.collection(k).onSnapshot(s => {
+      store[k] = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+    }, err => { console.error(`[${k}]`, err); });
+    unsubs.push(unsub);
+  }
+  const unsubPlaces = db.collection('places').onSnapshot(s => {
+    if (s.docs.length > 0) {
+      store.places = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+    } else { autoUploadPlaces(); }
+  }, err => { store.places = PLACES; render(); });
+  unsubs.push(unsubPlaces);
+  renderNav();
+  render();
+}
+function stop() {
+  unsubs.forEach(u => u());
+  unsubs = [];
+  for (const k in store) store[k] = [];
+}
+
+async function autoUploadPlaces() {
+  const uploaded = localStorage.getItem('chauat_places_uploaded');
+  if (uploaded === 'v3.3.0') { store.places = PLACES; render(); return; }
+  store.places = PLACES;
+  render();
+  try {
+    const batches = [db.batch(), db.batch()];
+    let count = 0;
+    for (const p of PLACES) {
+      const b = Math.floor(count / 250);
+      batches[b].set(db.collection('places').doc(p.id), { ...p, merchantId: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      count++;
+    }
+    await batches[0].commit();
+    await batches[1].commit();
+    localStorage.setItem('chauat_places_uploaded', 'v3.3.0');
+    toast('✅ อัปโหลด 490 สถานที่สำเร็จ');
+  } catch (e) { console.error(e); }
+}
+
+// ─── คำนวณ Badge Counts ───
+function getBadgeCounts() {
+  const pendingMerchants = store.merchants.filter(m => !m.verified).length;
+  const pendingRiders = store.riders.filter(r => r.verified === false).length;
+  const newOrders = store.orders.filter(o => ['searching','pending'].includes(o.status)).length;
+  const pendingSlips = store.orders.filter(o => o.riderSlipUrl && !o.riderSlipVerified).length;
+  const unreadChats = store.chats.reduce((sum, c) => sum + (c.unreadAdmin || 0), 0);
+  const staleOrders = store.orders.filter(o => {
+    if (!['searching','pending'].includes(o.status)) return false;
+    const d = toDate(o.createdAt);
+    if (!d) return false;
+    return (Date.now() - d.getTime()) > 15 * 60 * 1000; // เกิน 15 นาที
+  }).length;
+  
+  return { pendingMerchants, pendingRiders, newOrders, pendingSlips, unreadChats, staleOrders };
+}
+
+function renderNav() {
+  const b = getBadgeCounts();
+  $('nav').innerHTML = SECTIONS.map(([k, icon, label]) => {
+    let badge = '';
+    if (k === 'merchants' && b.pendingMerchants > 0) badge = `<span class="nav-badge">${b.pendingMerchants}</span>`;
+    else if (k === 'riders' && b.pendingRiders > 0) badge = `<span class="nav-badge">${b.pendingRiders}</span>`;
+    else if (k === 'orders' && b.newOrders > 0) badge = `<span class="nav-badge">${b.newOrders}</span>`;
+    else if (k === 'chats' && b.unreadChats > 0) badge = `<span class="nav-badge">${b.unreadChats}</span>`;
+    return `<button class="ripple ${k === current ? 'on' : ''}" data-go="${k}">
+      ${badge}
+      <div class="nav-icon">${icon}</div>
+      <div class="nav-label">${label}</div>
+    </button>`;
+  }).join('');
+}
+
+function render() {
+  const fn = { dashboard, gp, finance, chats, merchants, orders, riders, users }[current];
+  if (fn) $('main').innerHTML = fn();
+  renderNav();
+}
+function searchInput(ph) {
+  return `<div class="search-box"><span style="font-size:18px;opacity:.5">🔍</span><input id="q" placeholder="${ph}" value="${esc(filters.q)}"></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  📊 DASHBOARD (การ์ดสีต่างกัน)
+// ══════════════════════════════════════════════════════════════════════
+function dashboard() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+
+  const completedAll = store.orders.filter(o => o.status === 'done');
+  const activeOrders = store.orders.filter(o => ['searching','pending','accepted','picked_up','on_the_way'].includes(o.status));
+
+  let todayRevenue = 0, todayOrders = 0, yesterdayRevenue = 0, pendingRevenue = 0;
+  completedAll.forEach(o => {
+    const fare = Number(o.fare || 0);
+    const myCut = Math.round(fare * 0.20 * 100) / 100;
+    const d = toDate(o.createdAt); if (!d) return;
+    if (d >= today) { todayRevenue += myCut; todayOrders++; }
+    else if (d >= yesterday && d < today) { yesterdayRevenue += myCut; }
+    if (!o.riderPaid) pendingRevenue += myCut;
+  });
+
+  const trend = yesterdayRevenue > 0 ? Math.round((todayRevenue - yesterdayRevenue) / yesterdayRevenue * 100) : (todayRevenue > 0 ? 100 : 0);
+  const trendUp = trend >= 0;
+
+  const b = getBadgeCounts();
+  const activeRiders = store.riders.filter(r => r.status === 'active' && r.verified !== false).length;
+  const totalMerchants = store.merchants.filter(m => m.verified).length;
+
+  // Hero
+  const heroSection = `
+    <div class="hero-card">
+      <div class="hero-label">💰 รายได้วันนี้</div>
+      <div class="hero-amount">฿${todayRevenue.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>
+      <div class="hero-trend">${trendUp ? '📈' : '📉'} ${trendUp ? '+' : ''}${trend}% เทียบเมื่อวาน (฿${yesterdayRevenue.toFixed(0)})</div>
+      <div class="hero-grid">
+        <div class="hero-grid-cell"><div class="lbl">📦 งานเสร็จ</div><div class="val">${todayOrders} งาน</div></div>
+        <div class="hero-grid-cell"><div class="lbl">🛵 กำลังทำ</div><div class="val">${activeOrders.length} งาน</div></div>
+      </div>
+    </div>
+  `;
+
+  // การ์ดสรุปสีต่างกัน 6 ใบ
+  const statCards = `
+    <div class="stat-grid">
+      <div class="stat-card blue ripple" onclick="document.querySelector('[data-go=merchants]').click()">
+        <div class="stat-icon">🏪</div>
+        <div class="stat-value">${store.merchants.length}</div>
+        <div class="stat-label">ร้านค้าทั้งหมด</div>
+        ${b.pendingMerchants > 0 ? `<div class="stat-sub">⏳ ${b.pendingMerchants} รออนุมัติ</div>` : `<div class="stat-sub">✅ อนุมัติแล้ว ${totalMerchants}</div>`}
+      </div>
+      <div class="stat-card purple ripple" onclick="document.querySelector('[data-go=riders]').click()">
+        <div class="stat-icon">🛵</div>
+        <div class="stat-value">${store.riders.length}</div>
+        <div class="stat-label">ไรเดอร์ทั้งหมด</div>
+        ${b.pendingRiders > 0 ? `<div class="stat-sub">⏳ ${b.pendingRiders} รออนุมัติ</div>` : `<div class="stat-sub">🟢 ทำงาน ${activeRiders}</div>`}
+      </div>
+      <div class="stat-card orange ripple" onclick="document.querySelector('[data-go=orders]').click()">
+        <div class="stat-icon">📋</div>
+        <div class="stat-value">${store.orders.length}</div>
+        <div class="stat-label">ออเดอร์ทั้งหมด</div>
+        ${b.newOrders > 0 ? `<div class="stat-sub">🔔 ใหม่ ${b.newOrders}</div>` : `<div class="stat-sub">✅ เสร็จ ${completedAll.length}</div>`}
+      </div>
+      <div class="stat-card teal ripple" onclick="document.querySelector('[data-go=users]').click()">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value">${store.users.length}</div>
+        <div class="stat-label">ผู้ใช้ทั้งหมด</div>
+        <div class="stat-sub">ลูกค้าในระบบ</div>
+      </div>
+      <div class="stat-card gold ripple" onclick="document.querySelector('[data-go=gp]').click()">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value">฿${todayRevenue.toFixed(0)}</div>
+        <div class="stat-label">รายได้วันนี้ (GP)</div>
+        <div class="stat-sub">GP 20% รวม</div>
+      </div>
+      <div class="stat-card ${b.pendingSlips > 0 ? 'red' : 'green'} ripple" onclick="document.querySelector('[data-go=orders]').click()">
+        <div class="stat-icon">📸</div>
+        <div class="stat-value">${b.pendingSlips}</div>
+        <div class="stat-label">สลิปรอตรวจสอบ</div>
+        <div class="stat-sub">${b.pendingSlips > 0 ? '⏳ ต้องอนุมัติ' : '✅ ว่าง'}</div>
+      </div>
+    </div>
+  `;
+
+  // Action
+  const actionItems = [];
+  if (b.staleOrders > 0) {
+    actionItems.push(`
+      <div class="action-card danger ripple" onclick="document.querySelector('[data-go=orders]').click()">
+        <div class="action-icon">⏰</div>
+        <div class="action-info">
+          <div class="action-title" style="color:#991b1b">ออเดอร์ค้างเกิน 15 นาที</div>
+          <div class="action-value" style="color:var(--danger)">${b.staleOrders} รายการ</div>
+          <div class="action-sub">ต้องตรวจสอบด่วน</div>
+        </div>
+        <button class="action-btn orange">ดูเลย →</button>
+      </div>
+    `);
+  }
+  if (b.pendingSlips > 0) {
+    actionItems.push(`
+      <div class="action-card warn ripple" onclick="document.querySelector('[data-go=orders]').click()">
+        <div class="action-icon">📸</div>
+        <div class="action-info">
+          <div class="action-title">สลิปรอตรวจสอบ</div>
+          <div class="action-value">${b.pendingSlips} ใบ</div>
+          <div class="action-sub">จากไรเดอร์</div>
+        </div>
+        <button class="action-btn orange">ตรวจสอบ →</button>
+      </div>
+    `);
+  }
+  if (b.pendingMerchants > 0) {
+    actionItems.push(`
+      <div class="action-card blue ripple" onclick="document.querySelector('[data-go=merchants]').click()">
+        <div class="action-icon">🏪</div>
+        <div class="action-info">
+          <div class="action-title">ร้านค้ารออนุมัติ</div>
+          <div class="action-value">${b.pendingMerchants} ร้าน</div>
+        </div>
+        <button class="action-btn blue">ตรวจสอบ →</button>
+      </div>
+    `);
+  }
+  if (b.pendingRiders > 0) {
+    actionItems.push(`
+      <div class="action-card blue ripple" onclick="document.querySelector('[data-go=riders]').click()">
+        <div class="action-icon">🛵</div>
+        <div class="action-info">
+          <div class="action-title">ไรเดอร์รออนุมัติ</div>
+          <div class="action-value">${b.pendingRiders} คน</div>
+        </div>
+        <button class="action-btn blue">ตรวจสอบ →</button>
+      </div>
+    `);
+  }
+  if (b.unreadChats > 0) {
+    actionItems.push(`
+      <div class="action-card blue ripple" onclick="document.querySelector('[data-go=chats]').click()">
+        <div class="action-icon">💬</div>
+        <div class="action-info">
+          <div class="action-title">ข้อความใหม่</div>
+          <div class="action-value">${b.unreadChats} แชท</div>
+        </div>
+        <button class="action-btn blue">เปิดแชท →</button>
+      </div>
+    `);
+  }
+  if (actionItems.length === 0) {
+    actionItems.push(`
+      <div class="action-card green" style="text-align:center;flex-direction:column;gap:6px;padding:24px">
+        <div style="font-size:48px">✅</div>
+        <div class="action-title" style="font-size:15px">ทุกอย่างเรียบร้อย!</div>
+        <div class="action-sub">ไม่มีงานค้าง</div>
+      </div>
+    `);
+  }
+
+  // Recent Orders
+  const recentOrders = [...store.orders].sort((a,b) => ts(b) - ts(a)).slice(0, 5).map(o => {
+    const statusColor = { done:'#00A651', cancelled:'#999', searching:'#E65100', accepted:'#1565C0', picked_up:'#9C27B0', on_the_way:'#00A651' }[o.status] || '#666';
+    return `
+      <div class="ripple" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;min-height:60px" data-order="${esc(o.id)}">
+        <div style="width:10px;height:10px;border-radius:50%;background:${statusColor};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(o.title || 'ออเดอร์')}</div>
+          <div style="font-size:11px;color:var(--mut);margin-top:2px">${fmtTime(o.createdAt)} • ${esc(STATUS[o.status] || o.status)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  return `${heroSection}${statCards}
+    <div class="section-divider"><div class="title">🎯 ต้องทำอะไรต่อ</div><div class="line"></div></div>
+    ${actionItems.join('')}
+    <div class="section-divider"><div class="title">🕐 ออเดอร์ล่าสุด</div><div class="line"></div></div>
+    <div class="card" style="padding:16px">
+      ${recentOrders || '<div style="text-align:center;padding:20px;color:#999;font-weight:600">ยังไม่มีออเดอร์</div>'}
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  💰 GP DASHBOARD
+// ══════════════════════════════════════════════════════════════════════
+function getGPByRange(range) {
+  const now = new Date();
+  let from = new Date();
+  if (range === 'today') { from.setHours(0,0,0,0); }
+  else if (range === 'yesterday') { from.setDate(from.getDate() - 1); from.setHours(0,0,0,0); }
+  else if (range === 'week') { from.setDate(from.getDate() - 7); from.setHours(0,0,0,0); }
+  else if (range === 'month') { from.setDate(from.getDate() - 30); from.setHours(0,0,0,0); }
+
+  const completed = store.orders.filter(o => o.status === 'done');
+  const filtered = completed.filter(o => {
+    const d = toDate(o.createdAt);
+    return d && d >= from;
+  });
+
+  let total = 0, totalFare = 0, count = 0;
+  const byRider = {}, byMerchant = {};
+  filtered.forEach(o => {
+    const fare = Number(o.fare || 0);
+    const gp = Math.round(fare * 0.20 * 100) / 100;
+    total += gp; totalFare += fare; count++;
+    const rId = o.riderId || 'unknown';
+    const rName = o.rider?.name || o.riderName || 'ไม่ระบุ';
+    if (!byRider[rId]) byRider[rId] = { name: rName, gp: 0, count: 0 };
+    byRider[rId].gp += gp; byRider[rId].count++;
+    
+    const mId = o.merchantId || 'unknown';
+    const mName = o.merchant?.name || o.merchantName || store.merchants.find(m => m.id === mId)?.name || 'ไม่ระบุ';
+    if (!byMerchant[mId]) byMerchant[mId] = { name: mName, gp: 0, count: 0 };
+    byMerchant[mId].gp += gp; byMerchant[mId].count++;
+  });
+
+  return { total, totalFare, count, byRider, byMerchant, filtered };
+}
+
+function gp() {
+  const range = filters.gpRange;
+  const today = getGPByRange('today');
+  const yesterday = getGPByRange('yesterday');
+  const week = getGPByRange('week');
+  const month = getGPByRange('month');
+  const current = { today, yesterday, week, month }[range];
+
+  // Range tabs
+  const rangeTabs = `
+    <div class="range-tabs">
+      <button class="range-tab ${range === 'today' ? 'active' : ''}" onclick="setGPRange('today')">📅 วันนี้</button>
+      <button class="range-tab ${range === 'yesterday' ? 'active' : ''}" onclick="setGPRange('yesterday')">⏪ เมื่อวาน</button>
+      <button class="range-tab ${range === 'week' ? 'active' : ''}" onclick="setGPRange('week')">📆 7 วัน</button>
+      <button class="range-tab ${range === 'month' ? 'active' : ''}" onclick="setGPRange('month')">🗓️ 30 วัน</button>
+    </div>`;
+
+  // Summary cards
+  const totalPending = store.orders.filter(o => o.status === 'done' && !o.riderPaid).reduce((sum, o) => {
+    const fare = Number(o.fare || 0);
+    return sum + Math.round(fare * 0.20 * 100) / 100;
+  }, 0);
+
+  const summaryCards = `
+    <div class="stat-grid">
+      <div class="stat-card gold ripple">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value">฿${current.total.toFixed(0)}</div>
+        <div class="stat-label">GP ${range === 'today' ? 'วันนี้' : range === 'yesterday' ? 'เมื่อวาน' : range === 'week' ? '7 วัน' : '30 วัน'}</div>
+        <div class="stat-sub">จาก ${current.count} ออเดอร์</div>
+      </div>
+      <div class="stat-card blue ripple">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value">฿${current.totalFare.toFixed(0)}</div>
+        <div class="stat-label">ยอดรวม</div>
+        <div class="stat-sub">ก่อนหัก GP 20%</div>
+      </div>
+      <div class="stat-card green ripple">
+        <div class="stat-icon">✅</div>
+        <div class="stat-value">฿${today.total.toFixed(0)}</div>
+        <div class="stat-label">GP วันนี้</div>
+        <div class="stat-sub">${today.count} ออเดอร์</div>
+      </div>
+      <div class="stat-card red ripple">
+        <div class="stat-icon">💸</div>
+        <div class="stat-value">฿${totalPending.toFixed(0)}</div>
+        <div class="stat-label">GP ค้างเก็บ</div>
+        <div class="stat-sub">จากไรเดอร์</div>
+      </div>
+    </div>`;
+
+  // Chart 7 วัน
+  const last7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0,0,0,0);
+    const next = new Date(d); next.setDate(next.getDate() + 1);
+    const dayOrders = store.orders.filter(o => {
+      if (o.status !== 'done') return false;
+      const od = toDate(o.createdAt);
+      return od && od >= d && od < next;
+    });
+    const gp = dayOrders.reduce((s, o) => s + (Number(o.fare || 0) * 0.20), 0);
+    last7.push({
+      label: d.toLocaleDateString('th-TH', { day: '2-digit' }),
+      value: gp
+    });
+  }
+  const maxVal = Math.max(...last7.map(d => d.value), 1);
+  const chartHtml = `
+    <div class="card" style="padding:16px">
+      <div style="font-weight:900;font-size:14px;margin-bottom:12px">📈 GP 7 วันล่าสุด</div>
+      <div class="chart-bars">
+        ${last7.map(d => `
+          <div class="chart-bar" style="height:${Math.max(4, (d.value / maxVal) * 100)}%">
+            ${d.value > 0 ? `<div class="chart-bar-value">฿${d.value.toFixed(0)}</div>` : ''}
+            <div class="chart-bar-label">${d.label}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+
+  // Table GP rider
+  const riderRows = Object.entries(current.byRider).sort((a,b) => b[1].gp - a[1].gp);
+  const riderTable = riderRows.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
+    : riderRows.map(([id, r]) => `
+      <tr>
+        <td style="font-weight:900">🛵 ${esc(r.name)}</td>
+        <td class="text-center">${r.count}</td>
+        <td class="text-right money-pos">฿${r.gp.toFixed(2)}</td>
+        <td class="text-right" style="color:var(--mut);font-weight:700">฿${(r.gp * 4).toFixed(0)}</td>
+      </tr>`).join('');
+
+  // Table GP merchant
+  const merchantRows = Object.entries(current.byMerchant).sort((a,b) => b[1].gp - a[1].gp);
+  const merchantTable = merchantRows.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ไม่มีข้อมูล</td></tr>'
+    : merchantRows.map(([id, m]) => `
+      <tr>
+        <td style="font-weight:900">🏪 ${esc(m.name)}</td>
+        <td class="text-center">${m.count}</td>
+        <td class="text-right money-pos">฿${m.gp.toFixed(2)}</td>
+        <td class="text-right" style="color:var(--mut);font-weight:700">฿${(m.gp * 4).toFixed(0)}</td>
+      </tr>`).join('');
+
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:900;font-size:18px">💰 GP Dashboard</div>
+      <span class="tag b">GP 20%</span>
+    </div>
+    ${rangeTabs}
+    ${summaryCards}
+    ${chartHtml}
+    <div class="section-divider"><div class="title">🛵 GP รายไรเดอร์</div><div class="line"></div></div>
+    <div class="table-wrap">
+      <table class="gp-table">
+        <thead><tr>
+          <th>ไรเดอร์</th>
+          <th class="text-center">งาน</th>
+          <th class="text-right">GP (20%)</th>
+          <th class="text-right">ไรเดอร์ได้ (80%)</th>
+        </tr></thead>
+        <tbody>${riderTable}</tbody>
+      </table>
+    </div>
+    <div class="section-divider" style="margin-top:20px"><div class="title">🏪 GP รายร้านค้า</div><div class="line"></div></div>
+    <div class="table-wrap">
+      <table class="gp-table">
+        <thead><tr>
+          <th>ร้านค้า</th>
+          <th class="text-center">งาน</th>
+          <th class="text-right">GP (20%)</th>
+          <th class="text-right">ร้านได้ (80%)</th>
+        </tr></thead>
+        <tbody>${merchantTable}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function setGPRange(r) { filters.gpRange = r; render(); }
+
+// ══════════════════════════════════════════════════════════════════════
+//  🧾 FINANCE
+// ══════════════════════════════════════════════════════════════════════
+function finance() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const completedOrders = store.orders.filter(o => o.status === 'done');
+  let totalGrossAll = 0, totalPlatformFeeAll = 0, totalRiderEarnAll = 0;
+  const riderStats = {};
+  completedOrders.forEach(o => {
+    const fare = Number(o.fare || 0);
+    if (fare <= 0) return;
+    const platformFee = Math.round(fare * 0.20 * 100) / 100;
+    const riderEarn = fare - platformFee;
+    const rId = o.riderId || 'unknown';
+    const rName = o.rider?.name || o.riderName || 'ไม่ระบุ';
+    if (!riderStats[rId]) riderStats[rId] = { name: rName, today: {c:0,a:0}, total: {c:0,a:0} };
+    totalGrossAll += fare; totalPlatformFeeAll += platformFee; totalRiderEarnAll += riderEarn;
+    riderStats[rId].total.c++; riderStats[rId].total.a += riderEarn;
+    const d = toDate(o.createdAt);
+    if (d && d >= today) { riderStats[rId].today.c++; riderStats[rId].today.a += riderEarn; }
+  });
+  const rows = Object.values(riderStats).sort((a,b) => b.total.a - a.total.a).map(r => `
+    <tr>
+      <td style="font-weight:900">${esc(r.name)}</td>
+      <td class="text-center">${r.total.c}</td>
+      <td class="text-right money-pos">฿${r.total.a.toFixed(2)}</td>
+      <td class="text-right" style="color:var(--warn);font-weight:900">฿${(r.total.a * 0.25).toFixed(2)}</td>
+    </tr>`).join('');
+
+  return `
+    <div class="stat-grid">
+      <div class="stat-card blue ripple"><div class="stat-icon">💰</div><div class="stat-value">฿${totalGrossAll.toFixed(0)}</div><div class="stat-label">ยอดขายรวม</div></div>
+      <div class="stat-card gold ripple"><div class="stat-icon">📊</div><div class="stat-value">฿${totalPlatformFeeAll.toFixed(0)}</div><div class="stat-label">GP แพลตฟอร์ม</div></div>
+      <div class="stat-card green ripple"><div class="stat-icon">🛵</div><div class="stat-value">฿${totalRiderEarnAll.toFixed(0)}</div><div class="stat-label">ไรเดอร์ 80%</div></div>
+      <div class="stat-card purple ripple"><div class="stat-icon">📋</div><div class="stat-value">${completedOrders.length}</div><div class="stat-label">ออเดอร์เสร็จ</div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="gp-table">
+        <thead><tr>
+          <th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">ไรเดอร์ได้</th><th class="text-right" style="color:var(--warn)">GP ค้าง</th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ยังไม่มีข้อมูล</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  💬 CHAT
+// ══════════════════════════════════════════════════════════════════════
+function chats() {
+  const list = [...store.chats].sort((a,b) => ts(b) - ts(a));
+  if (list.length === 0) {
+    return `<div class="empty">
+      <div style="font-size:48px;margin-bottom:8px">💬</div>
+      <div style="font-weight:800;font-size:15px;margin-bottom:6px">ยังไม่มีการสนทนา</div>
+      <div style="font-size:12px;font-weight:600">แชทระหว่างไรเดอร์ ↔ ร้านค้า จะปรากฏที่นี่</div>
+    </div>`;
+  }
+  return list.map(c => {
+    const title = c.participants?.map(p => p.name).join(' ↔ ') || 'การสนทนา';
+    const unread = c.unreadAdmin || 0;
+    return `
+      <div class="chat-list-item" onclick="openChat('${esc(c.id)}')">
+        <div class="avatar">💬</div>
+        <div class="chat-info">
+          <div class="chat-title">${esc(title)}</div>
+          <div class="chat-preview">${esc((c.lastMessage || '—').substring(0, 50))}</div>
+        </div>
+        <div class="chat-meta">
+          <div class="chat-time">${fmtTimeShort(c.lastMessageAt || c.createdAt)}</div>
+          ${unread > 0 ? `<div class="chat-unread">${unread}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+let activeChatId = null, activeChatUnsub = null;
+
+function openChat(chatId) {
+  activeChatId = chatId;
+  const c = store.chats.find(x => x.id === chatId);
+  if (!c) return;
+  $('chat-name').textContent = c.participants?.map(p => p.name).join(' ↔ ') || 'แชท';
+  $('chat-sub').textContent = c.type === 'rider_merchant' ? 'ไรเดอร์ ↔ ร้านค้า' : 'การสนทนา';
+  $('chat-container').classList.add('show');
+  $('chat-input').value = '';
+  if (c.unreadAdmin > 0) db.collection('chats').doc(chatId).update({ unreadAdmin: 0 }).catch(() => {});
+  if (activeChatUnsub) activeChatUnsub();
+  activeChatUnsub = db.collection('chats').doc(chatId).collection('messages')
+    .orderBy('createdAt', 'asc').limitToLast(100)
+    .onSnapshot(snap => renderChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+function closeChat() {
+  $('chat-container').classList.remove('show');
+  if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
+  activeChatId = null;
+}
+
+function renderChatMessages(msgs) {
+  if (msgs.length === 0) { $('chat-messages').innerHTML = '<div class="chat-empty">เริ่มสนทนาได้เลย</div>'; return; }
+  let lastDay = '';
+  const html = msgs.map(m => {
+    const isAdmin = m.senderRole === 'admin';
+    const d = toDate(m.createdAt) || new Date();
+    const day = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
+    let dayDiv = '';
+    if (day !== lastDay) { dayDiv = `<div class="chat-day-divider">${day}</div>`; lastDay = day; }
+    const cls = isAdmin ? 'out from-admin' : 'in';
+    const imageHtml = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
+    const senderName = !isAdmin && m.senderName ? `<div style="font-size:10px;font-weight:900;opacity:.8;margin-bottom:4px">${esc(m.senderName)}</div>` : '';
+    return `${dayDiv}<div class="chat-msg ${cls}">${senderName}${imageHtml}${m.text ? `<div>${esc(m.text)}</div>` : ''}<div class="msg-time">${fmtTimeShort(m.createdAt)}</div></div>`;
+  }).join('');
+  $('chat-messages').innerHTML = html;
+  setTimeout(() => { $('chat-messages').scrollTop = $('chat-messages').scrollHeight; }, 50);
+}
+
+async function sendChatText() {
+  const text = $('chat-input').value.trim();
+  if (!text || !activeChatId) return;
+  $('chat-input').value = ''; $('chat-input').style.height = 'auto';
+  try {
+    await db.collection('chats').doc(activeChatId).collection('messages').add({
+      text, senderRole: 'admin', senderName: 'Admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(activeChatId).update({
+      lastMessage: `[Admin] ${text}`,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) { toast('ส่งไม่สำเร็จ', true); }
+}
+
+function pickChatImage() { $('chat-image-input').click(); }
+
+async function sendChatImage(file) {
+  if (!file || !activeChatId) return;
+  if (file.size > 5 * 1024 * 1024) return toast('รูปใหญ่เกิน 5MB', true);
+  toast('⏳ กำลังอัปโหลด...');
+  try {
+    const path = `chats/${activeChatId}/${Date.now()}_${file.name}`;
+    const ref = storage.ref(path);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    await db.collection('chats').doc(activeChatId).collection('messages').add({
+      imageUrl: url, senderRole: 'admin', senderName: 'Admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(activeChatId).update({
+      lastMessage: '[Admin] 📷 รูปภาพ',
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast('✅ ส่งรูปแล้ว');
+  } catch (e) { toast('อัปโหลดไม่สำเร็จ', true); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  🏪 MERCHANTS / 📋 ORDERS / 🛵 RIDERS / 👥 USERS
+// ══════════════════════════════════════════════════════════════════════
+function merchants() {
+  const q = filters.q.toLowerCase(), st = filters.merchantStatus;
+  const list = store.merchants.filter(m => {
+    const mQ = !q || String(m.name || '').toLowerCase().includes(q);
+    const mS = st === 'all' || (st === 'pending' && !m.verified) || (st === 'verified' && m.verified);
+    return mQ && mS;
+  });
+  const pendingCount = store.merchants.filter(m => !m.verified).length;
+  const verifiedCount = store.merchants.length - pendingCount;
+
+  const filterBar = `
+    <div class="filter-bar">
+      <button class="filter-chip ${st === 'all' ? 'active' : ''}" onclick="filterMerchantStatus('all')">📋 ทั้งหมด (${store.merchants.length})</button>
+      <button class="filter-chip ${st === 'pending' ? 'active' : ''}" onclick="filterMerchantStatus('pending')">⏳ รอ (${pendingCount})</button>
+      <button class="filter-chip ${st === 'verified' ? 'active' : ''}" onclick="filterMerchantStatus('verified')">✅ อนุมัติ (${verifiedCount})</button>
+    </div>`;
+
+  return filterBar + searchInput('ค้นหาร้านค้า...') + (list.map(m => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E8F5E9">🏪</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(m.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">📞 ${esc(m.phone || '—')} • ⭐ ${esc(m.rating || 0)}</div>
+        </div>
+        <span class="tag ${m.verified ? '' : 'w'}">${m.verified ? '✅ อนุมัติ' : '⏳ รอ'}</span>
+      </div>
+      <div class="data-card-actions">
+        <button class="${m.verified ? 'dan' : 'pri'} ripple" data-verify="${esc(m.id)}">${m.verified ? '🚫 ยกเลิก' : '✅ อนุมัติ'}</button>
+        <button class="blue ripple" data-edit-m="${esc(m.id)}">✏️ แก้ไข</button>
+        <button class="dan ripple" data-del="merchants:${esc(m.id)}">🗑️ ลบ</button>
+      </div>
+    </div>`).join('') || '<div class="empty">ไม่พบร้านค้า</div>');
+}
+
+function filterMerchantStatus(s) { filters.merchantStatus = s; render(); }
+
+function orders() {
+  const q = filters.q.toLowerCase();
+  let list = store.orders.filter(o =>
+    (filters.orders === 'all' || o.status === filters.orders) &&
+    (!q || [o.title, o.userName, o.id].some(v => String(v || '').toLowerCase().includes(q)))
+  );
+  list = [...list].sort((a, b) => ts(b) - ts(a));
+  const sel = `<select id="ofilter" style="margin-bottom:16px;padding:12px;min-height:52px;max-width:200px">
+    <option value="all">ทุกสถานะ</option>
+    ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${filters.orders === k ? 'selected' : ''}>${v}</option>`).join('')}
+  </select>`;
+  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => {
+    const slipBadge = o.riderSlipUrl ? (o.riderSlipVerified ? '<span class="tag">📸 ✅</span>' : '<span class="tag w">📸 รอ</span>') : '';
+    return `
+    <div class="data-card ripple" data-order="${esc(o.id)}" style="cursor:pointer">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E3F2FD">📋</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(o.title || 'ออเดอร์')}</div>
+          <div class="data-card-meta">฿${esc(o.total || 0)} • 👤 ${esc(o.userName || '—')}</div>
+          <div class="data-card-meta">🕐 ${fmtTime(o.createdAt)}</div>
+          ${slipBadge ? `<div style="margin-top:6px">${slipBadge}</div>` : ''}
+        </div>
+        <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(STATUS[o.status] || o.status)}</span>
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty">ไม่พบออเดอร์</div>');
+}
+
+function riders() {
+  const q = filters.q.toLowerCase();
+  const list = store.riders.filter(r => !q || String(r.name || '').toLowerCase().includes(q));
+  const verifiedCount = store.riders.filter(r => r.verified !== false).length;
+  const pendingCount = store.riders.filter(r => r.verified === false).length;
+
+  const filterBar = `
+    <div class="filter-bar">
+      <button class="filter-chip ${filters.riderStatus === '' ? 'active' : ''}" onclick="filterRiderStatus('')">📋 ทั้งหมด (${store.riders.length})</button>
+      <button class="filter-chip ${filters.riderStatus === 'pending' ? 'active' : ''}" onclick="filterRiderStatus('pending')">⏳ รอ (${pendingCount})</button>
+      <button class="filter-chip ${filters.riderStatus === 'verified' ? 'active' : ''}" onclick="filterRiderStatus('verified')">✅ อนุมัติ (${verifiedCount})</button>
+    </div>`;
+
+  const filteredList = list.filter(r => {
+    if (filters.riderStatus === 'pending') return r.verified === false;
+    if (filters.riderStatus === 'verified') return r.verified !== false;
+    return true;
+  });
+
+  return filterBar + searchInput('ค้นหาไรเดอร์...') + (filteredList.map(r => {
+    const verified = r.verified !== false;
+    return `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E8F5E9">🛵</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(r.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">📞 ${esc(r.phone || '—')} • ⭐ ${esc(r.rating || 0)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          <span class="tag ${verified ? '' : 'w'}">${verified ? '✅' : '⏳'}</span>
+          <span class="tag ${r.status === 'active' ? '' : 'x'}">${r.status === 'active' ? '🟢' : '⚫'}</span>
+        </div>
+      </div>
+      <div class="data-card-actions">
+        <button class="${verified ? 'dan' : 'pri'} ripple" data-verify-r="${esc(r.id)}">${verified ? '🚫 ยกเลิก' : '✅ อนุมัติ'}</button>
+        <button class="blue ripple" data-edit-r="${esc(r.id)}">🔗 Link</button>
+        <button class="${r.status === 'active' ? 'dan' : 'pri'} ripple" data-rider="${esc(r.id)}">${r.status === 'active' ? '⏸️ หยุด' : '▶️ เปิด'}</button>
+        <button class="dan ripple" data-del="riders:${esc(r.id)}">🗑️</button>
+      </div>
+    </div>`; }).join('') || '<div class="empty">ไม่พบไรเดอร์</div>');
+}
+function filterRiderStatus(s) { filters.riderStatus = s; render(); }
+
+function users() {
+  const q = filters.q.toLowerCase();
+  const list = store.users.filter(u => !q || [u.name, u.email, u.phone].some(v => String(v || '').toLowerCase().includes(q)));
+  return searchInput('ค้นหาผู้ใช้...') + (list.map(u => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#E3F2FD">👤</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(u.name || 'ไม่ระบุ')}</div>
+          <div class="data-card-meta">📧 ${esc(u.email || '—')} • 📞 ${esc(u.phone || '—')}</div>
+        </div>
+      </div>
+      <div class="data-card-actions"><button class="dan ripple" data-del="users:${esc(u.id)}">🗑️ ลบ</button></div>
+    </div>`).join('') || '<div class="empty">ไม่พบผู้ใช้</div>');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  Modals
+// ══════════════════════════════════════════════════════════════════════
+function openModal(t, h) { $('modal-title').textContent = t; $('modal-body').innerHTML = h; $('modal-overlay').classList.add('show'); }
+function closeModal() { $('modal-overlay').classList.remove('show'); }
+
+function orderDetail(id) {
+  const o = store.orders.find(x => x.id === id); if (!o) return;
+  const opts = Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${o.status === k ? 'selected' : ''}>${v}</option>`).join('');
+  const riderSlipSection = o.riderSlipUrl ? `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">📸 สลิปจากไรเดอร์</div>
+      ${o.riderSlipVerified ? `<div class="slip-status-banner ok">✅ ตรวจสอบแล้ว</div>` : `<div class="slip-status-banner pending">⏳ รอตรวจสอบ</div>`}
+      <img src="${o.riderSlipUrl}" class="slip-preview" onclick="window.open('${o.riderSlipUrl}','_blank')">
+      ${!o.riderSlipVerified ? `<div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="pri ripple" style="flex:1" onclick="verifyRiderSlip('${esc(o.id)}')">✅ อนุมัติ</button>
+        <button class="dan ripple" style="flex:1" onclick="rejectRiderSlip('${esc(o.id)}')">❌ ปฏิเสธ</button>
+      </div>` : ''}
+    </div>` : '';
+  const adminSlipSection = o.adminSlipUrl ? `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนร้าน</div>
+      <img src="${o.adminSlipUrl}" class="slip-preview" onclick="window.open('${o.adminSlipUrl}','_blank')">
+      <button class="dan ripple" style="width:100%;margin-top:8px" onclick="deleteAdminSlip('${esc(o.id)}')">🗑️ ลบ</button>
+    </div>` : `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
+      <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนร้าน</div>
+      <div class="slip-upload-box" onclick="$('admin-slip-input-${esc(o.id)}').click()">
+        <div class="icon">📤</div><div class="label">อัปโหลดสลิป</div><div class="hint">แตะเลือกรูป</div>
+      </div>
+      <input type="file" id="admin-slip-input-${esc(o.id)}" accept="image/*" capture="environment" style="display:none" onchange="uploadAdminSlip('${esc(o.id)}', this.files[0])">
+      <div class="slip-progress" id="admin-slip-progress-${esc(o.id)}" style="display:none"><div class="slip-progress-bar" id="admin-slip-bar-${esc(o.id)}"></div></div>
+    </div>`;
+  openModal('📋 ออเดอร์', `
+    <div class="meta" style="font-family:monospace">ID: ${esc(o.id)}</div>
+    <div class="nm" style="font-size:18px;margin:8px 0">${esc(o.title || '')}</div>
+    <div class="meta" style="white-space:pre-wrap;background:#f8f9fa;padding:12px;border-radius:10px">${esc(itemsText(o.items))}</div>
+    <div class="meta" style="margin-top:12px">👤 ${esc(o.userName || '')} • ${esc(o.userPhone || '')}</div>
+    <div class="meta">📍 ${esc(o.address || '')}</div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div><div class="meta">ค่าส่ง ฿${esc(o.fare||0)}</div><div style="font-size:20px;font-weight:900;color:var(--brand)">รวม ฿${esc(o.total||0)}</div></div>
+      <select id="ostatus" data-oid="${esc(o.id)}" style="width:auto;padding:12px;min-height:48px">${opts}</select>
+    </div>
+    ${riderSlipSection}${adminSlipSection}
+    <button class="dan big ripple" style="margin-top:16px" onclick="cancelOrder('${esc(o.id)}')">❌ ยกเลิกออเดอร์</button>
+  `);
+}
+
+async function verifyRiderSlip(id) {
+  await db.collection('orders').doc(id).update({ riderSlipVerified: true, riderSlipVerifiedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  toast('✅ อนุมัติสลิป'); orderDetail(id);
+}
+async function rejectRiderSlip(id) {
+  if (!confirm('ปฏิเสธสลิปนี้?')) return;
+  const o = store.orders.find(x => x.id === id);
+  if (o.riderSlipPath) try { await storage.ref(o.riderSlipPath).delete(); } catch(_) {}
+  await db.collection('orders').doc(id).update({ riderSlipUrl: null, riderSlipPath: null, riderSlipVerified: false });
+  toast('❌ ปฏิเสธ'); orderDetail(id);
+}
+async function uploadAdminSlip(orderId, file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return toast('ไฟล์เกิน 5MB', true);
+  const pB = $(`admin-slip-progress-${orderId}`), bar = $(`admin-slip-bar-${orderId}`);
+  pB.style.display = 'block';
+  const path = `slips/orders/${orderId}/admin-${Date.now()}.${file.name.split('.').pop()}`;
+  const ref = storage.ref(path);
+  try {
+    const task = ref.put(file);
+    task.on('state_changed', s => { bar.style.width = (s.bytesTransferred / s.totalBytes * 100) + '%'; });
+    await task;
+    const url = await ref.getDownloadURL();
+    await db.collection('orders').doc(orderId).update({ adminSlipUrl: url, adminSlipPath: path });
+    toast('✅ อัปโหลดสำเร็จ'); orderDetail(orderId);
+  } catch (e) { toast('❌ ' + e.message, true); }
+}
+async function deleteAdminSlip(orderId) {
+  if (!confirm('ลบสลิป?')) return;
+  const o = store.orders.find(x => x.id === orderId);
+  if (o.adminSlipPath) try { await storage.ref(o.adminSlipPath).delete(); } catch(_) {}
+  await db.collection('orders').doc(orderId).update({ adminSlipUrl: null, adminSlipPath: null });
+  toast('🗑️ ลบแล้ว'); orderDetail(orderId);
+}
+async function cancelOrder(id) {
+  if (!confirm('ยกเลิก?')) return;
+  await db.collection('orders').doc(id).update({ status: 'cancelled', updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  toast('ยกเลิกแล้ว'); closeModal();
+}
+
+function editMerchantForm(id) {
+  const m = store.merchants.find(x => x.id === id); if (!m) return;
+  openModal('✏️ แก้ไขร้าน', `
+    <label style="font-weight:800;font-size:13px">ชื่อร้าน</label>
+    <input type="text" id="edit-name" value="${esc(m.name || '')}">
+    <label style="font-weight:800;font-size:13px">เบอร์</label>
+    <input type="tel" id="edit-phone" value="${esc(m.phone || '')}">
+    <label style="font-weight:800;font-size:13px">ที่อยู่</label>
+    <textarea id="edit-address" rows="2">${esc(m.address || '')}</textarea>
+    <button class="pri big ripple" onclick="saveMerchantEdit('${esc(id)}')">💾 บันทึก</button>
+  `);
+}
+async function saveMerchantEdit(id) {
+  await db.collection('merchants').doc(id).update({
+    name: $('edit-name').value.trim(),
+    phone: $('edit-phone').value.trim(),
+    address: $('edit-address').value.trim(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  toast('✅ บันทึก'); closeModal();
+}
+
+function editRiderForm(id) {
+  const r = store.riders.find(x => x.id === id); if (!r) return;
+  const selM = r.merchantIds || [], selL = r.locationIds || [];
+  const merchantPicker = `<div class="picker">${store.merchants.map(m => `<label><input type="checkbox" class="merchant-check" value="${esc(m.id)}" ${selM.includes(m.id) ? 'checked' : ''}><span>🏪 ${esc(m.name || '-')}</span></label>`).join('')}</div>`;
+  const locationPicker = `<div class="picker">${store.places.map(p => `<label><input type="checkbox" class="location-check" value="${esc(p.id)}" ${selL.includes(p.id) ? 'checked' : ''}><span>📍 ${esc(p.name)}</span></label>`).join('')}</div>`;
+  openModal('🔗 Link ไรเดอร์', `
+    <div style="font-weight:900;margin-bottom:12px">${esc(r.name || '-')}</div>
+    <label style="font-weight:800;font-size:13px;display:block;margin-bottom:8px">🏪 ร้านที่ดูแล</label>
+    ${merchantPicker}
+    <label style="font-weight:800;font-size:13px;display:block;margin:16px 0 8px">📍 สถานที่ที่ดูแล</label>
+    ${locationPicker}
+    <button class="pri big ripple" style="margin-top:16px" onclick="saveRiderLink('${esc(id)}')">💾 บันทึก</button>
+  `);
+}
+async function saveRiderLink(id) {
+  const mIds = [...document.querySelectorAll('.merchant-check:checked')].map(cb => cb.value);
+  const lIds = [...document.querySelectorAll('.location-check:checked')].map(cb => cb.value);
+  await db.collection('riders').doc(id).update({ merchantIds: mIds, locationIds: lIds, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  toast('✅ บันทึก'); closeModal();
+}
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-go],[data-order],[data-verify],[data-verify-r],[data-rider],[data-del],[data-edit-m],[data-edit-r]');
+  if (!t) return;
+  try {
+    if (t.dataset.go) { current = t.dataset.go; filters.q = ''; render(); window.scrollTo(0,0); }
+    else if (t.dataset.order) orderDetail(t.dataset.order);
+    else if (t.dataset.editM) editMerchantForm(t.dataset.editM);
+    else if (t.dataset.editR) editRiderForm(t.dataset.editR);
+    else if (t.dataset.verify) {
+      const m = store.merchants.find(x => x.id === t.dataset.verify);
+      await db.collection('merchants').doc(m.id).update({ verified: !m.verified, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast('✅ อัปเดต');
+    }
+    else if (t.dataset.verifyR) {
+      const r = store.riders.find(x => x.id === t.dataset.verifyR);
+      const nv = r.verified === false;
+      await db.collection('riders').doc(r.id).update({ verified: nv, verifiedAt: nv ? firebase.firestore.FieldValue.serverTimestamp() : null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast(nv ? '✅ อนุมัติไรเดอร์' : '🚫 ยกเลิก');
+    }
+    else if (t.dataset.rider) {
+      const r = store.riders.find(x => x.id === t.dataset.rider);
+      await db.collection('ลอัตโนridersม').doc(r.id).update({ status: r.status === 'active' ? 'inactive' : 'active' });
+      toast('✅ อัปเดต');
+    }
+    else if (t.dataset.del) {
+      const [col, id] = t.dataset.del.split(':');
+      if (confirm('⚠️ ลบ?')) { await db.collection(col).doc(id).delete(); toast('ลบแล้ว'); }
+    }
+  } catch (err) { toast('ไม่สำเร็จ', true); }
+});
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'q') {
+    filters.q = e.target.value;
+    const pos = e.target.selectionStart;
+    render();
+    const q = $('q'); if (q) { q.focus(); q.setSelectionRange(pos, pos); }
+  }
+});
+
+document.addEventListener('change', async e => {
+  if (e.target.id === 'ofilter') { filters.orders = e.target.value; render(); }
+  if (e.target.id === 'ostatus') {
+    await db.collection('orders').doc(e.target.dataset.oid).update({ status: e.target.value, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    toast('✅ อัปเดต'); closeModal();
+  }
+});
+
+$('modal-overlay').addEventListener('click', e => { if (e.target === $('modal-overlay')) closeModal(); });
+$('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatText(); } });
+
+document.addEventListener('touchstart', e => {
+  const el = e.target.closest('.ripple, button, .data-card, nav button');
+  if (!el) return;
+  el.style.transform = 'scale(.97)';
+  setTimeout(() => { el.style.transform = ''; }, 150);
+}, { passive: true });
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, .data-card, nav button');
+  if (el && navigator.vibrate) navigator.vibrate(10);
+}, { passive: true });
+
+// ─── Helper: Prefill Admin ───
+function prefillAdmin() {
+  $('em').value = 'adminchauatgo@gmail.com';
+  $('pw').focus();
+  toast('กรอกรหัสผ่าน แล้วกด "เข้าสู่ระบบ"');
+}
+
+console.log('%c🛵 Chauat Go Admin v3.3.0', 'color:#00A651;font-weight:900;font-size:16px');
+console.log('%c✓ Master Bypass: adminchauatgo@gmail.com, admin@chauatgo.com, chauatgo@gmail.com', 'color:#1565C0;font-weight:700');
+console.log('%c✓ GP Dashboard | ✓ Badge | ✓ Colors', 'color:#9C27B0;font-weight:700');
+</script>
+</body>
+</html>
