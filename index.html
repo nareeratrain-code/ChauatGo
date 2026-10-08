@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.3.3</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด จ.นครศรีธรรมราช">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,9 +31,75 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <!-- ═══ App CSS ═══ -->
-<link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="index.css?v=3.3.3">
+
+<!-- ═══════════════════════════════════════════════════
+     🔄 FORCE AUTO-UPDATE v3.3.3
+     ═══════════════════════════════════════════════════ -->
+<script>
+(function() {
+  const APP_VERSION = 'v3.3.3';
+  const savedVersion = localStorage.getItem('chauat_app_version');
+
+  // ถ้า Version เปลี่ยน → Clear Cache + Reload
+  if (savedVersion && savedVersion !== APP_VERSION) {
+    localStorage.setItem('chauat_app_version', APP_VERSION);
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage('FORCE_UPDATE');
+    }
+    if ('caches' in window) {
+      caches.keys()
+        .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+        .then(() => location.reload(true))
+        .catch(() => location.reload(true));
+    } else {
+      location.reload(true);
+    }
+    return;
+  }
+  localStorage.setItem('chauat_app_version', APP_VERSION);
+
+  // Register Service Worker (เฉพาะหน้า Index — ไม่ Cache)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none', scope: '/' })
+        .then(reg => {
+          setInterval(() => reg.update(), 30000);
+          reg.update();
+          reg.addEventListener('updatefound', () => {
+            const newSW = reg.installing;
+            if (!newSW) return;
+            newSW.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                newSW.postMessage('SKIP_WAITING');
+                setTimeout(() => location.reload(true), 500);
+              }
+            });
+          });
+        })
+        .catch(err => console.warn('[SW]', err));
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data && e.data.type === 'SW_UPDATED') location.reload(true);
+      });
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload(true);
+      });
+    });
+  }
+})();
+</script>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════════
+     🐛 DEBUG CONSOLE (แสดงเฉพาะมือถือ)
+     ═══════════════════════════════════════════════════ -->
+<div id="debugConsole" style="position:fixed;bottom:0;left:0;right:0;max-height:100px;overflow-y:auto;background:rgba(0,0,0,.92);color:#0f0;font-size:10px;font-family:monospace;padding:8px 12px;z-index:99999;display:none;border-top:2px solid #333;line-height:1.5;word-break:break-all;-webkit-overflow-scrolling:touch">
+  <strong style="color:#FFA500">Debug Console v3.3.3:</strong><br>
+</div>
 
 <!-- ═══════════════════════════════════════════════════
      PWA INSTALL BANNER
@@ -102,6 +168,7 @@
       <div class="form-group"><label>📧 อีเมล</label><input type="email" id="login-email" placeholder="example@email.com"></div>
       <div class="form-group"><label>🔒 รหัสผ่าน</label><input type="password" id="login-password" placeholder="••••••••"></div>
       <button class="btn-full btn-green ripple" onclick="handleLogin()">🔓 เข้าสู่ระบบ</button>
+      <button class="btn-full btn-gray ripple" style="margin-top:8px" onclick="handleForgotPassword()">🔑 ลืมรหัสผ่าน</button>
     </div>
     <div id="signup-form" style="display:none">
       <div class="form-group"><label>👤 ชื่อ-นามสกุล</label><input type="text" id="signup-name" placeholder="สมชาย ใจดี"></div>
@@ -111,14 +178,14 @@
       <button class="btn-full btn-green ripple" onclick="handleSignup()">✅ สมัครสมาชิก</button>
     </div>
     <div style="text-align:center;margin:20px 0;color:#999;font-size:13px">หรือ</div>
-    <button class="btn-full ripple" style="background:#06C755;color:white" onclick="loginWithLine()">💬 เข้าสู่ระบบด้วย LINE</button>
+    <button class="btn-full ripple" style="background:#06C755;color:white;margin-bottom:8px" onclick="loginWithLine()">💬 เข้าสู่ระบบด้วย LINE</button>
     <button class="btn-full ripple" style="background:#4285F4;color:white" onclick="loginWithGoogle()">🔵 เข้าสู่ระบบด้วย Google</button>
     <button class="btn-full btn-gray ripple" onclick="closeLoginModal()" style="margin-top:10px">❌ ยกเลิก</button>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     MAIN MODAL (Dynamic Content)
+     MAIN MODAL (Dynamic)
      ═══════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-content" id="modal-body"></div>
@@ -133,7 +200,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     HEADER (Search + Profile)
+     HEADER
      ═══════════════════════════════════════════════════ -->
 <div class="header" id="main-header">
   <img src="images/logo-banner.png" class="brand-logo" alt="Chauat Go" onerror="this.style.display='none'">
@@ -152,10 +219,8 @@
      TAB: HOME
      ═══════════════════════════════════════════════════ -->
 <div id="tab-home">
-  <!-- Search Results -->
   <div class="search-results" id="search-results"></div>
 
-  <!-- Category View (All items) -->
   <div class="category-view" id="category-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="category-title">หมวดหมู่</div>
@@ -164,7 +229,6 @@
     <div class="food-grid" id="category-grid"></div>
   </div>
 
-  <!-- Merchant View (For ordering) -->
   <div class="merchant-view" id="merchant-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="merchant-view-title">🏪 เลือกร้านอาหาร</div>
@@ -189,18 +253,15 @@
     </div>
   </div>
 
-  <!-- Home Content -->
   <div id="home-content">
-    <!-- Brand Hero -->
     <div class="brand-hero">
       <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.src='images/app-icon.png'">
       <div>
-        <div class="t">Chauat Go  สั่งครบ จบที่เดียว</div>
+        <div class="t">Chauat Go — สั่งครบ จบที่เดียว</div>
         <div class="s">อาหาร • เดินทาง • ส่งด่วน • ร้านค้า ในชะอวด</div>
       </div>
     </div>
 
-    <!-- Stats Bar -->
     <div class="stats-bar">
       <div><div class="stat-num" id="stat-total">0</div><div class="stat-label">สถานที่</div></div>
       <div><div class="stat-num" id="stat-rest">0</div><div class="stat-label">ร้านอาหาร</div></div>
@@ -208,7 +269,6 @@
       <div><div class="stat-num" id="stat-shop">0</div><div class="stat-label">ร้านค้า</div></div>
     </div>
 
-    <!-- Main Menu Grid 6 Icons -->
     <div class="menu-grid">
       <div class="menu-item ripple" onclick="openMerchantView('food')">
         <div class="menu-icon food">🍽️</div>
@@ -236,47 +296,40 @@
       </div>
     </div>
 
-    <!-- HOT Section -->
     <div class="hot-section">
       <div class="hot-title">🔥 ร้านที่เข้าร่วม Chauat Go ใกล้เคียง <span class="hot-badge">HOT</span></div>
     </div>
 
-    <!-- ร้านอาหารแนะนำ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">🍽️ ร้านอาหารแนะนำ</div>
       <div class="section-more ripple" onclick="showAllCategories('restaurant')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="restaurant-grid"></div>
 
-    <!-- ร้านสะดวกซื้อ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">🏪 ร้านสะดวกซื้อ</div>
       <div class="section-more ripple" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="convenience-grid"></div>
 
-    <!-- คาเฟ่ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">☕ คาเฟ่</div>
       <div class="section-more ripple" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="cafe-grid"></div>
 
-    <!-- สถานที่ท่องเที่ยว (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header" id="tourist-header">
       <div class="section-title">🌴 สถานที่ท่องเที่ยว</div>
       <div class="section-more ripple" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="tourist-grid"></div>
 
-    <!-- โรงแรม/ที่พัก (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header" id="hotel-header">
       <div class="section-title">🏨 โรงแรม/ที่พัก</div>
       <div class="section-more ripple" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="hotel-grid"></div>
 
-    <!-- Legal Footer -->
     <div class="legal-footer" id="legal-footer" style="display:none">
       <div class="dbd-mark">[DBD<br>Registered]</div>
       <div class="links">
@@ -375,7 +428,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PROFILE SHEET (Slide from right)
+     PROFILE SHEET
      ═══════════════════════════════════════════════════ -->
 <div class="profile-sheet" id="profile-sheet" onclick="if(event.target===this)closeProfileSheet()">
   <div class="profile-sheet-content">
@@ -420,6 +473,8 @@
       <div class="pf-section">
         <div class="pf-section-title">🚀 เข้าร่วม Chauat Go</div>
         <button class="pf-menu-item ripple" onclick="window.open('/merchant.html','_blank')"><div class="ico o">🏪</div><div class="txt"><div class="t">สมัครร้านค้าเข้าร่วม</div><div class="s">เปิดร้านบนแอป รับออเดอร์</div></div><div class="arr">›</div></button>
+        <button class="pf-menu-item ripple" onclick="window.open('/rider.html','_blank')"><div class="ico o">🛵</div><div class="txt"><div class="t">สมัครเป็นไรเดอร์</div><div class="s">รับงาน จัดส่งรายได้ดี</div></div><div class="arr">›</div></button>
+        <button class="pf-menu-item ripple" onclick="window.open('/admin.html','_blank')"><div class="ico o">⚙️</div><div class="txt"><div class="t">ผู้ดูแลระบบ</div><div class="s">Admin Panel</div></div><div class="arr">›</div></button>
       </div>
       <div class="pf-section">
         <div class="pf-section-title">📄 กฎหมายและช่วยเหลือ</div>
@@ -436,19 +491,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     SCRIPTS — ลำดับการโหลด (สำคัญมาก!)
-     ═══════════════════════════════════════════════════════════════
-     
-     ลำดับที่ 1: External Libraries (CDN)
-       - Leaflet (แผนที่)
-       - Firebase SDK (Auth, Firestore, Storage)
-     
-     ลำดับที่ 2: Data Files
-       - locations-data.js (ข้อมูล 490 สถานที่ — ต้องโหลดก่อน index.js)
-     
-     ลำดับที่ 3: Application Logic
-       - index.js (ใช้ข้อมูลจาก locations-data.js)
-     
+     SCRIPTS
      ═══════════════════════════════════════════════════════════════ -->
 
 <!-- ═══ STAGE 1: External Libraries ═══ -->
@@ -458,11 +501,26 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
-<!-- ═══ STAGE 2: Data Files (ต้องมาก่อน index.js) ═══ -->
-<script src="locations-data.js"></script>
+<!-- ═══ STAGE 2: Data Files ═══ -->
+<script src="locations-data.js?v=3.3.3"></script>
 
 <!-- ═══ STAGE 3: Application Logic ═══ -->
-<script src="index.js"></script>
+<script src="index.js?v=3.3.3"></script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     🔧 FORCE SCROLL FIX (สำคัญ!)
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+  window.addEventListener('load', () => {
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    console.log('✅ Scroll fix applied');
+    if (typeof window.debugLog === 'function') {
+      window.debugLog('✅ Scroll fix v3.3.3');
+    }
+  });
+</script>
 
 </body>
 </html>
