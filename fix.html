@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fix Test</title>
+<style>
+body{font-family:sans-serif;padding:20px;background:#EDF6DC;max-width:500px;margin:0 auto}
+h2{color:#00A651}
+input,button{width:100%;padding:14px;margin:8px 0;border-radius:10px;border:2px solid #ddd;font-size:15px;box-sizing:border-box;font-family:inherit}
+button{background:#00A651;color:#fff;border:none;font-weight:900;cursor:pointer}
+#log{background:#000;color:#0f0;padding:15px;font-family:monospace;font-size:12px;border-radius:10px;margin-top:16px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto}
+</style>
+</head>
+<body>
+<h2>🧪 Fix Test - Single File</h2>
+<input id="em" type="email" value="adminchauatgo@gmail.com" placeholder="อีเมล">
+<input id="pw" type="password" placeholder="รหัสผ่าน">
+<button onclick="doLogin()">🔓 เข้าสู่ระบบ</button>
+<div id="log">พร้อมทำงาน...</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script>
+const log = (msg) => {
+  document.getElementById('log').textContent += '\n' + msg;
+  console.log(msg);
+};
+
+log('1. Firebase SDK: ' + (typeof firebase !== 'undefined' ? '✅' : '❌'));
+
+firebase.initializeApp({
+  apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
+  authDomain: "chauat-go-b9841.firebaseapp.com",
+  projectId: "chauat-go-b9841",
+  storageBucket: "chauat-go-b9841.firebasestorage.app",
+  messagingSenderId: "282197694521",
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8"
+});
+log('2. initializeApp ✅');
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+log('3. auth + db พร้อม');
+
+async function doLogin() {
+  document.getElementById('log').textContent = '';
+  const email = document.getElementById('em').value.trim().toLowerCase();
+  const pw = document.getElementById('pw').value;
+  log('📧 ' + email);
+  log('⏳ กำลังล็อกอิน...');
+  
+  try {
+    const cred = await auth.signInWithEmailAndPassword(email, pw);
+    log('✅ ล็อกอินสำเร็จ!');
+    log('   UID: ' + cred.user.uid);
+    log('   Email: ' + cred.user.email);
+    
+    log('⏳ เช็ค Firestore (users)...');
+    try {
+      const snap = await db.collection('users').doc(cred.user.uid).get();
+      log('   users exists: ' + snap.exists);
+      if (snap.exists) log('   role: ' + (snap.data().role || 'ไม่มี'));
+    } catch(e) {
+      log('   ⚠️ ' + e.code + ': ' + e.message);
+    }
+    
+    log('⏳ เช็ค Firestore (merchants)...');
+    try {
+      const snap2 = await db.collection('merchants').doc(cred.user.uid).get();
+      log('   merchants exists: ' + snap2.exists);
+    } catch(e) {
+      log('   ⚠️ ' + e.code + ': ' + e.message);
+    }
+    
+    log('⏳ เช็ค Firestore (admins)...');
+    try {
+      const snap3 = await db.collection('admins').doc(cred.user.uid).get();
+      log('   admins exists: ' + snap3.exists);
+    } catch(e) {
+      log('   ⚠️ ' + e.code + ': ' + e.message);
+    }
+    
+    log('');
+    log('🎉 ทดสอบเสร็จสิ้น');
+  } catch(err) {
+    log('❌ ล็อกอินล้มเหลว!');
+    log('   Code: ' + err.code);
+    log('   Message: ' + err.message);
+  }
+}
+</script>
+</body>
+</html>
