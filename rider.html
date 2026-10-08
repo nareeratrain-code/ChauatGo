@@ -3,63 +3,106 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Rider — v3.3.3</title>
 <meta name="theme-color" content="#FF6B35">
-<meta name="description" content="แอปไรเดอร์ Chauat Go — รับงาน ส่งอาหาร อ.ชะอวด">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ChauatRider">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
+<title>Chauat Go Rider — v3.3.3</title>
+
+<!-- ═══════════════════════════════════════════════════════════
+     🔗 ลิงก์ไฟล์ภายนอก
+     ═══════════════════════════════════════════════════════════ -->
+<!-- ไอคอนแอป -->
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!-- Manifest สำหรับ PWA (ติดตั้งเป็นแอปได้) -->
+<link rel="manifest" href="manifest.json">
+<!-- ฟอนต์ IBM Plex Sans Thai -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- ⚠️ ไฟล์ CSS ของ Rider (ต้องมีไฟล์ rider.css อยู่ในโฟลเดอร์เดียวกัน) -->
 <link rel="stylesheet" href="rider.css">
+
+<!-- ═══════════════════════════════════════════════════════════
+     🔧 FIX SCROLL — โค้ดส่วนนี้สำคัญมาก! ห้ามลบ!
+     บังคับให้หน้าเว็บ scroll ได้บนทุกเบราว์เซอร์
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+  /* บังคับให้ html + body scroll ได้ */
+  html, body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    position: static !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* ให้ #app ไม่ล็อกการ scroll */
+  #app {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  
+  /* Debug Console ให้ย่อไว้ ไม่บังหน้าจอ */
+  #debugConsole {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    max-height: 100px !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    background: rgba(0, 0, 0, 0.92) !important;
+    color: #00ff00 !important;
+    font-size: 11px !important;
+    font-family: monospace !important;
+    padding: 8px 10px !important;
+    z-index: 99999 !important;
+    display: none;
+    border-top: 2px solid #333 !important;
+    line-height: 1.4 !important;
+  }
+  
+  /* แสดง Debug Console เมื่อต้องการ */
+  #debugConsole.show {
+    display: block !important;
+  }
+</style>
 </head>
 <body>
 
-<!-- ═══ PWA INSTALL BANNER ═══ -->
-<div id="pwa-install-banner" class="pwa-banner hidden">
-  <div class="pwa-banner-icon">🛵</div>
-  <div class="pwa-banner-info">
-    <div class="pwa-banner-title">ติดตั้ง Chauat Rider</div>
-    <div class="pwa-banner-sub">เพิ่มลงหน้าจอหลัก เร็วขึ้น รับงานไวขึ้น</div>
-  </div>
-  <button class="pwa-install-btn" onclick="installPWA()">ติดตั้ง</button>
-  <button class="pwa-close-btn" onclick="dismissPWA()">✕</button>
-</div>
-
-<!-- ═══ DEBUG CONSOLE (Mobile) ═══ -->
-<div id="debugConsole" class="debug-console">
+<!-- ═══════════════════════════════════════════════════════════
+     🐛 DEBUG CONSOLE — กล่องดำด้านล่าง เอาไว้ดู error บนมือถือ
+     ถ้าไม่ต้องการให้แสดง ให้ลบ class "show" ออก
+     ═══════════════════════════════════════════════════════════ -->
+<div id="debugConsole">
   <strong>Debug Console:</strong><br>
 </div>
 
-<!-- ═══ OFFLINE BANNER ═══ -->
-<div class="offline-bar" id="offline-bar">🔴 ออฟไลน์ — รอการเชื่อมต่อ</div>
+<!-- ═══════════════════════════════════════════════════════════
+     🚫 OFFLINE BAR — แถบแจ้งเตือนตอนเน็ตหลุด
+     ═══════════════════════════════════════════════════════════ -->
+<div class="offline-bar" id="offlineBar">🔴 ออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
 
-<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<!-- ═══════════════════════════════════════════════════════════
+     🔐 LOGIN SCREEN — หน้าล็อกอิน
+     จะแสดงเมื่อยังไม่ได้เข้าสู่ระบบ
+     ═══════════════════════════════════════════════════════════ -->
 <div id="login-screen">
   <div class="login-card">
+    <!-- ไอคอนแอป -->
     <div class="login-icon">
-      <img src="icons/icon-512.png" alt="Chauat Go"
-           onerror="this.outerHTML='<div class=\'fallback\'>🛵</div>'">
+      <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'fallback\'>🛵</div>'">
     </div>
+    
     <h1>Chauat Go Rider</h1>
     <p id="login-subtitle">สำหรับไรเดอร์เท่านั้น</p>
 
+    <!-- ══ แท็บ Login / Signup ══ -->
     <div class="auth-tabs">
-      <button class="auth-tab active ripple" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
-      <button class="auth-tab ripple" id="tab-signup" onclick="switchAuthTab('signup')">สมัครเป็นไรเดอร์</button>
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">สมัครเป็นไรเดอร์</button>
     </div>
 
+    <!-- ══ ฟอร์มเข้าสู่ระบบ ══ -->
     <form id="form-login" onsubmit="handleLogin(event)">
       <div class="form-field">
         <label>📧 อีเมล</label>
@@ -69,232 +112,327 @@
         <label>🔒 รหัสผ่าน</label>
         <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
       </div>
-      <button type="submit" class="btn-primary ripple" id="login-submit">🔓 เข้าสู่ระบบ</button>
-      <button type="button" class="btn-secondary ripple" onclick="handleForgot()">🔑 ลืมรหัสผ่าน</button>
+      <button type="submit" class="btn-primary ripple" id="btn-login">🔓 เข้าสู่ระบบ</button>
+      <button type="button" class="btn-secondary ripple" onclick="handleForgotPassword()">🔑 ลืมรหัสผ่าน</button>
     </form>
 
+    <!-- ══ ฟอร์มสมัครไรเดอร์ ══ -->
     <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
       <div class="form-field">
         <label>👤 ชื่อ-นามสกุล *</label>
         <input type="text" id="su-name" placeholder="สมชาย ใจดี" required maxlength="100">
       </div>
       <div class="form-field">
-        <label>📱 เบอร์โทรศัพท์ *</label>
-        <input type="tel" id="su-phone" placeholder="0812345678" required maxlength="20">
-        <div class="hint">ใช้ติดต่อลูกค้าและแอดมิน</div>
+        <label>📱 เบอร์โทร *</label>
+        <input type="tel" id="su-phone" placeholder="08X-XXX-XXXX" required maxlength="20">
       </div>
       <div class="form-field">
-        <label>🛵 ยี่ห้อรถ / ทะเบียน *</label>
-        <input type="text" id="su-vehicle" placeholder="Honda PCX • 1กข-1234" required maxlength="200">
+        <label>🏍️ ประเภทยานพาหนะ</label>
+        <select id="su-vehicle">
+          <option value="motorcycle">🏍️ มอเตอร์ไซค์</option>
+          <option value="car">🚗 รถยนต์</option>
+          <option value="bicycle">🚲 จักรยาน</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>🔢 ทะเบียนรถ (ไม่บังคับ)</label>
+        <input type="text" id="su-plate" placeholder="กข 1234" maxlength="20">
       </div>
       <div class="form-field">
         <label>📧 อีเมล *</label>
         <input type="email" id="su-email" placeholder="rider@example.com" required autocomplete="email">
       </div>
       <div class="form-field">
-        <label>🔒 รหัสผ่าน * (อย่างน้อย 6 ตัวอักษร)</label>
-        <input type="password" id="su-password" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+        <label>🔒 รหัสผ่าน * (6+ ตัวอักษร)</label>
+        <input type="password" id="su-password" minlength="6" required autocomplete="new-password">
       </div>
       <div class="form-field">
-        <label>🔒 ยืนยันรหัสผ่าน *</label>
-        <input type="password" id="su-password2" placeholder="••••••••" required minlength="6">
+        <label>🔒 ยืนยันรหัสผ่าน</label>
+        <input type="password" id="su-password2" minlength="6" required>
       </div>
 
+      <!-- ══ PDPA Consent ══ -->
       <div class="pdpa-gps-box">
         <label>
-          <input type="checkbox" id="gps-consent" required>
+          <input type="checkbox" id="pdpa-consent" required>
           <span>
-            ข้าพเจ้ายินยอมให้เก็บ <b>พิกัด GPS</b> ของข้าพเจ้า เพื่อวัตถุประสงค์ในการจับคู่กับลูกค้าที่อยู่ใกล้และคำนวณค่าส่ง<br>
-            <b>เก็บเฉพาะขณะ "ออนไลน์"</b> — เมื่อกด "ออฟไลน์" ระบบจะลบพิกัดทันที<br>
-            อ่านเพิ่มเติม: <a href="/privacy" target="_blank">นโยบายความเป็นส่วนตัว</a>
+            ข้าพเจ้ายินยอมให้เก็บข้อมูลส่วนบุคคล ตำแหน่ง GPS และประวัติการทำงาน<br>
+            เพื่อใช้ในระบบเรียกรถ-ส่งอาหาร<br>
+            <b>ตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562</b>
           </span>
         </label>
       </div>
 
-      <button type="submit" class="btn-primary ripple" id="signup-submit">✅ สมัครเป็นไรเดอร์</button>
-      <div id="login-error"></div>
+      <button type="submit" class="btn-primary ripple" id="btn-signup">✅ สมัครเป็นไรเดอร์</button>
     </form>
 
-    <div class="login-hint" id="login-hint">
-      🔐 หลังสมัครแล้ว แอดมินจะต้องอนุมัติก่อน<br>จึงจะเริ่มรับงานได้
-    </div>
+    <!-- ══ Error Message ══ -->
+    <div id="login-error"></div>
+    <div class="login-hint">🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.</div>
   </div>
 </div>
 
-<!-- ═══════════════ APP ═══════════════ -->
+<!-- ═══════════════════════════════════════════════════════════
+     🏠 MAIN APP — ส่วนหลักของไรเดอร์
+     จะแสดงเมื่อล็อกอินสำเร็จ
+     ═══════════════════════════════════════════════════════════ -->
 <div id="app" style="display:none">
+
+  <!-- ══ HEADER — ส่วนหัวของแอป ══ -->
   <header>
     <div class="header-info">
+      <!-- ชื่อไรเดอร์ -->
       <div class="name" id="rider-name">—</div>
-      <div class="status" id="rider-status">ออฟไลน์</div>
+      <!-- สถานะ เปิด/ปิดรับงาน -->
+      <div class="status" id="rider-status">⚫ ออฟไลน์</div>
+      <!-- Rider ID -->
       <div class="rider-id" id="rider-id-header">—</div>
     </div>
-    <button class="online-toggle ripple" id="online-btn" onclick="toggleOnline()">
-      <span class="dot"></span><span id="online-label">ออฟไลน์</span>
+    
+    <!-- ปุ่ม เปิด/ปิดรับงาน -->
+    <button class="online-toggle ripple" id="online-toggle-btn" onclick="toggleOnline()">
+      <span class="dot"></span>
+      <span id="toggle-label">ออฟไลน์</span>
     </button>
-    <button class="menu-btn ripple" onclick="openMenu()">☰</button>
+    
+    <!-- ปุ่มเมนู ☰ -->
+    <button class="menu-btn ripple" onclick="openSheet()">☰</button>
   </header>
 
+  <!-- ══ PENDING BANNER — แจ้งเตือนรออนุมัติ ══ -->
   <div class="pending-banner" id="pending-banner">
-    ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>ยังไม่สามารถเปิดรับงานได้
+    ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>จะรับงานได้เมื่ออนุมัติแล้ว
   </div>
 
+  <!-- ══ MAIN CONTAINER ══ -->
   <div class="container">
-    <!-- HERO -->
+
+    <!-- ══ HERO CARD — การ์ดรายได้ ══ -->
     <div class="hero-card">
       <div class="hero-label">💰 รายได้วันนี้ (80% ของคุณ)</div>
-      <div class="hero-amount" id="hero-earn">฿0.00</div>
+      <div class="hero-amount" id="hero-income">฿0.00</div>
       <div class="hero-sub" id="hero-sub">จาก 0 งานเสร็จสิ้นวันนี้</div>
-
+      
       <div class="hero-grid">
         <div class="hero-grid-cell">
-          <div class="lbl">📦 เก็บจากลูกค้า</div>
+          <div class="lbl">💵 เก็บจากลูกค้า</div>
           <div class="val" id="hero-collected">฿0</div>
         </div>
         <div class="hero-grid-cell">
           <div class="lbl">⚠️ ต้องโอนแอป (20%)</div>
-          <div class="val warn" id="hero-owed">฿0.00</div>
-        </div>
-      </div>
-
-      <div class="deadline-strip" id="deadline-strip" style="display:none">
-        <div class="deadline-icon" id="deadline-icon">⏰</div>
-        <div class="deadline-info">
-          <div class="deadline-title">⏳ ต้องโอนภายใน 21:00 น.</div>
-          <div class="deadline-time" id="deadline-time">--:--:--</div>
-          <div class="deadline-note" id="deadline-note">โปรดโอนเพื่อไม่ให้บัญชีถูกระงับ</div>
+          <div class="val warn" id="hero-owe">฿0.00</div>
         </div>
       </div>
     </div>
 
-    <!-- Stats mini -->
+    <!-- ══ STATS MINI — สถิติย่อ ══ -->
     <div class="stats-mini">
-      <div class="stat-mini"><div class="n" id="stat-done">0</div><div class="l">📦 เสร็จวันนี้</div></div>
-      <div class="stat-mini"><div class="n" id="stat-active">0</div><div class="l">🛵 กำลังทำ</div></div>
-      <div class="stat-mini"><div class="n" id="stat-total">0</div><div class="l">📊 สะสม</div></div>
-    </div>
-
-    <!-- ACTION -->
-    <div class="section-divider">
-      <div class="title">🎯 ต้องทำอะไรต่อ</div>
-      <div class="line"></div>
-    </div>
-    <div id="action-cards"></div>
-
-    <!-- Rating -->
-    <div class="rating-box" id="rating-box" style="display:none">
-      <div class="rating-box-inner">
-        <div class="rating-num">
-          <div class="big" id="my-rating">0.0</div>
-          <div class="stars" id="my-rating-stars">☆☆☆☆☆</div>
-        </div>
-        <div class="rating-info">
-          <div class="title">⭐ คะแนนของคุณ</div>
-          <div class="sub" id="my-rating-count">จาก 0 รีวิว</div>
-          <div class="level" id="my-level-text"></div>
-        </div>
-        <button class="rating-btn ripple" onclick="showMyReviews()">ดูรีวิว</button>
+      <div class="stat-mini">
+        <div class="n" id="stat-done">0</div>
+        <div class="l">📦 เสร็จวันนี้</div>
+      </div>
+      <div class="stat-mini">
+        <div class="n" id="stat-active">0</div>
+        <div class="l">🛵 กำลังทำ</div>
+      </div>
+      <div class="stat-mini">
+        <div class="n" id="stat-total">0</div>
+        <div class="l">📊 สะสม</div>
       </div>
     </div>
 
-    <!-- Orders -->
-    <div class="section-divider">
-      <div class="title">🔔 งานใหม่รอรับ</div>
-      <div class="line"></div>
-      <div class="count" id="cnt-new">0</div>
-    </div>
-    <div id="new-jobs"></div>
-
-    <div class="section-divider">
-      <div class="title">🛵 งานที่กำลังทำ</div>
-      <div class="line"></div>
-      <div class="count" id="cnt-active">0</div>
-    </div>
-    <div id="active-jobs"></div>
-
-    <div class="section-divider">
-      <div class="title">✅ ประวัติวันนี้</div>
-      <div class="line"></div>
-      <div class="count" id="cnt-done">0</div>
-    </div>
-    <div id="done-jobs"></div>
-
-    <div id="empty-all" class="empty" style="display:none">
-      <div class="icon">🛵</div>
-      <h3>ยังไม่มีงาน</h3>
-      <p id="empty-msg">เปิดสถานะ "ออนไลน์" เพื่อรับงานใหม่</p>
+    <!-- ══ งานที่กำลังทำ — จะแสดงเมื่อมีงาน ══ -->
+    <div id="active-job-section" style="display:none">
+      <div class="section-divider">
+        <div class="title">🛵 งานที่กำลังทำ</div>
+        <div class="line"></div>
+        <div class="count" id="active-count">0</div>
+      </div>
+      <div id="active-jobs-list"></div>
     </div>
 
-    <div style="height:20px"></div>
+    <!-- ══ งานใหม่ — จะแสดงเมื่อมีงาน ══ -->
+    <div id="new-job-section" style="display:none">
+      <div class="section-divider">
+        <div class="title">🔔 งานใหม่</div>
+        <div class="line"></div>
+        <div class="count" id="new-count">0</div>
+      </div>
+      <div id="new-jobs-list"></div>
+    </div>
+
+    <!-- ══ งานเสร็จวันนี้ ══ -->
+    <div id="done-job-section" style="display:none">
+      <div class="section-divider">
+        <div class="title">✅ เสร็จวันนี้</div>
+        <div class="line"></div>
+        <div class="count" id="done-count">0</div>
+      </div>
+      <div id="done-jobs-list"></div>
+    </div>
+
+    <!-- ══ Empty State — เมื่อไม่มีงาน ══ -->
+    <div id="empty-state" class="empty">
+      <div class="icon">🎯</div>
+      <h3>พร้อมรับงาน!</h3>
+      <p>เมื่อมีลูกค้าเรียกใช้บริการ<br>งานจะแสดงที่นี่แบบ Real-time</p>
+    </div>
+
+  </div><!-- /container -->
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     🪟 SHEET MENU — เมนูด้านข้าง (กด ☰)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet">
+    <h2>☰ เมนูไรเดอร์</h2>
+
+    <!-- ข้อมูลไรเดอร์ -->
+    <div class="sheet-item" onclick="closeSheet();showProfile()">
+      <div class="ico">👤</div>
+      <div class="content">
+        <div class="lbl">ข้อมูลส่วนตัว</div>
+        <div class="sub" id="sheet-rider-email">-</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <!-- ดูรายได้ -->
+    <div class="sheet-item" onclick="closeSheet();showIncome()">
+      <div class="ico">💰</div>
+      <div class="content">
+        <div class="lbl">รายได้ & GP</div>
+        <div class="sub">สรุปยอดค้างโอน</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <!-- งานที่เสร็จแล้ว -->
+    <div class="sheet-item" onclick="closeSheet();showHistory()">
+      <div class="ico">📋</div>
+      <div class="content">
+        <div class="lbl">ประวัติงาน</div>
+        <div class="sub">ดูงานที่ผ่านมาทั้งหมด</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <!-- เปิด GPS -->
+    <div class="sheet-item" onclick="closeSheet();requestGPS()">
+      <div class="ico">📍</div>
+      <div class="content">
+        <div class="lbl">เปิด GPS</div>
+        <div class="sub">อัปเดตตำแหน่งปัจจุบัน</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <!-- ออกจากระบบ -->
+    <div class="sheet-item" onclick="handleLogout()" style="color:#E53935">
+      <div class="ico" style="background:#FFEBEE">🚪</div>
+      <div class="content">
+        <div class="lbl" style="color:#E53935">ออกจากระบบ</div>
+        <div class="sub">กลับไปหน้า Login</div>
+      </div>
+      <div class="arrow" style="color:#E53935">›</div>
+    </div>
+
+    <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
   </div>
 </div>
 
-<!-- NEW JOB POPUP -->
-<div class="new-job-popup" id="new-job-popup">
+<!-- ═══════════════════════════════════════════════════════════
+     🔔 POPUP งานใหม่ — เด้งขึ้นเมื่อมีงานใหม่
+     ═══════════════════════════════════════════════════════════ -->
+<div class="new-job-popup" id="newJobPopup">
   <div class="new-job-card">
     <div class="icon">🔔</div>
-    <h2>มีงานใหม่!</h2>
-    <p>กรุณากดยอมรับภายใน 30 วินาที</p>
+    <h2>งานใหม่!</h2>
+    <p>มีลูกค้าเรียกใช้บริการ</p>
     <div class="detail" id="new-job-detail"></div>
-    <div class="actions-grid two" style="margin-top:16px">
-      <button class="action-btn-big btn-green-big ripple" onclick="acceptNewJob()">✅ รับงาน</button>
-      <button class="action-btn-big btn-gray-big ripple" onclick="closeNewJobPopup()">✕ ปิด</button>
+    <div class="job-actions two">
+      <button class="action-btn-big btn-green-big ripple" onclick="acceptFromPopup()">✅ รับงาน</button>
+      <button class="action-btn-big btn-gray-big ripple" onclick="closeNewJobPopup()">⏰ ปิด</button>
     </div>
   </div>
 </div>
 
-<!-- MENU SHEET -->
-<div class="sheet-overlay" id="menu-sheet" onclick="if(event.target===this)closeMenu()">
-  <div class="sheet">
-    <h2>เมนู</h2>
-    <div class="sheet-item ripple" onclick="showMyInfo()">
-      <div class="ico">👤</div>
-      <div class="content"><div class="lbl">ข้อมูลของฉัน</div><div class="sub">ดูโปรไฟล์และสถิติ</div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="sheet-item ripple" onclick="showDebtDetail()">
-      <div class="ico">💰</div>
-      <div class="content"><div class="lbl">ยอดค้างจ่าย</div><div class="sub">สรุปเงินที่ต้องโอนให้แอป</div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="sheet-item ripple" onclick="showMyReviews()">
-      <div class="ico">⭐</div>
-      <div class="content"><div class="lbl">รีวิวของฉัน</div><div class="sub">ดูคะแนนจากลูกค้า</div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="sheet-item ripple" onclick="showMyChats()">
-      <div class="ico">💬</div>
-      <div class="content"><div class="lbl">แชทกับลูกค้า</div><div class="sub">ดูข้อความและส่งรูป</div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="sheet-item ripple" onclick="openEditProfile()">
-      <div class="ico">✏️</div>
-      <div class="content"><div class="lbl">แก้ไขโปรไฟล์</div><div class="sub">ชื่อ, เบอร์, ทะเบียนรถ</div></div>
-      <div class="arrow">›</div>
-    </div>
-    <div class="sheet-item ripple" onclick="handleRiderLogout()" style="background:#fff5f5">
-      <div class="ico">🚪</div>
-      <div class="content"><div class="lbl" style="color:#E53935">ออกจากระบบ</div></div>
-    </div>
-    <button class="close-sheet ripple" onclick="closeMenu()">ปิด</button>
-  </div>
-</div>
-
-<!-- MODAL -->
-<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
-  <div class="modal-content" id="modal-body"></div>
-</div>
-
+<!-- ═══════════════════════════════════════════════════════════
+     🍞 TOAST — ข้อความแจ้งเตือนลอย
+     ═══════════════════════════════════════════════════════════ -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══ STAGE 1: External Libraries ═══ -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- ═══════════════════════════════════════════════════════════
+     🪟 MODAL — หน้าต่าง popup ทั่วไป
+     ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content" id="modalContent"></div>
+</div>
 
-<!-- ═══ STAGE 2: App Logic ═══ -->
+<!-- ═══════════════════════════════════════════════════════════
+     💬 CHAT — แชทระหว่างไรเดอร์ ↔ ร้านค้า
+     ═══════════════════════════════════════════════════════════ -->
+<div class="chat-container" id="chatContainer">
+  <div class="chat-header">
+    <button class="back-btn ripple" onclick="closeChat()">←</button>
+    <div class="chat-info">
+      <div class="chat-name" id="chatName">-</div>
+      <div class="chat-sub" id="chatSub">-</div>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-bar">
+    <button class="icon-btn ripple" onclick="document.getElementById('chatImageInput').click()">📷</button>
+    <input type="file" id="chatImageInput" accept="image/*" style="display:none" onchange="sendChatImage(this.files[0])">
+    <textarea id="chatInput" placeholder="พิมพ์ข้อความ..." rows="1" oninput="autoResize(this)"></textarea>
+    <button class="send-btn ripple" onclick="sendChatText()">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     🔥 FIREBASE SDK — โหลด Firebase (ต้องอยู่ก่อน rider.js)
+     ═══════════════════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+<!-- ⚠️ ไฟล์ JavaScript ของ Rider (ต้องมี rider.js อยู่ในโฟลเดอร์เดียวกัน) -->
 <script src="rider.js"></script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     🔧 EMERGENCY SCROLL FIX — Force scroll ได้เสมอ
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+  // รอให้หน้าเว็บโหลดเสร็จก่อน แล้วบังคับ scroll
+  window.addEventListener('load', function() {
+    // Force scroll
+    document.body.style.overflow = 'auto';
+    document.body.style.overflowY = 'auto';
+    document.body.style.height = 'auto';
+    document.body.style.position = 'static';
+    document.documentElement.style.overflow = 'auto';
+    document.documentElement.style.height = 'auto';
+    
+    // Debug
+    console.log('✅ Scroll fix applied');
+    if (window.logToScreen) {
+      window.logToScreen('✅ Scroll fix applied');
+    }
+  });
+
+  // ลบ overflow: hidden จาก #app ทุกครั้งที่ DOM เปลี่ยน
+  const observer = new MutationObserver(() => {
+    const app = document.getElementById('app');
+    if (app && app.style.overflow === 'hidden') {
+      app.style.overflow = 'visible';
+      app.style.height = 'auto';
+      app.style.maxHeight = 'none';
+    }
+  });
+  observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+</script>
+
 </body>
 </html>
