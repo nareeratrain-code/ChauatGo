@@ -1310,4 +1310,211 @@ async function ensureChatDoc(order) {
         unreadByUser: 0, unreadByRider: 0,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      await chatRef.collection('
+      await chatRef.collection('messages').add({
+        sender: 'system',
+        text: `เริ่มการสนทนากับ ${order.userName || 'ลูกค้า'}`,
+        type: 'text',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  } catch (e) { console.error('[ensureChat]', e); }
+}
+
+function subscribeChatMessages(orderId) {
+  if (chatUnsub) chatUnsub();
+  chatUnsub = db.collection('chats').doc(orderId).collection('messages').orderBy('createdAt', 'asc').limit(200).onSnapshot(snap => {
+    const container = $('chat-messages');
+    if (!container) return;
+    if (snap.empty) { container.innerHTML = '<div class="chat-msg system">เริ่มการสนทนาแล้ว</div>'; return; }
+    container.innerHTML = snap.docs.map(doc => {
+      const m = doc.data();
+      const time = m.createdAt?.toDate ? m.createdAt.toDate() : new Date();
+      const timeStr = time.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      if (m.sender === 'system') return `<div class="chat-msg system">${escHtml(m.text || '')}</div>`;
+      const isSent = m.sender === 'rider';
+      let content = '';
+      if (m.imageUrl) {
+        const label = m.type === 'bill' ? '🧾 ใบเสร็จ' : (m.type === 'food' ? '🍽️ รูปอาหาร' : '📸 รูป');
+        content += `<div style="font-size:11px;color:#666;margin-bottom:6px;font-weight:900">${label}</div>`;
+        content += `<img src="${escHtml(m.imageUrl)}" onclick="openLightbox('${escHtml(m.imageUrl)}')" onerror="this.style.display='none'">`;
+      }
+      if (m.text) content += `<div>${escHtml(m.text)}</div>`;
+      return `<div class="chat-msg ${isSent ? 'sent' : 'received'}">${content}<span class="msg-time">${timeStr}</span></div>`;
+    }).join('');
+    scrollChatToBottom();
+  }, err => console.warn('[chat]', err));
+}
+
+function scrollChatToBottom() { const c = $('chat-messages'); if (c) c.scrollTop = c.scrollHeight; }
+
+async function sendChatMessage() {
+  const input = $('chat-input-text');
+  if (!input || !currentChatOrderId) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await sendChatContent({ text, type: 'text' });
+}
+async function sendQuickMessage(text) {
+  if (!currentChatOrderId) return;
+  await sendChatContent({ text, type: 'text' });
+}
+async function sendChatContent(content) {
+  if (!currentChatOrderId) return;
+  try {
+    const chatRef = db.collection('chats').doc(currentChatOrderId);
+    await chatRef.collection('messages').add({
+      sender: 'rider', text: content.text || '', imageUrl: content.imageUrl || null,
+      type: content.type || 'text',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(), read: false
+    });
+    await chatRef.update({
+      lastMessage: content.text || (content.imageUrl ? '📷 ส่งรูป' : ''),
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unreadByUser: firebase.firestore.FieldValue.increment(1)
+    });
+  } catch (e) { console.error('[sendChat]', e); showToast('❌ ส่งไม่สำเร็จ'); }
+}
+
+async function handleImageUpload(inputElement) {
+  const file = inputElement.files[0];
+  if (!file || !currentChatOrderId) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('⚠️ รูปใหญ่เกิน 5 MB'); inputElement.value = ''; return;
+  }
+
+  const progress = document.createElement('div');
+  progress.className = 'upload-progress';
+  progress.innerHTML = '<div class="spinner"></div>กำลังอัปโหลด...';
+  document.body.appendChild(progress);
+
+  try {
+    const compressedBlob = await compressImage(file, 1024, 0.7);
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop() || 'jpg';
+    const ref = storage.ref(`chats/${currentChatOrderId}/${timestamp}.${ext}`);
+    const snapshot = await ref.put(compressedBlob);
+    const url = await snapshot.ref.getDownloadURL();
+    await sendChatContent({ imageUrl: url, text: '', type: 'image' });
+    progress.remove();
+    showToast('✅ ส่งรูปแล้ว', 'success');
+  } catch (e) {
+    console.error('[upload]', e);
+    progress.remove();
+    showToast('❌ อัปโหลดไม่สำเร็จ', 'error');
+  }
+  inputElement.value = '';
+}
+
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width, height = img.height;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
+function openLightbox(url) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `<img src="${url}" style="max-width:100%;max-height:90vh;border-radius:12px" onclick="this.parentElement.remove()"><button style="position:absolute;top:20px;right:20px;background:rgba(255,255,255,.2);color:#fff;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;font-family:inherit" onclick="this.parentElement.remove()">✕</button>`;
+  document.body.appendChild(overlay);
+}
+
+// ═══ Logout ═══
+async function handleRiderLogout() {
+  if (!confirm('ออกจากระบบ?')) return;
+  closeMenu();
+  stopLocationTracking();
+  if (deadlineTimer) clearInterval(deadlineTimer);
+  destroyAllMaps();
+
+  if (currentUser && isOnline) {
+    await db.collection('riders').doc(currentUser.uid).update({ status: 'offline' }).catch(() => {});
+  }
+  if (unsubscribeOrders) unsubscribeOrders();
+  if (unsubscribeProfile) unsubscribeProfile();
+  if (unsubscribeRatings) unsubscribeRatings();
+  if (unsubscribeDebt) unsubscribeDebt();
+  if (chatUnsub) { try { chatUnsub(); } catch (e) {} chatUnsub = null; }
+  await auth.signOut();
+  allOrders = []; riderProfile = null; myRatings = []; currentDebtData = null;
+}
+
+// ═══ PWA Install ═══
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  $('pwa-install-banner').classList.remove('hidden');
+});
+async function installPWA() {
+  if (!deferredPrompt) return showToast('ℹ️ กรุณาเพิ่มไปยังหน้าจอหลักด้วยตนเอง', 'info');
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') {
+    showToast('✅ ติดตั้งสำเร็จ!', 'success');
+    $('pwa-install-banner').classList.add('hidden');
+  }
+  deferredPrompt = null;
+}
+function dismissPWA() { $('pwa-install-banner').classList.add('hidden'); }
+
+// ═══ Network ═══
+window.addEventListener('online', () => {
+  $('offline-bar').classList.remove('show');
+  showToast('🟢 กลับมาออนไลน์', 'success');
+});
+window.addEventListener('offline', () => {
+  $('offline-bar').classList.add('show');
+});
+if (!navigator.onLine) $('offline-bar').classList.add('show');
+
+// ═══ UI/UX ═══
+document.documentElement.style.scrollBehavior = 'smooth';
+
+const focusStyle = document.createElement('style');
+focusStyle.textContent = `
+  *:focus-visible { outline: 2px solid #FF6B35; outline-offset: 2px; border-radius: 4px; }
+  input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
+`;
+document.head.appendChild(focusStyle);
+
+document.addEventListener('touchstart', e => {
+  const el = e.target.closest('.ripple, .action-card, .order-card, .sheet-item, .btn-primary, .btn-secondary, .action-btn, .action-btn-big, .quick-btn, .nav-btn-small, .online-toggle, .menu-btn, .auth-tab, .rating-btn');
+  if (!el) return;
+  el.style.transform = 'scale(.97)';
+  setTimeout(() => { el.style.transform = ''; }, 150);
+}, { passive: true });
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('button, .action-card, .order-card, .sheet-item, .quick-action');
+  if (el && navigator.vibrate) navigator.vibrate(10);
+}, { passive: true });
+
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
+console.log('%c🛵 Chauat Go Rider v3.3.3', 'color:#FF6B35;font-weight:900;font-size:16px');
+console.log('%c✓ Auto-update | ✓ PWA | ✓ Debug Console | ✓ Real-time', 'color:#00A651;font-weight:700');
