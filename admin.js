@@ -1066,7 +1066,7 @@ $('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.s
 document.addEventListener('click', e => {
   const el = e.target.closest('button, .data-card, nav button, .stat-card, .action-card');
   if (el && navigator.vibrate) navigator.vibrate(10);
-}, { passive: true });
+}, { passive: true }); 
 
 console.log('%c🛵 Chauat Go Admin v3.3.0', 'color:#00A651;font-weight:900;font-size:16px');
 console.log('%c✓ Fixed Syntax Error | ✓ Event Delegation | ✓ No SW Cache Issue', 'color:#1565C0;font-weight:700');
