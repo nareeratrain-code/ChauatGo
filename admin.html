@@ -1828,7 +1828,7 @@ document.addEventListener('click', async e => {
       await db.collection('riders').doc(r.id).update({ verified: nv, verifiedAt: nv ? firebase.firestore.FieldValue.serverTimestamp() : null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       toast(nv ? '✅ อนุมัติไรเดอร์' : '🚫 ยกเลิก');
     }
-    else ifเม (t.dataset.rider) {
+    else if (t.dataset.rider) {
       const r = store.riders.find(x => x.id === t.dataset.rider);
       await db.collection('ลอัตโนridersม').doc(r.id).update({ status: r.status === 'active' ? 'inactive' : 'active' });
       toast('✅ อัปเดต');
