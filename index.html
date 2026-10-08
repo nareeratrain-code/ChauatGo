@@ -13,19 +13,31 @@
 <meta name="application-name" content="Chauat Go">
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<!-- ═══ Fonts & Preconnect ═══ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- ═══ PWA Meta ═══ -->
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<!-- ═══ Leaflet CSS ═══ -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<!-- ═══ App CSS ═══ -->
 <link rel="stylesheet" href="index.css">
 </head>
 <body>
 
-<!-- ═══ PWA INSTALL BANNER ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     PWA INSTALL BANNER
+     ═══════════════════════════════════════════════════ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div class="pwa-banner-icon">📱</div>
   <div class="pwa-banner-info">
@@ -36,13 +48,19 @@
   <button class="pwa-close-btn" onclick="dismissPWA()">✕</button>
 </div>
 
-<!-- ═══ OFFLINE ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     OFFLINE BANNER
+     ═══════════════════════════════════════════════════ -->
 <div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — แสดงข้อมูลจากแคช</div>
 
-<!-- ═══ TOAST ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TOAST
+     ═══════════════════════════════════════════════════ -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══ PDPA ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     PDPA CONSENT OVERLAY
+     ═══════════════════════════════════════════════════ -->
 <div class="pdpa-overlay hidden" id="pdpa-overlay">
   <div class="pdpa-content">
     <img src="icons/icon-512.png" style="margin-bottom:12px;width:76px;height:76px;border-radius:20px;box-shadow:0 10px 26px rgba(0,0,0,.3)" onerror="this.style.display='none'">
@@ -53,7 +71,9 @@
   </div>
 </div>
 
-<!-- ═══ LOCATION POPUP ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     LOCATION PERMISSION POPUP
+     ═══════════════════════════════════════════════════ -->
 <div class="loc-popup-overlay hidden" id="loc-popup-overlay">
   <div class="loc-popup-content">
     <div style="font-size:64px;margin-bottom:12px">📡</div>
@@ -64,7 +84,9 @@
   </div>
 </div>
 
-<!-- ═══ LOGIN MODAL ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     LOGIN MODAL
+     ═══════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="login-modal" onclick="if(event.target===this)closeLoginModal()">
   <div class="modal-content" style="max-width:400px">
     <div style="text-align:center;margin-bottom:20px">
@@ -95,18 +117,24 @@
   </div>
 </div>
 
-<!-- ═══ MAIN MODAL ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     MAIN MODAL (Dynamic Content)
+     ═══════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-content" id="modal-body"></div>
 </div>
 
-<!-- ═══ LIGHTBOX ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     IMAGE LIGHTBOX
+     ═══════════════════════════════════════════════════ -->
 <div id="img-lightbox" onclick="closeLightbox()">
-  <img id="lightbox-img" src="">
+  <img id="lightbox-img" src="" alt="">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
 </div>
 
-<!-- ═══ HEADER ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     HEADER (Search + Profile)
+     ═══════════════════════════════════════════════════ -->
 <div class="header" id="main-header">
   <img src="images/logo-banner.png" class="brand-logo" alt="Chauat Go" onerror="this.style.display='none'">
   <div class="header-top">
@@ -120,9 +148,14 @@
   </div>
 </div>
 
-<!-- ═══ TAB HOME ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TAB: HOME
+     ═══════════════════════════════════════════════════ -->
 <div id="tab-home">
+  <!-- Search Results -->
   <div class="search-results" id="search-results"></div>
+
+  <!-- Category View (All items) -->
   <div class="category-view" id="category-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="category-title">หมวดหมู่</div>
@@ -131,7 +164,7 @@
     <div class="food-grid" id="category-grid"></div>
   </div>
 
-  <!-- Merchant View -->
+  <!-- Merchant View (For ordering) -->
   <div class="merchant-view" id="merchant-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="merchant-view-title">🏪 เลือกร้านอาหาร</div>
@@ -156,7 +189,9 @@
     </div>
   </div>
 
+  <!-- Home Content -->
   <div id="home-content">
+    <!-- Brand Hero -->
     <div class="brand-hero">
       <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.src='images/app-icon.png'">
       <div>
@@ -165,6 +200,7 @@
       </div>
     </div>
 
+    <!-- Stats Bar -->
     <div class="stats-bar">
       <div><div class="stat-num" id="stat-total">0</div><div class="stat-label">สถานที่</div></div>
       <div><div class="stat-num" id="stat-rest">0</div><div class="stat-label">ร้านอาหาร</div></div>
@@ -172,6 +208,7 @@
       <div><div class="stat-num" id="stat-shop">0</div><div class="stat-label">ร้านค้า</div></div>
     </div>
 
+    <!-- Main Menu Grid 6 Icons -->
     <div class="menu-grid">
       <div class="menu-item ripple" onclick="openMerchantView('food')">
         <div class="menu-icon food">🍽️</div>
@@ -199,45 +236,47 @@
       </div>
     </div>
 
+    <!-- HOT Section -->
     <div class="hot-section">
       <div class="hot-title">🔥 ร้านที่เข้าร่วม Chauat Go ใกล้เคียง <span class="hot-badge">HOT</span></div>
     </div>
 
-    <!-- ✅ ร้านอาหารแนะนำ (เฉพาะที่มีรูป) -->
+    <!-- ร้านอาหารแนะนำ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">🍽️ ร้านอาหารแนะนำ</div>
       <div class="section-more ripple" onclick="showAllCategories('restaurant')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="restaurant-grid"></div>
 
-    <!-- ✅ ร้านสะดวกซื้อ (เฉพาะที่มีรูป) -->
+    <!-- ร้านสะดวกซื้อ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">🏪 ร้านสะดวกซื้อ</div>
       <div class="section-more ripple" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="convenience-grid"></div>
 
-    <!-- ✅ คาเฟ่ (เฉพาะที่มีรูป) -->
+    <!-- คาเฟ่ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">☕ คาเฟ่</div>
       <div class="section-more ripple" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="cafe-grid"></div>
 
-    <!-- ✅ สถานที่ท่องเที่ยว (เฉพาะที่มีรูป) -->
+    <!-- สถานที่ท่องเที่ยว (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header" id="tourist-header">
       <div class="section-title">🌴 สถานที่ท่องเที่ยว</div>
       <div class="section-more ripple" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="tourist-grid"></div>
 
-    <!-- ✅ โรงแรม/ที่พัก (เฉพาะที่มีรูป) -->
+    <!-- โรงแรม/ที่พัก (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header" id="hotel-header">
       <div class="section-title">🏨 โรงแรม/ที่พัก</div>
       <div class="section-more ripple" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="hotel-grid"></div>
 
+    <!-- Legal Footer -->
     <div class="legal-footer" id="legal-footer" style="display:none">
       <div class="dbd-mark">[DBD<br>Registered]</div>
       <div class="links">
@@ -250,7 +289,9 @@
   </div>
 </div>
 
-<!-- ═══ MAP PAGE ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     MAP PAGE
+     ═══════════════════════════════════════════════════ -->
 <div id="map-page">
   <div class="map-header-bar">
     <button class="map-back-btn ripple" onclick="closeMapPage()">← กลับ</button>
@@ -277,7 +318,9 @@
   </div>
 </div>
 
-<!-- ═══ ORDERS TAB ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TAB: ORDERS
+     ═══════════════════════════════════════════════════ -->
 <div class="orders-tab" id="tab-orders">
   <div class="order-section-title">🔍 กำลังดำเนินการ</div>
   <div id="active-orders"></div>
@@ -288,7 +331,9 @@
   </div>
 </div>
 
-<!-- ═══ MESSAGES TAB ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     TAB: MESSAGES
+     ═══════════════════════════════════════════════════ -->
 <div class="messages-tab" id="tab-messages">
   <div class="chat-card ripple" onclick="openChat()">
     <div class="chat-avatar">💬</div>
@@ -299,7 +344,9 @@
   </div>
 </div>
 
-<!-- ═══ CART BAR ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     CART BAR (Floating)
+     ═══════════════════════════════════════════════════ -->
 <div class="cart-bar ripple" id="cart-bar" onclick="openCart()">
   <div class="cart-bar-icon">🛒<span class="cart-count" id="cart-count">0</span></div>
   <div class="cart-bar-info">
@@ -309,10 +356,13 @@
   <div class="cart-bar-btn">ดูตะกร้า →</div>
 </div>
 
-<!-- ═══ BOTTOM NAV ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     BOTTOM NAVIGATION
+     ═══════════════════════════════════════════════════ -->
 <div class="bottom-nav">
   <div class="nav-item active ripple" onclick="switchTab('home',this)">
-    <div class="nav-icon-wrap">🏠</div><div class="nav-label">หน้าแรก</div>
+    <div class="nav-icon-wrap">🏠</div>
+    <div class="nav-label">หน้าแรก</div>
   </div>
   <div class="nav-item ripple" onclick="switchTab('orders',this)">
     <div class="nav-icon-wrap">📋</div>
@@ -324,7 +374,9 @@
   </div>
 </div>
 
-<!-- ═══ PROFILE SHEET ═══ -->
+<!-- ═══════════════════════════════════════════════════
+     PROFILE SHEET (Slide from right)
+     ═══════════════════════════════════════════════════ -->
 <div class="profile-sheet" id="profile-sheet" onclick="if(event.target===this)closeProfileSheet()">
   <div class="profile-sheet-content">
     <div class="pf-header">
@@ -383,12 +435,34 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     SCRIPTS — ลำดับการโหลด (สำคัญมาก!)
+     ═══════════════════════════════════════════════════════════════
+     
+     ลำดับที่ 1: External Libraries (CDN)
+       - Leaflet (แผนที่)
+       - Firebase SDK (Auth, Firestore, Storage)
+     
+     ลำดับที่ 2: Data Files
+       - locations-data.js (ข้อมูล 490 สถานที่ — ต้องโหลดก่อน index.js)
+     
+     ลำดับที่ 3: Application Logic
+       - index.js (ใช้ข้อมูลจาก locations-data.js)
+     
+     ═══════════════════════════════════════════════════════════════ -->
+
+<!-- ═══ STAGE 1: External Libraries ═══ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+<!-- ═══ STAGE 2: Data Files (ต้องมาก่อน index.js) ═══ -->
 <script src="locations-data.js"></script>
+
+<!-- ═══ STAGE 3: Application Logic ═══ -->
 <script src="index.js"></script>
+
 </body>
 </html>
