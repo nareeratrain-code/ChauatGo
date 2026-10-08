@@ -1,8 +1,10 @@
-const CACHE_NAME = 'chauat-merchant-v3.3.0';
+const CACHE_NAME = 'chauat-app-v3.3.0'; // ⭐ เปลี่ยน Version เพื่อบังคับ Update
 const ASSETS = [
   '/merchant.html',
   '/merchant.css',
   '/merchant.js',
+  '/admin.html',    // ⭐ เพิ่มหน้า Admin
+  '/index.html',    // ⭐ เพิ่มหน้า Index
   '/manifest.json'
 ];
 
@@ -26,6 +28,10 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // ⭐ ไม่ Cache ไฟล์ Firebase API
+  if (e.request.url.includes('firestore.googleapis.com') || 
+      e.request.url.includes('identitytoolkit.googleapis.com')) return;
+
   e.respondWith(
     caches.match(e.request).then((cached) => {
       return cached || fetch(e.request).then((response) => {
@@ -34,7 +40,12 @@ self.addEventListener('fetch', (e) => {
           return response;
         });
       });
-    }).catch(() => caches.match('/merchant.html'))
+    }).catch(() => {
+      // Fallback: ถ้าโหลดไม่ได้ ให้ลองดึงจาก Cache ของหน้านั้นๆ
+      const url = new URL(e.request.url);
+      const page = url.pathname.split('/').pop() || 'index.html';
+      return caches.match('/' + page) || caches.match('/index.html');
+    })
   );
 });
 
