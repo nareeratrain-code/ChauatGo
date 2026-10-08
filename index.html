@@ -40,70 +40,29 @@
 (function() {
   const APP_VERSION = 'v3.3.3';
   const savedVersion = localStorage.getItem('chauat_app_version');
-
-  // ถ้า Version เปลี่ยน → Clear Cache + Reload
   if (savedVersion && savedVersion !== APP_VERSION) {
     localStorage.setItem('chauat_app_version', APP_VERSION);
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage('FORCE_UPDATE');
     }
     if ('caches' in window) {
-      caches.keys()
-        .then(keys => Promise.all(keys.map(k => caches.delete(k))))
-        .then(() => location.reload(true))
-        .catch(() => location.reload(true));
-    } else {
-      location.reload(true);
-    }
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+        .then(() => location.reload(true)).catch(() => location.reload(true));
+    } else { location.reload(true); }
     return;
   }
   localStorage.setItem('chauat_app_version', APP_VERSION);
-
-  // Register Service Worker (เฉพาะหน้า Index — ไม่ Cache)
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none', scope: '/' })
-        .then(reg => {
-          setInterval(() => reg.update(), 30000);
-          reg.update();
-          reg.addEventListener('updatefound', () => {
-            const newSW = reg.installing;
-            if (!newSW) return;
-            newSW.addEventListener('statechange', () => {
-              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                newSW.postMessage('SKIP_WAITING');
-                setTimeout(() => location.reload(true), 500);
-              }
-            });
-          });
-        })
-        .catch(err => console.warn('[SW]', err));
-      navigator.serviceWorker.addEventListener('message', e => {
-        if (e.data && e.data.type === 'SW_UPDATED') location.reload(true);
-      });
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload(true);
-      });
-    });
-  }
 })();
 </script>
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════
-     🐛 DEBUG CONSOLE (แสดงเฉพาะมือถือ)
-     ═══════════════════════════════════════════════════ -->
-<div id="debugConsole" style="position:fixed;bottom:0;left:0;right:0;max-height:100px;overflow-y:auto;background:rgba(0,0,0,.92);color:#0f0;font-size:10px;font-family:monospace;padding:8px 12px;z-index:99999;display:none;border-top:2px solid #333;line-height:1.5;word-break:break-all;-webkit-overflow-scrolling:touch">
-  <strong style="color:#FFA500">Debug Console v3.3.3:</strong><br>
+<!-- 🐛 DEBUG CONSOLE -->
+<div id="debugConsole" style="position:fixed;bottom:0;left:0;right:0;max-height:120px;overflow-y:auto;background:rgba(0,0,0,.92);color:#0f0;font-size:10px;font-family:monospace;padding:8px 12px;z-index:99999;display:none;border-top:2px solid #333;line-height:1.5;word-break:break-all;-webkit-overflow-scrolling:touch">
+  <strong style="color:#FFA500">Debug v3.3.3:</strong><br>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     PWA INSTALL BANNER
-     ═══════════════════════════════════════════════════ -->
+<!-- PWA INSTALL BANNER -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div class="pwa-banner-icon">📱</div>
   <div class="pwa-banner-info">
@@ -114,19 +73,13 @@
   <button class="pwa-close-btn" onclick="dismissPWA()">✕</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     OFFLINE BANNER
-     ═══════════════════════════════════════════════════ -->
+<!-- OFFLINE BANNER -->
 <div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — แสดงข้อมูลจากแคช</div>
 
-<!-- ═══════════════════════════════════════════════════
-     TOAST
-     ═══════════════════════════════════════════════════ -->
+<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════════════════════════════════════════════
-     PDPA CONSENT OVERLAY
-     ═══════════════════════════════════════════════════ -->
+<!-- PDPA OVERLAY -->
 <div class="pdpa-overlay hidden" id="pdpa-overlay">
   <div class="pdpa-content">
     <img src="icons/icon-512.png" style="margin-bottom:12px;width:76px;height:76px;border-radius:20px;box-shadow:0 10px 26px rgba(0,0,0,.3)" onerror="this.style.display='none'">
@@ -137,9 +90,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     LOCATION PERMISSION POPUP
-     ═══════════════════════════════════════════════════ -->
+<!-- LOCATION PERMISSION POPUP -->
 <div class="loc-popup-overlay hidden" id="loc-popup-overlay">
   <div class="loc-popup-content">
     <div style="font-size:64px;margin-bottom:12px">📡</div>
@@ -150,9 +101,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     LOGIN MODAL
-     ═══════════════════════════════════════════════════ -->
+<!-- LOGIN MODAL -->
 <div class="modal-overlay" id="login-modal" onclick="if(event.target===this)closeLoginModal()">
   <div class="modal-content" style="max-width:400px">
     <div style="text-align:center;margin-bottom:20px">
@@ -184,24 +133,18 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     MAIN MODAL (Dynamic)
-     ═══════════════════════════════════════════════════ -->
+<!-- MAIN MODAL -->
 <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-content" id="modal-body"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     IMAGE LIGHTBOX
-     ═══════════════════════════════════════════════════ -->
+<!-- IMAGE LIGHTBOX -->
 <div id="img-lightbox" onclick="closeLightbox()">
   <img id="lightbox-img" src="" alt="">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     HEADER
-     ═══════════════════════════════════════════════════ -->
+<!-- HEADER -->
 <div class="header" id="main-header">
   <img src="images/logo-banner.png" class="brand-logo" alt="Chauat Go" onerror="this.style.display='none'">
   <div class="header-top">
@@ -209,15 +152,13 @@
       <span style="font-size:18px;opacity:.6">🔍</span>
       <input type="text" id="search-input" placeholder="ค้นหาจาก 490+ สถานที่..." oninput="doSearch(this.value)">
     </div>
-    <div class="profile-avatar ripple" onclick="openProfileSheet()">
+    <div class="profile-avatar ripple" id="profile-avatar-btn">
       <span id="profile-avatar-emoji">👤</span>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TAB: HOME
-     ═══════════════════════════════════════════════════ -->
+<!-- TAB: HOME -->
 <div id="tab-home">
   <div class="search-results" id="search-results"></div>
 
@@ -342,9 +283,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     MAP PAGE
-     ═══════════════════════════════════════════════════ -->
+<!-- MAP PAGE -->
 <div id="map-page">
   <div class="map-header-bar">
     <button class="map-back-btn ripple" onclick="closeMapPage()">← กลับ</button>
@@ -371,9 +310,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TAB: ORDERS
-     ═══════════════════════════════════════════════════ -->
+<!-- TAB: ORDERS -->
 <div class="orders-tab" id="tab-orders">
   <div class="order-section-title">🔍 กำลังดำเนินการ</div>
   <div id="active-orders"></div>
@@ -384,9 +321,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     TAB: MESSAGES
-     ═══════════════════════════════════════════════════ -->
+<!-- TAB: MESSAGES -->
 <div class="messages-tab" id="tab-messages">
   <div class="chat-card ripple" onclick="openChat()">
     <div class="chat-avatar">💬</div>
@@ -397,9 +332,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     CART BAR (Floating)
-     ═══════════════════════════════════════════════════ -->
+<!-- CART BAR -->
 <div class="cart-bar ripple" id="cart-bar" onclick="openCart()">
   <div class="cart-bar-icon">🛒<span class="cart-count" id="cart-count">0</span></div>
   <div class="cart-bar-info">
@@ -409,9 +342,7 @@
   <div class="cart-bar-btn">ดูตะกร้า →</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     BOTTOM NAVIGATION
-     ═══════════════════════════════════════════════════ -->
+<!-- BOTTOM NAV -->
 <div class="bottom-nav">
   <div class="nav-item active ripple" onclick="switchTab('home',this)">
     <div class="nav-icon-wrap">🏠</div>
@@ -427,9 +358,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     PROFILE SHEET
-     ═══════════════════════════════════════════════════ -->
+<!-- PROFILE SHEET -->
 <div class="profile-sheet" id="profile-sheet" onclick="if(event.target===this)closeProfileSheet()">
   <div class="profile-sheet-content">
     <div class="pf-header">
@@ -490,10 +419,6 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     SCRIPTS
-     ═══════════════════════════════════════════════════════════════ -->
-
 <!-- ═══ STAGE 1: External Libraries ═══ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -501,23 +426,89 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
-<!-- ═══ STAGE 2: Data Files ═══ -->
+<!-- ═══ STAGE 2: Data ═══ -->
 <script src="locations-data.js?v=3.3.3"></script>
 
-<!-- ═══ STAGE 3: Application Logic ═══ -->
+<!-- ═══ STAGE 3: App Logic ═══ -->
 <script src="index.js?v=3.3.3"></script>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     🔧 FORCE SCROLL FIX (สำคัญ!)
-     ═══════════════════════════════════════════════════════════════ -->
+<!-- 🔧 DEBUG + SAFETY NET -->
 <script>
-  window.addEventListener('load', () => {
-    document.body.style.overflow = 'auto';
-    document.documentElement.style.overflow = 'auto';
-    document.body.style.height = 'auto';
-    console.log('✅ Scroll fix applied');
-    if (typeof window.debugLog === 'function') {
-      window.debugLog('✅ Scroll fix v3.3.3');
+  window.debugLog = function(msg, isError) {
+    const el = document.getElementById('debugConsole');
+    if (el) {
+      el.style.display = 'block';
+      const color = isError ? '#ff4444' : '#00ff00';
+      el.innerHTML += `<span style="color:${color}">> ${msg}</span><br>`;
+      el.scrollTop = el.scrollHeight;
+    }
+    console.log(msg);
+  };
+
+  window.addEventListener('error', function(e) {
+    window.debugLog('❌ ERROR: ' + e.message + ' (' + e.filename + ':' + e.lineno + ')', true);
+  });
+
+  window.addEventListener('unhandledrejection', function(e) {
+    window.debugLog('❌ PROMISE: ' + (e.reason && e.reason.message || e.reason), true);
+  });
+
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+      window.debugLog('✅ Page loaded v3.3.3');
+      window.debugLog('📦 PLACES_RAW: ' + (typeof PLACES_RAW !== 'undefined' ? PLACES_RAW.length + ' items' : 'undefined ❌'), typeof PLACES_RAW === 'undefined');
+      window.debugLog('📦 PLACES: ' + (typeof PLACES !== 'undefined' ? 'OK' : 'undefined ❌'), typeof PLACES === 'undefined');
+      window.debugLog('🔥 Firebase: ' + (typeof firebase !== 'undefined' ? 'OK' : 'undefined ❌'), typeof firebase === 'undefined');
+      window.debugLog('🗺️ Leaflet: ' + (typeof L !== 'undefined' ? 'OK' : 'undefined ❌'), typeof L === 'undefined');
+      window.debugLog('🔧 openProfileSheet: ' + (typeof window.openProfileSheet === 'function' ? 'OK' : 'MISSING ❌'), typeof window.openProfileSheet !== 'function');
+
+      // ⭐ Fallback: ถ้า openProfileSheet ไม่มี ให้ใช้ฟังก์ชันทดแทน
+      if (typeof window.openProfileSheet !== 'function') {
+        window.openProfileSheet = function() {
+          const sheet = document.getElementById('profile-sheet');
+          if (sheet) sheet.classList.add('show');
+          const loggedIn = firebase.auth().currentUser;
+          document.getElementById('pf-logged-out').style.display = loggedIn ? 'none' : 'block';
+          document.getElementById('pf-logged-in').style.display = loggedIn ? 'block' : 'none';
+          document.getElementById('pf-logged-in-body').style.display = loggedIn ? 'block' : 'none';
+          if (loggedIn) {
+            document.getElementById('pf-name').textContent = loggedIn.displayName || 'ผู้ใช้';
+            document.getElementById('pf-email').textContent = loggedIn.email || '';
+            document.getElementById('pf-email-val').textContent = loggedIn.email || '—';
+          }
+        };
+        window.closeProfileSheet = function() {
+          document.getElementById('profile-sheet').classList.remove('show');
+        };
+        window.showLoginModal = function() {
+          document.getElementById('login-modal').classList.add('show');
+        };
+        window.closeLoginModal = function() {
+          document.getElementById('login-modal').classList.remove('show');
+        };
+        window.debugLog('🔧 Patched openProfileSheet fallback');
+      }
+    }, 1500);
+  });
+
+  // Event: คลิก Profile Avatar
+  document.addEventListener('click', function(e) {
+    const t = e.target.closest('#profile-avatar-btn');
+    if (t) {
+      window.debugLog('👆 Profile clicked');
+      if (typeof window.openProfileSheet === 'function') {
+        window.openProfileSheet();
+      }
+    }
+  });
+
+  // Event: คลิก Login overlay (ปิด)
+  document.addEventListener('click', function(e) {
+    const t = e.target.closest('#login-modal');
+    if (t && e.target === t) {
+      t.classList.remove('show');
     }
   });
 </script>
