@@ -4,22 +4,45 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#00A651">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>Chauat Go Admin v3.3.3</title>
+<meta name="theme-color" content="#76B82A">
+<title>Chauat Go Admin — v3.3.3</title>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Chauat Admin">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
+<!-- 🔔 Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════════ LOGIN ═══════════════ -->
+<!-- 🐛 Debug Console -->
+<div class="debug-console" id="debugConsole">
+  <strong>Debug Console:</strong><br>
+</div>
+
+<!-- 🔴 Offline Bar -->
+<div class="offline-bar" id="offlineBar">🔴 ออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
+
+<!-- 📱 PWA Banner -->
+<div class="pwa-banner hidden" id="pwaBanner">
+  <div class="pwa-banner-icon">🛵</div>
+  <div class="pwa-banner-info">
+    <div class="pwa-banner-title">ติดตั้ง Chauat Admin</div>
+    <div class="pwa-banner-sub">ใช้งานเร็วขึ้น เปิดจากหน้าจอหลัก</div>
+  </div>
+  <button class="pwa-install-btn" onclick="installPWA()">ติดตั้ง</button>
+  <button class="pwa-close-btn" onclick="hidePWABanner()">✕</button>
+</div>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
 <div id="login">
-  <form class="box" id="login-form" onsubmit="handleLoginSubmit(event)">
+  <form class="box" id="login-form" onsubmit="handleLogin(event)">
     <h1>🛵 Chauat Go Admin</h1>
     <div class="tab-btns">
       <button type="button" class="tab-btn active" id="tab-login-btn" onclick="switchTab('login')">เข้าสู่ระบบ</button>
@@ -54,7 +77,7 @@
   <main id="main"></main>
 </div>
 
-<!-- ═══════════════ CHAT OVERLAY ═══════════════ -->
+<!-- ═══════════════ CHAT ═══════════════ -->
 <div class="chat-container" id="chat-container">
   <div class="chat-header">
     <button class="back-btn ripple" onclick="closeChat()">←</button>
