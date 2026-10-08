@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.4.0 (ULTIMATE EDITION)
+   🛵 CHAUAT GO RIDER — v3.3.3 (ULTIMATE EDITION)
    Full-featured Production JavaScript
    ═══════════════════════════════════════════════════════════════════ */
 
