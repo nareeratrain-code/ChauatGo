@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.2</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.3</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <!-- ═══ AUTO CACHE-BUSTING (กัน Reload Loop) ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.2-20241009-001';
+  var VERSION = 'v3.4.3-20241009-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -54,7 +54,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.2 — FIXED EDITION
+   CHAUAT GO v3.4.3 — PRODUCTION EDITION
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -173,18 +173,17 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 }
 .profile-avatar:active { transform: scale(.92); }
 
-/* ═══ THEME TOGGLE FAB (ย้ายไป bottom + ซ่อนเมื่อ Modal) ═══ */
+/* ═══ THEME TOGGLE FAB (bottom + JS-controlled auto-hide) ═══ */
 .theme-fab {
   position: fixed; bottom: 150px; right: 14px; width: 44px; height: 44px;
   border-radius: 50%; background: var(--surface); border: none;
   box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px;
   display: flex; align-items: center; justify-content: center;
-  z-index: 4000; transition: all .3s;
+  z-index: 4000; transition: transform .3s, opacity .2s;
 }
 .theme-fab:active { transform: scale(.9) rotate(180deg); }
-.modal-overlay.show ~ .theme-fab,
-.profile-sheet.show ~ .theme-fab,
-#map-page.show ~ .theme-fab { display: none !important; }
+/* ⭐ v3.4.3: JS-controlled hiding (แทน sibling selectors ที่ไม่ทำงาน) */
+.theme-fab.hidden { display: none !important; }
 
 /* ═══ SEARCH RESULTS ═══ */
 .search-results {
@@ -686,7 +685,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
 <!-- ═══ DEBUG ═══ -->
-<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.2:</strong><br></div>
+<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.3:</strong><br></div>
 
 <!-- ═══ PWA BANNER ═══ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
@@ -973,7 +972,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.4.2 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.4.3 • © 2024</div>
       </div>
     </div>
   </div>
@@ -987,7 +986,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.2 — FIXED JavaScript
+   CHAUAT GO v3.4.3 — PRODUCTION JavaScript
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -1117,6 +1116,88 @@ function initTheme(){
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ⭐ v3.4.3: THEME FAB AUTO-HIDE — Production Observer
+   ซ่อนปุ่มเปลี่ยนธีมอัตโนมัติเมื่อมี overlay เปิดอยู่
+   - MutationObserver + rAF debounce
+   - ครอบคลุมทุก overlay (modal/login/vehicle/profile/map/lightbox/pdpa/loc)
+   - Idempotent — เรียกซ้ำได้ ไม่กระพริบ
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  var FAB_ID = 'theme-fab';
+
+  // Overlays ทั้งหมดที่ต้องซ่อน FAB
+  var OVERLAY_SELECTORS = [
+    '#modal.show',
+    '#login-modal.show',
+    '#vehicle-modal.show',
+    '#profile-sheet.show',
+    '#map-page.show',
+    '#img-lightbox.show',
+    '#pdpa-overlay:not(.hidden)',
+    '#loc-popup-overlay:not(.hidden)'
+  ];
+
+  var OVERLAY_IDS = ['modal','login-modal','vehicle-modal','profile-sheet','map-page','img-lightbox','pdpa-overlay','loc-popup-overlay'];
+
+  function isAnyOverlayOpen() {
+    for (var i = 0; i < OVERLAY_SELECTORS.length; i++) {
+      if (document.querySelector(OVERLAY_SELECTORS[i])) return true;
+    }
+    return false;
+  }
+
+  function syncThemeFab() {
+    var fab = document.getElementById(FAB_ID);
+    if (!fab) return;
+    var shouldHide = isAnyOverlayOpen();
+    var isHidden = fab.classList.contains('hidden');
+    if (shouldHide === isHidden) return; // idempotent
+    fab.classList.toggle('hidden', shouldHide);
+  }
+
+  window.syncThemeFab = syncThemeFab;
+
+  var rafId = null;
+  function scheduleSync() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(function(){
+      rafId = null;
+      syncThemeFab();
+    });
+  }
+
+  function initObserver() {
+    syncThemeFab();
+    var observer = new MutationObserver(function(mutations){
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (m.type !== 'attributes' || m.attributeName !== 'class') continue;
+        var t = m.target;
+        if (!t || !t.id) continue;
+        if (OVERLAY_IDS.indexOf(t.id) !== -1) {
+          scheduleSync();
+          return;
+        }
+      }
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      subtree: true
+    });
+    window._themeFabObserver = observer;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initObserver, { once: true });
+  } else {
+    initObserver();
+  }
+})();
+
+/* ═══════════════════════════════════════════════════════════════
    COUNT-UP
    ═══════════════════════════════════════════════════════════════ */
 function countUp(el, target, duration){
@@ -1142,7 +1223,7 @@ function countUp(el, target, duration){
    INIT
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function(){
-  debugLog('🚀 Chauat Go v3.4.2');
+  debugLog('🚀 Chauat Go v3.4.3');
   initTheme();
   runSplash();
   loadPlaces();
@@ -1405,7 +1486,7 @@ window.doSearch = function(q){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MERCHANT (⭐ แก้บั๊ก Quote + ใช้ addToCartById)
+   MERCHANT
    ═══════════════════════════════════════════════════════════════ */
 window.openMerchantView = async function(type){
   debugLog('🏪 Merchant View: '+type);
@@ -1470,7 +1551,7 @@ if(msi){
   });
 }
 
-/* ⭐ FIX #1: Quote bug — ส่งแค่ menuId + เก็บใน _menus */
+/* ⭐ Quote bug fix */
 window.openMerchantDetail = async function(merchantId){
   try{
     var snap = await db.collection('merchants').doc(merchantId).get();
@@ -1500,7 +1581,6 @@ window.openMerchantDetail = async function(merchantId){
   }catch(e){showToast('โหลดไม่สำเร็จ','error');}
 };
 
-/* ⭐ FIX #1: addToCartById — ปลอดภัยจากเครื่องหมาย ' */
 window.addToCartById = function(menuId) {
   var merchant = window._currentMerchant;
   var menus = window._menus || [];
@@ -1658,7 +1738,7 @@ window.selectVehicle = function(el){
   }, 400);
 };
 
-/* ⭐ FIX #7: haversine × 1.3 (ระยะถนนจริง) */
+/* haversine × 1.3 (ระยะถนนจริง) */
 function calculateFare(vehicle, destLat, destLng) {
   var baseFare = vehicle.price;
   var perKmRate = {motorcycle: 5, car: 10, pickup: 12, van: 15}[vehicle.type] || 8;
@@ -1671,7 +1751,7 @@ function calculateFare(vehicle, destLat, destLng) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ORDER FORM (⭐ FIX #2: เตือน GPS)
+   ORDER FORM (GPS warning)
    ═══════════════════════════════════════════════════════════════ */
 window.openTravelView = function(){openMapPage();};
 
@@ -1682,7 +1762,6 @@ window.openRideOrderForm = function(vehicle){
   var destLng = selectedDestination ? selectedDestination.lng : null;
   var fareInfo = calculateFare(vehicle, destLat, destLng);
 
-  // ⭐ FIX #2: เตือนถ้าไม่เปิด GPS
   var gpsWarning = '';
   if (!userLocation) {
     gpsWarning = '<div style="background:#FFF3E0;border-left:4px solid #FFA500;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">⚠️ ยังไม่ทราบตำแหน่งของคุณ — ราคาอาจเปลี่ยน หลังเปิด GPS</div>';
@@ -1716,7 +1795,6 @@ window.submitRideOrder = async function(){
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกจุดรับ-ปลายทาง','error');
 
-  // ⭐ FIX #2: เตือนถ้าไม่เปิด GPS
   if (!userLocation) {
     if (!confirm('⚠️ ยังไม่ทราบตำแหน่งของคุณ — ราคาอาจเปลี่ยน ต้องการดำเนินการต่อ?')) return;
   }
@@ -1799,7 +1877,7 @@ window.submitOrder = async function(type){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   🛒 CART (⭐ FIX #6: ปุ่ม +/- และลบ)
+   🛒 CART (ปุ่ม +/- และลบ)
    ═══════════════════════════════════════════════════════════════ */
 window.addToCart = function(merchantId, merchantName, menuId, menuName, price) {
   if (cartShop && cartShop !== merchantId) {
@@ -1827,7 +1905,6 @@ function updateCartBar(){
   if($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
 }
 
-/* ⭐ FIX #6: openCart พร้อมปุ่ม +/- และลบ */
 window.openCart = function(){
   if(!cart.length) return;
   var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
@@ -1855,7 +1932,6 @@ window.openCart = function(){
   openModal();
 };
 
-/* ⭐ FIX #6: ปรับจำนวน */
 window.changeQty = function(index, delta) {
   if (!cart[index]) return;
   cart[index].qty += delta;
@@ -1867,7 +1943,6 @@ window.changeQty = function(index, delta) {
   if (cart.length) openCart(); else { closeModal(); showToast('ตะกร้าว่าง'); }
 };
 
-/* ⭐ FIX #6: ลบรายการ */
 window.removeCartItem = function(index) {
   if (!cart[index]) return;
   cart.splice(index, 1);
@@ -1878,12 +1953,10 @@ window.removeCartItem = function(index) {
   if (cart.length) openCart(); else { closeModal(); showToast('ลบรายการแล้ว'); }
 };
 
-/* ⭐ FIX #3: checkOut เช็คที่อยู่ก่อน */
 window.checkout = async function(){
   if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
   if(!cart.length) return showToast('ตะกร้าว่าง','error');
 
-  // ⭐ FIX #3: เช็คที่อยู่ก่อนส่ง
   var address = (userProfile&&userProfile.address)||'';
   if (!address.trim()) {
     showToast('⚠️ กรุณากรอกที่อยู่ก่อนสั่งซื้อ', 'warning');
@@ -2112,8 +2185,9 @@ if('serviceWorker' in navigator){
   });
 }
 
-console.log('%c🛵 Chauat Go v3.4.2 — FIXED EDITION','color:#76B82A;font-weight:900;font-size:16px');
-console.log('%c✓ Cart +/- | ✓ Quote fix | ✓ GPS warning | ✓ Address check | ✓ Haversine ×1.3','color:#00A651;font-weight:700');
+console.log('%c🛵 Chauat Go v3.4.3 — PRODUCTION','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ Quote fix | ✓ GPS warning | ✓ Address check | ✓ Haversine ×1.3','color:#00A651;font-weight:700');
+console.log('%c✓ Cart +/- | ✓ Theme-fab auto-hide observer','color:#00A651;font-weight:700');
 </script>
 
 </body>
