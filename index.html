@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.3.3</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด จ.นครศรีธรรมราช">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,24 +16,27 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<!-- ═══ Fonts & Preconnect ═══ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-<!-- ═══ PWA Meta ═══ -->
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-<!-- ═══ Leaflet CSS ═══ -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-<!-- ═══ App CSS ═══ -->
-<link rel="stylesheet" href="index.css">
+<link rel="stylesheet" href="index.css?v=3.3.3">
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════════
+     DEBUG CONSOLE (แสดงเฉพาะเมื่อมี log)
+     ═══════════════════════════════════════════════════ -->
+<div id="debugConsole" style="position:fixed;bottom:0;left:0;right:0;max-height:100px;overflow-y:auto;background:rgba(0,0,0,.92);color:#0f0;font-size:10px;font-family:monospace;padding:8px 12px;z-index:99999;display:none;border-top:2px solid #333;line-height:1.5;word-break:break-all;-webkit-overflow-scrolling:touch">
+  <strong style="color:#FFA500">Debug v3.3.3:</strong><br>
+</div>
 
 <!-- ═══════════════════════════════════════════════════
      PWA INSTALL BANNER
@@ -152,10 +155,8 @@
      TAB: HOME
      ═══════════════════════════════════════════════════ -->
 <div id="tab-home">
-  <!-- Search Results -->
   <div class="search-results" id="search-results"></div>
 
-  <!-- Category View (All items) -->
   <div class="category-view" id="category-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="category-title">หมวดหมู่</div>
@@ -164,7 +165,6 @@
     <div class="food-grid" id="category-grid"></div>
   </div>
 
-  <!-- Merchant View (For ordering) -->
   <div class="merchant-view" id="merchant-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="merchant-view-title">🏪 เลือกร้านอาหาร</div>
@@ -189,9 +189,7 @@
     </div>
   </div>
 
-  <!-- Home Content -->
   <div id="home-content">
-    <!-- Brand Hero -->
     <div class="brand-hero">
       <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.src='images/app-icon.png'">
       <div>
@@ -200,7 +198,6 @@
       </div>
     </div>
 
-    <!-- Stats Bar -->
     <div class="stats-bar">
       <div><div class="stat-num" id="stat-total">0</div><div class="stat-label">สถานที่</div></div>
       <div><div class="stat-num" id="stat-rest">0</div><div class="stat-label">ร้านอาหาร</div></div>
@@ -208,7 +205,6 @@
       <div><div class="stat-num" id="stat-shop">0</div><div class="stat-label">ร้านค้า</div></div>
     </div>
 
-    <!-- Main Menu Grid 6 Icons -->
     <div class="menu-grid">
       <div class="menu-item ripple" onclick="openMerchantView('food')">
         <div class="menu-icon food">🍽️</div>
@@ -236,47 +232,40 @@
       </div>
     </div>
 
-    <!-- HOT Section -->
     <div class="hot-section">
       <div class="hot-title">🔥 ร้านที่เข้าร่วม Chauat Go ใกล้เคียง <span class="hot-badge">HOT</span></div>
     </div>
 
-    <!-- ร้านอาหารแนะนำ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">🍽️ ร้านอาหารแนะนำ</div>
       <div class="section-more ripple" onclick="showAllCategories('restaurant')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="restaurant-grid"></div>
 
-    <!-- ร้านสะดวกซื้อ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">🏪 ร้านสะดวกซื้อ</div>
       <div class="section-more ripple" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="convenience-grid"></div>
 
-    <!-- คาเฟ่ (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header">
       <div class="section-title">☕ คาเฟ่</div>
       <div class="section-more ripple" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="cafe-grid"></div>
 
-    <!-- สถานที่ท่องเที่ยว (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header" id="tourist-header">
       <div class="section-title">🌴 สถานที่ท่องเที่ยว</div>
       <div class="section-more ripple" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="tourist-grid"></div>
 
-    <!-- โรงแรม/ที่พัก (แสดงเฉพาะที่มีรูป) -->
     <div class="section-header" id="hotel-header">
       <div class="section-title">🏨 โรงแรม/ที่พัก</div>
       <div class="section-more ripple" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div>
     </div>
     <div class="food-grid" id="hotel-grid"></div>
 
-    <!-- Legal Footer -->
     <div class="legal-footer" id="legal-footer" style="display:none">
       <div class="dbd-mark">[DBD<br>Registered]</div>
       <div class="links">
@@ -435,22 +424,6 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     SCRIPTS — ลำดับการโหลด (สำคัญมาก!)
-     ═══════════════════════════════════════════════════════════════
-     
-     ลำดับที่ 1: External Libraries (CDN)
-       - Leaflet (แผนที่)
-       - Firebase SDK (Auth, Firestore, Storage)
-     
-     ลำดับที่ 2: Data Files
-       - locations-data.js (ข้อมูล 490 สถานที่ — ต้องโหลดก่อน index.js)
-     
-     ลำดับที่ 3: Application Logic
-       - index.js (ใช้ข้อมูลจาก locations-data.js)
-     
-     ═══════════════════════════════════════════════════════════════ -->
-
 <!-- ═══ STAGE 1: External Libraries ═══ -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -458,11 +431,19 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
-<!-- ═══ STAGE 2: Data Files (ต้องมาก่อน index.js) ═══ -->
-<script src="locations-data.js"></script>
+<!-- ═══ STAGE 2: Data Files ═══ -->
+<script src="locations-data.js?v=3.3.3"></script>
 
 <!-- ═══ STAGE 3: Application Logic ═══ -->
-<script src="index.js"></script>
+<script src="index.js?v=3.3.3"></script>
+
+<!-- ═══ Update Version Display ═══ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var ver = document.getElementById('app-version');
+  if (ver) ver.textContent = 'v3.3.3';
+});
+</script>
 
 </body>
 </html>
