@@ -3,106 +3,117 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Chauat Go Rider — v3.4.7.1</title>
 <meta name="theme-color" content="#FF6B35">
-<meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Rider — v3.3.3</title>
+<meta name="description" content="แอปไรเดอร์ Chauat Go — อ.ชะอวด">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChauatGo Rider">
+<meta name="mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- ═══════════════════════════════════════════════════════════
-     🔗 ลิงก์ไฟล์ภายนอก
-     ═══════════════════════════════════════════════════════════ -->
-<!-- ไอคอนแอป -->
+<!-- ═══ AUTO CACHE-BUSTING ═══ -->
+<script>
+(function() {
+  var VERSION = 'v3.4.7.1-20241009-001';
+  var saved = localStorage.getItem('chauat_ver_rider');
+  var lastReload = localStorage.getItem('chauat_last_reload_rider');
+  var now = Date.now();
+  if (lastReload && (now - parseInt(lastReload)) < 5000) {
+    localStorage.setItem('chauat_ver_rider', VERSION);
+    return;
+  }
+  if (saved !== VERSION) {
+    localStorage.setItem('chauat_ver_rider', VERSION);
+    localStorage.setItem('chauat_last_reload_rider', now.toString());
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+      }).then(function() { location.reload(true); });
+    } else { location.reload(true); }
+  }
+})();
+</script>
+
+<!-- ═══ THEME — โหลดก่อนทุกอย่าง ═══ -->
+<script>
+(function() {
+  var theme = localStorage.getItem('chauat_rider_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
+
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<!-- Manifest สำหรับ PWA (ติดตั้งเป็นแอปได้) -->
 <link rel="manifest" href="manifest.json">
-<!-- ฟอนต์ IBM Plex Sans Thai -->
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<!-- ⚠️ ไฟล์ CSS ของ Rider (ต้องมีไฟล์ rider.css อยู่ในโฟลเดอร์เดียวกัน) -->
-<link rel="stylesheet" href="rider.css">
 
-<!-- ═══════════════════════════════════════════════════════════
-     🔧 FIX SCROLL — โค้ดส่วนนี้สำคัญมาก! ห้ามลบ!
-     บังคับให้หน้าเว็บ scroll ได้บนทุกเบราว์เซอร์
-     ═══════════════════════════════════════════════════════════ -->
-<style>
-  /* บังคับให้ html + body scroll ได้ */
-  html, body {
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    height: auto !important;
-    position: static !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-  
-  /* ให้ #app ไม่ล็อกการ scroll */
-  #app {
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-  }
-  
-  /* Debug Console ให้ย่อไว้ ไม่บังหน้าจอ */
-  #debugConsole {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    max-height: 100px !important;
-    height: auto !important;
-    overflow-y: auto !important;
-    background: rgba(0, 0, 0, 0.92) !important;
-    color: #00ff00 !important;
-    font-size: 11px !important;
-    font-family: monospace !important;
-    padding: 8px 10px !important;
-    z-index: 99999 !important;
-    display: none;
-    border-top: 2px solid #333 !important;
-    line-height: 1.4 !important;
-  }
-  
-  /* แสดง Debug Console เมื่อต้องการ */
-  #debugConsole.show {
-    display: block !important;
-  }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="rider.css">
 </head>
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🐛 DEBUG CONSOLE — กล่องดำด้านล่าง เอาไว้ดู error บนมือถือ
-     ถ้าไม่ต้องการให้แสดง ให้ลบ class "show" ออก
+     SPLASH
      ═══════════════════════════════════════════════════════════ -->
-<div id="debugConsole">
-  <strong>Debug Console:</strong><br>
+<div id="splash-screen">
+  <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go Rider" onerror="this.style.background='linear-gradient(135deg,#FF6B35,#E55A2B)';this.style.display='flex'">
+  <div class="splash-title">Chauat Go Rider</div>
+  <div class="splash-sub">ระบบจัดการงานสำหรับไรเดอร์</div>
+  <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
+  <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🚫 OFFLINE BAR — แถบแจ้งเตือนตอนเน็ตหลุด
+     THEME FAB
      ═══════════════════════════════════════════════════════════ -->
-<div class="offline-bar" id="offlineBar">🔴 ออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
+<button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🔐 LOGIN SCREEN — หน้าล็อกอิน
-     จะแสดงเมื่อยังไม่ได้เข้าสู่ระบบ
+     OFFLINE BANNER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TOAST
+     ═══════════════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PWA BANNER
+     ═══════════════════════════════════════════════════════════ -->
+<div id="pwa-install-banner" class="pwa-banner hidden">
+  <div style="font-size:28px">📱</div>
+  <div style="flex:1">
+    <div style="font-size:13px;font-weight:900;color:var(--text)">ติดตั้ง Chauat Go Rider</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600">เพิ่มลงหน้าจอหลัก</div>
+  </div>
+  <button class="pwa-btn-primary" onclick="installPWA()">ติดตั้ง</button>
+  <button class="pwa-btn-close" onclick="dismissPWA()">✕</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOGIN SCREEN
      ═══════════════════════════════════════════════════════════ -->
 <div id="login-screen">
   <div class="login-card">
-    <!-- ไอคอนแอป -->
     <div class="login-icon">
       <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'fallback\'>🛵</div>'">
     </div>
-    
-    <h1>Chauat Go Rider</h1>
-    <p id="login-subtitle">สำหรับไรเดอร์เท่านั้น</p>
 
-    <!-- ══ แท็บ Login / Signup ══ -->
+    <h1>Chauat Go Rider</h1>
+    <p class="login-subtitle" id="login-subtitle">สำหรับไรเดอร์เท่านั้น</p>
+
+    <!-- Tabs -->
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
       <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">สมัครเป็นไรเดอร์</button>
     </div>
 
-    <!-- ══ ฟอร์มเข้าสู่ระบบ ══ -->
+    <!-- Login Form -->
     <form id="form-login" onsubmit="handleLogin(event)">
       <div class="form-field">
         <label>📧 อีเมล</label>
@@ -116,7 +127,7 @@
       <button type="button" class="btn-secondary ripple" onclick="handleForgotPassword()">🔑 ลืมรหัสผ่าน</button>
     </form>
 
-    <!-- ══ ฟอร์มสมัครไรเดอร์ ══ -->
+    <!-- Signup Form -->
     <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
       <div class="form-field">
         <label>👤 ชื่อ-นามสกุล *</label>
@@ -151,8 +162,7 @@
         <input type="password" id="su-password2" minlength="6" required>
       </div>
 
-      <!-- ══ PDPA Consent ══ -->
-      <div class="pdpa-gps-box">
+      <div class="pdpa-box">
         <label>
           <input type="checkbox" id="pdpa-consent" required>
           <span>
@@ -166,66 +176,62 @@
       <button type="submit" class="btn-primary ripple" id="btn-signup">✅ สมัครเป็นไรเดอร์</button>
     </form>
 
-    <!-- ══ Error Message ══ -->
-    <div id="login-error"></div>
+    <div id="login-error" class="login-error"></div>
     <div class="login-hint">🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.</div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🏠 MAIN APP — ส่วนหลักของไรเดอร์
-     จะแสดงเมื่อล็อกอินสำเร็จ
+     MAIN APP
      ═══════════════════════════════════════════════════════════ -->
 <div id="app" style="display:none">
 
-  <!-- ══ HEADER — ส่วนหัวของแอป ══ -->
-  <header>
+  <!-- HEADER -->
+  <header class="app-header">
     <div class="header-info">
-      <!-- ชื่อไรเดอร์ -->
       <div class="name" id="rider-name">—</div>
-      <!-- สถานะ เปิด/ปิดรับงาน -->
       <div class="status" id="rider-status">⚫ ออฟไลน์</div>
-      <!-- Rider ID -->
-      <div class="rider-id" id="rider-id-header">—</div>
+      <div class="trust-badge" id="trust-badge" title="Trust Score">⭐ 100</div>
     </div>
-    
-    <!-- ปุ่ม เปิด/ปิดรับงาน -->
     <button class="online-toggle ripple" id="online-toggle-btn" onclick="toggleOnline()">
       <span class="dot"></span>
       <span id="toggle-label">ออฟไลน์</span>
     </button>
-    
-    <!-- ปุ่มเมนู ☰ -->
     <button class="menu-btn ripple" onclick="openSheet()">☰</button>
   </header>
 
-  <!-- ══ PENDING BANNER — แจ้งเตือนรออนุมัติ ══ -->
+  <!-- PENDING BANNER -->
   <div class="pending-banner" id="pending-banner">
-    ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>จะรับงานได้เมื่ออนุมัติแล้ว
+    ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>
+    <span style="font-size:11px;opacity:.8">จะรับงานได้เมื่ออนุมัติแล้ว</span>
   </div>
 
-  <!-- ══ MAIN CONTAINER ══ -->
+  <!-- MAIN CONTAINER -->
   <div class="container">
 
-    <!-- ══ HERO CARD — การ์ดรายได้ ══ -->
+    <!-- HERO CARD -->
     <div class="hero-card">
-      <div class="hero-label">💰 รายได้วันนี้ (80% ของคุณ)</div>
+      <div class="hero-label">💰 รายได้วันนี้</div>
       <div class="hero-amount" id="hero-income">฿0.00</div>
       <div class="hero-sub" id="hero-sub">จาก 0 งานเสร็จสิ้นวันนี้</div>
-      
+
       <div class="hero-grid">
         <div class="hero-grid-cell">
-          <div class="lbl">💵 เก็บจากลูกค้า</div>
-          <div class="val" id="hero-collected">฿0</div>
+          <div class="lbl">💵 ค่าบริการ 80%</div>
+          <div class="val" id="hero-fee">฿0</div>
         </div>
         <div class="hero-grid-cell">
-          <div class="lbl">⚠️ ต้องโอนแอป (20%)</div>
-          <div class="val warn" id="hero-owe">฿0.00</div>
+          <div class="lbl">🎁 ทิปเงินสด</div>
+          <div class="val" id="hero-tip">฿0</div>
+        </div>
+        <div class="hero-grid-cell warn">
+          <div class="lbl">⚠️ ต้องโอน 3 ทุ่ม</div>
+          <div class="val" id="hero-owe">฿0.00</div>
         </div>
       </div>
     </div>
 
-    <!-- ══ STATS MINI — สถิติย่อ ══ -->
+    <!-- STATS MINI -->
     <div class="stats-mini">
       <div class="stat-mini">
         <div class="n" id="stat-done">0</div>
@@ -241,8 +247,8 @@
       </div>
     </div>
 
-    <!-- ══ งานที่กำลังทำ — จะแสดงเมื่อมีงาน ══ -->
-    <div id="active-job-section" style="display:none">
+    <!-- งานที่กำลังทำ -->
+    <div id="active-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title">🛵 งานที่กำลังทำ</div>
         <div class="line"></div>
@@ -251,8 +257,8 @@
       <div id="active-jobs-list"></div>
     </div>
 
-    <!-- ══ งานใหม่ — จะแสดงเมื่อมีงาน ══ -->
-    <div id="new-job-section" style="display:none">
+    <!-- งานใหม่ -->
+    <div id="new-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title">🔔 งานใหม่</div>
         <div class="line"></div>
@@ -261,8 +267,8 @@
       <div id="new-jobs-list"></div>
     </div>
 
-    <!-- ══ งานเสร็จวันนี้ ══ -->
-    <div id="done-job-section" style="display:none">
+    <!-- งานเสร็จวันนี้ -->
+    <div id="done-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title">✅ เสร็จวันนี้</div>
         <div class="line"></div>
@@ -271,24 +277,23 @@
       <div id="done-jobs-list"></div>
     </div>
 
-    <!-- ══ Empty State — เมื่อไม่มีงาน ══ -->
-    <div id="empty-state" class="empty">
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state">
       <div class="icon">🎯</div>
       <h3>พร้อมรับงาน!</h3>
       <p>เมื่อมีลูกค้าเรียกใช้บริการ<br>งานจะแสดงที่นี่แบบ Real-time</p>
     </div>
 
-  </div><!-- /container -->
-</div><!-- /app -->
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🪟 SHEET MENU — เมนูด้านข้าง (กด ☰)
+     SHEET MENU
      ═══════════════════════════════════════════════════════════ -->
 <div class="sheet-overlay" id="sheetOverlay" onclick="if(event.target===this)closeSheet()">
   <div class="sheet">
-    <h2>☰ เมนูไรเดอร์</h2>
+    <h2 class="sheet-title">☰ เมนูไรเดอร์</h2>
 
-    <!-- ข้อมูลไรเดอร์ -->
     <div class="sheet-item" onclick="closeSheet();showProfile()">
       <div class="ico">👤</div>
       <div class="content">
@@ -298,17 +303,42 @@
       <div class="arrow">›</div>
     </div>
 
-    <!-- ดูรายได้ -->
-    <div class="sheet-item" onclick="closeSheet();showIncome()">
+    <div class="sheet-item" onclick="closeSheet();showFinance()">
       <div class="ico">💰</div>
       <div class="content">
         <div class="lbl">รายได้ & GP</div>
-        <div class="sub">สรุปยอดค้างโอน</div>
+        <div class="sub" id="sheet-finance-sub">สรุปยอดโอนร้าน + chauatgo</div>
       </div>
       <div class="arrow">›</div>
     </div>
 
-    <!-- งานที่เสร็จแล้ว -->
+    <div class="sheet-item" onclick="closeSheet();showTransferShop()">
+      <div class="ico">🏪</div>
+      <div class="content">
+        <div class="lbl">โอนให้ร้านค้า</div>
+        <div class="sub" id="sheet-shop-sub">ดูยอดค้างโอน</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <div class="sheet-item" onclick="closeSheet();showTransferApp()">
+      <div class="ico">📤</div>
+      <div class="content">
+        <div class="lbl">โอนให้ chauatgo (20%)</div>
+        <div class="sub" id="sheet-app-sub">ครบกำหนด 3 ทุ่ม</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <div class="sheet-item" onclick="closeSheet();showGPIncome()">
+      <div class="ico">💎</div>
+      <div class="content">
+        <div class="lbl">GP 2% รอรับจาก chauatgo</div>
+        <div class="sub" id="sheet-gp-sub">ทุก 15 วัน</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
     <div class="sheet-item" onclick="closeSheet();showHistory()">
       <div class="ico">📋</div>
       <div class="content">
@@ -318,60 +348,63 @@
       <div class="arrow">›</div>
     </div>
 
-    <!-- เปิด GPS -->
-    <div class="sheet-item" onclick="closeSheet();requestGPS()">
-      <div class="ico">📍</div>
+    <div class="sheet-item" onclick="closeSheet();showTrustScore()">
+      <div class="ico">🏆</div>
       <div class="content">
-        <div class="lbl">เปิด GPS</div>
-        <div class="sub">อัปเดตตำแหน่งปัจจุบัน</div>
+        <div class="lbl">Trust Score</div>
+        <div class="sub" id="sheet-trust-sub">⭐ 100 / 100</div>
       </div>
       <div class="arrow">›</div>
     </div>
 
-    <!-- ออกจากระบบ -->
-    <div class="sheet-item" onclick="handleLogout()" style="color:#E53935">
-      <div class="ico" style="background:#FFEBEE">🚪</div>
+    <div class="sheet-item" onclick="closeSheet();requestGPS()">
+      <div class="ico">📍</div>
       <div class="content">
-        <div class="lbl" style="color:#E53935">ออกจากระบบ</div>
+        <div class="lbl">อัปเดตตำแหน่ง</div>
+        <div class="sub">ตรวจสอบ GPS ปัจจุบัน</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+
+    <div class="sheet-item danger" onclick="handleLogout()">
+      <div class="ico danger">🚪</div>
+      <div class="content">
+        <div class="lbl danger">ออกจากระบบ</div>
         <div class="sub">กลับไปหน้า Login</div>
       </div>
-      <div class="arrow" style="color:#E53935">›</div>
+      <div class="arrow danger">›</div>
     </div>
 
     <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
+    <div class="sheet-version">Chauat Go Rider v3.4.7.1 • © 2024</div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🔔 POPUP งานใหม่ — เด้งขึ้นเมื่อมีงานใหม่
+     POPUP งานใหม่
      ═══════════════════════════════════════════════════════════ -->
 <div class="new-job-popup" id="newJobPopup">
   <div class="new-job-card">
-    <div class="icon">🔔</div>
+    <div class="popup-icon">🔔</div>
     <h2>งานใหม่!</h2>
     <p>มีลูกค้าเรียกใช้บริการ</p>
     <div class="detail" id="new-job-detail"></div>
     <div class="job-actions two">
       <button class="action-btn-big btn-green-big ripple" onclick="acceptFromPopup()">✅ รับงาน</button>
-      <button class="action-btn-big btn-gray-big ripple" onclick="closeNewJobPopup()">⏰ ปิด</button>
+      <button class="action-btn-big btn-gray-big ripple" onclick="closeNewJobPopup()">⏰ ข้าม</button>
     </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🍞 TOAST — ข้อความแจ้งเตือนลอย
-     ═══════════════════════════════════════════════════════════ -->
-<div class="toast" id="toast"></div>
-
-<!-- ═══════════════════════════════════════════════════════════
-     🪟 MODAL — หน้าต่าง popup ทั่วไป
+     MODAL ทั่วไป
      ═══════════════════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
   <div class="modal-content" id="modalContent"></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     💬 CHAT — แชทระหว่างไรเดอร์ ↔ ร้านค้า
+     CHAT
      ═══════════════════════════════════════════════════════════ -->
 <div class="chat-container" id="chatContainer">
   <div class="chat-header">
@@ -380,6 +413,7 @@
       <div class="chat-name" id="chatName">-</div>
       <div class="chat-sub" id="chatSub">-</div>
     </div>
+    <button class="chat-call-btn ripple" id="chatCallBtn" onclick="callChatPartner()" title="โทร">📞</button>
   </div>
   <div class="chat-messages" id="chatMessages"></div>
   <div class="chat-input-bar">
@@ -391,48 +425,42 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     🔥 FIREBASE SDK — โหลด Firebase (ต้องอยู่ก่อน rider.js)
+     CAMERA MODAL (ถ่ายรูปอาหาร)
+     ═══════════════════════════════════════════════════════════ -->
+<div class="camera-modal" id="cameraModal">
+  <div class="camera-header">
+    <button class="camera-close ripple" onclick="closeCamera()">✕</button>
+    <h3>📸 ถ่ายรูปอาหาร</h3>
+  </div>
+  <div class="camera-body">
+    <img id="cameraPreview" style="display:none">
+    <div class="camera-placeholder" id="cameraPlaceholder">
+      <div style="font-size:64px">📷</div>
+      <p>แตะปุ่มด้านล่างเพื่อเปิดกล้อง</p>
+      <p style="font-size:12px;opacity:.6">หรืออัปโหลดจากอัลบั้ม</p>
+    </div>
+  </div>
+  <div class="camera-actions">
+    <button class="camera-btn-primary ripple" onclick="document.getElementById('cameraFileInput').click()">
+      📷 เปิดกล้อง / อัปโหลด
+    </button>
+    <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display:none" onchange="previewFoodImage(this.files[0])">
+    <button class="camera-btn-send ripple" id="cameraSendBtn" style="display:none" onclick="sendFoodImage()">
+      📤 ส่งให้ลูกค้า
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FIREBASE SDK
      ═══════════════════════════════════════════════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- ⚠️ ไฟล์ JavaScript ของ Rider (ต้องมี rider.js อยู่ในโฟลเดอร์เดียวกัน) -->
 <script src="rider.js"></script>
-
-<!-- ═══════════════════════════════════════════════════════════
-     🔧 EMERGENCY SCROLL FIX — Force scroll ได้เสมอ
-     ═══════════════════════════════════════════════════════════ -->
-<script>
-  // รอให้หน้าเว็บโหลดเสร็จก่อน แล้วบังคับ scroll
-  window.addEventListener('load', function() {
-    // Force scroll
-    document.body.style.overflow = 'auto';
-    document.body.style.overflowY = 'auto';
-    document.body.style.height = 'auto';
-    document.body.style.position = 'static';
-    document.documentElement.style.overflow = 'auto';
-    document.documentElement.style.height = 'auto';
-    
-    // Debug
-    console.log('✅ Scroll fix applied');
-    if (window.logToScreen) {
-      window.logToScreen('✅ Scroll fix applied');
-    }
-  });
-
-  // ลบ overflow: hidden จาก #app ทุกครั้งที่ DOM เปลี่ยน
-  const observer = new MutationObserver(() => {
-    const app = document.getElementById('app');
-    if (app && app.style.overflow === 'hidden') {
-      app.style.overflow = 'visible';
-      app.style.height = 'auto';
-      app.style.maxHeight = 'none';
-    }
-  });
-  observer.observe(document.body, { attributes: true, childList: true, subtree: true });
-</script>
 
 </body>
 </html>
