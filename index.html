@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.1</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.2</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,20 +13,17 @@
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- ═══ AUTO CACHE-BUSTING (แก้ Reload Loop) ═══ -->
+<!-- ═══ AUTO CACHE-BUSTING (กัน Reload Loop) ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.1-20241009-001';
+  var VERSION = 'v3.4.2-20241009-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
-
-  // กัน Reload Loop: ถ้าเพิ่ง reload ใน 5 วิ ห้าม reload อีก
   if (lastReload && (now - parseInt(lastReload)) < 5000) {
     localStorage.setItem('chauat_ver_index', VERSION);
     return;
   }
-
   if (saved !== VERSION) {
     localStorage.setItem('chauat_ver_index', VERSION);
     localStorage.setItem('chauat_last_reload', now.toString());
@@ -39,7 +36,7 @@
 })();
 </script>
 
-<!-- ═══ DARK MODE — โหลดก่อนทุกอย่าง (กันจอกระพริบ) ═══ -->
+<!-- ═══ DARK MODE — โหลดก่อนทุกอย่าง ═══ -->
 <script>
 (function() {
   var theme = localStorage.getItem('chauat_theme') || 'light';
@@ -57,11 +54,10 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.1 — FIXED EDITION
+   CHAUAT GO v3.4.2 — FIXED EDITION
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
-/* ═══ LIGHT THEME ═══ */
 :root {
   --brand: #76B82A; --brand-dark: #5A8E1F; --brand-light: #EDF6DC;
   --accent: #FF6B35; --green: #00A651; --red: #E53935; --blue: #2196F3;
@@ -75,8 +71,6 @@
   --overlay-bg: rgba(0,0,0,.6);
   --input-bg: #fafafa;
 }
-
-/* ═══ DARK THEME ═══ */
 [data-theme="dark"] {
   --brand: #8FD334; --brand-dark: #76B82A; --brand-light: #2A3A1F;
   --accent: #FF8055; --green: #22C55E; --red: #EF4444; --blue: #60A5FA;
@@ -94,16 +88,13 @@
 html { height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }
 body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !important; height: auto !important; overflow-x: hidden !important; overflow-y: auto !important; position: static !important; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; padding-bottom: 90px !important; transition: background .3s, color .3s; }
 
-/* ═══ KEYFRAMES ═══ */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes popIn { from { transform: scale(.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: .7; } }
 @keyframes shake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 @keyframes bounceIn { 0% { transform: scale(.3); opacity: 0; } 50% { transform: scale(1.05); } 70% { transform: scale(.95); } 100% { transform: scale(1); opacity: 1; } }
 @keyframes floatUp { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes logoPulse { 0%,100% { transform: scale(1); filter: drop-shadow(0 8px 24px rgba(118,184,42,.4)); } 50% { transform: scale(1.05); filter: drop-shadow(0 12px 32px rgba(118,184,42,.6)); } }
@@ -182,15 +173,18 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 }
 .profile-avatar:active { transform: scale(.92); }
 
-/* ═══ THEME TOGGLE FAB (ย้ายลงล่าง ไม่ทับ Profile) ═══ */
+/* ═══ THEME TOGGLE FAB (ย้ายไป bottom + ซ่อนเมื่อ Modal) ═══ */
 .theme-fab {
-  position: fixed; top: 120px; right: 14px; width: 44px; height: 44px;
+  position: fixed; bottom: 150px; right: 14px; width: 44px; height: 44px;
   border-radius: 50%; background: var(--surface); border: none;
   box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px;
   display: flex; align-items: center; justify-content: center;
-  z-index: 9990; transition: all .3s;
+  z-index: 4000; transition: all .3s;
 }
 .theme-fab:active { transform: scale(.9) rotate(180deg); }
+.modal-overlay.show ~ .theme-fab,
+.profile-sheet.show ~ .theme-fab,
+#map-page.show ~ .theme-fab { display: none !important; }
 
 /* ═══ SEARCH RESULTS ═══ */
 .search-results {
@@ -679,9 +673,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════
-     SPLASH SCREEN
-     ═══════════════════════════════════════════════════════ -->
+<!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash-screen">
   <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go" onerror="this.style.background='linear-gradient(135deg,#76B82A,#5A8E1F)';this.style.display='flex'">
   <div class="splash-title">Chauat Go</div>
@@ -690,11 +682,11 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
 
-<!-- ═══ THEME TOGGLE FAB (ย้ายลงล่าง ไม่ทับ Profile) ═══ -->
+<!-- ═══ THEME TOGGLE FAB ═══ -->
 <button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
 <!-- ═══ DEBUG ═══ -->
-<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.1:</strong><br></div>
+<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.2:</strong><br></div>
 
 <!-- ═══ PWA BANNER ═══ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
@@ -981,7 +973,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.4.1 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.4.2 • © 2024</div>
       </div>
     </div>
   </div>
@@ -995,7 +987,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.1 — FIXED EDITION JavaScript
+   CHAUAT GO v3.4.2 — FIXED JavaScript
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -1076,15 +1068,12 @@ function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*10
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
 /* ═══════════════════════════════════════════════════════════════
-   SPLASH SCREEN (มี Safety Timer ป้องกันค้าง)
+   SPLASH SCREEN
    ═══════════════════════════════════════════════════════════════ */
 function runSplash(){
   var bar = $('splash-bar');
   if (!bar) { dismissSplash(); return; }
-
-  // ⭐ SAFETY: บังคับปิด Splash หลัง 3 วินาที ไม่ว่าอะไรจะเกิดขึ้น
   var safetyTimer = setTimeout(dismissSplash, 3000);
-
   var progress = 0;
   var interval = setInterval(function(){
     progress += 15 + Math.random() * 15;
@@ -1097,7 +1086,6 @@ function runSplash(){
     bar.style.width = progress + '%';
   }, 150);
 }
-
 function dismissSplash(){
   var splash = $('splash-screen');
   if (!splash) return;
@@ -1108,23 +1096,19 @@ function dismissSplash(){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   THEME TOGGLE
+   THEME
    ═══════════════════════════════════════════════════════════════ */
 window.toggleTheme = function(){
   var current = document.documentElement.getAttribute('data-theme') || 'light';
   var next = current === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('chauat_theme', next);
-
   var fab = $('theme-fab');
   if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
-
   var meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = next === 'dark' ? '#0F1419' : '#76B82A';
-
   showToast(next === 'dark' ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง', 'info');
 };
-
 function initTheme(){
   var theme = localStorage.getItem('chauat_theme') || 'light';
   document.documentElement.setAttribute('data-theme', theme);
@@ -1133,7 +1117,7 @@ function initTheme(){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   COUNT-UP ANIMATION
+   COUNT-UP
    ═══════════════════════════════════════════════════════════════ */
 function countUp(el, target, duration){
   if (!el) return;
@@ -1144,11 +1128,9 @@ function countUp(el, target, duration){
     if (!startTime) startTime = timestamp;
     var progress = Math.min((timestamp - startTime) / duration, 1);
     var eased = 1 - Math.pow(1 - progress, 3);
-    var current = Math.floor(eased * target);
-    el.textContent = current;
-    if (progress < 1) {
-      requestAnimationFrame(step);
-    } else {
+    el.textContent = Math.floor(eased * target);
+    if (progress < 1) requestAnimationFrame(step);
+    else {
       el.textContent = target;
       setTimeout(function(){el.classList.remove('counted');}, 600);
     }
@@ -1160,7 +1142,7 @@ function countUp(el, target, duration){
    INIT
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function(){
-  debugLog('🚀 Chauat Go v3.4.1');
+  debugLog('🚀 Chauat Go v3.4.2');
   initTheme();
   runSplash();
   loadPlaces();
@@ -1196,12 +1178,10 @@ function updateStatsBar(){
   var rest=PLACES.filter(function(p){return p.category==='r';}).length;
   var cafe=PLACES.filter(function(p){return p.category==='f';}).length;
   var shop=PLACES.filter(function(p){return ['s','c','m'].indexOf(p.category)!==-1;}).length;
-
   countUp($('stat-total'), total, 1000);
   countUp($('stat-rest'), rest, 1000);
   countUp($('stat-cafe'), cafe, 1000);
   countUp($('stat-shop'), shop, 1000);
-
   debugLog('📊 Stats: '+total+'/'+rest+'/'+cafe+'/'+shop);
   renderGrid('restaurant-grid',PLACES.filter(function(p){return p.category==='r'&&hasRealImage(p.image);}).slice(0,6));
   renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,6));
@@ -1372,15 +1352,12 @@ window.saveProfile = async function(){
   var phoneVal = $('edit-phone') ? $('edit-phone').value.trim() : '';
   var lineVal = $('edit-line') ? $('edit-line').value.trim() : '';
   var addrVal = $('edit-address') ? $('edit-address').value.trim() : '';
-
   if(!nameVal){showToast('กรอกชื่อ','error');return;}
   if(phoneVal && phoneVal.replace(/\D/g,'').length < 9){showToast('เบอร์ไม่ถูกต้อง','error');return;}
-
   var data = {
     name: nameVal, phone: phoneVal, lineId: lineVal, address: addrVal,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-
   try{
     await db.collection('users').doc(currentUser.uid).set(data,{merge:true});
     await currentUser.updateProfile({displayName:nameVal});
@@ -1411,9 +1388,7 @@ window.doSearch = function(q){
   var matches = PLACES.filter(function(p){
     return p.name.toLowerCase().indexOf(query)!==-1 || (CATS[p.category]&&CATS[p.category].name.toLowerCase().indexOf(query)!==-1);
   }).slice(0,20);
-
   results.style.display='block'; results.classList.add('show');
-
   if(!matches.length){
     results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div>';
     return;
@@ -1430,7 +1405,7 @@ window.doSearch = function(q){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MERCHANT + 🛒 ปุ่มเพิ่มลงตะกร้า
+   MERCHANT (⭐ แก้บั๊ก Quote + ใช้ addToCartById)
    ═══════════════════════════════════════════════════════════════ */
 window.openMerchantView = async function(type){
   debugLog('🏪 Merchant View: '+type);
@@ -1439,10 +1414,8 @@ window.openMerchantView = async function(type){
   if($('category-view')) $('category-view').classList.remove('show');
   if($('merchant-view')) $('merchant-view').classList.add('show');
   if($('merchant-view-title')) $('merchant-view-title').textContent = type==='food'?'🍽️ เลือกร้านอาหาร':'🛒 เลือกร้านค้า';
-
   var list = $('merchant-list'); if(!list) return;
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านค้า...</div>';
-
   try{
     var snap = await db.collection('merchants').where('verified','==',true).get();
     merchantsCache = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
@@ -1483,14 +1456,12 @@ window.closeMerchantView = function(){
   if($('merchant-view')) $('merchant-view').classList.remove('show');
   if($('home-content')) $('home-content').style.display='block';
 };
-
 window.filterMerchantCat = function(cat,el){
   currentMerchantFilter = cat;
   document.querySelectorAll('.m-filter-chip').forEach(function(c){c.classList.remove('active');});
   if(el) el.classList.add('active');
   renderMerchantList(merchantsCache);
 };
-
 var msi = document.getElementById('merchant-search-input');
 if(msi){
   msi.addEventListener('input',function(e){
@@ -1499,6 +1470,7 @@ if(msi){
   });
 }
 
+/* ⭐ FIX #1: Quote bug — ส่งแค่ menuId + เก็บใน _menus */
 window.openMerchantDetail = async function(merchantId){
   try{
     var snap = await db.collection('merchants').doc(merchantId).get();
@@ -1506,6 +1478,10 @@ window.openMerchantDetail = async function(merchantId){
     var m = Object.assign({id:snap.id},snap.data());
     var menuSnap = await db.collection('menus').where('merchantId','==',merchantId).get();
     var menus = menuSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+
+    window._currentMerchant = {id:merchantId, name:m.name||''};
+    window._menus = menus;
+
     $('modal-body').innerHTML =
       '<div style="text-align:center;margin-bottom:16px"><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+esc(m.name||'')+'</h2></div>' +
       (menus.length===0?'<div style="text-align:center;padding:30px;color:var(--text-light)">ยังไม่มีเมนู</div>':
@@ -1516,12 +1492,21 @@ window.openMerchantDetail = async function(merchantId){
             '</div><div style="flex:1;min-width:0"><div style="font-weight:900;font-size:14px;color:var(--text)">'+esc(menu.name)+'</div>' +
             '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'+esc(menu.description||'')+'</div>' +
             '<div style="font-weight:900;color:var(--green);margin-top:4px">'+fmt(menu.price)+'฿</div></div>' +
-            '<button onclick="event.stopPropagation();addToCart(\''+esc(merchantId)+'\',\''+esc(m.name||'')+'\',\''+esc(menu.id)+'\',\''+esc(menu.name)+'\','+Number(menu.price||0)+')" style="background:#00A651;color:#fff;border:none;width:42px;height:42px;border-radius:50%;font-size:22px;font-weight:900;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 4px 12px rgba(0,166,81,.3)">+</button>' +
+            '<button onclick="addToCartById(\''+esc(menu.id)+'\')" style="background:#00A651;color:#fff;border:none;width:42px;height:42px;border-radius:50%;font-size:22px;font-weight:900;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 4px 12px rgba(0,166,81,.3)">+</button>' +
             '</div>';
         }).join('')) +
       '<button class="btn-full btn-gray press-scale" onclick="closeModal()" style="margin-top:16px">ปิด</button>';
     openModal();
   }catch(e){showToast('โหลดไม่สำเร็จ','error');}
+};
+
+/* ⭐ FIX #1: addToCartById — ปลอดภัยจากเครื่องหมาย ' */
+window.addToCartById = function(menuId) {
+  var merchant = window._currentMerchant;
+  var menus = window._menus || [];
+  var menu = menus.find(function(m){return m.id === menuId;});
+  if (!merchant || !menu) return showToast('ไม่พบเมนู','error');
+  window.addToCart(merchant.id, merchant.name, menu.id, menu.name, Number(menu.price||0));
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1555,7 +1540,6 @@ window.closeCategoryView = function(){
 window.openMapPage = function(){
   debugLog('🗺️ เปิดแผนที่');
   if($('map-page')) $('map-page').classList.add('show');
-
   setTimeout(function(){
     if(typeof L === 'undefined'){
       var el = $('main-map');
@@ -1580,7 +1564,6 @@ window.openMapPage = function(){
     }catch(e){debugLog('❌ Map: '+e.message,true);}
   }, 300);
 };
-
 window.closeMapPage = function(){if($('map-page')) $('map-page').classList.remove('show');};
 
 function showCurrentLocationMarker(lat, lng){
@@ -1597,23 +1580,17 @@ function setDestination(lat, lng, openPopup){
   selectedDestination = {lat:lat, lng:lng};
   if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;}
   if(destinationCircle){map.removeLayer(destinationCircle);destinationCircle=null;}
-
   var iconHtml = '<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>';
   var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
-
   destinationMarker = L.marker([lat,lng],{icon:icon,draggable:true,autoPan:true,zIndexOffset:2000}).addTo(map);
-
   destinationMarker.on('dragend', function(e){
     var pos = e.target.getLatLng();
     selectedDestination = {lat:pos.lat, lng:pos.lng};
     if(destinationCircle) destinationCircle.setLatLng([pos.lat,pos.lng]);
     updateConfirmBtnState();
   });
-
   destinationCircle = L.circle([lat,lng],{radius:100,color:'#E53935',fillColor:'#E53935',fillOpacity:.15,weight:2,dashArray:'5,5'}).addTo(map);
-
   if(openPopup) destinationMarker.bindPopup('<b>🎯 ปลายทาง</b><br>ลากหมุดเพื่อปรับ').openPopup();
-
   var banner = $('pick-banner');
   if(banner) banner.style.display='flex';
   updateConfirmBtnState();
@@ -1657,7 +1634,7 @@ window.confirmMapLocation = function(){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   VEHICLE + คำนวณค่าส่งตามระยะทาง
+   VEHICLE
    ═══════════════════════════════════════════════════════════════ */
 window.openVehicleModal = function(){
   selectedVehicle = null;
@@ -1665,57 +1642,63 @@ window.openVehicleModal = function(){
   document.querySelectorAll('.vehicle-check').forEach(function(c){c.textContent='';});
   if($('vehicle-modal')) $('vehicle-modal').classList.add('show');
 };
-
 window.closeVehicleModal = function(){if($('vehicle-modal')) $('vehicle-modal').classList.remove('show');};
 
 window.selectVehicle = function(el){
   document.querySelectorAll('.vehicle-option').forEach(function(o){o.classList.remove('selected');});
   document.querySelectorAll('.vehicle-check').forEach(function(c){c.textContent='';});
-
   el.classList.add('selected');
   var check = el.querySelector('.vehicle-check');
   if(check) check.textContent = '✓';
-
   selectedVehicle = {type:el.dataset.vehicle, price:parseInt(el.dataset.price)};
   debugLog('🚗 เลือก: '+selectedVehicle.type+' ฿'+selectedVehicle.price);
-
   setTimeout(function(){
     closeVehicleModal();
     openRideOrderForm(selectedVehicle);
   }, 400);
 };
 
-/* คำนวณค่าส่งตามระยะทาง */
+/* ⭐ FIX #7: haversine × 1.3 (ระยะถนนจริง) */
 function calculateFare(vehicle, destLat, destLng) {
   var baseFare = vehicle.price;
   var perKmRate = {motorcycle: 5, car: 10, pickup: 12, van: 15}[vehicle.type] || 8;
   var distanceKm = 0;
   if (userLocation && destLat && destLng) {
-    distanceKm = haversine(userLocation.lat, userLocation.lng, destLat, destLng);
+    distanceKm = haversine(userLocation.lat, userLocation.lng, destLat, destLng) * 1.3;
   }
   var total = Math.round(baseFare + (distanceKm * perKmRate));
   return { base: baseFare, distance: distanceKm, perKm: perKmRate, total: total };
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ORDER FORM
+   ORDER FORM (⭐ FIX #2: เตือน GPS)
    ═══════════════════════════════════════════════════════════════ */
 window.openTravelView = function(){openMapPage();};
 
 window.openRideOrderForm = function(vehicle){
   var vehicleNames = {motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'};
   var vehicleName = vehicleNames[vehicle.type]||'รถ';
-  var fareInfo = calculateFare(vehicle, selectedDestination?.lat, selectedDestination?.lng);
+  var destLat = selectedDestination ? selectedDestination.lat : null;
+  var destLng = selectedDestination ? selectedDestination.lng : null;
+  var fareInfo = calculateFare(vehicle, destLat, destLng);
+
+  // ⭐ FIX #2: เตือนถ้าไม่เปิด GPS
+  var gpsWarning = '';
+  if (!userLocation) {
+    gpsWarning = '<div style="background:#FFF3E0;border-left:4px solid #FFA500;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">⚠️ ยังไม่ทราบตำแหน่งของคุณ — ราคาอาจเปลี่ยน หลังเปิด GPS</div>';
+  }
 
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px">' +
     '<div style="font-size:44px;margin-bottom:8px">'+vehicleName.split(' ')[0]+'</div>' +
     '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+vehicleName+'</h2>' +
-    '<div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-top:12px;text-align:left">' +
+    '</div>' +
+    gpsWarning +
+    '<div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:12px;text-align:left">' +
     '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ค่าเริ่มต้น</span><span>฿'+fareInfo.base+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ระยะทาง '+fareInfo.distance.toFixed(2)+' กม. × ฿'+fareInfo.perKm+'</span><span>฿'+Math.round(fareInfo.distance * fareInfo.perKm)+'</span></div>' +
+    (fareInfo.distance > 0 ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ระยะทาง '+fareInfo.distance.toFixed(2)+' กม. × ฿'+fareInfo.perKm+'</span><span>฿'+Math.round(fareInfo.distance * fareInfo.perKm)+'</span></div>' : '<div style="font-size:11px;color:var(--text-light);padding:4px 0;text-align:center">— ยังไม่ทราบระยะทาง —</div>') +
     '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>' +
-    '</div></div>' +
+    '</div>' +
     '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน')+'"></div>' +
     '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'')+'"></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2" placeholder="เช่น มีสัมภาระ 2 ใบ"></textarea></div>' +
@@ -1732,6 +1715,11 @@ window.submitRideOrder = async function(){
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกจุดรับ-ปลายทาง','error');
+
+  // ⭐ FIX #2: เตือนถ้าไม่เปิด GPS
+  if (!userLocation) {
+    if (!confirm('⚠️ ยังไม่ทราบตำแหน่งของคุณ — ราคาอาจเปลี่ยน ต้องการดำเนินการต่อ?')) return;
+  }
 
   var fareInfo = calculateFare(selectedVehicle, selectedDestination.lat, selectedDestination.lng);
   debugLog('💰 ระยะทาง: ' + fareInfo.distance.toFixed(2) + ' กม. × ฿' + fareInfo.perKm + ' + ฿' + fareInfo.base + ' = ฿' + fareInfo.total);
@@ -1811,7 +1799,7 @@ window.submitOrder = async function(type){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   🛒 CART SYSTEM — เพิ่มสินค้า / แสดง / Checkout
+   🛒 CART (⭐ FIX #6: ปุ่ม +/- และลบ)
    ═══════════════════════════════════════════════════════════════ */
 window.addToCart = function(merchantId, merchantName, menuId, menuName, price) {
   if (cartShop && cartShop !== merchantId) {
@@ -1822,7 +1810,6 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, price) {
   var existing = cart.find(function(c){return c.menuId === menuId;});
   if (existing) existing.qty++;
   else cart.push({merchantId:merchantId, merchantName:merchantName, menuId:menuId, menuName:menuName, price:price, qty:1});
-
   localStorage.setItem('chauat_cart', JSON.stringify(cart));
   localStorage.setItem('chauat_cart_shop', cartShop);
   updateCartBar();
@@ -1840,6 +1827,7 @@ function updateCartBar(){
   if($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
 }
 
+/* ⭐ FIX #6: openCart พร้อมปุ่ม +/- และลบ */
 window.openCart = function(){
   if(!cart.length) return;
   var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
@@ -1847,11 +1835,16 @@ window.openCart = function(){
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">🛒</div>' +
     '<h2 style="font-size:20px;font-weight:900;color:var(--text)">ตะกร้าของคุณ</h2></div>' +
-    cart.map(function(c){
-      return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">' +
-        '<div><div style="font-weight:900;color:var(--text)">'+esc(c.menuName)+'</div>' +
-        '<div style="font-size:12px;color:var(--text-muted)">×'+c.qty+' • ฿'+fmt(c.price)+'</div></div>' +
-        '<div style="font-weight:900;color:var(--green)">'+fmt(c.price*c.qty)+'฿</div></div>';
+    cart.map(function(c, i){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:10px">' +
+        '<div style="flex:1;min-width:0"><div style="font-weight:900;color:var(--text);font-size:13px">'+esc(c.menuName)+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted)">฿'+fmt(c.price)+' × '+c.qty+' = <b style="color:var(--green)">฿'+fmt(c.price*c.qty)+'</b></div></div>' +
+        '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' +
+        '<button onclick="changeQty('+i+',-1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;font-weight:900;cursor:pointer;font-family:inherit">−</button>' +
+        '<span style="min-width:24px;text-align:center;font-weight:900">'+c.qty+'</span>' +
+        '<button onclick="changeQty('+i+',1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;font-weight:900;cursor:pointer;font-family:inherit">+</button>' +
+        '<button onclick="removeCartItem('+i+')" style="width:32px;height:32px;border-radius:50%;border:none;background:#FFEBEE;color:#E53935;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-left:4px">✕</button>' +
+        '</div></div>';
     }).join('') +
     '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าอาหาร</span><span>฿'+fmt(total)+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าส่ง</span><span>฿'+deliveryFee+'</span></div>' +
@@ -1862,14 +1855,46 @@ window.openCart = function(){
   openModal();
 };
 
+/* ⭐ FIX #6: ปรับจำนวน */
+window.changeQty = function(index, delta) {
+  if (!cart[index]) return;
+  cart[index].qty += delta;
+  if (cart[index].qty <= 0) cart.splice(index, 1);
+  if (!cart.length) { cartShop = ''; }
+  localStorage.setItem('chauat_cart', JSON.stringify(cart));
+  localStorage.setItem('chauat_cart_shop', cartShop);
+  updateCartBar();
+  if (cart.length) openCart(); else { closeModal(); showToast('ตะกร้าว่าง'); }
+};
+
+/* ⭐ FIX #6: ลบรายการ */
+window.removeCartItem = function(index) {
+  if (!cart[index]) return;
+  cart.splice(index, 1);
+  if (!cart.length) { cartShop = ''; }
+  localStorage.setItem('chauat_cart', JSON.stringify(cart));
+  localStorage.setItem('chauat_cart_shop', cartShop);
+  updateCartBar();
+  if (cart.length) openCart(); else { closeModal(); showToast('ลบรายการแล้ว'); }
+};
+
+/* ⭐ FIX #3: checkOut เช็คที่อยู่ก่อน */
 window.checkout = async function(){
   if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
   if(!cart.length) return showToast('ตะกร้าว่าง','error');
 
+  // ⭐ FIX #3: เช็คที่อยู่ก่อนส่ง
+  var address = (userProfile&&userProfile.address)||'';
+  if (!address.trim()) {
+    showToast('⚠️ กรุณากรอกที่อยู่ก่อนสั่งซื้อ', 'warning');
+    closeModal();
+    setTimeout(function(){ openEditProfile(); }, 300);
+    return;
+  }
+
   var total = cart.reduce(function(s,c){return s+c.price*c.qty;}, 0);
   var deliveryFee = 20;
   var items = cart.map(function(c){return {name:c.menuName, qty:c.qty, price:c.price};});
-
   try{
     await db.collection('orders').add({
       type: 'food',
@@ -1884,7 +1909,7 @@ window.checkout = async function(){
       total: total + deliveryFee,
       fare: deliveryFee,
       status: 'pending',
-      address: (userProfile&&userProfile.address)||'',
+      address: address,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งออเดอร์แล้ว');
@@ -2087,8 +2112,8 @@ if('serviceWorker' in navigator){
   });
 }
 
-console.log('%c🛵 Chauat Go v3.4.1 — FIXED EDITION','color:#76B82A;font-weight:900;font-size:16px');
-console.log('%c✓ Cart | ✓ Fare calc | ✓ Fixed </style> | ✓ All Features','color:#00A651;font-weight:700');
+console.log('%c🛵 Chauat Go v3.4.2 — FIXED EDITION','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ Cart +/- | ✓ Quote fix | ✓ GPS warning | ✓ Address check | ✓ Haversine ×1.3','color:#00A651;font-weight:700');
 </script>
 
 </body>
