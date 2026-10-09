@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.0</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.1</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <!-- ═══ AUTO CACHE-BUSTING (แก้ Reload Loop) ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.0-20241009-002';
+  var VERSION = 'v3.4.1-20241009-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -57,7 +57,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.0 — UX/UI Ultimate Edition
+   CHAUAT GO v3.4.1 — FIXED EDITION
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -107,10 +107,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 @keyframes bounceIn { 0% { transform: scale(.3); opacity: 0; } 50% { transform: scale(1.05); } 70% { transform: scale(.95); } 100% { transform: scale(1); opacity: 1; } }
 @keyframes floatUp { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes logoPulse { 0%,100% { transform: scale(1); filter: drop-shadow(0 8px 24px rgba(118,184,42,.4)); } 50% { transform: scale(1.05); filter: drop-shadow(0 12px 32px rgba(118,184,42,.6)); } }
-@keyframes ripple { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }
 @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @keyframes cardSlideIn { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes checkmarkDraw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
 
 /* ═══ SPLASH SCREEN ═══ */
 #splash-screen {
@@ -160,19 +158,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   animation: fadeIn .8s ease 1s backwards; z-index: 1;
 }
 
-/* ═══ SKELETON LOADING ═══ */
-.skeleton {
-  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-.skeleton-card { height: 180px; border-radius: 16px; margin-bottom: 12px; }
-.skeleton-line { height: 14px; margin-bottom: 8px; border-radius: 6px; }
-.skeleton-line.short { width: 60%; }
-.skeleton-icon { width: 50px; height: 50px; border-radius: 14px; }
-.skeleton-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px 14px; }
-
 /* ═══ HEADER ═══ */
 .header {
   background: var(--header-grad); color: #fff; padding: 16px 14px 18px;
@@ -197,9 +182,9 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 }
 .profile-avatar:active { transform: scale(.92); }
 
-/* ═══ THEME TOGGLE FAB ═══ */
+/* ═══ THEME TOGGLE FAB (ย้ายลงล่าง ไม่ทับ Profile) ═══ */
 .theme-fab {
-  position: fixed; top: 20px; right: 20px; width: 44px; height: 44px;
+  position: fixed; top: 120px; right: 14px; width: 44px; height: 44px;
   border-radius: 50%; background: var(--surface); border: none;
   box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px;
   display: flex; align-items: center; justify-content: center;
@@ -364,7 +349,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .food-name { font-size: 13px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .food-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 3px; }
 .food-price { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 4px; }
-</style>
 
 /* ═══ BOTTOM NAV ═══ */
 .bottom-nav {
@@ -706,11 +690,11 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
 
-<!-- ═══ THEME TOGGLE FAB ═══ -->
+<!-- ═══ THEME TOGGLE FAB (ย้ายลงล่าง ไม่ทับ Profile) ═══ -->
 <button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
 <!-- ═══ DEBUG ═══ -->
-<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.0:</strong><br></div>
+<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.1:</strong><br></div>
 
 <!-- ═══ PWA BANNER ═══ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
@@ -786,13 +770,13 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     <div style="text-align:center;margin-bottom:8px">
       <div style="font-size:48px" class="float-anim">🚗</div>
       <h2 style="font-size:20px;font-weight:900">เลือกประเภทยานพาหนะ</h2>
-      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">เลือกรถที่ต้องการใช้บริการ</p>
+      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">ราคาขึ้นอยู่กับระยะทาง</p>
     </div>
     <div class="vehicle-list">
-      <div class="vehicle-option" data-vehicle="motorcycle" data-price="30" onclick="selectVehicle(this)"><div class="vehicle-icon">🏍️</div><div class="vehicle-info"><div class="vehicle-name">มอเตอร์ไซค์</div><div class="vehicle-desc">1 ที่นั่ง • ส่งด่วน</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿30</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
-      <div class="vehicle-option" data-vehicle="car" data-price="60" onclick="selectVehicle(this)"><div class="vehicle-icon">🚗</div><div class="vehicle-info"><div class="vehicle-name">รถเก๋ง</div><div class="vehicle-desc">4 ที่นั่ง • แอร์</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿60</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
-      <div class="vehicle-option" data-vehicle="pickup" data-price="90" onclick="selectVehicle(this)"><div class="vehicle-icon">🛻</div><div class="vehicle-info"><div class="vehicle-name">รถกระบะ</div><div class="vehicle-desc">บรรทุกของ • 6 ที่นั่ง</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿90</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
-      <div class="vehicle-option" data-vehicle="van" data-price="120" onclick="selectVehicle(this)"><div class="vehicle-icon">🚐</div><div class="vehicle-info"><div class="vehicle-name">รถตู้</div><div class="vehicle-desc">9 ที่นั่ง • ครอบครัว</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿120</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="motorcycle" data-price="30" onclick="selectVehicle(this)"><div class="vehicle-icon">🏍️</div><div class="vehicle-info"><div class="vehicle-name">มอเตอร์ไซค์</div><div class="vehicle-desc">฿30 + ฿5/กม.</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿30</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="car" data-price="60" onclick="selectVehicle(this)"><div class="vehicle-icon">🚗</div><div class="vehicle-info"><div class="vehicle-name">รถเก๋ง</div><div class="vehicle-desc">฿60 + ฿10/กม.</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿60</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="pickup" data-price="90" onclick="selectVehicle(this)"><div class="vehicle-icon">🛻</div><div class="vehicle-info"><div class="vehicle-name">รถกระบะ</div><div class="vehicle-desc">฿90 + ฿12/กม.</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿90</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="van" data-price="120" onclick="selectVehicle(this)"><div class="vehicle-icon">🚐</div><div class="vehicle-info"><div class="vehicle-name">รถตู้</div><div class="vehicle-desc">฿120 + ฿15/กม.</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿120</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
     </div>
     <button class="btn-full btn-gray press-scale" onclick="closeVehicleModal()" style="margin-top:16px">ยกเลิก</button>
   </div>
@@ -997,7 +981,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.4.0 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.4.1 • © 2024</div>
       </div>
     </div>
   </div>
@@ -1011,7 +995,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.0 — JavaScript Ultimate
+   CHAUAT GO v3.4.1 — FIXED EDITION JavaScript
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -1092,7 +1076,7 @@ function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*10
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
 /* ═══════════════════════════════════════════════════════════════
-   SPLASH SCREEN (แก้ไขให้มี Safety Timer)
+   SPLASH SCREEN (มี Safety Timer ป้องกันค้าง)
    ═══════════════════════════════════════════════════════════════ */
 function runSplash(){
   var bar = $('splash-bar');
@@ -1176,7 +1160,7 @@ function countUp(el, target, duration){
    INIT
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function(){
-  debugLog('🚀 Chauat Go v3.4.0');
+  debugLog('🚀 Chauat Go v3.4.1');
   initTheme();
   runSplash();
   loadPlaces();
@@ -1446,7 +1430,7 @@ window.doSearch = function(q){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MERCHANT
+   MERCHANT + 🛒 ปุ่มเพิ่มลงตะกร้า
    ═══════════════════════════════════════════════════════════════ */
 window.openMerchantView = async function(type){
   debugLog('🏪 Merchant View: '+type);
@@ -1526,13 +1510,16 @@ window.openMerchantDetail = async function(merchantId){
       '<div style="text-align:center;margin-bottom:16px"><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+esc(m.name||'')+'</h2></div>' +
       (menus.length===0?'<div style="text-align:center;padding:30px;color:var(--text-light)">ยังไม่มีเมนู</div>':
         menus.map(function(menu){
-          return '<div style="display:flex;gap:12px;padding:12px;background:var(--surface-2);border-radius:12px;margin-bottom:8px">' +
-            '<div style="width:60px;height:60px;border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:24px">' +
-            (menu.image?'<img src="'+esc(menu.image)+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px">':'🍽️') +
-            '</div><div style="flex:1"><div style="font-weight:900;font-size:14px;color:var(--text)">'+esc(menu.name)+'</div>' +
-            '<div style="font-weight:900;color:var(--green);margin-top:4px">'+fmt(menu.price)+'฿</div></div></div>';
+          return '<div style="display:flex;gap:12px;align-items:center;padding:12px;background:var(--surface-2);border-radius:12px;margin-bottom:8px">' +
+            '<div style="width:60px;height:60px;border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;overflow:hidden">' +
+            (menu.image?'<img src="'+esc(menu.image)+'" style="width:100%;height:100%;object-fit:cover">':'🍽️') +
+            '</div><div style="flex:1;min-width:0"><div style="font-weight:900;font-size:14px;color:var(--text)">'+esc(menu.name)+'</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'+esc(menu.description||'')+'</div>' +
+            '<div style="font-weight:900;color:var(--green);margin-top:4px">'+fmt(menu.price)+'฿</div></div>' +
+            '<button onclick="event.stopPropagation();addToCart(\''+esc(merchantId)+'\',\''+esc(m.name||'')+'\',\''+esc(menu.id)+'\',\''+esc(menu.name)+'\','+Number(menu.price||0)+')" style="background:#00A651;color:#fff;border:none;width:42px;height:42px;border-radius:50%;font-size:22px;font-weight:900;cursor:pointer;font-family:inherit;flex-shrink:0;box-shadow:0 4px 12px rgba(0,166,81,.3)">+</button>' +
+            '</div>';
         }).join('')) +
-      '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
+      '<button class="btn-full btn-gray press-scale" onclick="closeModal()" style="margin-top:16px">ปิด</button>';
     openModal();
   }catch(e){showToast('โหลดไม่สำเร็จ','error');}
 };
@@ -1670,7 +1657,7 @@ window.confirmMapLocation = function(){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   VEHICLE
+   VEHICLE + คำนวณค่าส่งตามระยะทาง
    ═══════════════════════════════════════════════════════════════ */
 window.openVehicleModal = function(){
   selectedVehicle = null;
@@ -1698,6 +1685,18 @@ window.selectVehicle = function(el){
   }, 400);
 };
 
+/* คำนวณค่าส่งตามระยะทาง */
+function calculateFare(vehicle, destLat, destLng) {
+  var baseFare = vehicle.price;
+  var perKmRate = {motorcycle: 5, car: 10, pickup: 12, van: 15}[vehicle.type] || 8;
+  var distanceKm = 0;
+  if (userLocation && destLat && destLng) {
+    distanceKm = haversine(userLocation.lat, userLocation.lng, destLat, destLng);
+  }
+  var total = Math.round(baseFare + (distanceKm * perKmRate));
+  return { base: baseFare, distance: distanceKm, perKm: perKmRate, total: total };
+}
+
 /* ═══════════════════════════════════════════════════════════════
    ORDER FORM
    ═══════════════════════════════════════════════════════════════ */
@@ -1706,19 +1705,22 @@ window.openTravelView = function(){openMapPage();};
 window.openRideOrderForm = function(vehicle){
   var vehicleNames = {motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'};
   var vehicleName = vehicleNames[vehicle.type]||'รถ';
+  var fareInfo = calculateFare(vehicle, selectedDestination?.lat, selectedDestination?.lng);
 
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px">' +
     '<div style="font-size:44px;margin-bottom:8px">'+vehicleName.split(' ')[0]+'</div>' +
     '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+vehicleName+'</h2>' +
-    '<div style="color:var(--green);font-weight:900;font-size:24px;margin-top:8px">฿'+vehicle.price+'</div>' +
-    '<div style="font-size:12px;color:var(--text-light);font-weight:600">ราคาเริ่มต้น</div>' +
-    '</div>' +
+    '<div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-top:12px;text-align:left">' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ค่าเริ่มต้น</span><span>฿'+fareInfo.base+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ระยะทาง '+fareInfo.distance.toFixed(2)+' กม. × ฿'+fareInfo.perKm+'</span><span>฿'+Math.round(fareInfo.distance * fareInfo.perKm)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>' +
+    '</div></div>' +
     '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน')+'"></div>' +
     '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'')+'"></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2" placeholder="เช่น มีสัมภาระ 2 ใบ"></textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc((userProfile&&userProfile.phone)||'')+'"></div>' +
-    '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ</button>' +
+    '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ (฿'+fareInfo.total+')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
 };
@@ -1730,6 +1732,9 @@ window.submitRideOrder = async function(){
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกจุดรับ-ปลายทาง','error');
+
+  var fareInfo = calculateFare(selectedVehicle, selectedDestination.lat, selectedDestination.lng);
+  debugLog('💰 ระยะทาง: ' + fareInfo.distance.toFixed(2) + ' กม. × ฿' + fareInfo.perKm + ' + ฿' + fareInfo.base + ' = ฿' + fareInfo.total);
 
   try{
     await db.collection('orders').add({
@@ -1744,12 +1749,13 @@ window.submitRideOrder = async function(){
       note:$('order-note').value.trim(),
       lat:selectedDestination.lat,
       lng:selectedDestination.lng,
+      distanceKm: fareInfo.distance,
       status:'searching',
-      fare:selectedVehicle.price,
-      total:selectedVehicle.price,
+      fare: fareInfo.total,
+      total: fareInfo.total,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ เรียกรถแล้ว รอไรเดอร์รับงาน');
+    showToast('✅ เรียกรถแล้ว ฿' + fareInfo.total);
     closeModal();
     selectedDestination = null;
     selectedVehicle = null;
@@ -1766,10 +1772,12 @@ window.submitRideOrder = async function(){
 
 window.openOrderForm = function(type, dest){
   var titles = {express:'📦 ส่งด่วน',ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'};
+  var baseFare = {express: 30, ride: 50, food: 20, shopping: 30}[type] || 30;
   var destInfo = dest ? dest.lat.toFixed(4)+', '+dest.lng.toFixed(4) : (selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'');
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">'+(titles[type]||'📦').split(' ')[0]+'</div>' +
-    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+(titles[type]||'📦 บริการ')+'</h2></div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+(titles[type]||'📦 บริการ')+'</h2>' +
+    '<div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿'+baseFare+'</div></div>' +
     '<div class="form-group"><label>📍 ต้นทาง</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'')+'"></div>' +
     '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(destInfo)+'"></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2"></textarea></div>' +
@@ -1784,6 +1792,7 @@ window.submitOrder = async function(type){
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกต้นทาง-ปลายทาง','error');
+  var baseFare = {express: 30, ride: 50, food: 20, shopping: 30}[type] || 30;
   try{
     await db.collection('orders').add({
       type:type, userId:currentUser.uid,
@@ -1792,13 +1801,112 @@ window.submitOrder = async function(type){
       title:({express:'📦 ส่งด่วน',ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร'})[type]||'📦 ออเดอร์',
       from:from, to:to, address:to, note:$('order-note').value.trim(),
       status:'searching',
-      fare:type==='ride'?50:30, total:type==='ride'?50:30,
+      fare: baseFare, total: baseFare,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งออเดอร์แล้ว');
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){showToast('ส่งไม่สำเร็จ','error');}
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   🛒 CART SYSTEM — เพิ่มสินค้า / แสดง / Checkout
+   ═══════════════════════════════════════════════════════════════ */
+window.addToCart = function(merchantId, merchantName, menuId, menuName, price) {
+  if (cartShop && cartShop !== merchantId) {
+    if (!confirm('เปลี่ยนร้าน? ตะกร้าปัจจุบันจะถูกล้าง')) return;
+    cart = [];
+  }
+  cartShop = merchantId;
+  var existing = cart.find(function(c){return c.menuId === menuId;});
+  if (existing) existing.qty++;
+  else cart.push({merchantId:merchantId, merchantName:merchantName, menuId:menuId, menuName:menuName, price:price, qty:1});
+
+  localStorage.setItem('chauat_cart', JSON.stringify(cart));
+  localStorage.setItem('chauat_cart_shop', cartShop);
+  updateCartBar();
+  showToast('✅ เพิ่ม ' + menuName + ' ลงตะกร้า');
+};
+
+function updateCartBar(){
+  var bar = $('cart-bar'); if(!bar) return;
+  if(!cart.length){bar.classList.remove('show');return;}
+  bar.classList.add('show');
+  var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
+  var count = cart.reduce(function(s,c){return s+c.qty;},0);
+  if($('cart-count')) $('cart-count').textContent = count;
+  if($('cart-total')) $('cart-total').textContent = fmt(total)+'฿';
+  if($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
+}
+
+window.openCart = function(){
+  if(!cart.length) return;
+  var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
+  var deliveryFee = 20;
+  $('modal-body').innerHTML =
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">🛒</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">ตะกร้าของคุณ</h2></div>' +
+    cart.map(function(c){
+      return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">' +
+        '<div><div style="font-weight:900;color:var(--text)">'+esc(c.menuName)+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted)">×'+c.qty+' • ฿'+fmt(c.price)+'</div></div>' +
+        '<div style="font-weight:900;color:var(--green)">'+fmt(c.price*c.qty)+'฿</div></div>';
+    }).join('') +
+    '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าอาหาร</span><span>฿'+fmt(total)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าส่ง</span><span>฿'+deliveryFee+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:14px 0 0;font-size:18px;font-weight:900;border-top:2px solid var(--green);margin-top:8px"><span>รวม</span><span style="color:var(--green)">'+fmt(total + deliveryFee)+'฿</span></div>' +
+    '<button class="btn-full btn-green press-scale" onclick="checkout()" style="margin-top:16px">✅ สั่งซื้อ (฿'+(total + deliveryFee)+')</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="clearCart()">🗑️ ล้างตะกร้า</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
+  openModal();
+};
+
+window.checkout = async function(){
+  if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
+  if(!cart.length) return showToast('ตะกร้าว่าง','error');
+
+  var total = cart.reduce(function(s,c){return s+c.price*c.qty;}, 0);
+  var deliveryFee = 20;
+  var items = cart.map(function(c){return {name:c.menuName, qty:c.qty, price:c.price};});
+
+  try{
+    await db.collection('orders').add({
+      type: 'food',
+      userId: currentUser.uid,
+      userName: (userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
+      userPhone: (userProfile&&userProfile.phone)||'',
+      title: '🍽️ สั่งอาหาร: ' + (cart[0]?cart[0].merchantName:''),
+      merchantId: cartShop,
+      merchantName: cart[0]?cart[0].merchantName:'',
+      items: items,
+      itemsText: items.map(function(i){return i.name+' x'+i.qty;}).join(', '),
+      total: total + deliveryFee,
+      fare: deliveryFee,
+      status: 'pending',
+      address: (userProfile&&userProfile.address)||'',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ ส่งออเดอร์แล้ว');
+    cart = []; cartShop = '';
+    localStorage.removeItem('chauat_cart');
+    localStorage.removeItem('chauat_cart_shop');
+    updateCartBar();
+    closeModal();
+    switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+  }catch(e){
+    debugLog('❌ Checkout: '+e.message, true);
+    showToast('ส่งไม่สำเร็จ','error');
+  }
+};
+
+window.clearCart = function(){
+  cart = []; cartShop = '';
+  localStorage.removeItem('chauat_cart');
+  localStorage.removeItem('chauat_cart_shop');
+  updateCartBar();
+  closeModal();
+  showToast('🗑️ ล้างตะกร้าแล้ว');
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1835,50 +1943,11 @@ function renderOrderCard(o){
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px">' +
     '<div style="font-weight:900;font-size:13px;color:var(--text)">'+esc(o.title||'ออเดอร์')+'</div>' +
     '<div style="font-size:16px;font-weight:900;color:'+color+'">'+fmt(o.total||o.fare||0)+'฿</div></div>' +
-    '<div style="font-size:11px;color:var(--text-muted);font-weight:700">'+(statusMap[o.status]||o.status)+'</div></div>';
+    '<div style="font-size:11px;color:var(--text-muted);font-weight:700">'+(statusMap[o.status]||o.status)+'</div>' +
+    (o.distanceKm?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">📍 '+o.distanceKm.toFixed(2)+' กม.</div>':'') + '</div>';
 }
 
 window.openChat = function(){if(!currentUser) return showLoginModal();showToast('💬 เปิดแชท');};
-
-/* ═══════════════════════════════════════════════════════════════
-   CART
-   ═══════════════════════════════════════════════════════════════ */
-window.openCart = function(){
-  if(!cart.length) return;
-  var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
-  $('modal-body').innerHTML =
-    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">🛒</div>' +
-    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">ตะกร้าของคุณ</h2></div>' +
-    cart.map(function(c){
-      return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">' +
-        '<div><div style="font-weight:900;color:var(--text)">'+esc(c.menuName)+'</div>' +
-        '<div style="font-size:12px;color:var(--text-muted)">×'+c.qty+'</div></div>' +
-        '<div style="font-weight:900;color:var(--green)">'+fmt(c.price*c.qty)+'฿</div></div>';
-    }).join('') +
-    '<div style="display:flex;justify-content:space-between;padding:14px 0;font-size:18px;font-weight:900"><span>รวม</span><span style="color:var(--green)">'+fmt(total)+'฿</span></div>' +
-    '<button class="btn-full btn-gray press-scale" onclick="clearCart()">🗑️ ล้างตะกร้า</button>' +
-    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
-  openModal();
-};
-
-window.clearCart = function(){
-  cart = []; cartShop = '';
-  localStorage.removeItem('chauat_cart');
-  localStorage.removeItem('chauat_cart_shop');
-  updateCartBar();
-  closeModal();
-};
-
-function updateCartBar(){
-  var bar = $('cart-bar'); if(!bar) return;
-  if(!cart.length){bar.classList.remove('show');return;}
-  bar.classList.add('show');
-  var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
-  var count = cart.reduce(function(s,c){return s+c.qty;},0);
-  if($('cart-count')) $('cart-count').textContent = count;
-  if($('cart-total')) $('cart-total').textContent = fmt(total)+'฿';
-  if($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
-}
 
 /* ═══════════════════════════════════════════════════════════════
    MODAL
@@ -2018,8 +2087,8 @@ if('serviceWorker' in navigator){
   });
 }
 
-console.log('%c🛵 Chauat Go v3.4.0 — Ultimate Edition','color:#76B82A;font-weight:900;font-size:16px');
-console.log('%c✓ Splash | ✓ Dark Mode | ✓ Animations | ✓ All Features','color:#00A651;font-weight:700');
+console.log('%c🛵 Chauat Go v3.4.1 — FIXED EDITION','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ Cart | ✓ Fare calc | ✓ Fixed </style> | ✓ All Features','color:#00A651;font-weight:700');
 </script>
 
 </body>
