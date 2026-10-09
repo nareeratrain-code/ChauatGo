@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.3.3 (ULTIMATE EDITION)
+   🛵 CHAUAT GO RIDER — v3.4.7.1
    Full-featured Production JavaScript
    ═══════════════════════════════════════════════════════════════════ */
 
-// ═══════════════════════════════════════════════════════════════════
-//  1. FIREBASE CONFIG
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   1. FIREBASE CONFIG
+   ═══════════════════════════════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
@@ -21,9 +21,9 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-// ═══════════════════════════════════════════════════════════════════
-//  2. GLOBAL STATE
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   2. GLOBAL STATE
+   ═══════════════════════════════════════════════════════════════════ */
 let currentUser = null;
 let riderProfile = null;
 let allJobs = [];
@@ -33,32 +33,36 @@ let myJobsUnsub = null;
 let myHistoryUnsub = null;
 let activeChatId = null;
 let activeChatUnsub = null;
+let activeChatPartnerPhone = null;
+let activeChatPartnerName = null;
 let newJobPopupId = null;
 let seenJobIds = new Set();
 let audioCtx = null;
 let gpsWatchId = null;
+let mapPickerMap = null;
 let isOnline = false;
 let currentHistoryFilter = 'all';
+let cameraFile = null;
+let nearNotifiedOrderIds = new Set();
+let arrivedShopNotifiedOrderIds = new Set();
 
-// ═══════════════════════════════════════════════════════════════════
-//  3. CONSTANTS
-// ═══════════════════════════════════════════════════════════════════
-const RIDER_SHARE = 0.80;       // ไรเดอร์ได้ 80%
-const PLATFORM_SHARE = 0.20;    // แอปได้ 20%
-const MAX_SLIP_SIZE = 5 * 1024 * 1024; // 5MB
-const JOB_TIMEOUT_MINUTES = 30; // งานค้างเกิน 30 นาที เตือน
+/* ═══════════════════════════════════════════════════════════════════
+   3. CONSTANTS
+   ═══════════════════════════════════════════════════════════════════ */
+const RIDER_SHARE = 0.80;
+const PLATFORM_SHARE = 0.20;
+const CASH_TIP = 5;
+const SERVICE_BASE = 20;
+const SERVICE_PER_KM = 8;
+const FREE_KM = 1;
+const ARRIVAL_RADIUS_M = 150;
+const NEAR_CUSTOMER_RADIUS_M = 100;
+const MAX_SLIP_SIZE = 5 * 1024 * 1024;
+const GPS_UPDATE_INTERVAL = 10000;
 
-const ACHIEVEMENTS = {
-  firstJob: { icon: '🥇', name: 'งานแรก', desc: 'ทำงานสำเร็จ 1 งาน' },
-  tenJobs: { icon: '🔥', name: 'ขยัน', desc: 'ทำงานสำเร็จ 10 งาน' },
-  fiftyJobs: { icon: '💪', name: 'มืออาชีพ', desc: 'ทำงานสำเร็จ 50 งาน' },
-  hundredJobs: { icon: '🏆', name: 'ตำนาน', desc: 'ทำงานสำเร็จ 100 งาน' },
-  fiveStar: { icon: '⭐', name: 'ไรเดอร์ 5 ดาว', desc: 'ได้ Rating 5 ดาว' }
-};
-
-// ═══════════════════════════════════════════════════════════════════
-//  4. HELPERS
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   4. HELPERS
+   ═══════════════════════════════════════════════════════════════════ */
 const $ = (id) => document.getElementById(id);
 const $$ = (sel) => document.querySelectorAll(sel);
 
@@ -66,25 +70,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[c]));
 
-const jsStr = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
-
 const fmt = (n) => Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
-
-const fmtTime = (t) => {
-  if (!t) return '—';
-  const d = t.toDate ? t.toDate() : new Date(t);
-  if (isNaN(d)) return '—';
-  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-};
-
-const fmtDate = (t) => {
-  if (!t) return '—';
-  const d = t.toDate ? t.toDate() : new Date(t);
-  if (isNaN(d)) return '—';
-  return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
-};
-
-const fmtDateTime = (t) => `${fmtDate(t)} ${fmtTime(t)}`;
 
 const toDate = (t) => {
   if (!t) return null;
@@ -92,26 +78,24 @@ const toDate = (t) => {
   return isNaN(d) ? null : d;
 };
 
+const fmtTime = (t) => {
+  const d = toDate(t);
+  if (!d) return '—';
+  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+};
+
+const fmtDate = (t) => {
+  const d = toDate(t);
+  if (!d) return '—';
+  return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
+};
+
+const fmtDateTime = (t) => `${fmtDate(t)} ${fmtTime(t)}`;
+
 const isToday = (t) => {
   const d = toDate(t);
   if (!d) return false;
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
-};
-
-const isThisWeek = (t) => {
-  const d = toDate(t);
-  if (!d) return false;
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  return d >= weekAgo;
-};
-
-const isThisMonth = (t) => {
-  const d = toDate(t);
-  if (!d) return false;
-  const now = new Date();
-  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  return d.toDateString() === new Date().toDateString();
 };
 
 const timeAgo = (t) => {
@@ -124,48 +108,137 @@ const timeAgo = (t) => {
   return `${Math.floor(diff / 86400)} วันที่แล้ว`;
 };
 
-// ─── Debug Console ───
-function logToScreen(msg, isError = false) {
-  const el = $('debugConsole');
-  if (el) {
-    el.classList.add('show');
-    el.innerHTML += `<span style="color:${isError ? '#ff4444' : '#00ff00'}">> ${esc(msg)}</span><br>`;
-    el.scrollTop = el.scrollHeight;
+const haversine = (lat1, lng1, lat2, lng2) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+    * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const debugLog = (msg, isError) => {
+  if (typeof window.CHAUAT_RIDER_DEBUG !== 'undefined' && window.CHAUAT_RIDER_DEBUG) {
+    if (isError) console.warn(msg); else console.log(msg);
   }
-  console.log(msg);
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   5. THEME
+   ═══════════════════════════════════════════════════════════════════ */
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('chauat_rider_theme', next);
+  const fab = $('theme-fab');
+  if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = next === 'dark' ? '#0F1419' : '#FF6B35';
+  showToast(next === 'dark' ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง', 'info');
 }
 
-// ─── Toast ───
+function initTheme() {
+  const theme = localStorage.getItem('chauat_rider_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  const fab = $('theme-fab');
+  if (fab) fab.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. SPLASH
+   ═══════════════════════════════════════════════════════════════════ */
+function runSplash() {
+  const bar = $('splash-bar');
+  if (!bar) { dismissSplash(); return; }
+  const safetyTimer = setTimeout(dismissSplash, 3000);
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 15 + Math.random() * 15;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(interval);
+      clearTimeout(safetyTimer);
+      setTimeout(dismissSplash, 300);
+    }
+    bar.style.width = progress + '%';
+  }, 150);
+}
+
+function dismissSplash() {
+  const splash = $('splash-screen');
+  if (!splash) return;
+  splash.classList.add('hidden');
+  setTimeout(() => {
+    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+  }, 600);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   7. TOAST & SOUND & VIBRATE
+   ═══════════════════════════════════════════════════════════════════ */
 function showToast(msg, type = 'success') {
   const t = $('toast');
   if (!t) return;
-  t.textContent = msg;
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  t.textContent = (icons[type] || '') + ' ' + msg;
   t.className = 'toast show ' + type;
   clearTimeout(t._t);
   t._t = setTimeout(() => { t.className = 'toast'; }, 3000);
 }
 
-// ─── Sound & Vibration ───
-function playNotificationSound() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    [880, 1108, 1318, 1108].forEach((f, i) => {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.connect(g); g.connect(audioCtx.destination);
-      o.type = 'sine';
-      o.frequency.setValueAtTime(f, audioCtx.currentTime + i * 0.18);
-      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + i * 0.18);
-      g.gain.exponentialRampToValueAtTime(0.4, audioCtx.currentTime + i * 0.18 + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.18 + 0.18);
-      o.start(audioCtx.currentTime + i * 0.18);
-      o.stop(audioCtx.currentTime + i * 0.18 + 0.18);
-    });
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-  } catch (e) {}
+function getAudioCtx() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
 }
 
-// ─── Image Compression ───
+function playTone(freqs, interval = 0.15, duration = 0.18, volume = 0.35) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  freqs.forEach((f, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f, ctx.currentTime + i * interval);
+    const start = ctx.currentTime + i * interval;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(volume, start + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    osc.start(start);
+    osc.stop(start + duration);
+  });
+}
+
+function soundNewJob() {
+  playTone([880, 1108, 1318, 1108], 0.18, 0.18, 0.4);
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
+}
+
+function soundArrivedShop() {
+  playTone([1046, 1318], 0.12, 0.15, 0.35);
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+}
+
+function soundNearCustomer() {
+  playTone([1046, 1318, 1046], 0.08, 0.1, 0.45);
+  if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+}
+
+function soundNewChat() {
+  playTone([880], 0, 0.1, 0.25);
+  if (navigator.vibrate) navigator.vibrate(50);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   8. IMAGE COMPRESS
+   ═══════════════════════════════════════════════════════════════════ */
 function compressImage(file, maxWidth = 1000, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -192,25 +265,42 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
   });
 }
 
-// ─── Compute Rider Cut ───
-function computeCut(fare) {
-  fare = Number(fare || 0);
+/* ═══════════════════════════════════════════════════════════════════
+   9. FINANCE CALC
+   ═══════════════════════════════════════════════════════════════════ */
+function calcServiceFee(distanceKm) {
+  const base = SERVICE_BASE;
+  const extraKm = Math.max(0, distanceKm - FREE_KM);
+  const extra = Math.ceil(extraKm * SERVICE_PER_KM);
+  return base + extra;
+}
+
+function calcOrderFinance(order) {
+  const fare = Number(order.fare || 0);
+  const isCash = order.paymentMode === 'cash';
+  const tip = isCash ? CASH_TIP : 0;
+  const riderShare = Math.round(fare * RIDER_SHARE * 100) / 100;
+  const platformShare = Math.round(fare * PLATFORM_SHARE * 100) / 100;
+  const totalRider = riderShare + tip;
+  const foodAmount = Number(order.foodTotal || order.itemsTotal || 0);
   return {
-    fare,
-    rider: Math.round(fare * RIDER_SHARE * 100) / 100,
-    platform: Math.round(fare * PLATFORM_SHARE * 100) / 100
+    fare, tip, riderShare, platformShare, totalRider, foodAmount,
+    isCash,
+    totalCustomerPay: fare + foodAmount + tip
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  5. AUTH FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   10. AUTH
+   ═══════════════════════════════════════════════════════════════════ */
 function switchAuthTab(tab) {
   const isLogin = tab === 'login';
-  $('tab-login').classList.toggle('active', isLogin);
-  $('tab-signup').classList.toggle('active', !isLogin);
-  $('form-login').style.display = isLogin ? 'block' : 'none';
-  $('form-signup').style.display = isLogin ? 'none' : 'block';
+  $('tab-login')?.classList.toggle('active', isLogin);
+  $('tab-signup')?.classList.toggle('active', !isLogin);
+  const lf = $('form-login');
+  const sf = $('form-signup');
+  if (lf) lf.style.display = isLogin ? 'block' : 'none';
+  if (sf) sf.style.display = isLogin ? 'none' : 'block';
 }
 
 async function handleLogin(e) {
@@ -218,19 +308,16 @@ async function handleLogin(e) {
   const btn = $('btn-login');
   const email = $('login-email').value.trim().toLowerCase();
   const pw = $('login-password').value;
-
   if (!email || !pw) return showToast('กรอกอีเมลและรหัสผ่าน', 'error');
 
   btn.disabled = true;
   btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
 
   try {
-    logToScreen('🔐 ล็อกอิน: ' + email);
     await auth.signInWithEmailAndPassword(email, pw);
-    logToScreen('✅ ล็อกอินสำเร็จ');
+    showToast('✅ เข้าสู่ระบบสำเร็จ');
     $('login-error').textContent = '';
   } catch (err) {
-    logToScreen('❌ ล็อกอินล้มเหลว: ' + err.code, true);
     const msg = {
       'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
       'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
@@ -273,7 +360,6 @@ async function handleSignup(e) {
     createdUser = cred.user;
     await createdUser.updateProfile({ displayName: name });
 
-    // บันทึกใน riders
     await db.collection('riders').doc(createdUser.uid).set({
       riderId: createdUser.uid,
       name, phone, email, vehicle, plate,
@@ -281,21 +367,19 @@ async function handleSignup(e) {
       status: 'inactive',
       rating: 0, totalRatings: 0,
       totalJobs: 0, totalIncome: 0,
-      achievements: [],
+      trustScore: 100,
       gpsConsent: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // บันทึกใน users (สำหรับ Auth Guard)
     await db.collection('users').doc(createdUser.uid).set({
       role: 'rider',
       name, email,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ', 'success');
+    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
   } catch (err) {
-    logToScreen('❌ Signup Error: ' + err.code, true);
     if (createdUser) {
       try { await createdUser.delete(); } catch (e) {}
     }
@@ -310,7 +394,7 @@ async function handleForgotPassword() {
   if (!email) return showToast('กรอกอีเมลก่อน', 'error');
   try {
     await auth.sendPasswordResetEmail(email);
-    showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว', 'success');
+    showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
   } catch (err) {
     showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
   }
@@ -323,35 +407,34 @@ async function handleLogout() {
   if (myJobsUnsub) myJobsUnsub();
   if (myHistoryUnsub) myHistoryUnsub();
   if (activeChatUnsub) activeChatUnsub();
-  if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+  stopGPS();
   allJobs = [];
   allHistory = [];
   seenJobIds.clear();
+  nearNotifiedOrderIds.clear();
+  arrivedShopNotifiedOrderIds.clear();
   await auth.signOut();
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  6. AUTH STATE
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   11. AUTH STATE
+   ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
   if (myProfileUnsub) myProfileUnsub();
   if (myJobsUnsub) myJobsUnsub();
   if (myHistoryUnsub) myHistoryUnsub();
 
   if (!user) {
-    logToScreen('⛔ ยังไม่ได้ล็อกอิน');
     $('login-screen').style.display = 'flex';
     $('app').style.display = 'none';
     return;
   }
 
   currentUser = user;
-  logToScreen('👤 ผู้ใช้: ' + user.email);
 
   try {
     const userDoc = await db.collection('users').doc(user.uid).get();
     if (!userDoc.exists || userDoc.data().role !== 'rider') {
-      logToScreen('❌ Role ไม่ใช่ rider', true);
       showToast('บัญชีนี้ไม่ใช่ไรเดอร์', 'error');
       await auth.signOut();
       return;
@@ -359,54 +442,56 @@ auth.onAuthStateChanged(async (user) => {
 
     const riderDoc = await db.collection('riders').doc(user.uid).get();
     if (!riderDoc.exists) {
-      logToScreen('❌ ไม่พบข้อมูลไรเดอร์', true);
       showToast('ไม่พบข้อมูลไรเดอร์', 'error');
       await auth.signOut();
       return;
     }
 
     riderProfile = { uid: user.uid, ...riderDoc.data() };
-    logToScreen('✅ Rider: ' + riderProfile.name + ' | verified: ' + riderProfile.verified);
-
     $('login-screen').style.display = 'none';
     $('app').style.display = 'block';
 
     initApp();
   } catch (err) {
-    logToScreen('❌ Auth Error: ' + err.message, true);
     showToast('เกิดข้อผิดพลาด', 'error');
     await auth.signOut();
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════
-//  7. INIT APP
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   12. INIT APP
+   ═══════════════════════════════════════════════════════════════════ */
 function initApp() {
   updateHeader();
   updatePendingBanner();
   subscribeProfile();
   subscribeJobs();
   subscribeHistory();
-  setupNetworkWatcher();
-  setupPWAInstall();
-  setupPullToRefresh();
+  setupNetwork();
+  setupPWA();
   requestNotificationPermission();
+  setTimeout(scheduleGPSIfActive, 1500);
 }
 
-// ─── Subscribe: Profile ───
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    setTimeout(() => Notification.requestPermission().catch(() => {}), 3000);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   13. SUBSCRIBE
+   ═══════════════════════════════════════════════════════════════════ */
 function subscribeProfile() {
   if (myProfileUnsub) myProfileUnsub();
   myProfileUnsub = db.collection('riders').doc(currentUser.uid).onSnapshot(snap => {
     if (!snap.exists) return;
     const prevVerified = riderProfile?.verified;
     riderProfile = { uid: currentUser.uid, ...snap.data() };
-
     if (prevVerified === false && riderProfile.verified === true) {
       showToast('🎉 แอดมินอนุมัติแล้ว!', 'success');
-      playNotificationSound();
+      soundNewJob();
     }
-
     updateHeader();
     updatePendingBanner();
     updateOnlineToggle();
@@ -414,10 +499,8 @@ function subscribeProfile() {
   });
 }
 
-// ─── Subscribe: Jobs ───
 function subscribeJobs() {
   if (myJobsUnsub) myJobsUnsub();
-
   myJobsUnsub = db.collection('orders')
     .where('status', 'in', ['searching', 'pending', 'accepted', 'picked_up', 'on_the_way'])
     .orderBy('createdAt', 'desc')
@@ -426,14 +509,9 @@ function subscribeJobs() {
       const prevIds = seenJobIds;
       allJobs = snap.docs.map(d => {
         const data = d.data();
-        return {
-          id: d.id,
-          ...data,
-          createdAt: toDate(data.createdAt)
-        };
+        return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
       });
 
-      // แจ้งเตือนงานใหม่
       const newJobs = allJobs.filter(j =>
         !prevIds.has(j.id) &&
         j.status === 'searching' &&
@@ -443,22 +521,19 @@ function subscribeJobs() {
       );
 
       if (newJobs.length > 0 && prevIds.size > 0) {
-        playNotificationSound();
+        soundNewJob();
         showNewJobPopup(newJobs[0]);
       }
 
       seenJobIds = new Set(allJobs.map(j => j.id));
       renderJobs();
       updateHeroStats();
-    }, err => {
-      logToScreen('❌ Jobs: ' + err.code, true);
+      scheduleGPSIfActive();
     });
 }
 
-// ─── Subscribe: History ───
 function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
-
   myHistoryUnsub = db.collection('orders')
     .where('riderId', '==', currentUser.uid)
     .where('status', '==', 'done')
@@ -470,39 +545,37 @@ function subscribeHistory() {
         return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
       });
       updateHeroStats();
-    }, err => {
-      logToScreen('❌ History: ' + err.code, true);
+      renderJobs();
     });
 }
 
-// ─── Notification Permission ───
-function requestNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(() => Notification.requestPermission().catch(() => {}), 3000);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  8. UI UPDATES
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   14. UI UPDATE
+   ═══════════════════════════════════════════════════════════════════ */
 function updateHeader() {
   if (!riderProfile) return;
-  $('rider-name').textContent = riderProfile.name || 'ไรเดอร์';
-  $('rider-id-header').textContent = 'ID: ' + (currentUser?.uid || '').slice(0, 12) + '...';
-  $('sheet-rider-email').textContent = riderProfile.email || '';
+  const nameEl = $('rider-name');
+  if (nameEl) nameEl.textContent = riderProfile.name || 'ไรเดอร์';
+  const emailEl = $('sheet-rider-email');
+  if (emailEl) emailEl.textContent = riderProfile.email || '';
+  const trustEl = $('trust-badge');
+  if (trustEl) trustEl.textContent = '⭐ ' + (riderProfile.trustScore || 100);
+  const trustSub = $('sheet-trust-sub');
+  if (trustSub) trustSub.textContent = '⭐ ' + (riderProfile.trustScore || 100) + ' / 100';
   updateOnlineToggle();
 }
 
 function updatePendingBanner() {
   const banner = $('pending-banner');
-  const isVerified = riderProfile?.verified === true;
-  banner.classList.toggle('show', !isVerified);
+  if (!banner) return;
+  banner.classList.toggle('show', riderProfile?.verified !== true);
 }
 
 function updateOnlineToggle() {
   const btn = $('online-toggle-btn');
   const lbl = $('toggle-label');
   const st = $('rider-status');
+  if (!btn || !lbl || !st) return;
 
   const ONLINE_VALUES = ['active', 'available', 'online'];
   isOnline = riderProfile?.verified === true && ONLINE_VALUES.includes(riderProfile?.status);
@@ -517,46 +590,50 @@ function updateOnlineToggle() {
 
 function updateHeroStats() {
   const today = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
-  const week = allHistory.filter(j => isThisWeek(j.doneAt || j.createdAt));
-  const month = allHistory.filter(j => isThisMonth(j.doneAt || j.createdAt));
+  const feeTotal = today.reduce((s, j) => {
+    const f = Number(j.fare || 0);
+    return s + f * RIDER_SHARE;
+  }, 0);
+  const tipTotal = today.reduce((s, j) => s + (j.isCash ? CASH_TIP : 0), 0);
+  const todayIncome = feeTotal + tipTotal;
+  const todayOwe = today.filter(j => !j.riderPaid).reduce((s, j) => {
+    const f = Number(j.fare || 0);
+    return s + f * PLATFORM_SHARE;
+  }, 0);
 
-  const todayIncome = today.reduce((s, j) => s + Number(j.riderIncome || 0), 0);
-  const todayCollected = today.reduce((s, j) => s + Number(j.collected || j.total || 0), 0);
-  const todayOwe = today.filter(j => !j.riderPaid).reduce((s, j) => s + Number(j.riderOwe || 0), 0);
+  const incomeEl = $('hero-income');
+  if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
+  const subEl = $('hero-sub');
+  if (subEl) subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้`;
+  const feeEl = $('hero-fee');
+  if (feeEl) feeEl.textContent = '฿' + fmt(feeTotal);
+  const tipEl = $('hero-tip');
+  if (tipEl) tipEl.textContent = '฿' + fmt(tipTotal);
+  const oweEl = $('hero-owe');
+  if (oweEl) oweEl.textContent = '฿' + fmt(todayOwe);
 
-  $('hero-income').textContent = '฿' + fmt(todayIncome);
-  $('hero-sub').textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้`;
-  $('hero-collected').textContent = '฿' + fmt(todayCollected);
-  $('hero-owe').textContent = '฿' + fmt(todayOwe);
-
-  // Stats mini
   const activeCount = allJobs.filter(j =>
     j.riderId === currentUser?.uid &&
     ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
   ).length;
 
-  $('stat-done').textContent = today.length;
-  $('stat-active').textContent = activeCount;
-  $('stat-total').textContent = riderProfile?.totalJobs || allHistory.length;
-
-  // Update weekly/monthly (ถ้ามี element)
-  const weekEl = $('stat-week-income');
-  if (weekEl) weekEl.textContent = '฿' + fmt(week.reduce((s, j) => s + Number(j.riderIncome || 0), 0));
-  const monthEl = $('stat-month-income');
-  if (monthEl) monthEl.textContent = '฿' + fmt(month.reduce((s, j) => s + Number(j.riderIncome || 0), 0));
+  const doneEl = $('stat-done');
+  if (doneEl) doneEl.textContent = today.length;
+  const activeEl = $('stat-active');
+  if (activeEl) activeEl.textContent = activeCount;
+  const totalEl = $('stat-total');
+  if (totalEl) totalEl.textContent = riderProfile?.totalJobs || allHistory.length;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  9. RENDER JOBS
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   15. RENDER JOBS
+   ═══════════════════════════════════════════════════════════════════ */
 function renderJobs() {
   const myId = currentUser?.uid;
 
   const newJobs = allJobs.filter(j =>
-    j.status === 'searching' &&
-    !j.riderId &&
-    riderProfile?.verified &&
-    isOnline
+    j.status === 'searching' && !j.riderId &&
+    riderProfile?.verified && isOnline
   );
 
   const activeJobs = allJobs.filter(j =>
@@ -564,34 +641,42 @@ function renderJobs() {
     ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
   );
 
-  const doneTodayJobs = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
+  const doneToday = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
 
-  // Show/hide sections
-  $('new-job-section').style.display = newJobs.length > 0 ? 'block' : 'none';
-  $('active-job-section').style.display = activeJobs.length > 0 ? 'block' : 'none';
-  $('done-job-section').style.display = doneTodayJobs.length > 0 ? 'block' : 'none';
-  $('empty-state').style.display =
-    newJobs.length + activeJobs.length + doneTodayJobs.length === 0 ? 'block' : 'none';
+  const newSec = $('new-job-section');
+  const actSec = $('active-job-section');
+  const doneSec = $('done-job-section');
+  const emptyEl = $('empty-state');
 
-  $('new-count').textContent = newJobs.length;
-  $('active-count').textContent = activeJobs.length;
-  $('done-count').textContent = doneTodayJobs.length;
+  if (newSec) newSec.style.display = newJobs.length > 0 ? 'block' : 'none';
+  if (actSec) actSec.style.display = activeJobs.length > 0 ? 'block' : 'none';
+  if (doneSec) doneSec.style.display = doneToday.length > 0 ? 'block' : 'none';
+  if (emptyEl) emptyEl.style.display =
+    (newJobs.length + activeJobs.length + doneToday.length) === 0 ? 'block' : 'none';
 
-  $('new-jobs-list').innerHTML = newJobs.map(j => renderJobCard(j, 'new')).join('');
-  $('active-jobs-list').innerHTML = activeJobs.map(j => renderJobCard(j, 'active')).join('');
-  $('done-jobs-list').innerHTML = doneTodayJobs.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
+  const nc = $('new-count'); if (nc) nc.textContent = newJobs.length;
+  const ac = $('active-count'); if (ac) ac.textContent = activeJobs.length;
+  const dc = $('done-count'); if (dc) dc.textContent = doneToday.length;
+
+  const njl = $('new-jobs-list');
+  if (njl) njl.innerHTML = newJobs.map(j => renderJobCard(j, 'new')).join('');
+  const ajl = $('active-jobs-list');
+  if (ajl) ajl.innerHTML = activeJobs.map(j => renderJobCard(j, 'active')).join('');
+  const djl = $('done-jobs-list');
+  if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
 }
 
 function renderJobCard(j, type) {
   const isNew = type === 'new';
-  const cut = computeCut(j.fare);
+  const fin = calcOrderFinance(j);
   const statusLabel = {
-    searching: '🔔 ใหม่',
-    accepted: '🛵 รับแล้ว',
-    picked_up: '📦 รับของ',
-    on_the_way: '🚀 กำลังส่ง',
-    done: '✅ เสร็จ'
+    searching: '🔔 ใหม่', accepted: '🛵 รับแล้ว',
+    picked_up: '📦 รับของ', on_the_way: '🚀 กำลังส่ง', done: '✅ เสร็จ'
   }[j.status] || j.status;
+
+  const cashBadge = fin.isCash
+    ? `<div class="cash-badge">💵 เงินสด • ต้องมี ฿${fmt(fin.foodAmount)}</div>`
+    : `<div class="cash-badge" style="background:var(--blue-light);color:#1976D2">💳 โอน • ลูกค้าจ่าย ฿${fmt(fin.totalCustomerPay)}</div>`;
 
   let actions = '';
   if (isNew) {
@@ -601,18 +686,18 @@ function renderJobCard(j, type) {
     </div>`;
   } else if (j.status === 'accepted') {
     actions = `<div class="job-actions two">
-      <button class="action-btn-big btn-orange-big ripple" data-pickup="${esc(j.id)}">📦 รับของแล้ว</button>
-      <button class="action-btn-big btn-blue-big ripple" data-detail="${esc(j.id)}">📍 นำทาง</button>
+      <button class="action-btn-big btn-orange-big ripple" data-arrived="${esc(j.id)}">📍 ถึงร้าน</button>
+      <button class="action-btn-big btn-blue-big ripple" data-detail="${esc(j.id)}">📋 รายละเอียด</button>
     </div>`;
   } else if (j.status === 'picked_up') {
     actions = `<div class="job-actions two">
       <button class="action-btn-big btn-blue-big ripple" data-ontheway="${esc(j.id)}">🚀 เริ่มส่ง</button>
-      <button class="action-btn-big btn-gray-big ripple" data-detail="${esc(j.id)}">📍 นำทาง</button>
+      <button class="action-btn-big btn-gray-big ripple" data-chat="${esc(j.id)}">💬 แชท</button>
     </div>`;
   } else if (j.status === 'on_the_way') {
     actions = `<div class="job-actions two">
       <button class="action-btn-big btn-green-big ripple" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
-      <button class="action-btn-big btn-gray-big ripple" data-detail="${esc(j.id)}">📍 นำทาง</button>
+      <button class="action-btn-big btn-blue-big ripple" data-chat="${esc(j.id)}">💬 แชท</button>
     </div>`;
   } else if (j.status === 'done') {
     actions = `<div class="job-actions">
@@ -629,25 +714,25 @@ function renderJobCard(j, type) {
           <div class="job-meta">👤 ${esc(j.userName || 'ลูกค้า')}</div>
           <div class="job-meta">📍 ${esc((j.address || j.destination || '').slice(0, 60))}</div>
           <div class="job-meta">🕐 ${timeAgo(j.createdAt)} • ${statusLabel}</div>
+          ${cashBadge}
         </div>
       </div>
       <div class="job-price">
         <div>
           <div class="lbl">💰 ค่าบริการ</div>
-          <div class="lbl" style="opacity:.8;font-size:10px">คุณได้ 80% = ฿${fmt(cut.rider)}</div>
+          <div class="lbl" style="opacity:.8;font-size:10px">คุณได้ 80% = ฿${fmt(fin.riderShare)}${fin.tip > 0 ? ` + ทิป ฿${fin.tip}` : ''}</div>
         </div>
-        <div class="amt">฿${fmt(cut.fare)}</div>
+        <div class="amt">฿${fmt(fin.totalRider)}</div>
       </div>
       ${actions}
     </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  10. JOB ACTIONS
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   16. JOB ACTIONS
+   ═══════════════════════════════════════════════════════════════════ */
 async function acceptJob(jobId) {
   try {
-    // ตรวจสอบว่ามีคนรับไปแล้วหรือยัง
     const snap = await db.collection('orders').doc(jobId).get();
     if (!snap.exists) return showToast('ไม่พบงานนี้', 'error');
     const job = snap.data();
@@ -660,21 +745,32 @@ async function acceptJob(jobId) {
       status: 'accepted',
       acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ รับงานแล้ว!', 'success');
+    showToast('✅ รับงานแล้ว!');
     closeNewJobPopup();
+    scheduleGPSIfActive();
   } catch (err) {
-    logToScreen('❌ Accept: ' + err.message, true);
     showToast('รับงานไม่สำเร็จ', 'error');
   }
 }
 
-async function pickupJob(jobId) {
+async function arrivedAtShop(jobId) {
   try {
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
-      pickedUpAt: firebase.firestore.FieldValue.serverTimestamp()
+      arrivedAtShopAt: firebase.firestore.FieldValue.serverTimestamp(),
+      pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
+      riderArrivedShopNotifiedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('📦 รับของแล้ว', 'success');
+    showToast('📍 แจ้งร้านค้าและลูกค้าแล้ว');
+    arrivedShopNotifiedOrderIds.add(jobId);
+
+    // แจ้งร้านค้าผ่าน order
+    const jobSnap = await db.collection('orders').doc(jobId).get();
+    if (jobSnap.exists && jobSnap.data().merchantId) {
+      await db.collection('orders').doc(jobId).update({
+        merchantNotifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+    }
   } catch (err) {
     showToast('ไม่สำเร็จ', 'error');
   }
@@ -686,47 +782,53 @@ async function onTheWayJob(jobId) {
       status: 'on_the_way',
       onTheWayAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('🚀 เริ่มส่ง', 'success');
+    showToast('🚀 เริ่มส่ง');
   } catch (err) {
     showToast('ไม่สำเร็จ', 'error');
   }
 }
 
 async function deliverJob(jobId) {
-  const job = allJobs.find(j => j.id === jobId);
+  const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
   if (!job) return;
-  const cut = computeCut(job.fare);
-  openDeliverModal(job, cut);
+  const fin = calcOrderFinance(job);
+  openDeliverModal(job, fin);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  11. DELIVER MODAL (Slip Upload)
-// ═══════════════════════════════════════════════════════════════════
-function openDeliverModal(job, cut) {
-  const modal = $('modalContent');
-  modal.innerHTML = `
+/* ═══════════════════════════════════════════════════════════════════
+   17. DELIVER MODAL
+   ═══════════════════════════════════════════════════════════════════ */
+function openDeliverModal(job, fin) {
+  const mc = $('modalContent');
+  if (!mc) return;
+
+  mc.innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:48px">✅</div>
       <h2 style="font-size:20px;font-weight:900;margin-top:8px">ยืนยันส่งสำเร็จ</h2>
-      <p style="color:#6B7280;font-size:13px;font-weight:600;margin-top:4px">กรุณาแนบสลิปโอนเงินให้ร้านค้า</p>
+      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">แนบสลิปโอนเงินให้ร้านค้า</p>
     </div>
 
-    <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-bottom:16px">
+    <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0">
         <span>ค่าบริการทั้งหมด</span>
-        <span style="font-weight:900">฿${fmt(cut.fare)}</span>
+        <span style="font-weight:900">฿${fmt(fin.fare)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:#00A651">
-        <span>คุณได้ (80%)</span>
-        <span style="font-weight:900">฿${fmt(cut.rider)}</span>
+      ${fin.tip > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:#E65100">
+        <span>ทิปเงินสด</span>
+        <span style="font-weight:900">฿${fmt(fin.tip)}</span>
+      </div>` : ''}
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:var(--green)">
+        <span>คุณได้ (80%${fin.tip > 0 ? ' + ทิป' : ''})</span>
+        <span style="font-weight:900">฿${fmt(fin.totalRider)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:#E65100;border-top:1px dashed #ddd;margin-top:6px;padding-top:8px">
-        <span>ต้องโอนร้าน (80% ของค่าอาหาร)</span>
-        <span style="font-weight:900">฿${fmt(Number(job.foodTotal || job.fare) * 0.80)}</span>
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0;color:#E65100;border-top:1px dashed var(--border);margin-top:6px;padding-top:8px">
+        <span>โอนร้านค้า</span>
+        <span style="font-weight:900">฿${fmt(fin.foodAmount)}</span>
       </div>
     </div>
 
-    <div class="slip-upload-box" onclick="$('slip-input').click()">
+    <div class="slip-upload-box" onclick="document.getElementById('slip-input').click()">
       <div class="icon">📸</div>
       <div class="label">แตะเพื่ออัปโหลดสลิป</div>
       <div class="hint">แนบสลิปโอนเงินให้ร้านค้า</div>
@@ -746,12 +848,10 @@ function openDeliverModal(job, cut) {
 
   $('modalOverlay').classList.add('show');
 
-  // Preview รูป
   $('slip-input').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > MAX_SLIP_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
-
     const reader = new FileReader();
     reader.onload = (ev) => {
       const preview = $('slip-preview');
@@ -761,11 +861,9 @@ function openDeliverModal(job, cut) {
     reader.readAsDataURL(file);
   });
 
-  // Confirm
   $('confirm-deliver-btn').addEventListener('click', async () => {
     const file = $('slip-input').files[0];
     const btn = $('confirm-deliver-btn');
-
     btn.disabled = true;
     btn.textContent = '⏳ กำลังบันทึก...';
 
@@ -777,13 +875,10 @@ function openDeliverModal(job, cut) {
         const progress = $('slip-progress');
         const bar = $('slip-progress-bar');
         progress.style.display = 'block';
-
-        // Compress image
-        const compressedBlob = await compressImage(file, 1000, 0.8);
-
+        const compressed = await compressImage(file, 1000, 0.8);
         slipPath = `slips/riders/${currentUser.uid}/${job.id}_${Date.now()}.jpg`;
         const ref = storage.ref(slipPath);
-        const task = ref.put(compressedBlob);
+        const task = ref.put(compressed);
         task.on('state_changed', (s) => {
           bar.style.width = (s.bytesTransferred / s.totalBytes * 100) + '%';
         });
@@ -797,21 +892,20 @@ function openDeliverModal(job, cut) {
         riderSlipUrl: slipUrl,
         riderSlipPath: slipPath,
         riderSlipVerified: false,
-        riderIncome: cut.rider,
-        riderOwe: cut.platform,
+        riderIncome: fin.riderShare + fin.tip,
+        riderOwe: fin.platformShare,
         riderPaid: false
       });
 
-      // Update rider stats + achievements
-      await updateRiderStats(cut.rider);
+      await db.collection('riders').doc(currentUser.uid).update({
+        totalJobs: firebase.firestore.FieldValue.increment(1),
+        totalIncome: firebase.firestore.FieldValue.increment(fin.riderShare + fin.tip)
+      });
 
-      showToast('✅ ส่งสำเร็จ!', 'success');
+      showToast('✅ ส่งสำเร็จ!');
       closeModal();
-
-      // Check achievements
-      checkAchievements();
+      stopGPS();
     } catch (err) {
-      logToScreen('❌ Deliver: ' + err.message, true);
       showToast('ไม่สำเร็จ: ' + err.message, 'error');
       btn.disabled = false;
       btn.textContent = '✅ ยืนยัน';
@@ -819,92 +913,80 @@ function openDeliverModal(job, cut) {
   });
 }
 
-async function updateRiderStats(income) {
-  try {
-    await db.collection('riders').doc(currentUser.uid).update({
-      totalJobs: firebase.firestore.FieldValue.increment(1),
-      totalIncome: firebase.firestore.FieldValue.increment(income)
-    });
-  } catch (err) {
-    console.warn('Update stats failed:', err);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  12. JOB DETAIL MODAL
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   18. JOB DETAIL
+   ═══════════════════════════════════════════════════════════════════ */
 function showJobDetail(jobId) {
   const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
   if (!job) return;
-
-  const cut = computeCut(job.fare);
+  const fin = calcOrderFinance(job);
   const mapUrl = job.lat && job.lng
     ? `https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`
     : (job.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}` : null);
+  const mc = $('modalContent');
+  if (!mc) return;
 
-  $('modalContent').innerHTML = `
+  mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 รายละเอียดงาน</h2>
-
-    <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-bottom:14px">
+    <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px">
       <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(job.title || 'งาน')}</div>
-      <div style="font-size:13px;font-weight:700;color:#6B7280;line-height:1.8">
+      <div style="font-size:13px;font-weight:700;color:var(--text-muted);line-height:1.9">
         <div>👤 ลูกค้า: <b>${esc(job.userName || '—')}</b></div>
         <div>📞 เบอร์: <b>${esc(job.userPhone || '—')}</b></div>
         <div>📍 ${esc(job.address || job.destination || '—')}</div>
         <div>🕐 ${fmtDateTime(job.createdAt)}</div>
       </div>
     </div>
-
-    ${job.note ? `<div style="background:#FFFDE7;border-left:4px solid #FFA500;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;color:#5D4037;font-weight:700">
-      📌 ${esc(job.note)}
-    </div>` : ''}
-
-    <div style="background:linear-gradient(135deg,#FFF8E1,#FFECB3);border-radius:12px;padding:14px;margin-bottom:14px">
+    ${job.note ? `<div style="background:var(--orange-light);border-left:4px solid var(--orange);padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:700">📌 ${esc(job.note)}</div>` : ''}
+    <div style="background:var(--green-light);border-radius:12px;padding:14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding:4px 0">
-        <span>💰 ค่าบริการ</span>
-        <span style="font-weight:900">฿${fmt(cut.fare)}</span>
+        <span>💰 ค่าบริการ</span><span style="font-weight:900">฿${fmt(fin.fare)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding:4px 0;color:#00A651">
-        <span>คุณได้รับ (80%)</span>
-        <span style="font-weight:900">฿${fmt(cut.rider)}</span>
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding:4px 0;color:var(--green)">
+        <span>คุณได้รับ (80%)</span><span style="font-weight:900">฿${fmt(fin.totalRider)}</span>
       </div>
     </div>
-
     <div class="job-actions two" style="margin-bottom:10px">
-      ${job.userPhone ? `<a href="tel:${esc(job.userPhone)}" class="action-btn-big btn-blue-big ripple" style="text-decoration:none">📞 โทรหา</a>` : ''}
-      ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none">📍 นำทาง</a>` : ''}
+      ${job.userPhone ? `<a href="tel:${esc(job.userPhone)}" class="action-btn-big btn-blue-big ripple" style="text-decoration:none;color:#fff">📞 โทรหา</a>` : ''}
+      ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff">📍 นำทาง</a>` : ''}
     </div>
-
+    ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  13. NEW JOB POPUP
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   19. NEW JOB POPUP
+   ═══════════════════════════════════════════════════════════════════ */
 function showNewJobPopup(job) {
   newJobPopupId = job.id;
-  const cut = computeCut(job.fare);
+  const fin = calcOrderFinance(job);
+  const cashBadge = fin.isCash
+    ? `<div style="padding:8px;background:var(--orange-light);border-radius:10px;margin-top:8px;font-size:12px;font-weight:900;color:#E65100">💵 เงินสด • ต้องมี ฿${fmt(fin.foodAmount)}</div>`
+    : '';
 
-  $('new-job-detail').innerHTML = `
-    <div>👤 <strong>${esc(job.userName || 'ลูกค้า')}</strong></div>
-    <div>📞 <strong>${esc(job.userPhone || '—')}</strong></div>
-    <div>📍 ${esc(job.address || job.destination || '—')}</div>
-    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd">
-      💰 ค่าบริการ: <strong style="color:#FF6B35;font-size:18px">฿${fmt(cut.fare)}</strong>
-    </div>
-    <div style="font-size:11px;color:#00A651;font-weight:800;margin-top:4px">
-      คุณจะได้ 80% = ฿${fmt(cut.rider)}
-    </div>
-  `;
+  const nd = $('new-job-detail');
+  if (nd) {
+    nd.innerHTML = `
+      <div>👤 <strong>${esc(job.userName || 'ลูกค้า')}</strong></div>
+      <div>📞 <strong>${esc(job.userPhone || '—')}</strong></div>
+      <div>📍 ${esc(job.address || job.destination || '—')}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+        💰 ค่าบริการ: <strong style="color:var(--brand);font-size:18px">฿${fmt(fin.fare)}</strong>
+      </div>
+      <div style="font-size:11px;color:var(--green);font-weight:800;margin-top:4px">
+        คุณจะได้ ${fin.tip > 0 ? '80% + ทิป' : '80%'} = ฿${fmt(fin.totalRider)}
+      </div>
+      ${cashBadge}
+    `;
+  }
   $('newJobPopup').classList.add('show');
 
-  // Push notification
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('🔔 งานใหม่!', {
-        body: `${job.userName || 'ลูกค้า'} - ฿${fmt(cut.fare)}`,
+        body: `${job.userName || 'ลูกค้า'} - ฿${fmt(fin.fare)}`,
         icon: '/icons/icon-512.png',
         tag: 'new-job-' + job.id
       });
@@ -921,44 +1003,45 @@ function acceptFromPopup() {
   if (newJobPopupId) acceptJob(newJobPopupId);
 }
 
-async function skipJob(jobId) {
+function skipJob(jobId) {
   closeNewJobPopup();
   showToast('ข้ามงานนี้', 'info');
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  14. ONLINE/OFFLINE + GPS
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   20. ONLINE/OFFLINE + GPS
+   ═══════════════════════════════════════════════════════════════════ */
 async function toggleOnline() {
   if (!currentUser || riderProfile?.verified !== true) {
     return showToast('รอแอดมินอนุมัติก่อน', 'warning');
   }
-
   const newState = !isOnline;
   const newStatus = newState ? 'active' : 'inactive';
-
   try {
     await db.collection('riders').doc(currentUser.uid).update({
       status: newStatus,
       lastToggle: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast(newState ? '🟢 ออนไลน์' : '⚫ ออฟไลน์', 'success');
-
-    if (newState) {
-      startGPS();
-    } else {
-      stopGPS();
-    }
+    showToast(newState ? '🟢 ออนไลน์' : '⚫ ออฟไลน์');
+    if (newState) scheduleGPSIfActive();
+    else stopGPS();
   } catch (err) {
-    logToScreen('❌ Toggle: ' + err.message, true);
     showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error');
   }
 }
 
-function startGPS() {
-  if (!navigator.geolocation) return showToast('ไม่รองรับ GPS', 'error');
-  if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+function scheduleGPSIfActive() {
+  const hasActive = allJobs.some(j =>
+    j.riderId === currentUser?.uid &&
+    ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
+  );
+  if (hasActive && isOnline) startGPS();
+  else stopGPS();
+}
 
+function startGPS() {
+  if (!navigator.geolocation) return;
+  if (gpsWatchId) return;
   gpsWatchId = navigator.geolocation.watchPosition(
     async (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
@@ -971,24 +1054,55 @@ function startGPS() {
           accuracy,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
-      } catch (err) {
-        logToScreen('GPS write: ' + err.code, true);
-      }
+
+        await checkArrivalForActiveOrders(latitude, longitude);
+      } catch (err) {}
     },
-    (err) => {
-      logToScreen('GPS error: ' + err.message, true);
-    },
+    (err) => {},
     { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
   );
-
-  logToScreen('📍 GPS started');
 }
 
 function stopGPS() {
   if (gpsWatchId) {
     navigator.geolocation.clearWatch(gpsWatchId);
     gpsWatchId = null;
-    logToScreen('📍 GPS stopped');
+  }
+}
+
+async function checkArrivalForActiveOrders(myLat, myLng) {
+  const myActive = allJobs.filter(j =>
+    j.riderId === currentUser?.uid &&
+    ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
+  );
+
+  for (const job of myActive) {
+    // ถึงร้าน
+    if (job.status === 'accepted' && job.shopPlaceLat && job.shopPlaceLng
+      && !arrivedShopNotifiedOrderIds.has(job.id)) {
+      const dist = haversine(myLat, myLng, job.shopPlaceLat, job.shopPlaceLng) * 1000;
+      if (dist <= ARRIVAL_RADIUS_M) {
+        arrivedShopNotifiedOrderIds.add(job.id);
+        soundArrivedShop();
+        showToast('📍 ถึงร้านแล้ว — แจ้งลูกค้าเรียบร้อย');
+      }
+    }
+
+    // ใกล้ถึงลูกค้า
+    if (job.status === 'on_the_way' && job.lat && job.lng
+      && !nearNotifiedOrderIds.has(job.id)) {
+      const dist = haversine(myLat, myLng, job.lat, job.lng) * 1000;
+      if (dist <= NEAR_CUSTOMER_RADIUS_M) {
+        nearNotifiedOrderIds.add(job.id);
+        soundNearCustomer();
+        showToast('🔔 ใกล้ถึงลูกค้า 100 ม. — แจ้งเตือนแล้ว');
+
+        // บันทึก flag ลง Firestore ให้ลูกค้าเห็น
+        await db.collection('orders').doc(job.id).update({
+          riderNearCustomerAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+      }
+    }
   }
 }
 
@@ -996,247 +1110,232 @@ function requestGPS() {
   if (!navigator.geolocation) return showToast('ไม่รองรับ GPS', 'error');
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      showToast(`📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`, 'success');
+      showToast(`📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
     },
-    (err) => {
-      showToast('ไม่สามารถเข้าถึง GPS', 'error');
-    }
+    () => { showToast('ไม่สามารถเข้าถึง GPS', 'error'); }
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  15. SHEET / MODAL
-// ═══════════════════════════════════════════════════════════════════
-function openSheet() { $('sheetOverlay').classList.add('show'); }
-function closeSheet() { $('sheetOverlay').classList.remove('show'); }
-
+/* ═══════════════════════════════════════════════════════════════════
+   21. SHEET / MODAL
+   ═══════════════════════════════════════════════════════════════════ */
+function openSheet() { $('sheetOverlay')?.classList.add('show'); }
+function closeSheet() { $('sheetOverlay')?.classList.remove('show'); }
 function closeModal() {
-  $('modalOverlay').classList.remove('show');
-  $('modalContent').innerHTML = '';
+  $('modalOverlay')?.classList.remove('show');
+  const mc = $('modalContent');
+  if (mc) mc.innerHTML = '';
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  16. PROFILE / INCOME / HISTORY / ACHIEVEMENTS
-// ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   22. PROFILE / FINANCE
+   ═══════════════════════════════════════════════════════════════════ */
 function showProfile() {
-  $('modalContent').innerHTML = `
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">👤 ข้อมูลส่วนตัว</h2>
     <div style="line-height:2;font-size:14px">
       <p><b>ชื่อ:</b> ${esc(riderProfile.name)}</p>
       <p><b>เบอร์:</b> ${esc(riderProfile.phone || '—')}</p>
       <p><b>อีเมล:</b> ${esc(riderProfile.email || '—')}</p>
-      <p><b>ประเภทยานพาหนะ:</b> ${esc(riderProfile.vehicle || '—')}</p>
+      <p><b>ยานพาหนะ:</b> ${esc(riderProfile.vehicle || '—')}</p>
       <p><b>ทะเบียน:</b> ${esc(riderProfile.plate || '—')}</p>
       <p><b>สถานะ:</b> ${riderProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}</p>
       <p><b>Rating:</b> ⭐ ${(riderProfile.rating || 0).toFixed(1)} (${riderProfile.totalRatings || 0} รีวิว)</p>
       <p><b>งานทั้งหมด:</b> ${riderProfile.totalJobs || 0} งาน</p>
       <p><b>รายได้รวม:</b> ฿${fmt(riderProfile.totalIncome || 0)}</p>
+      <p><b>Trust Score:</b> ⭐ ${riderProfile.trustScore || 100} / 100</p>
     </div>
     <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
 }
 
-function showIncome() {
+function showFinance() {
   const today = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
-  const week = allHistory.filter(j => isThisWeek(j.doneAt || j.createdAt));
-  const month = allHistory.filter(j => isThisMonth(j.doneAt || j.createdAt));
-  const all = allHistory;
+  const week = allHistory.filter(j => {
+    const d = toDate(j.doneAt);
+    if (!d) return false;
+    return d >= new Date(Date.now() - 7 * 86400000);
+  });
+  const month = allHistory.filter(j => {
+    const d = toDate(j.doneAt);
+    if (!d) return false;
+    return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
+  });
 
   const sum = (arr) => arr.reduce((s, j) => s + Number(j.riderIncome || 0), 0);
-  const pendingOwe = all.filter(j => !j.riderPaid).reduce((s, j) => s + Number(j.riderOwe || 0), 0);
+  const pendingOwe = allHistory.filter(j => !j.riderPaid).reduce((s, j) => s + Number(j.riderOwe || 0), 0);
 
-  $('modalContent').innerHTML = `
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">💰 รายได้ & GP</h2>
-
-    <div style="background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;border-radius:16px;padding:20px;margin-bottom:12px">
-      <div style="font-size:12px;opacity:.9;font-weight:700">รายได้วันนี้ (80%)</div>
+    <div style="background:var(--header-grad);color:#fff;border-radius:16px;padding:20px;margin-bottom:12px">
+      <div style="font-size:12px;opacity:.9;font-weight:700">รายได้วันนี้</div>
       <div style="font-size:36px;font-weight:900;margin-top:4px">฿${fmt(sum(today))}</div>
       <div style="font-size:12px;opacity:.9;margin-top:6px;font-weight:700">จาก ${today.length} งาน</div>
     </div>
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-        <div style="font-size:11px;color:#6B7280;font-weight:800">7 วันล่าสุด</div>
-        <div style="font-size:20px;font-weight:900;color:#FF6B35;margin-top:4px">฿${fmt(sum(week))}</div>
+      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;box-shadow:var(--shadow-sm)">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:800">7 วัน</div>
+        <div style="font-size:20px;font-weight:900;color:var(--brand);margin-top:4px">฿${fmt(sum(week))}</div>
       </div>
-      <div style="background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.04)">
-        <div style="font-size:11px;color:#6B7280;font-weight:800">30 วันล่าสุด</div>
-        <div style="font-size:20px;font-weight:900;color:#FF6B35;margin-top:4px">฿${fmt(sum(month))}</div>
+      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;box-shadow:var(--shadow-sm)">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:800">30 วัน</div>
+        <div style="font-size:20px;font-weight:900;color:var(--brand);margin-top:4px">฿${fmt(sum(month))}</div>
       </div>
     </div>
-
-    <div style="background:#FFFBEB;border-left:4px solid #E65100;border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-size:12px;color:#92400e;font-weight:800">GP ค้างโอนให้แอป</div>
+    <div style="background:var(--orange-light);border-left:4px solid var(--orange);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:12px;color:#E65100;font-weight:800">⚠️ GP ค้างโอน chauatgo (20%)</div>
       <div style="font-size:24px;font-weight:900;color:#E65100;margin-top:4px">฿${fmt(pendingOwe)}</div>
-      <div style="font-size:11px;color:#92400e;font-weight:600;margin-top:2px">${all.filter(j => !j.riderPaid).length} งาน</div>
+      <div style="font-size:11px;color:#E65100;font-weight:600;margin-top:2px">${allHistory.filter(j => !j.riderPaid).length} งาน</div>
     </div>
-
-    <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0">
-        <span>รายได้รวมทั้งหมด</span>
-        <span style="font-weight:900">฿${fmt(sum(all))}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:4px 0">
-        <span>จากงานทั้งหมด</span>
-        <span style="font-weight:900">${all.length} งาน</span>
-      </div>
-    </div>
-
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
 }
 
-function showHistory() {
-  const filtered = currentHistoryFilter === 'all' ? allHistory :
-    currentHistoryFilter === 'today' ? allHistory.filter(j => isToday(j.doneAt)) :
-    currentHistoryFilter === 'week' ? allHistory.filter(j => isThisWeek(j.doneAt)) :
-    allHistory.filter(j => isThisMonth(j.doneAt));
+function showTransferShop() {
+  showToast('💡 ระบบโอนร้านค้า — เร็ว ๆ นี้', 'info');
+}
 
-  $('modalContent').innerHTML = `
-    <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 ประวัติงาน (${filtered.length})</h2>
+function showTransferApp() {
+  showToast('💡 ระบบโอน chauatgo — เร็ว ๆ นี้', 'info');
+}
 
-    <div class="filter-bar" style="margin-bottom:12px">
-      <button class="filter-chip ${currentHistoryFilter === 'all' ? 'active' : ''}" data-history-filter="all">ทั้งหมด</button>
-      <button class="filter-chip ${currentHistoryFilter === 'today' ? 'active' : ''}" data-history-filter="today">วันนี้</button>
-      <button class="filter-chip ${currentHistoryFilter === 'week' ? 'active' : ''}" data-history-filter="week">7 วัน</button>
-      <button class="filter-chip ${currentHistoryFilter === 'month' ? 'active' : ''}" data-history-filter="month">เดือนนี้</button>
+function showGPIncome() {
+  showToast('💎 GP 2% รอรับจาก chauatgo ทุก 15 วัน', 'info');
+}
+
+function showTrustScore() {
+  const score = riderProfile?.trustScore || 100;
+  const level = score >= 90 ? 'ยอดเยี่ยม' : score >= 70 ? 'ดี' : score >= 50 ? 'ปานกลาง' : 'ต้องปรับปรุง';
+  const color = score >= 90 ? 'var(--green)' : score >= 70 ? 'var(--blue)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
+
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `
+    <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">🏆 Trust Score</h2>
+    <div style="text-align:center;padding:20px;background:var(--surface-2);border-radius:16px;margin-bottom:14px">
+      <div style="font-size:64px;font-weight:900;color:${color};line-height:1">${score}</div>
+      <div style="font-size:13px;font-weight:800;color:var(--text-muted);margin-top:8px">${level}</div>
     </div>
+    <div style="background:var(--surface-2);border-radius:12px;padding:14px;font-size:13px;font-weight:700;line-height:1.9">
+      <div>✅ โอนตรงเวลา: <b>+คะแนน</b></div>
+      <div>✅ รีวิวดี: <b>+คะแนน</b></div>
+      <div>✅ งานสำเร็จ: <b>+คะแนน</b></div>
+      <div>⚠️ โอนช้า: <b>−คะแนน</b></div>
+      <div>⚠️ ยกเลิกงานบ่อย: <b>−คะแนน</b></div>
+    </div>
+    <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
+  `;
+  $('modalOverlay').classList.add('show');
+}
 
+function showHistory() {
+  const filtered = currentHistoryFilter === 'all' ? allHistory : allHistory;
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `
+    <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 ประวัติงาน (${filtered.length})</h2>
     <div style="max-height:400px;overflow-y:auto">
-    ${filtered.length === 0 ? '<p style="text-align:center;color:#999;padding:20px">ยังไม่มีงาน</p>' :
+    ${filtered.length === 0 ? '<p style="text-align:center;color:var(--text-light);padding:20px">ยังไม่มีงาน</p>' :
       filtered.slice(0, 50).map(j => `
-        <div style="padding:12px 0;border-bottom:1px solid #f0f0f0;cursor:pointer" data-detail="${esc(j.id)}">
+        <div style="padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" data-detail="${esc(j.id)}">
           <div style="display:flex;justify-content:space-between;font-weight:900;font-size:13px">
             <span>${esc(j.title || 'งาน')}</span>
-            <span style="color:#00A651">฿${fmt(j.riderIncome || 0)}</span>
+            <span style="color:var(--green)">฿${fmt(j.riderIncome || 0)}</span>
           </div>
-          <div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:4px">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:4px">
             🕐 ${fmtDateTime(j.doneAt || j.createdAt)} • 👤 ${esc(j.userName || '')}
           </div>
         </div>
       `).join('')
     }
     </div>
-
     <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
 }
 
-function showAchievements() {
-  const earned = riderProfile?.achievements || [];
-  $('modalContent').innerHTML = `
-    <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">🏆 ความสำเร็จ</h2>
-    ${Object.entries(ACHIEVEMENTS).map(([key, a]) => {
-      const isEarned = earned.includes(key);
-      return `
-        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:${isEarned ? '#F0FDF4' : '#f8f9fa'};border-radius:12px;margin-bottom:8px;${isEarned ? 'border-left:4px solid #00A651' : 'opacity:.5'}">
-          <div style="font-size:32px">${a.icon}</div>
-          <div style="flex:1">
-            <div style="font-weight:900;font-size:14px">${a.name}</div>
-            <div style="font-size:11px;color:#6B7280;font-weight:600">${a.desc}</div>
-          </div>
-          ${isEarned ? '<span style="color:#00A651;font-weight:900">✅</span>' : ''}
-        </div>
-      `;
-    }).join('')}
-    <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
-  `;
-  $('modalOverlay').classList.add('show');
-}
+/* ═══════════════════════════════════════════════════════════════════
+   23. CHAT (Rider ↔ Customer)
+   ═══════════════════════════════════════════════════════════════════ */
+async function openChatWithCustomer(orderId) {
+  const job = allJobs.find(j => j.id === orderId) || allHistory.find(j => j.id === orderId);
+  if (!job) return showToast('ไม่พบออเดอร์', 'error');
 
-// ─── Check Achievements ───
-async function checkAchievements() {
+  activeChatId = orderId;
+  activeChatPartnerPhone = job.userPhone || null;
+  activeChatPartnerName = job.userName || 'ลูกค้า';
+
+  // สร้าง chat doc ถ้าไม่มี
   try {
-    const total = riderProfile?.totalJobs || 0;
-    const earned = new Set(riderProfile?.achievements || []);
-    const newOnes = [];
-
-    if (total >= 1 && !earned.has('firstJob')) { earned.add('firstJob'); newOnes.push('firstJob'); }
-    if (total >= 10 && !earned.has('tenJobs')) { earned.add('tenJobs'); newOnes.push('tenJobs'); }
-    if (total >= 50 && !earned.has('fiftyJobs')) { earned.add('fiftyJobs'); newOnes.push('fiftyJobs'); }
-    if (total >= 100 && !earned.has('hundredJobs')) { earned.add('hundredJobs'); newOnes.push('hundredJobs'); }
-
-    if (newOnes.length > 0) {
-      await db.collection('riders').doc(currentUser.uid).update({
-        achievements: [...earned]
-      });
-      newOnes.forEach(key => {
-        const a = ACHIEVEMENTS[key];
-        setTimeout(() => showToast(`${a.icon} ${a.name}`, 'success'), 500);
-      });
-    }
-  } catch (err) {
-    console.warn('Achievements error:', err);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════
-//  17. CHAT SYSTEM
-// ═══════════════════════════════════════════════════════════════════
-async function openChatWithMerchant(jobId) {
-  const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
-  if (!job) return;
-
-  const chatId = job.chatId || `chat_${[job.merchantId, currentUser.uid].sort().join('_')}`;
-  activeChatId = chatId;
-
-  // สร้าง chat document ถ้าไม่มี
-  try {
-    const chatRef = db.collection('chats').doc(chatId);
-    const chatSnap = await chatRef.get();
-    if (!chatSnap.exists) {
+    const chatRef = db.collection('chats').doc(orderId);
+    const snap = await chatRef.get();
+    if (!snap.exists) {
       await chatRef.set({
-        participantIds: [currentUser.uid, job.merchantId].filter(Boolean),
-        participants: [
-          { uid: currentUser.uid, name: riderProfile.name, role: 'rider' },
-          { uid: job.merchantId, name: job.merchantName || 'ร้านค้า', role: 'merchant' }
-        ],
-        type: 'rider_merchant',
-        lastMessage: 'เริ่มสนทนา',
+        orderId: orderId,
+        userId: job.userId,
+        userName: job.userName || 'ลูกค้า',
+        riderId: currentUser.uid,
+        riderName: riderProfile.name,
+        lastMessage: '',
+        lastSenderId: '',
         lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
-  } catch (err) {
-    console.warn('Chat init error:', err);
-  }
+  } catch (err) {}
 
-  $('chatName').textContent = job.merchantName || 'ร้านค้า';
-  $('chatSub').textContent = job.title || 'งาน';
-  $('chatContainer').classList.add('show');
+  const cn = $('chatName'); if (cn) cn.textContent = activeChatPartnerName;
+  const cs = $('chatSub'); if (cs) cs.textContent = job.title || 'ออเดอร์';
+  $('chatContainer')?.classList.add('show');
+  closeModal();
 
   if (activeChatUnsub) activeChatUnsub();
-  activeChatUnsub = db.collection('chats').doc(chatId).collection('messages')
-    .orderBy('createdAt', 'asc').limitToLast(100)
+  activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')
+    .orderBy('createdAt', 'asc').limit(200)
     .onSnapshot(snap => {
-      renderChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, err => {
-      logToScreen('❌ Chat: ' + err.code, true);
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderChatMessages(msgs);
     });
 }
 
 function closeChat() {
-  $('chatContainer').classList.remove('show');
+  $('chatContainer')?.classList.remove('show');
   if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
   activeChatId = null;
 }
 
+function callChatPartner() {
+  if (activeChatPartnerPhone) {
+    window.location.href = 'tel:' + activeChatPartnerPhone;
+  } else {
+    showToast('ไม่มีเบอร์โทร', 'warning');
+  }
+}
+
 function renderChatMessages(msgs) {
   const el = $('chatMessages');
+  if (!el) return;
   if (msgs.length === 0) {
-    el.innerHTML = '<div class="chat-empty">เริ่มสนทนา</div>';
+    el.innerHTML = '<div class="chat-empty">เริ่มสนทนากับลูกค้า</div>';
     return;
   }
+
   let lastDay = '';
   el.innerHTML = msgs.map(m => {
     const isMine = m.senderId === currentUser.uid || m.senderRole === 'rider';
     const d = toDate(m.createdAt) || new Date();
     const day = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
     let dayDiv = '';
-    if (day !== lastDay) { dayDiv = `<div class="chat-day-divider">${day}</div>`; lastDay = day; }
+    if (day !== lastDay) {
+      dayDiv = `<div class="chat-day-divider">${day}</div>`;
+      lastDay = day;
+    }
     const img = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
     return `${dayDiv}
       <div class="chat-msg ${isMine ? 'out' : 'in'}">
@@ -1249,10 +1348,11 @@ function renderChatMessages(msgs) {
 }
 
 async function sendChatText() {
-  const text = $('chatInput').value.trim();
+  const text = $('chatInput')?.value.trim();
   if (!text || !activeChatId) return;
-  $('chatInput').value = '';
-  $('chatInput').style.height = 'auto';
+  const inp = $('chatInput');
+  inp.value = '';
+  inp.style.height = 'auto';
 
   try {
     await db.collection('chats').doc(activeChatId).collection('messages').add({
@@ -1263,7 +1363,8 @@ async function sendChatText() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('chats').doc(activeChatId).update({
-      lastMessage: `[ไรเดอร์] ${text}`,
+      lastMessage: text.slice(0, 80),
+      lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (err) {
@@ -1274,16 +1375,13 @@ async function sendChatText() {
 async function sendChatImage(file) {
   if (!file || !activeChatId) return;
   if (file.size > MAX_SLIP_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
-
   showToast('⏳ กำลังอัปโหลด...', 'info');
-
   try {
     const compressed = await compressImage(file, 800, 0.75);
     const path = `chats/${activeChatId}/${Date.now()}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed);
     const url = await ref.getDownloadURL();
-
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       imageUrl: url,
       senderId: currentUser.uid,
@@ -1292,10 +1390,11 @@ async function sendChatImage(file) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '[ไรเดอร์] 📷 รูปภาพ',
+      lastMessage: '📷 รูปภาพ',
+      lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ ส่งรูปแล้ว', 'success');
+    showToast('✅ ส่งรูปแล้ว');
   } catch (err) {
     showToast('อัปโหลดไม่สำเร็จ', 'error');
   }
@@ -1306,84 +1405,179 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  18. NETWORK & PWA
-// ═══════════════════════════════════════════════════════════════════
-function setupNetworkWatcher() {
+/* ═══════════════════════════════════════════════════════════════════
+   24. CAMERA (ถ่ายรูปอาหาร)
+   ═══════════════════════════════════════════════════════════════════ */
+function openCamera() {
+  $('cameraModal')?.classList.add('show');
+  cameraFile = null;
+  const preview = $('cameraPreview');
+  if (preview) preview.style.display = 'none';
+  const placeholder = $('cameraPlaceholder');
+  if (placeholder) placeholder.style.display = 'block';
+  const sendBtn = $('cameraSendBtn');
+  if (sendBtn) sendBtn.style.display = 'none';
+}
+
+function closeCamera() {
+  $('cameraModal')?.classList.remove('show');
+  cameraFile = null;
+}
+
+function previewFoodImage(file) {
+  if (!file) return;
+  cameraFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = $('cameraPreview');
+    if (preview) {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    }
+    const placeholder = $('cameraPlaceholder');
+    if (placeholder) placeholder.style.display = 'none';
+    const sendBtn = $('cameraSendBtn');
+    if (sendBtn) sendBtn.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function sendFoodImage() {
+  if (!cameraFile || !activeChatId) {
+    showToast('ไม่มีรูป', 'warning');
+    return;
+  }
+  try {
+    await sendChatImage(cameraFile);
+    closeCamera();
+    closeChat();
+    showToast('✅ ส่งรูปอาหารให้ลูกค้าแล้ว');
+  } catch (err) {
+    showToast('ส่งไม่สำเร็จ', 'error');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   25. NETWORK & PWA
+   ═══════════════════════════════════════════════════════════════════ */
+function setupNetwork() {
   window.addEventListener('online', () => {
-    $('offlineBar')?.classList.remove('show');
-    showToast('🟢 กลับมาออนไลน์', 'success');
+    $('offline-banner')?.classList.remove('show');
+    showToast('🟢 กลับมาออนไลน์');
   });
   window.addEventListener('offline', () => {
-    $('offlineBar')?.classList.add('show');
+    $('offline-banner')?.classList.add('show');
   });
-  if (!navigator.onLine) $('offlineBar')?.classList.add('show');
+  if (!navigator.onLine) $('offline-banner')?.classList.add('show');
 }
 
-function setupPWAInstall() {
+let deferredPrompt = null;
+function setupPWA() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
-    logToScreen('📱 PWA พร้อมติดตั้ง');
+    deferredPrompt = e;
+    if (!localStorage.getItem('chauat_rider_pwa_dismissed')) {
+      $('pwa-install-banner')?.classList.remove('hidden');
+    }
   });
 }
 
-// ─── Pull to Refresh ───
-function setupPullToRefresh() {
-  let startY = 0;
-  let pullDist = 0;
-  const threshold = 80;
-
-  document.addEventListener('touchstart', (e) => {
-    if (window.scrollY === 0) startY = e.touches[0].clientY;
-  }, { passive: true });
-
-  document.addEventListener('touchmove', (e) => {
-    if (window.scrollY === 0 && startY) {
-      pullDist = e.touches[0].clientY - startY;
-    }
-  }, { passive: true });
-
-  document.addEventListener('touchend', () => {
-    if (pullDist > threshold) {
-      showToast('🔄 กำลังรีเฟรช...', 'info');
-      setTimeout(() => location.reload(), 500);
-    }
-    pullDist = 0;
-  }, { passive: true });
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') {
+        showToast('✅ ติดตั้งสำเร็จ');
+        $('pwa-install-banner')?.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    });
+  } else {
+    showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก', 'info');
+  }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-//  19. EVENT DELEGATION
-// ═══════════════════════════════════════════════════════════════════
+function dismissPWA() {
+  $('pwa-install-banner')?.classList.add('hidden');
+  localStorage.setItem('chauat_rider_pwa_dismissed', '1');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   26. EVENT DELEGATION
+   ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-pickup],[data-ontheway],[data-deliver],[data-detail],[data-chat],[data-history-filter]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-ontheway],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
     if (t.dataset.accept) await acceptJob(t.dataset.accept);
     else if (t.dataset.skip) skipJob(t.dataset.skip);
-    else if (t.dataset.pickup) await pickupJob(t.dataset.pickup);
+    else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
     else if (t.dataset.ontheway) await onTheWayJob(t.dataset.ontheway);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);
-    else if (t.dataset.chat) openChatWithMerchant(t.dataset.chat);
-    else if (t.dataset.historyFilter) {
-      currentHistoryFilter = t.dataset.historyFilter;
-      showHistory();
-    }
-  } catch (err) {
-    logToScreen('❌ Action: ' + err.message, true);
-  }
+    else if (t.dataset.chat) openChatWithCustomer(t.dataset.chat);
+  } catch (err) {}
 });
 
-// Haptic
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('button, .job-card');
   if (btn && navigator.vibrate) navigator.vibrate(10);
 }, { passive: true });
 
-// ═══════════════════════════════════════════════════════════════════
-//  20. INIT LOG
-// ═══════════════════════════════════════════════════════════════════
-console.log('%c🛵 Chauat Go Rider v3.4.0 (ULTIMATE)', 'color:#FF6B35;font-weight:900;font-size:16px');
-console.log('%c✓ Jobs | ✓ GPS | ✓ Chat | ✓ Slip | ✓ Wallet | ✓ Achievements', 'color:#00A651;font-weight:700');
+/* ═══════════════════════════════════════════════════════════════════
+   27. INIT
+   ═══════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  runSplash();
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   28. EXPOSE GLOBALS
+   ═══════════════════════════════════════════════════════════════════ */
+window.toggleTheme = toggleTheme;
+window.switchAuthTab = switchAuthTab;
+window.handleLogin = handleLogin;
+window.handleSignup = handleSignup;
+window.handleForgotPassword = handleForgotPassword;
+window.handleLogout = handleLogout;
+window.toggleOnline = toggleOnline;
+window.openSheet = openSheet;
+window.closeSheet = closeSheet;
+window.closeModal = closeModal;
+window.showProfile = showProfile;
+window.showFinance = showFinance;
+window.showTransferShop = showTransferShop;
+window.showTransferApp = showTransferApp;
+window.showGPIncome = showGPIncome;
+window.showTrustScore = showTrustScore;
+window.showHistory = showHistory;
+window.showJobDetail = showJobDetail;
+window.closeNewJobPopup = closeNewJobPopup;
+window.acceptFromPopup = acceptFromPopup;
+window.openChatWithCustomer = openChatWithCustomer;
+window.closeChat = closeChat;
+window.callChatPartner = callChatPartner;
+window.sendChatText = sendChatText;
+window.sendChatImage = sendChatImage;
+window.autoResize = autoResize;
+window.requestGPS = requestGPS;
+window.installPWA = installPWA;
+window.dismissPWA = dismissPWA;
+window.openCamera = openCamera;
+window.closeCamera = closeCamera;
+window.previewFoodImage = previewFoodImage;
+window.sendFoodImage = sendFoodImage;
+
+/* Service Worker */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+      .then(reg => {
+        reg.update();
+        setInterval(() => reg.update(), 60000);
+      })
+      .catch(() => {});
+  });
+}
