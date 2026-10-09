@@ -3,15 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.3.3</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.0</title>
 <meta name="theme-color" content="#76B82A">
-<meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด จ.นครศรีธรรมราช">
+<meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ChauatGo">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+
+<!-- ═══════════════════════════════════════════════════════════
+     ⭐ AUTO CACHE-BUSTING — เปลี่ยนเลขทุกครั้งที่ Deploy
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  var VERSION = 'v3.4.0-20241009-001';
+  var saved = localStorage.getItem('chauat_ver_index');
+  if (saved !== VERSION) {
+    localStorage.setItem('chauat_ver_index', VERSION);
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+      }).then(function() { location.reload(true); });
+    } else { location.reload(true); }
+  }
+})();
+</script>
+
+<!-- ═══ DARK MODE — โหลดก่อนทุกอย่าง (กันจอกระพริบ) ═══ -->
+<script>
+(function() {
+  var theme = localStorage.getItem('chauat_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,281 +49,700 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO — v3.3.3 Full CSS
+   CHAUAT GO v3.4.0 — UX/UI Ultimate Edition
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+/* ═══ LIGHT THEME ═══ */
 :root {
   --brand: #76B82A; --brand-dark: #5A8E1F; --brand-light: #EDF6DC;
-  --accent: #FF6B35; --green: #00A651; --danger: #E53935;
-  --bg: #EDF6DC; --surface: #FFFFFF;
+  --accent: #FF6B35; --green: #00A651; --red: #E53935; --blue: #2196F3;
+  --bg: #F5F7F2; --surface: #FFFFFF; --surface-2: #F8F9FA;
   --text: #1A1A1A; --text-muted: #6B7280; --text-light: #9CA3AF;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.06);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,.1);
+  --border: #E5E7EB; --header-grad: linear-gradient(135deg, #76B82A, #5A8E1F);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.12);
+  --overlay-bg: rgba(0,0,0,.6);
+  --input-bg: #fafafa;
 }
-html { height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }
-body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !important; height: auto !important; overflow-x: hidden !important; overflow-y: auto !important; position: static !important; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; padding-bottom: 90px !important; }
 
-/* ═══ Header ═══ */
-.header { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; padding: 16px 14px 18px; border-radius: 0 0 24px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(118,184,42,.25); }
+/* ═══ DARK THEME ═══ */
+[data-theme="dark"] {
+  --brand: #8FD334; --brand-dark: #76B82A; --brand-light: #2A3A1F;
+  --accent: #FF8055; --green: #22C55E; --red: #EF4444; --blue: #60A5FA;
+  --bg: #0F1419; --surface: #1A1F26; --surface-2: #232830;
+  --text: #F5F5F5; --text-muted: #9CA3AF; --text-light: #6B7280;
+  --border: #2D333B; --header-grad: linear-gradient(135deg, #1F3A0F, #0F1A08);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.3);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.5);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.6);
+  --overlay-bg: rgba(0,0,0,.8);
+  --input-bg: #232830;
+}
+
+html { height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }
+body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !important; height: auto !important; overflow-x: hidden !important; overflow-y: auto !important; position: static !important; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; padding-bottom: 90px !important; transition: background .3s, color .3s; }
+
+/* ═══ KEYFRAMES ═══ */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes popIn { from { transform: scale(.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.3); opacity: .7; } }
+@keyframes shake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes bounceIn { 0% { transform: scale(.3); opacity: 0; } 50% { transform: scale(1.05); } 70% { transform: scale(.95); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes floatUp { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes logoPulse { 0%,100% { transform: scale(1); filter: drop-shadow(0 8px 24px rgba(118,184,42,.4)); } 50% { transform: scale(1.05); filter: drop-shadow(0 12px 32px rgba(118,184,42,.6)); } }
+@keyframes ripple { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }
+@keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes cardSlideIn { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes checkmarkDraw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+
+/* ═══ SPLASH SCREEN ═══ */
+#splash-screen {
+  position: fixed; inset: 0; z-index: 99999;
+  background: var(--header-grad);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: opacity .5s ease, visibility .5s ease;
+  overflow: hidden;
+}
+#splash-screen::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.15), transparent 50%),
+              radial-gradient(circle at 70% 80%, rgba(255,255,255,.1), transparent 50%);
+  pointer-events: none;
+}
+#splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.splash-logo {
+  width: 120px; height: 120px; border-radius: 30px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  animation: logoPulse 2s ease-in-out infinite;
+  position: relative; z-index: 1;
+}
+.splash-title {
+  color: #fff; font-size: 28px; font-weight: 900; margin-top: 24px;
+  letter-spacing: 1px; text-shadow: 0 4px 16px rgba(0,0,0,.3);
+  position: relative; z-index: 1; animation: fadeIn .8s ease .3s backwards;
+}
+.splash-sub {
+  color: rgba(255,255,255,.85); font-size: 14px; font-weight: 700; margin-top: 8px;
+  position: relative; z-index: 1; animation: fadeIn .8s ease .5s backwards;
+}
+.splash-loader {
+  margin-top: 40px; width: 200px; height: 4px; background: rgba(255,255,255,.2);
+  border-radius: 2px; overflow: hidden; position: relative; z-index: 1;
+  animation: fadeIn .8s ease .7s backwards;
+}
+.splash-loader-bar {
+  height: 100%; width: 0%; border-radius: 2px;
+  background: linear-gradient(90deg, #8FD334, #FFFFFF, #8FD334);
+  background-size: 200% 100%;
+  animation: gradientShift 2s ease infinite;
+  transition: width .3s ease;
+}
+.splash-footer {
+  position: absolute; bottom: 40px; color: rgba(255,255,255,.7);
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  animation: fadeIn .8s ease 1s backwards; z-index: 1;
+}
+
+/* ═══ SKELETON LOADING ═══ */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+.skeleton-card { height: 180px; border-radius: 16px; margin-bottom: 12px; }
+.skeleton-line { height: 14px; margin-bottom: 8px; border-radius: 6px; }
+.skeleton-line.short { width: 60%; }
+.skeleton-icon { width: 50px; height: 50px; border-radius: 14px; }
+.skeleton-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px 14px; }
+
+/* ═══ HEADER ═══ */
+.header {
+  background: var(--header-grad); color: #fff; padding: 16px 14px 18px;
+  border-radius: 0 0 24px 24px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 4px 20px rgba(118,184,42,.25);
+}
 .header .brand-logo { height: 36px; display: block; margin: 0 auto 12px; }
 .header-top { display: flex; align-items: center; gap: 10px; }
-.search-bar { flex: 1; background: #fff; border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-md); }
+.search-bar {
+  flex: 1; background: var(--surface); border-radius: 14px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-md);
+  transition: box-shadow .2s, transform .15s;
+}
+.search-bar:focus-within { box-shadow: 0 4px 20px rgba(118,184,42,.35); transform: translateY(-1px); }
 .search-bar input { flex: 1; border: none; outline: none; background: transparent; font-size: 14px; font-weight: 600; font-family: inherit; color: var(--text); }
-.search-bar input::placeholder { color: #9CA3AF; }
-.profile-avatar { width: 46px; height: 46px; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: var(--shadow-md); cursor: pointer; flex-shrink: 0; position: relative; }
+.search-bar input::placeholder { color: var(--text-light); font-weight: 500; }
+.profile-avatar {
+  width: 46px; height: 46px; border-radius: 50%; background: var(--surface);
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  box-shadow: var(--shadow-md); cursor: pointer; flex-shrink: 0;
+  position: relative; transition: transform .15s;
+}
+.profile-avatar:active { transform: scale(.92); }
 
-/* ═══ Search Results ═══ */
-.search-results { display: none; position: fixed; top: 110px; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: #fff; max-height: 60vh; overflow-y: auto; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.15); z-index: 5000; padding: 8px; }
+/* ═══ THEME TOGGLE FAB ═══ */
+.theme-fab {
+  position: fixed; top: 20px; right: 20px; width: 44px; height: 44px;
+  border-radius: 50%; background: var(--surface); border: none;
+  box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9990; transition: all .3s;
+}
+.theme-fab:active { transform: scale(.9) rotate(180deg); }
+
+/* ═══ SEARCH RESULTS ═══ */
+.search-results {
+  display: none; position: fixed; top: 130px; left: 0; right: 0; max-width: 600px;
+  margin: 0 auto; background: var(--surface); max-height: 60vh; overflow-y: auto;
+  border-radius: 20px; box-shadow: 0 12px 32px rgba(0,0,0,.18); z-index: 5000;
+  padding: 10px; animation: slideUp .25s;
+}
 .search-results.show { display: block !important; }
+.search-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 6px;
+  cursor: pointer; background: var(--surface-2); border-radius: 14px;
+  transition: background .15s, transform .15s;
+  animation: cardSlideIn .3s backwards;
+}
+.search-item:nth-child(1) { animation-delay: .02s; }
+.search-item:nth-child(2) { animation-delay: .04s; }
+.search-item:nth-child(3) { animation-delay: .06s; }
+.search-item:nth-child(4) { animation-delay: .08s; }
+.search-item:active { background: var(--brand-light); transform: scale(.98); }
+.search-item-icon {
+  width: 50px; height: 50px; border-radius: 14px; background: var(--surface);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  flex-shrink: 0; font-size: 22px; box-shadow: var(--shadow-xs);
+}
+.search-item-icon img { width: 100%; height: 100%; object-fit: cover; }
+.search-item-info { flex: 1; min-width: 0; }
+.search-item-name { font-weight: 900; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-item-meta { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 
-/* ═══ Category / Merchant Views ═══ */
-.category-view, .merchant-view { display: none; padding: 14px; }
+/* ═══ VIEWS ═══ */
+.category-view, .merchant-view { display: none; padding: 14px; animation: fadeIn .25s; }
 .category-view.show, .merchant-view.show { display: block !important; }
 .section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px; margin-bottom: 8px; }
 .section-title { font-size: 15px; font-weight: 900; color: var(--text); }
-.section-more { background: #EDF6DC; color: var(--green); padding: 8px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; cursor: pointer; min-height: 40px; display: flex; align-items: center; }
+.section-more {
+  background: var(--brand-light); color: var(--green); padding: 8px 14px;
+  border-radius: 10px; font-weight: 900; font-size: 12px; cursor: pointer;
+  min-height: 40px; display: flex; align-items: center; transition: transform .15s;
+}
+.section-more:active { transform: scale(.95); }
 .merchant-search { padding: 0 14px 10px; }
 .merchant-filter-bar { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 12px; scrollbar-width: none; }
 .merchant-filter-bar::-webkit-scrollbar { display: none; }
-.m-filter-chip { padding: 10px 16px; border-radius: 16px; font-size: 12px; font-weight: 900; background: #fff; color: var(--text-muted); cursor: pointer; white-space: nowrap; border: 1px solid #E5E7EB; min-height: 40px; display: flex; align-items: center; font-family: inherit; }
-.m-filter-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.m-filter-chip {
+  padding: 10px 16px; border-radius: 16px; font-size: 12px; font-weight: 900;
+  background: var(--surface); color: var(--text-muted); cursor: pointer;
+  white-space: nowrap; border: 1px solid var(--border); min-height: 40px;
+  display: flex; align-items: center; font-family: inherit; transition: all .15s;
+}
+.m-filter-chip:active { transform: scale(.95); }
+.m-filter-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); box-shadow: 0 4px 12px rgba(118,184,42,.3); }
 .merchant-list { padding: 0 14px; }
-.merchant-loading { text-align: center; padding: 40px; color: #999; }
-.merchant-card { display: flex; gap: 12px; align-items: center; padding: 14px; background: #fff; border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); cursor: pointer; }
-.merchant-card-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.merchant-card {
+  display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface);
+  border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm);
+  cursor: pointer; transition: transform .15s;
+  animation: cardSlideIn .3s backwards;
+}
+.merchant-card:active { transform: scale(.98); }
+.merchant-card-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
 .merchant-card-info { flex: 1; min-width: 0; }
-.merchant-card-name { font-weight: 900; font-size: 14px; }
-.merchant-card-meta { font-size: 11px; color: #666; margin-top: 2px; font-weight: 600; }
+.merchant-card-name { font-weight: 900; font-size: 14px; color: var(--text); }
+.merchant-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 600; }
 
-/* ═══ Home Content ═══ */
+/* ═══ HOME ═══ */
 #home-content { padding: 14px; }
-.brand-hero { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; border-radius: 20px; padding: 20px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 14px; box-shadow: 0 8px 24px rgba(118,184,42,.25); position: relative; overflow: hidden; }
-.brand-hero::before { content: ''; position: absolute; top: -40px; right: -30px; width: 140px; height: 140px; background: radial-gradient(circle, rgba(255,255,255,.15), transparent 65%); border-radius: 50%; }
+.brand-hero {
+  background: var(--header-grad); color: #fff; border-radius: 20px;
+  padding: 20px 18px; margin-bottom: 14px; display: flex; align-items: center;
+  gap: 14px; box-shadow: 0 8px 24px rgba(118,184,42,.25);
+  position: relative; overflow: hidden;
+}
+.brand-hero::before {
+  content: ''; position: absolute; top: -40px; right: -30px; width: 140px; height: 140px;
+  background: radial-gradient(circle, rgba(255,255,255,.15), transparent 65%); border-radius: 50%;
+}
 .brand-hero img { width: 70px; height: 70px; border-radius: 18px; flex-shrink: 0; position: relative; z-index: 1; box-shadow: 0 6px 16px rgba(0,0,0,.25); }
 .brand-hero .t { font-size: 16px; font-weight: 900; margin-bottom: 4px; position: relative; z-index: 1; }
 .brand-hero .s { font-size: 12px; opacity: .9; font-weight: 700; position: relative; z-index: 1; }
 
-.stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; background: #fff; border-radius: 18px; padding: 16px 10px; margin-bottom: 14px; box-shadow: var(--shadow-md); }
+.stats-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  background: var(--surface); border-radius: 18px; padding: 16px 10px;
+  margin-bottom: 14px; box-shadow: var(--shadow-sm);
+}
 .stats-bar > div { text-align: center; }
-.stat-num { font-size: 22px; font-weight: 900; color: var(--green); line-height: 1; }
+.stat-num { font-size: 22px; font-weight: 900; color: var(--green); line-height: 1; transition: transform .3s; }
+.stat-num.counted { animation: bounceIn .6s; }
 .stat-label { font-size: 10px; color: var(--text-muted); font-weight: 800; margin-top: 4px; }
 
 .menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
-.menu-item { background: #fff; border-radius: 16px; padding: 14px 8px; text-align: center; cursor: pointer; box-shadow: var(--shadow-md); transition: transform .15s; }
-.menu-item:active { transform: scale(.97); }
-.menu-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 8px; }
+.menu-item {
+  background: var(--surface); border-radius: 16px; padding: 14px 8px;
+  text-align: center; cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: transform .15s, box-shadow .15s;
+  animation: cardSlideIn .3s backwards;
+}
+.menu-item:nth-child(1) { animation-delay: .02s; }
+.menu-item:nth-child(2) { animation-delay: .04s; }
+.menu-item:nth-child(3) { animation-delay: .06s; }
+.menu-item:nth-child(4) { animation-delay: .08s; }
+.menu-item:nth-child(5) { animation-delay: .1s; }
+.menu-item:nth-child(6) { animation-delay: .12s; }
+.menu-item:active { transform: scale(.94); box-shadow: var(--shadow-md); }
+.menu-icon {
+  width: 50px; height: 50px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; margin: 0 auto 8px;
+  transition: transform .3s;
+}
+.menu-item:active .menu-icon { transform: scale(1.15) rotate(5deg); }
 .menu-icon.food { background: #FFF3E0; }
 .menu-icon.shopping { background: #E3F2FD; }
 .menu-icon.travel { background: #FFEBEE; }
 .menu-icon.express { background: #F3E5F5; }
 .menu-icon.hotel { background: #FFE0B2; }
 .menu-icon.map { background: #E8F5E9; }
+[data-theme="dark"] .menu-icon.food { background: #3A2F1F; }
+[data-theme="dark"] .menu-icon.shopping { background: #1F2F3F; }
+[data-theme="dark"] .menu-icon.travel { background: #3F1F1F; }
+[data-theme="dark"] .menu-icon.express { background: #2F1F3F; }
+[data-theme="dark"] .menu-icon.hotel { background: #3F2F1F; }
+[data-theme="dark"] .menu-icon.map { background: #1F3F1F; }
 .menu-label { font-size: 12px; font-weight: 900; color: var(--text); }
 
 .hot-section { margin-bottom: 14px; }
-.hot-title { background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; padding: 14px 16px; border-radius: 14px; font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #FFA500; }
+.hot-title {
+  background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100;
+  padding: 14px 16px; border-radius: 14px; font-weight: 900; font-size: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-left: 4px solid #FFA500;
+}
+[data-theme="dark"] .hot-title { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
 .hot-badge { background: #E65100; color: #fff; font-size: 10px; padding: 4px 10px; border-radius: 10px; font-weight: 900; }
 
 .food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px 14px; }
-.food-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-md); cursor: pointer; transition: transform .15s; }
-.food-card:active { transform: scale(.98); }
-.food-img { width: 100%; height: 130px; background: #f5f5f5; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.food-card {
+  background: var(--surface); border-radius: 16px; overflow: hidden;
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  animation: cardSlideIn .35s backwards;
+}
+.food-card:nth-child(1) { animation-delay: .05s; }
+.food-card:nth-child(2) { animation-delay: .1s; }
+.food-card:nth-child(3) { animation-delay: .15s; }
+.food-card:nth-child(4) { animation-delay: .2s; }
+.food-card:nth-child(5) { animation-delay: .25s; }
+.food-card:nth-child(6) { animation-delay: .3s; }
+.food-card:active { transform: scale(.96); box-shadow: var(--shadow-md); }
+.food-img { width: 100%; height: 130px; background: var(--surface-2); overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .food-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .food-img-fallback { width: 100%; height: 130px; display: flex; align-items: center; justify-content: center; font-size: 44px; background: linear-gradient(135deg, #FFF3E0, #FFE0B2); }
+[data-theme="dark"] .food-img-fallback { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
 .food-info { padding: 10px 12px; }
-.food-name { font-size: 13px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.food-name { font-size: 13px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .food-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 3px; }
 .food-price { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 4px; }
 
-.legal-footer { text-align: center; padding: 20px 14px; color: var(--text-light); font-size: 11px; line-height: 1.6; }
-.legal-footer .dbd-mark { display: inline-block; border: 1px solid #ccc; padding: 6px 10px; border-radius: 8px; font-weight: 900; font-size: 9px; margin-bottom: 8px; }
-.legal-footer .links { margin-bottom: 8px; }
-.legal-footer a { color: var(--green); text-decoration: none; font-weight: 700; }
-
-/* ═══ Bottom Nav ═══ */
-.bottom-nav { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; max-width: 600px !important; margin: 0 auto !important; height: 64px !important; background: #fff !important; display: flex !important; justify-content: space-around !important; align-items: center !important; box-shadow: 0 -2px 12px rgba(0,0,0,.1) !important; z-index: 9000 !important; padding-bottom: env(safe-area-inset-bottom) !important; }
-.nav-item { display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; flex: 1 !important; padding: 8px 4px !important; cursor: pointer !important; color: #6B7280 !important; }
+/* ═══ BOTTOM NAV ═══ */
+.bottom-nav {
+  position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+  max-width: 600px !important; margin: 0 auto !important; height: 68px !important;
+  background: var(--surface) !important; display: flex !important;
+  justify-content: space-around !important; align-items: center !important;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.08) !important; z-index: 9000 !important;
+  padding-bottom: env(safe-area-inset-bottom) !important;
+  border-top-left-radius: 20px !important; border-top-right-radius: 20px !important;
+}
+.nav-item {
+  display: flex !important; flex-direction: column !important; align-items: center !important;
+  justify-content: center !important; flex: 1 !important; padding: 8px 4px !important;
+  cursor: pointer !important; color: var(--text-muted) !important; transition: color .2s !important;
+}
 .nav-item.active { color: var(--green) !important; }
-.nav-icon-wrap { font-size: 22px !important; line-height: 1 !important; margin-bottom: 2px !important; position: relative !important; }
+.nav-icon-wrap {
+  font-size: 22px !important; line-height: 1 !important; margin-bottom: 3px !important;
+  position: relative !important; transition: transform .25s cubic-bezier(.32,.72,0,1) !important;
+}
+.nav-item.active .nav-icon-wrap { transform: translateY(-3px) scale(1.15); }
 .nav-label { font-size: 10px !important; font-weight: 800 !important; }
 
-/* ═══ Tabs ═══ */
-.orders-tab, .messages-tab { padding: 14px; display: none; }
-.orders-tab { display: block; }
-.order-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); margin: 14px 0 10px; text-transform: uppercase; }
-.empty-state { text-align: center; padding: 60px 20px; color: #999; }
+/* ═══ TABS ═══ */
+.orders-tab, .messages-tab { padding: 14px; display: none; animation: fadeIn .3s; }
+.order-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); margin: 14px 0 10px; text-transform: uppercase; letter-spacing: .5px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state .icon { font-size: 64px; margin-bottom: 12px; opacity: .5; }
-.chat-card { display: flex; gap: 12px; align-items: center; padding: 16px; background: #fff; border-radius: 14px; box-shadow: var(--shadow-sm); cursor: pointer; margin-bottom: 10px; }
-.chat-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; }
-.chat-info { flex: 1; }
-.chat-name { font-weight: 900; font-size: 14px; }
-.chat-last { font-size: 12px; color: #666; margin-top: 2px; }
+.chat-card {
+  display: flex; gap: 12px; align-items: center; padding: 16px;
+  background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-sm);
+  cursor: pointer; margin-bottom: 10px; transition: transform .15s;
+}
+.chat-card:active { transform: scale(.98); }
 
-/* ═══ Cart Bar ═══ */
-.cart-bar { position: fixed; bottom: 78px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s; }
+/* ═══ CART BAR ═══ */
+.cart-bar {
+  position: fixed; bottom: 82px; left: 50%;
+  transform: translateX(-50%) translateY(120px);
+  max-width: 560px; width: calc(100% - 20px);
+  background: linear-gradient(135deg, #00A651, #008C45); color: #fff;
+  border-radius: 16px; padding: 12px 16px; display: flex; align-items: center;
+  gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500;
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+}
 .cart-bar.show { transform: translateX(-50%) translateY(0); }
-.cart-bar-icon { position: relative; font-size: 24px; }
-.cart-count { position: absolute; top: -6px; right: -8px; background: #E53935; color: #fff; font-size: 10px; font-weight: 900; min-width: 18px; height: 18px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
-.cart-bar-info { flex: 1; }
-.cart-bar-total { font-size: 16px; font-weight: 900; }
-.cart-bar-name { font-size: 11px; opacity: .9; font-weight: 700; }
-.cart-bar-btn { background: rgba(255,255,255,.2); padding: 8px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; }
+.cart-bar:active { transform: translateX(-50%) translateY(0) scale(.98); }
 
-/* ═══ Profile Sheet ═══ */
-.profile-sheet { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9500; display: none; justify-content: flex-end; }
-.profile-sheet.show { display: flex !important; }
-.profile-sheet-content { background: #fff; width: 88%; max-width: 400px; height: 100%; overflow-y: auto; padding: 20px; animation: slideInRight .3s ease; -webkit-overflow-scrolling: touch; }
-@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-.pf-header { margin-bottom: 16px; }
-.pf-close { background: #f0f0f0; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 18px; cursor: pointer; font-family: inherit; margin-bottom: 16px; }
-.pf-login-prompt { text-align: center; padding: 20px 0; }
-.pf-login-prompt .big-ico { font-size: 64px; margin-bottom: 12px; }
-.pf-login-prompt h3 { font-size: 20px; font-weight: 900; margin-bottom: 8px; }
-.pf-login-prompt p { font-size: 13px; color: #666; margin-bottom: 20px; font-weight: 600; }
-.pf-login-btn { width: 100%; padding: 14px; background: var(--green); color: #fff; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; font-family: inherit; cursor: pointer; }
-.pf-user-info { display: flex; align-items: center; gap: 14px; padding: 14px 0; }
-.pf-avatar-big { width: 60px; height: 60px; border-radius: 50%; background: #E8F5E9; display: flex; align-items: center; justify-content: center; font-size: 28px; }
-.pf-name { font-size: 16px; font-weight: 900; }
-.pf-email { font-size: 12px; color: #666; font-weight: 600; margin-top: 2px; }
-.pf-section { margin-bottom: 20px; padding-top: 16px; border-top: 1px solid #eee; }
-.pf-section-title { font-size: 12px; font-weight: 900; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; }
+/* ═══ PROFILE SHEET ═══ */
+.profile-sheet { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9500; display: none; justify-content: flex-end; backdrop-filter: blur(4px); }
+.profile-sheet.show { display: flex !important; animation: fadeIn .2s; }
+.profile-sheet-content {
+  background: var(--surface); width: 88%; max-width: 420px; height: 100%;
+  overflow-y: auto; animation: slideInRight .35s cubic-bezier(.32,.72,0,1);
+  -webkit-overflow-scrolling: touch;
+}
+.pf-header { background: var(--header-grad); padding: 24px 20px 20px; color: #fff; position: relative; }
+.pf-close {
+  position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,.25);
+  border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px;
+  cursor: pointer; font-family: inherit; color: #fff; transition: transform .2s;
+}
+.pf-close:active { transform: scale(.9) rotate(90deg); }
+.pf-user-info { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.pf-avatar-big {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(255,255,255,.25); border: 3px solid rgba(255,255,255,.5);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; flex-shrink: 0;
+}
+.pf-name { font-size: 18px; font-weight: 900; }
+.pf-email { font-size: 12px; opacity: .9; font-weight: 600; margin-top: 3px; }
+.pf-section { margin-bottom: 4px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.pf-section-title { font-size: 12px; font-weight: 900; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
 .pf-info-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; }
 .pf-info-row .ico { font-size: 18px; width: 28px; flex-shrink: 0; }
-.pf-info-row .lbl { font-size: 11px; color: #999; font-weight: 700; }
-.pf-info-row .val { font-size: 13px; font-weight: 700; margin-top: 2px; }
-.pf-menu-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left; }
-.pf-menu-item .ico { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.pf-info-row .lbl { font-size: 11px; color: var(--text-light); font-weight: 700; }
+.pf-info-row .val { font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--text); }
+.pf-menu-item {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 0;
+  background: transparent; border: none; cursor: pointer; font-family: inherit;
+  text-align: left; transition: background .15s; border-radius: 8px;
+}
+.pf-menu-item:active { background: var(--surface-2); }
+.pf-menu-item .ico { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
 .pf-menu-item .ico.g { background: #E8F5E9; }
 .pf-menu-item .ico.b { background: #E3F2FD; }
 .pf-menu-item .ico.o { background: #FFF3E0; }
+[data-theme="dark"] .pf-menu-item .ico.g { background: #1F3F1F; }
+[data-theme="dark"] .pf-menu-item .ico.b { background: #1F2F3F; }
+[data-theme="dark"] .pf-menu-item .ico.o { background: #3F2F1F; }
 .pf-menu-item .txt { flex: 1; }
-.pf-menu-item .t { font-size: 14px; font-weight: 900; }
-.pf-menu-item .s { font-size: 11px; color: #666; font-weight: 600; margin-top: 2px; }
-.pf-menu-item .arr { color: #ccc; font-size: 20px; }
-.pf-logout-btn { width: 100%; padding: 14px; background: #FFEBEE; color: #E53935; border: none; border-radius: 14px; font-weight: 900; font-family: inherit; font-size: 14px; cursor: pointer; }
-.pf-version { text-align: center; font-size: 11px; color: #999; margin-top: 12px; }
+.pf-menu-item .t { font-size: 14px; font-weight: 900; color: var(--text); }
+.pf-menu-item .s { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+.pf-menu-item .arr { color: var(--text-light); font-size: 20px; }
+.pf-login-prompt { text-align: center; padding: 40px 20px; }
+.pf-login-prompt .big-ico { font-size: 64px; margin-bottom: 12px; }
+.pf-login-prompt h3 { font-size: 20px; font-weight: 900; margin-bottom: 8px; color: #fff; }
+.pf-login-prompt p { font-size: 13px; color: rgba(255,255,255,.9); margin-bottom: 20px; font-weight: 600; }
+.pf-login-btn {
+  width: 100%; padding: 14px; background: #fff; color: var(--green);
+  border: none; border-radius: 14px; font-weight: 900; font-size: 14px;
+  font-family: inherit; cursor: pointer; transition: transform .15s;
+}
+.pf-login-btn:active { transform: scale(.97); }
+.pf-logout-btn {
+  width: 100%; padding: 14px; background: #FFEBEE; color: #E53935;
+  border: none; border-radius: 14px; font-weight: 900; font-family: inherit;
+  font-size: 14px; cursor: pointer; transition: transform .15s;
+}
+.pf-logout-btn:active { transform: scale(.97); }
+.pf-version { text-align: center; font-size: 11px; color: var(--text-light); margin-top: 12px; }
 
-/* ═══ Modal ═══ */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px; }
-.modal-overlay.show { display: flex !important; }
-.modal-content { background: #fff; border-radius: 20px; padding: 24px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; animation: popIn .3s; }
-@keyframes popIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+/* ═══ MODAL ═══ */
+.modal-overlay {
+  position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9000;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px; backdrop-filter: blur(4px);
+}
+.modal-overlay.show { display: flex !important; animation: fadeIn .2s; }
+.modal-content {
+  background: var(--surface); border-radius: 24px; padding: 24px;
+  width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+  animation: popIn .3s cubic-bezier(.32,.72,0,1); color: var(--text);
+}
 .form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: 12px; font-weight: 800; color: #555; margin-bottom: 6px; }
-.form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px 14px; border: 2px solid #E5E7EB; border-radius: 12px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: #fafafa; }
-.form-group input:focus, .form-group textarea:focus { border-color: var(--green); background: #fff; }
-.btn-full { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-top: 8px; }
-.btn-green { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; }
-.btn-gray { background: #f0f0f0; color: #333; }
-.auth-tabs-row { display: flex; gap: 6px; background: #f0f0f0; padding: 4px; border-radius: 12px; margin-bottom: 16px; }
-.auth-tab-btn { flex: 1; padding: 12px; border-radius: 10px; font-weight: 900; font-size: 13px; background: transparent; border: none; cursor: pointer; font-family: inherit; color: #666; }
-.auth-tab-btn.active { background: #fff; color: var(--green); box-shadow: var(--shadow-sm); }
+.form-group label { display: block; font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: 6px; }
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 14px 16px; border: 2px solid var(--border);
+  border-radius: 14px; font-size: 14px; outline: none; font-family: inherit;
+  font-weight: 600; background: var(--input-bg); color: var(--text); transition: border-color .2s;
+}
+.form-group input:focus, .form-group textarea:focus { border-color: var(--green); background: var(--surface); }
+.btn-full {
+  width: 100%; padding: 14px; border: none; border-radius: 14px;
+  font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit;
+  margin-top: 8px; transition: transform .15s;
+}
+.btn-full:active { transform: scale(.97); }
+.btn-green { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
+.btn-gray { background: var(--surface-2); color: var(--text); }
+.auth-tabs-row { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+.auth-tab-btn {
+  flex: 1; padding: 12px; border-radius: 10px; font-weight: 900; font-size: 13px;
+  background: transparent; border: none; cursor: pointer; font-family: inherit;
+  color: var(--text-muted); transition: all .2s;
+}
+.auth-tab-btn.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
 
-/* ═══ PDPA & Location ═══ */
-.pdpa-overlay, .loc-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.pdpa-overlay.hidden, .loc-popup-overlay.hidden { display: none !important; }
-.pdpa-content, .loc-popup-content { background: #fff; border-radius: 20px; padding: 28px 22px; max-width: 420px; width: 100%; text-align: center; }
-.pdpa-content h3, .loc-popup-content h3 { font-size: 20px; font-weight: 900; margin-bottom: 12px; }
-.pdpa-content p, .loc-popup-content p { font-size: 13px; color: #555; line-height: 1.7; margin-bottom: 20px; font-weight: 600; }
-.pdpa-btn, .loc-popup-btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-bottom: 8px; }
-.pdpa-accept, .loc-allow { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; }
-.loc-skip { background: #f0f0f0; color: #666; }
+/* ═══ VEHICLE ═══ */
+.vehicle-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.vehicle-option {
+  display: flex; align-items: center; gap: 14px; padding: 16px;
+  background: var(--surface); border: 2px solid var(--border); border-radius: 16px;
+  cursor: pointer; transition: all .2s;
+}
+.vehicle-option:active { transform: scale(.97); }
+.vehicle-option.selected { border-color: var(--green); background: #E8F5E9; box-shadow: 0 4px 16px rgba(0,166,81,.15); }
+[data-theme="dark"] .vehicle-option.selected { background: #1F3F1F; }
+.vehicle-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 32px; background: var(--surface-2); flex-shrink: 0; }
+.vehicle-option.selected .vehicle-icon { background: var(--surface); }
+.vehicle-info { flex: 1; }
+.vehicle-name { font-size: 15px; font-weight: 900; }
+.vehicle-desc { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+.vehicle-price { text-align: right; }
+.vehicle-price-num { font-size: 18px; font-weight: 900; color: var(--green); line-height: 1; }
+.vehicle-price-unit { font-size: 10px; color: var(--text-light); font-weight: 700; margin-top: 2px; }
+.vehicle-check {
+  width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+  color: #fff; flex-shrink: 0; transition: all .2s;
+}
+.vehicle-option.selected .vehicle-check { background: var(--green); border-color: var(--green); }
 
-/* ═══ Toast ═══ */
-.toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; max-width: 90%; text-align: center; }
+/* ═══ MAP ═══ */
+#map-page { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 8000; overflow-y: auto; }
+#map-page.show { display: block !important; animation: fadeIn .25s; }
+.map-header-bar {
+  background: var(--header-grad); color: #fff; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,.1);
+}
+.map-header-bar h3 { font-size: 15px; font-weight: 900; }
+.map-back-btn {
+  background: rgba(255,255,255,.25); color: #fff; border: none;
+  padding: 8px 14px; border-radius: 10px; font-weight: 900;
+  font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px;
+  transition: transform .15s;
+}
+.map-back-btn:active { transform: scale(.95); }
+#main-map { width: 100%; height: 65vh; min-height: 400px; z-index: 1; }
+.map-float-controls { position: absolute; right: 14px; bottom: 140px; display: flex; flex-direction: column; gap: 8px; z-index: 500; }
+.map-fab {
+  width: 48px; height: 48px; border-radius: 50%; background: var(--surface);
+  border: none; box-shadow: var(--shadow-md); cursor: pointer; font-size: 22px;
+  display: flex; align-items: center; justify-content: center; transition: transform .15s;
+  color: var(--text);
+}
+.map-fab:active { transform: scale(.9); }
+.map-bottom-action { position: absolute; bottom: 24px; left: 14px; right: 14px; z-index: 500; }
+.map-confirm-btn {
+  width: 100%; padding: 16px;
+  background: linear-gradient(135deg, #00A651, #008C45); color: #fff;
+  border: none; border-radius: 16px; font-weight: 900; font-size: 15px;
+  cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(0,166,81,.4);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .15s;
+}
+.map-confirm-btn:active { transform: scale(.97); }
+.map-confirm-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.custom-pin { position: relative; width: 40px; height: 50px; }
+.custom-pin-dot {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: #fff;
+}
+.custom-pin-dot.blue { background: #2196F3; border: 3px solid #fff; }
+.custom-pin-dot.red { background: #E53935; border: 3px solid #fff; }
+.custom-pin::after {
+  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0; border-left: 6px solid transparent;
+  border-right: 6px solid transparent; border-top: 12px solid #E53935;
+}
+.custom-pin.blue::after { border-top-color: #2196F3; }
+.pin-pulse {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(33,150,243,.4); animation: pulse 2s infinite;
+}
+
+.pick-mode-banner {
+  position: absolute; top: 80px; left: 14px; right: 14px;
+  background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100;
+  padding: 12px 16px; border-radius: 14px; font-weight: 800; font-size: 13px;
+  box-shadow: var(--shadow-md); z-index: 500; display: flex; align-items: center;
+  gap: 10px; animation: slideUp .3s; border-left: 4px solid #FFA500;
+}
+[data-theme="dark"] .pick-mode-banner { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
+.pick-mode-banner .icon { font-size: 24px; animation: shake 1.5s infinite; }
+
+/* ═══ TOAST ═══ */
+.toast {
+  position: fixed; top: 80px; left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px;
+  border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999;
+  opacity: 0; pointer-events: none; transition: .3s;
+  max-width: 90%; text-align: center; backdrop-filter: blur(8px);
+}
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.success { background: linear-gradient(135deg, #00A651, #008C45); }
 .toast.error { background: linear-gradient(135deg, #E53935, #C62828); }
 .toast.warning { background: linear-gradient(135deg, #FF6B35, #E55A2B); }
 
-/* ═══ Offline & PWA ═══ */
+/* ═══ PDPA ═══ */
+.pdpa-overlay, .loc-popup-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+  padding: 20px; backdrop-filter: blur(4px);
+}
+.pdpa-overlay.hidden, .loc-popup-overlay.hidden { display: none !important; }
+.pdpa-content, .loc-popup-content {
+  background: var(--surface); border-radius: 24px; padding: 28px 22px;
+  max-width: 420px; width: 100%; text-align: center;
+  animation: popIn .4s cubic-bezier(.32,.72,0,1); color: var(--text);
+}
+.pdpa-content h3, .loc-popup-content h3 { font-size: 20px; font-weight: 900; margin-bottom: 12px; color: var(--text); }
+.pdpa-content p, .loc-popup-content p { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; font-weight: 600; }
+.pdpa-btn, .loc-popup-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 14px;
+  font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit;
+  margin-bottom: 8px; transition: transform .15s;
+}
+.pdpa-btn:active, .loc-popup-btn:active { transform: scale(.97); }
+.pdpa-accept, .loc-allow { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; }
+.loc-skip { background: var(--surface-2); color: var(--text-muted); }
+
+/* ═══ PWA & OFFLINE ═══ */
 .offline-banner { position: fixed; top: 0; left: 0; right: 0; background: #E53935; color: #fff; text-align: center; padding: 8px; font-size: 12px; font-weight: 800; z-index: 99999; display: none; }
 .offline-banner.show { display: block; }
-.pwa-banner { position: fixed; top: 10px; left: 10px; right: 10px; background: #fff; border-radius: 16px; padding: 12px 14px; box-shadow: var(--shadow-lg); z-index: 9998; display: flex; align-items: center; gap: 10px; max-width: 580px; margin: 0 auto; }
+.pwa-banner {
+  position: fixed; top: 10px; left: 10px; right: 10px;
+  background: var(--surface); border-radius: 16px; padding: 12px 14px;
+  box-shadow: var(--shadow-lg); z-index: 9998; display: flex;
+  align-items: center; gap: 10px; max-width: 580px; margin: 0 auto;
+  animation: slideUp .4s;
+}
 .pwa-banner.hidden { display: none; }
-.pwa-banner-icon { font-size: 28px; }
-.pwa-banner-info { flex: 1; }
-.pwa-banner-title { font-size: 13px; font-weight: 900; }
-.pwa-banner-sub { font-size: 11px; color: #666; font-weight: 600; }
-.pwa-install-btn { background: var(--brand); color: #fff; padding: 8px 14px; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; cursor: pointer; font-family: inherit; }
-.pwa-close-btn { background: #f0f0f0; color: #666; width: 32px; height: 32px; border-radius: 50%; border: none; cursor: pointer; font-family: inherit; }
 
-/* ═══ Map ═══ */
-#map-page { display: none; position: fixed; inset: 0; background: #EDF6DC; z-index: 8000; overflow-y: auto; }
-#map-page.show { display: block !important; }
-.map-header-bar { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
-.map-header-bar h3 { font-size: 15px; font-weight: 900; }
-.map-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; }
-#main-map { width: 100%; height: 60vh; min-height: 400px; }
-.tambon-list { background: #fff; margin: 14px; border-radius: 14px; padding: 8px; display: none; }
-.tambon-list.show { display: block; }
-.tambon-list > div:not(:first-child) { padding: 12px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 700; }
-.tambon-list > div:not(:first-child):active { background: #EDF6DC; }
-.map-controls { display: flex; gap: 8px; padding: 0 14px 14px; flex-wrap: wrap; }
-.map-ctrl-btn { background: #fff; color: #333; border: none; padding: 10px 14px; border-radius: 12px; font-weight: 900; font-size: 12px; cursor: pointer; font-family: inherit; box-shadow: var(--shadow-sm); }
-.map-info-panel { display: none; }
-.map-info-panel.show { display: block; }
-
-/* ═══ Lightbox ═══ */
+/* ═══ LIGHTBOX ═══ */
 #img-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 99999; display: none; align-items: center; justify-content: center; padding: 20px; }
-#img-lightbox.show { display: flex; }
-#lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 12px; }
-.lightbox-close { position: absolute; top: 20px; right: 20px; background: #fff; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; font-family: inherit; }
+#img-lightbox.show { display: flex; animation: fadeIn .2s; }
+#lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 12px; animation: popIn .3s; }
+.lightbox-close {
+  position: absolute; top: 20px; right: 20px; background: #fff;
+  border: none; width: 44px; height: 44px; border-radius: 50%;
+  font-size: 20px; cursor: pointer; font-family: inherit;
+}
 
-/* ═══ Responsive ═══ */
+/* ═══ DEBUG ═══ */
+#debugConsole {
+  position: fixed; bottom: 0; left: 0; right: 0; max-height: 80px;
+  overflow-y: auto; background: rgba(0,0,0,.92); color: #0f0;
+  font-size: 10px; font-family: monospace; padding: 6px 12px;
+  z-index: 99999; display: none; border-top: 2px solid #333;
+  line-height: 1.4; -webkit-overflow-scrolling: touch;
+}
+
+/* ═══ PRESS EFFECT ═══ */
+.press-scale { transition: transform .12s; }
+.press-scale:active { transform: scale(.95); }
+
+/* ═══ FLOATING ANIMATION ═══ */
+.float-anim { animation: floatUp 3s ease-in-out infinite; }
+
+/* ═══ RESPONSIVE ═══ */
 @media (max-width: 360px) {
   .brand-hero .t { font-size: 14px; }
   .brand-hero img { width: 60px; height: 60px; }
   .food-img { height: 110px; }
+  .stat-num { font-size: 20px; }
 }
 </style>
 </head>
 <body>
 
-<div id="debugConsole" style="position:fixed;bottom:0;left:0;right:0;max-height:100px;overflow-y:auto;background:rgba(0,0,0,.92);color:#0f0;font-size:10px;font-family:monospace;padding:8px 12px;z-index:99999;display:none;border-top:2px solid #333;line-height:1.5;word-break:break-all;-webkit-overflow-scrolling:touch">
-  <strong style="color:#FFA500">Debug v3.3.3:</strong><br>
+<!-- ═══════════════════════════════════════════════════════
+     SPLASH SCREEN
+     ═══════════════════════════════════════════════════════ -->
+<div id="splash-screen">
+  <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go" onerror="this.style.background='linear-gradient(135deg,#76B82A,#5A8E1F)';this.style.display='flex'">
+  <div class="splash-title">Chauat Go</div>
+  <div class="splash-sub">สั่งครบ จบที่เดียว • ชะอวด</div>
+  <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
+  <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
 
+<!-- ═══ THEME TOGGLE FAB ═══ -->
+<button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
+
+<!-- ═══ DEBUG ═══ -->
+<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.0:</strong><br></div>
+
+<!-- ═══ PWA BANNER ═══ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
-  <div class="pwa-banner-icon">📱</div>
-  <div class="pwa-banner-info">
-    <div class="pwa-banner-title">ติดตั้ง Chauat Go</div>
-    <div class="pwa-banner-sub">เพิ่มลงหน้าจอหลัก ใช้งานเร็วขึ้น</div>
-  </div>
-  <button class="pwa-install-btn" onclick="installPWA()">ติดตั้ง</button>
-  <button class="pwa-close-btn" onclick="dismissPWA()">✕</button>
+  <div style="font-size:28px">📱</div>
+  <div style="flex:1"><div style="font-size:13px;font-weight:900;color:var(--text)">ติดตั้ง Chauat Go</div><div style="font-size:11px;color:var(--text-muted);font-weight:600">เพิ่มลงหน้าจอหลัก</div></div>
+  <button style="background:#76B82A;color:#fff;padding:8px 14px;border:none;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit" onclick="installPWA()">ติดตั้ง</button>
+  <button style="background:var(--surface-2);color:var(--text-muted);width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;font-family:inherit" onclick="dismissPWA()">✕</button>
 </div>
 
-<div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — แสดงข้อมูลจากแคช</div>
+<div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์</div>
 <div class="toast" id="toast"></div>
 
+<!-- ═══ PDPA ═══ -->
 <div class="pdpa-overlay hidden" id="pdpa-overlay">
   <div class="pdpa-content">
     <img src="icons/icon-512.png" style="margin-bottom:12px;width:76px;height:76px;border-radius:20px;box-shadow:0 10px 26px rgba(0,0,0,.3)" onerror="this.style.display='none'">
     <h3>ยินดีต้อนรับสู่ Chauat Go</h3>
-    <p>แอปพลิเคชัน Chauat Go ใช้คุกกี้และเก็บรวบรวมข้อมูลส่วนบุคคล (เช่น ชื่อ, เบอร์โทรศัพท์, ที่อยู่, พิกัด GPS) เพื่อวัตถุประสงค์ในการให้บริการจัดส่งอาหารและสินค้า<br><br>เราปฏิบัติตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) อย่างเคร่งครัด</p>
-    <button class="pdpa-btn pdpa-accept" onclick="acceptPDPA()">✅ ยอมรับและใช้งานต่อ</button>
-    <button class="pdpa-btn" style="background:#f5f5f5;color:#666" onclick="window.open('/privacy','_blank')">📖 อ่านนโยบายฉบับเต็ม</button>
+    <p>แอปใช้คุกกี้และเก็บข้อมูลส่วนบุคคล (ชื่อ, เบอร์, GPS) เพื่อวัตถุประสงค์ในการให้บริการจัดส่ง<br><br>ปฏิบัติตาม พ.ร.บ. PDPA พ.ศ. 2562</p>
+    <button class="pdpa-btn pdpa-accept press-scale" onclick="acceptPDPA()">✅ ยอมรับและใช้งานต่อ</button>
+    <button class="pdpa-btn" style="background:var(--surface-2);color:var(--text-muted)" onclick="window.open('/privacy','_blank')">📖 อ่านนโยบาย</button>
   </div>
 </div>
 
+<!-- ═══ LOCATION POPUP ═══ -->
 <div class="loc-popup-overlay hidden" id="loc-popup-overlay">
   <div class="loc-popup-content">
-    <div style="font-size:64px;margin-bottom:12px">📡</div>
+    <div style="font-size:64px;margin-bottom:12px" class="float-anim">📡</div>
     <h3>อนุญาตเข้าถึงตำแหน่ง</h3>
-    <p>เพื่อคำนวณระยะทางและค่าส่งที่แม่นยำ<br>แอปจะขออนุญาตเข้าถึงตำแหน่ง GPS ของคุณ</p>
-    <button class="loc-popup-btn loc-allow" onclick="requestLocation()">✅ อนุญาต</button>
-    <button class="loc-popup-btn loc-skip" onclick="skipLocation()">⏭️ ข้ามไปก่อน</button>
+    <p>เพื่อคำนวณระยะทางและค่าส่งที่แม่นยำ</p>
+    <button class="loc-popup-btn loc-allow press-scale" onclick="requestLocation()">✅ อนุญาต</button>
+    <button class="loc-popup-btn loc-skip press-scale" onclick="skipLocation()">⏭️ ข้ามไปก่อน</button>
   </div>
 </div>
 
+<!-- ═══ LOGIN MODAL ═══ -->
 <div class="modal-overlay" id="login-modal" onclick="if(event.target===this)closeLoginModal()">
   <div class="modal-content" style="max-width:400px">
     <div style="text-align:center;margin-bottom:20px">
-      <img src="icons/icon-512.png" style="margin-bottom:10px;width:76px;height:76px;border-radius:20px;box-shadow:0 10px 26px rgba(0,0,0,.3)" onerror="this.style.display='none'">
-      <h2 style="font-size:22px;margin-bottom:5px">เข้าสู่ระบบ Chauat Go</h2>
-      <p style="color:#888;font-size:13px">ล็อกอินเพื่อสั่งซื้อและติดตามออเดอร์</p>
+      <img src="icons/icon-512.png" style="margin-bottom:10px;width:76px;height:76px;border-radius:20px" onerror="this.style.display='none'">
+      <h2 style="font-size:22px;margin-bottom:5px;font-weight:900">เข้าสู่ระบบ Chauat Go</h2>
+      <p style="color:var(--text-muted);font-size:13px">ล็อกอินเพื่อสั่งซื้อ</p>
     </div>
     <div class="auth-tabs-row">
       <button id="tab-login" onclick="switchAuthTab('login')" class="auth-tab-btn active">เข้าสู่ระบบ</button>
@@ -306,19 +751,19 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     <div id="login-form">
       <div class="form-group"><label>📧 อีเมล</label><input type="email" id="login-email" placeholder="example@email.com"></div>
       <div class="form-group"><label>🔒 รหัสผ่าน</label><input type="password" id="login-password" placeholder="••••••••"></div>
-      <button class="btn-full btn-green" onclick="handleLogin()">🔓 เข้าสู่ระบบ</button>
+      <button class="btn-full btn-green press-scale" onclick="handleLogin()">🔓 เข้าสู่ระบบ</button>
     </div>
     <div id="signup-form" style="display:none">
       <div class="form-group"><label>👤 ชื่อ-นามสกุล</label><input type="text" id="signup-name" placeholder="สมชาย ใจดี"></div>
       <div class="form-group"><label>📧 อีเมล</label><input type="email" id="signup-email" placeholder="example@email.com"></div>
       <div class="form-group"><label>📱 เบอร์โทรศัพท์</label><input type="tel" id="signup-phone" placeholder="08X-XXX-XXXX"></div>
       <div class="form-group"><label>🔒 รหัสผ่าน</label><input type="password" id="signup-password" placeholder="••••••••"></div>
-      <button class="btn-full btn-green" onclick="handleSignup()">✅ สมัครสมาชิก</button>
+      <button class="btn-full btn-green press-scale" onclick="handleSignup()">✅ สมัครสมาชิก</button>
     </div>
-    <div style="text-align:center;margin:20px 0;color:#999;font-size:13px">หรือ</div>
-    <button class="btn-full" style="background:#06C755;color:white" onclick="loginWithLine()">💬 เข้าสู่ระบบด้วย LINE</button>
-    <button class="btn-full" style="background:#4285F4;color:white" onclick="loginWithGoogle()">🔵 เข้าสู่ระบบด้วย Google</button>
-    <button class="btn-full btn-gray" onclick="closeLoginModal()" style="margin-top:10px">❌ ยกเลิก</button>
+    <div style="text-align:center;margin:20px 0;color:var(--text-light);font-size:13px">หรือ</div>
+    <button class="btn-full press-scale" style="background:#06C755;color:white" onclick="loginWithLine()">💬 เข้าสู่ระบบด้วย LINE</button>
+    <button class="btn-full press-scale" style="background:#4285F4;color:white" onclick="loginWithGoogle()">🔵 เข้าสู่ระบบด้วย Google</button>
+    <button class="btn-full btn-gray press-scale" onclick="closeLoginModal()">❌ ยกเลิก</button>
   </div>
 </div>
 
@@ -326,11 +771,30 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <div class="modal-content" id="modal-body"></div>
 </div>
 
+<!-- ═══ VEHICLE MODAL ═══ -->
+<div class="modal-overlay" id="vehicle-modal" onclick="if(event.target===this)closeVehicleModal()">
+  <div class="modal-content">
+    <div style="text-align:center;margin-bottom:8px">
+      <div style="font-size:48px" class="float-anim">🚗</div>
+      <h2 style="font-size:20px;font-weight:900">เลือกประเภทยานพาหนะ</h2>
+      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">เลือกรถที่ต้องการใช้บริการ</p>
+    </div>
+    <div class="vehicle-list">
+      <div class="vehicle-option" data-vehicle="motorcycle" data-price="30" onclick="selectVehicle(this)"><div class="vehicle-icon">🏍️</div><div class="vehicle-info"><div class="vehicle-name">มอเตอร์ไซค์</div><div class="vehicle-desc">1 ที่นั่ง • ส่งด่วน</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿30</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="car" data-price="60" onclick="selectVehicle(this)"><div class="vehicle-icon">🚗</div><div class="vehicle-info"><div class="vehicle-name">รถเก๋ง</div><div class="vehicle-desc">4 ที่นั่ง • แอร์</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿60</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="pickup" data-price="90" onclick="selectVehicle(this)"><div class="vehicle-icon">🛻</div><div class="vehicle-info"><div class="vehicle-name">รถกระบะ</div><div class="vehicle-desc">บรรทุกของ • 6 ที่นั่ง</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿90</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+      <div class="vehicle-option" data-vehicle="van" data-price="120" onclick="selectVehicle(this)"><div class="vehicle-icon">🚐</div><div class="vehicle-info"><div class="vehicle-name">รถตู้</div><div class="vehicle-desc">9 ที่นั่ง • ครอบครัว</div></div><div class="vehicle-price"><div class="vehicle-price-num">฿120</div><div class="vehicle-price-unit">เริ่มต้น</div></div><div class="vehicle-check"></div></div>
+    </div>
+    <button class="btn-full btn-gray press-scale" onclick="closeVehicleModal()" style="margin-top:16px">ยกเลิก</button>
+  </div>
+</div>
+
 <div id="img-lightbox" onclick="closeLightbox()">
   <img id="lightbox-img" src="" alt="">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
 </div>
 
+<!-- ═══ HEADER ═══ -->
 <div class="header" id="main-header">
   <img src="images/logo-banner.png" class="brand-logo" alt="Chauat Go" onerror="this.style.display='none'">
   <div class="header-top">
@@ -338,19 +802,20 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <span style="font-size:18px;opacity:.6">🔍</span>
       <input type="text" id="search-input" placeholder="ค้นหาจาก 490+ สถานที่...">
     </div>
-    <div class="profile-avatar" onclick="openProfileSheet()">
+    <div class="profile-avatar press-scale" onclick="openProfileSheet()">
       <span id="profile-avatar-emoji">👤</span>
     </div>
   </div>
 </div>
 
+<!-- ═══ TAB HOME ═══ -->
 <div id="tab-home">
   <div class="search-results" id="search-results"></div>
 
   <div class="category-view" id="category-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="category-title">หมวดหมู่</div>
-      <div class="section-more" onclick="closeCategoryView()">✕ ปิด</div>
+      <div class="section-more press-scale" onclick="closeCategoryView()">✕ ปิด</div>
     </div>
     <div class="food-grid" id="category-grid" style="padding:0"></div>
   </div>
@@ -358,10 +823,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <div class="merchant-view" id="merchant-view">
     <div class="section-header" style="padding-left:0">
       <div class="section-title" id="merchant-view-title">🏪 เลือกร้านอาหาร</div>
-      <div class="section-more" onclick="closeMerchantView()">✕ ปิด</div>
+      <div class="section-more press-scale" onclick="closeMerchantView()">✕ ปิด</div>
     </div>
     <div class="merchant-search">
-      <div class="search-bar" style="background:#fff;min-height:48px">
+      <div class="search-bar" style="background:var(--surface);min-height:48px">
         <span style="font-size:16px;opacity:.5">🔍</span>
         <input type="text" id="merchant-search-input" placeholder="ค้นหาร้านค้า...">
       </div>
@@ -375,7 +840,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <button class="m-filter-chip" onclick="filterMerchantCat('shop',this)">🏬 ร้านค้า</button>
     </div>
     <div class="merchant-list" id="merchant-list">
-      <div class="merchant-loading"><p>กำลังโหลดร้านค้า...</p></div>
+      <div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านค้า...</div>
     </div>
   </div>
 
@@ -408,46 +873,46 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="hot-title">🔥 ร้านที่เข้าร่วม Chauat Go ใกล้เคียง <span class="hot-badge">HOT</span></div>
     </div>
 
-    <div class="section-header"><div class="section-title">🍽️ ร้านอาหารแนะนำ</div><div class="section-more" onclick="showAllCategories('restaurant')">ดูทั้งหมด →</div></div>
+    <div class="section-header"><div class="section-title">🍽️ ร้านอาหารแนะนำ</div><div class="section-more press-scale" onclick="showAllCategories('restaurant')">ดูทั้งหมด →</div></div>
     <div class="food-grid" id="restaurant-grid"></div>
 
-    <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div></div>
+    <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more press-scale" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div></div>
     <div class="food-grid" id="convenience-grid"></div>
 
-    <div class="section-header"><div class="section-title">☕ คาเฟ่</div><div class="section-more" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div></div>
+    <div class="section-header"><div class="section-title">☕ คาเฟ่</div><div class="section-more press-scale" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div></div>
     <div class="food-grid" id="cafe-grid"></div>
 
-    <div class="section-header"><div class="section-title">🌴 สถานที่ท่องเที่ยว</div><div class="section-more" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div></div>
+    <div class="section-header"><div class="section-title">🌴 สถานที่ท่องเที่ยว</div><div class="section-more press-scale" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div></div>
     <div class="food-grid" id="tourist-grid"></div>
 
-    <div class="section-header"><div class="section-title">🏨 โรงแรม/ที่พัก</div><div class="section-more" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div></div>
+    <div class="section-header"><div class="section-title">🏨 โรงแรม/ที่พัก</div><div class="section-more press-scale" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div></div>
     <div class="food-grid" id="hotel-grid"></div>
+  </div>
+</div>
 
-    <div class="legal-footer" id="legal-footer" style="display:none">
-      <div class="dbd-mark">[DBD Registered]</div>
-      <div class="links"><a href="/terms">เงื่อนไข</a> | <a href="/privacy">ความเป็นส่วนตัว</a> | <a href="/contact">ติดต่อเรา</a></div>
-      <div class="copyright">© 2024 Chauat Go. สงวนลิขสิทธิ์.</div>
+<!-- ═══ MAP PAGE ═══ -->
+<div id="map-page">
+  <div class="map-header-bar">
+    <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
+    <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
+  </div>
+  <div style="position:relative">
+    <div id="main-map"></div>
+    <div class="pick-mode-banner" id="pick-banner" style="display:none">
+      <span class="icon">📍</span>
+      <span style="flex:1">ลากหมุดสีแดงเพื่อปักตำแหน่งที่แน่นอน</span>
+    </div>
+    <div class="map-float-controls">
+      <button class="map-fab press-scale" onclick="centerToUser()" title="ตำแหน่งฉัน">🎯</button>
+      <button class="map-fab press-scale" onclick="clearMap()" title="ล้างหมุด">🗑️</button>
+    </div>
+    <div class="map-bottom-action">
+      <button class="map-confirm-btn" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>📍 เลือกตำแหน่งก่อน</button>
     </div>
   </div>
 </div>
 
-<div id="map-page">
-  <div class="map-header-bar">
-    <button class="map-back-btn" onclick="closeMapPage()">← กลับ</button>
-    <h3>🗺️ แผนที่ อ.ชะอวด</h3>
-  </div>
-  <div id="main-map"></div>
-  <div class="tambon-list" id="tambon-list">
-    <div style="font-weight:bold;font-size:13px;padding:5px 10px;color:#666;border-bottom:1px solid #eee;margin-bottom:5px">12 ตำบล อ.ชะอวด</div>
-  </div>
-  <div class="map-controls">
-    <button class="map-ctrl-btn" onclick="toggleTambonList()">📍 ตำบล</button>
-    <button class="map-ctrl-btn" onclick="centerToUser()">🎯 ตำแหน่งฉัน</button>
-    <button class="map-ctrl-btn" onclick="clearDestination()">🗑️ ล้างหมุด</button>
-    <button class="map-ctrl-btn" onclick="showAllPlacesOnMap()">📌 ทั้งหมด</button>
-  </div>
-</div>
-
+<!-- ═══ TABS ═══ -->
 <div class="orders-tab" id="tab-orders" style="display:none">
   <div class="order-section-title">🔍 กำลังดำเนินการ</div>
   <div id="active-orders"></div>
@@ -459,49 +924,37 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 </div>
 
 <div class="messages-tab" id="tab-messages" style="display:none">
-  <div class="chat-card" onclick="openChat()">
-    <div class="chat-avatar">💬</div>
-    <div class="chat-info">
-      <div class="chat-name">แชทกับไรเดอร์</div>
-      <div class="chat-last">แตะเพื่อเปิดแชทออเดอร์ล่าสุด</div>
-    </div>
+  <div class="chat-card press-scale" onclick="openChat()">
+    <div style="width:50px;height:50px;border-radius:50%;background:var(--header-grad);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px">💬</div>
+    <div style="flex:1"><div style="font-weight:900;font-size:14px;color:var(--text)">แชทกับไรเดอร์</div><div style="font-size:12px;color:var(--text-muted);margin-top:2px">แตะเพื่อเปิดแชทออเดอร์ล่าสุด</div></div>
   </div>
 </div>
 
+<!-- ═══ CART BAR ═══ -->
 <div class="cart-bar" id="cart-bar" onclick="openCart()">
-  <div class="cart-bar-icon">🛒<span class="cart-count" id="cart-count">0</span></div>
-  <div class="cart-bar-info">
-    <div class="cart-bar-total" id="cart-total">0฿</div>
-    <div class="cart-bar-name" id="cart-shop"></div>
-  </div>
-  <div class="cart-bar-btn">ดูตะกร้า →</div>
+  <div style="position:relative;font-size:24px">🛒<span style="position:absolute;top:-6px;right:-8px;background:#E53935;color:#fff;font-size:10px;font-weight:900;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px" id="cart-count">0</span></div>
+  <div style="flex:1"><div style="font-size:16px;font-weight:900" id="cart-total">0฿</div><div style="font-size:11px;opacity:.9;font-weight:700" id="cart-shop"></div></div>
+  <div style="background:rgba(255,255,255,.2);padding:8px 14px;border-radius:10px;font-weight:900;font-size:12px">ดูตะกร้า →</div>
 </div>
 
+<!-- ═══ BOTTOM NAV ═══ -->
 <div class="bottom-nav">
-  <div class="nav-item active" onclick="switchTab('home',this)">
-    <div class="nav-icon-wrap">🏠</div>
-    <div class="nav-label">หน้าแรก</div>
-  </div>
-  <div class="nav-item" onclick="switchTab('orders',this)">
-    <div class="nav-icon-wrap">📋</div>
-    <div class="nav-label">รายการ</div>
-  </div>
-  <div class="nav-item" onclick="switchTab('messages',this)">
-    <div class="nav-icon-wrap">💬</div>
-    <div class="nav-label">ข้อความ</div>
-  </div>
+  <div class="nav-item active" onclick="switchTab('home',this)"><div class="nav-icon-wrap">🏠</div><div class="nav-label">หน้าแรก</div></div>
+  <div class="nav-item" onclick="switchTab('orders',this)"><div class="nav-icon-wrap">📋</div><div class="nav-label">รายการ</div></div>
+  <div class="nav-item" onclick="switchTab('messages',this)"><div class="nav-icon-wrap">💬</div><div class="nav-label">ข้อความ</div></div>
 </div>
 
+<!-- ═══ PROFILE SHEET ═══ -->
 <div class="profile-sheet" id="profile-sheet" onclick="if(event.target===this)closeProfileSheet()">
   <div class="profile-sheet-content">
     <div class="pf-header">
-      <button class="pf-close" onclick="closeProfileSheet()">✕</button>
+      <button class="pf-close press-scale" onclick="closeProfileSheet()">✕</button>
       <div id="pf-logged-out" style="display:none">
         <div class="pf-login-prompt">
           <div class="big-ico">👤</div>
           <h3>ยินดีต้อนรับ</h3>
-          <p>เข้าสู่ระบบเพื่อใช้งาน Chauat Go เต็มรูปแบบ</p>
-          <button class="pf-login-btn" onclick="closeProfileSheet();showLoginModal()">🔓 เข้าสู่ระบบ / สมัครสมาชิก</button>
+          <p>เข้าสู่ระบบเพื่อใช้งานเต็มรูปแบบ</p>
+          <button class="pf-login-btn press-scale" onclick="closeProfileSheet();showLoginModal()">🔓 เข้าสู่ระบบ / สมัครสมาชิก</button>
         </div>
       </div>
       <div id="pf-logged-in" style="display:none">
@@ -519,10 +972,14 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
         <div class="pf-section-title">📱 ข้อมูลติดต่อ</div>
         <div class="pf-info-row"><div class="ico">📧</div><div><div class="lbl">อีเมล</div><div class="val" id="pf-email-val">—</div></div></div>
         <div class="pf-info-row"><div class="ico">📱</div><div><div class="lbl">เบอร์โทร</div><div class="val" id="pf-phone-val">—</div></div></div>
+        <div class="pf-info-row"><div class="ico">💬</div><div><div class="lbl">LINE ID</div><div class="val" id="pf-line-val">—</div></div></div>
+        <div class="pf-info-row"><div class="ico">🏠</div><div><div class="lbl">ที่อยู่</div><div class="val" id="pf-address-val">—</div></div></div>
       </div>
       <div class="pf-section">
         <div class="pf-section-title">⚙️ การตั้งค่า</div>
-        <button class="pf-menu-item" onclick="openEditProfile()"><div class="ico g">✏️</div><div class="txt"><div class="t">แก้ไขโปรไฟล์</div></div><div class="arr">›</div></button>
+        <button class="pf-menu-item" onclick="openEditProfile()"><div class="ico g">✏️</div><div class="txt"><div class="t">แก้ไขโปรไฟล์</div><div class="s">ชื่อ, เบอร์, LINE, ที่อยู่</div></div><div class="arr">›</div></button>
+        <button class="pf-menu-item" onclick="checkLocationPopup();closeProfileSheet()"><div class="ico b">📍</div><div class="txt"><div class="t">การเข้าถึงตำแหน่ง</div><div class="s">GPS</div></div><div class="arr">›</div></button>
+        <button class="pf-menu-item" onclick="toggleTheme();closeProfileSheet()"><div class="ico b">🌙</div><div class="txt"><div class="t">เปลี่ยนธีม</div><div class="s">Light / Dark Mode</div></div><div class="arr">›</div></button>
       </div>
       <div class="pf-section">
         <div class="pf-section-title">🚀 เข้าร่วม Chauat Go</div>
@@ -530,8 +987,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
         <button class="pf-menu-item" onclick="window.open('/rider.html','_blank')"><div class="ico o">🛵</div><div class="txt"><div class="t">สมัครเป็นไรเดอร์</div></div><div class="arr">›</div></button>
       </div>
       <div class="pf-section">
-        <button class="pf-logout-btn" onclick="handleLogout();closeProfileSheet()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.3.3 • © 2024</div>
+        <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
+        <div class="pf-version">Chauat Go v3.4.0 • © 2024</div>
       </div>
     </div>
   </div>
@@ -544,9 +1001,15 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="locations-data.js"></script>
 
+<!-- ═══ MAIN SCRIPT (ส่วนที่ 2) ═══ -->
 <script>
+/* ... จะให้ในส่วนที่ 2 ... */
+</script>
+
+</body>
+</html>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO — v3.3.3 Main Application
+   CHAUAT GO v3.4.0 — JavaScript Ultimate
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -564,7 +1027,7 @@ try {
   auth = firebase.auth();
   db = firebase.firestore();
   storage = firebase.storage();
-  if (db.enablePersistence) db.enablePersistence({ synchronizeTabs: true }).catch(function(e){});
+  if (db.enablePersistence) db.enablePersistence({synchronizeTabs:true}).catch(function(){});
 } catch(e) { console.error(e); }
 
 var PLACES = [];
@@ -579,7 +1042,11 @@ var cartShop = localStorage.getItem('chauat_cart_shop') || '';
 var userLocation = null;
 var map = null;
 var mapMarkers = [];
+var currentLocationMarker = null;
 var destinationMarker = null;
+var destinationCircle = null;
+var selectedDestination = null;
+var selectedVehicle = null;
 var unsubOrders = null;
 var deferredPrompt = null;
 
@@ -594,22 +1061,24 @@ var CATS = {
   p:{name:'ไปรษณีย์',icon:'📦'}, y:{name:'ชุมชน',icon:'🏘️'}
 };
 
-function $(id) { return document.getElementById(id); }
-function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-function fmt(n) { return Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }); }
-function debugLog(msg, isError) {
-  var el = $('debugConsole');
-  if (el) { el.style.display='block'; el.innerHTML += '<span style="color:'+(isError?'#ff4444':'#00ff00')+'">> '+msg+'</span><br>'; el.scrollTop = el.scrollHeight; }
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmt(n){return Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:2});}
+function debugLog(msg,isError){
+  var el = $('debugConsole'); if(!el) return;
+  el.style.display='block';
+  el.innerHTML += '<span style="color:'+(isError?'#ff4444':'#00ff00')+'">> '+msg+'</span><br>';
+  el.scrollTop = el.scrollHeight;
   console.log(msg);
 }
-window.showToast = function(msg, type) {
-  type = type || 'success';
-  var t = $('toast'); if (!t) return;
+window.showToast = function(msg,type){
+  type = type||'success';
+  var t = $('toast'); if(!t) return;
   var icons = {success:'✅',error:'❌',warning:'⚠️',info:'ℹ️'};
   t.textContent = (icons[type]||'') + ' ' + msg;
   t.className = 'toast show ' + type;
   clearTimeout(t._t);
-  t._t = setTimeout(function(){ t.className = 'toast'; }, 3000);
+  t._t = setTimeout(function(){t.className='toast';},3000);
 };
 
 function haversine(lat1,lng1,lat2,lng2){
@@ -617,12 +1086,92 @@ function haversine(lat1,lng1,lat2,lng2){
   var a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-function fmtDistance(km){ if(!km&&km!==0)return''; if(km<1)return Math.round(km*1000)+' ม.'; return km.toFixed(1)+' กม.'; }
-function hasRealImage(img){ return !!(img && img.indexOf('images/')===0); }
+function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
+function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
-/* ═══ INIT ═══ */
-document.addEventListener('DOMContentLoaded', function() {
-  debugLog('🚀 Chauat Go v3.3.3');
+/* ═══════════════════════════════════════════════════════════════
+   SPLASH SCREEN
+   ═══════════════════════════════════════════════════════════════ */
+function runSplash(){
+  var bar = $('splash-bar');
+  if (!bar) return;
+  var progress = 0;
+  var interval = setInterval(function(){
+    progress += 15 + Math.random() * 15;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(interval);
+      setTimeout(function(){
+        var splash = $('splash-screen');
+        if (splash) splash.classList.add('hidden');
+        // ลบออกจาก DOM หลัง fade
+        setTimeout(function(){
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 600);
+      }, 300);
+    }
+    bar.style.width = progress + '%';
+  }, 150);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   THEME TOGGLE
+   ═══════════════════════════════════════════════════════════════ */
+window.toggleTheme = function(){
+  var current = document.documentElement.getAttribute('data-theme') || 'light';
+  var next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('chauat_theme', next);
+
+  var fab = $('theme-fab');
+  if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
+
+  // Update meta theme-color
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = next === 'dark' ? '#0F1419' : '#76B82A';
+
+  showToast(next === 'dark' ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง', 'info');
+};
+
+function initTheme(){
+  var theme = localStorage.getItem('chauat_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  var fab = $('theme-fab');
+  if (fab) fab.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COUNT-UP ANIMATION
+   ═══════════════════════════════════════════════════════════════ */
+function countUp(el, target, duration){
+  if (!el) return;
+  duration = duration || 800;
+  var start = 0;
+  var startTime = null;
+  el.classList.add('counted');
+  function step(timestamp){
+    if (!startTime) startTime = timestamp;
+    var progress = Math.min((timestamp - startTime) / duration, 1);
+    var eased = 1 - Math.pow(1 - progress, 3);
+    var current = Math.floor(eased * target);
+    el.textContent = current;
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.textContent = target;
+      setTimeout(function(){el.classList.remove('counted');}, 600);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function(){
+  debugLog('🚀 Chauat Go v3.4.0');
+  initTheme();
+  runSplash();
   loadPlaces();
   initAuth();
   setupNetwork();
@@ -651,32 +1200,34 @@ function loadPlaces(){
 }
 
 function updateStatsBar(){
-  if (!PLACES.length) return;
-  var total = PLACES.length;
-  var rest = PLACES.filter(function(p){return p.category==='r';}).length;
-  var cafe = PLACES.filter(function(p){return p.category==='f';}).length;
-  var shop = PLACES.filter(function(p){return ['s','c','m'].indexOf(p.category)!==-1;}).length;
-  if ($('stat-total')) $('stat-total').textContent = total;
-  if ($('stat-rest')) $('stat-rest').textContent = rest;
-  if ($('stat-cafe')) $('stat-cafe').textContent = cafe;
-  if ($('stat-shop')) $('stat-shop').textContent = shop;
-  debugLog('📊 Stats: ' + total + '/' + rest + '/' + cafe + '/' + shop);
-  renderGrid('restaurant-grid', PLACES.filter(function(p){return p.category==='r'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('convenience-grid', PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('cafe-grid', PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('tourist-grid', PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('hotel-grid', PLACES.filter(function(p){return p.category==='h'&&hasRealImage(p.image);}).slice(0,6));
+  if(!PLACES.length) return;
+  var total=PLACES.length;
+  var rest=PLACES.filter(function(p){return p.category==='r';}).length;
+  var cafe=PLACES.filter(function(p){return p.category==='f';}).length;
+  var shop=PLACES.filter(function(p){return ['s','c','m'].indexOf(p.category)!==-1;}).length;
+
+  countUp($('stat-total'), total, 1000);
+  countUp($('stat-rest'), rest, 1000);
+  countUp($('stat-cafe'), cafe, 1000);
+  countUp($('stat-shop'), shop, 1000);
+
+  debugLog('📊 Stats: '+total+'/'+rest+'/'+cafe+'/'+shop);
+  renderGrid('restaurant-grid',PLACES.filter(function(p){return p.category==='r'&&hasRealImage(p.image);}).slice(0,6));
+  renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,6));
+  renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,6));
+  renderGrid('tourist-grid',PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,6));
+  renderGrid('hotel-grid',PLACES.filter(function(p){return p.category==='h'&&hasRealImage(p.image);}).slice(0,6));
 }
 
 function renderGrid(gridId, items){
-  var grid = $(gridId); if (!grid) return;
-  if (!items.length) { grid.innerHTML=''; return; }
+  var grid = $(gridId); if(!grid) return;
+  if(!items.length){grid.innerHTML='';return;}
   grid.innerHTML = items.map(renderPlaceCardHTML).join('');
 }
 
 function renderPlaceCardHTML(p){
   var hasImg = hasRealImage(p.image);
-  var cat = CATS[p.category] || {name:'',icon:'📍'};
+  var cat = CATS[p.category]||{name:'',icon:'📍'};
   var imgHtml = hasImg
     ? '<img src="'+esc(p.image)+'" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=&quot;food-img-fallback&quot;>'+cat.icon+'</div>\'">'
     : '<div class="food-img-fallback">'+cat.icon+'</div>';
@@ -687,49 +1238,49 @@ function renderPlaceCardHTML(p){
     (p.price?'<div class="food-price">'+esc(p.price)+'</div>':'')+'</div></div>';
 }
 
-/* ═══ AUTH ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   AUTH
+   ═══════════════════════════════════════════════════════════════ */
 function initAuth(){
-  if (!auth) return;
+  if(!auth) return;
   auth.onAuthStateChanged(async function(user){
-    currentUser = user;
-    window.currentUser = user;
-    if (user) {
+    currentUser = user; window.currentUser = user;
+    if(user){
       debugLog('👤 '+user.email);
-      try {
+      try{
         var snap = await db.collection('users').doc(user.uid).get();
-        userProfile = snap.exists ? Object.assign({uid:user.uid}, snap.data()) : null;
+        userProfile = snap.exists ? Object.assign({uid:user.uid},snap.data()) : null;
         window.userProfile = userProfile;
-      } catch(e){}
-      if ($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = '✅';
+      }catch(e){}
+      if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent='✅';
     } else {
       debugLog('⛔ ยังไม่ได้ล็อกอิน');
-      userProfile = null;
-      window.userProfile = null;
-      if ($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = '👤';
+      userProfile = null; window.userProfile = null;
+      if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent='👤';
     }
   });
 }
 
 window.switchAuthTab = function(tab){
   var isLogin = tab==='login';
-  if ($('tab-login')) $('tab-login').classList.toggle('active',isLogin);
-  if ($('tab-signup')) $('tab-signup').classList.toggle('active',!isLogin);
-  if ($('login-form')) $('login-form').style.display = isLogin?'block':'none';
-  if ($('signup-form')) $('signup-form').style.display = isLogin?'none':'block';
+  if($('tab-login')) $('tab-login').classList.toggle('active',isLogin);
+  if($('tab-signup')) $('tab-signup').classList.toggle('active',!isLogin);
+  if($('login-form')) $('login-form').style.display=isLogin?'block':'none';
+  if($('signup-form')) $('signup-form').style.display=isLogin?'none':'block';
 };
-window.showLoginModal = function(){ if($('login-modal')) $('login-modal').classList.add('show'); };
-window.closeLoginModal = function(){ if($('login-modal')) $('login-modal').classList.remove('show'); };
+window.showLoginModal = function(){if($('login-modal'))$('login-modal').classList.add('show');};
+window.closeLoginModal = function(){if($('login-modal'))$('login-modal').classList.remove('show');};
 
 window.handleLogin = async function(){
   var email = $('login-email').value.trim();
   var pw = $('login-password').value;
-  if (!email || !pw) return showToast('กรอกอีเมลและรหัสผ่าน','error');
-  try {
-    await auth.signInWithEmailAndPassword(email, pw);
+  if(!email||!pw) return showToast('กรอกอีเมลและรหัสผ่าน','error');
+  try{
+    await auth.signInWithEmailAndPassword(email,pw);
     showToast('✅ เข้าสู่ระบบสำเร็จ');
     closeLoginModal();
-  } catch(err) {
-    var msg = {'auth/wrong-password':'รหัสผ่านไม่ถูกต้อง','auth/user-not-found':'ไม่พบบัญชีนี้','auth/invalid-credential':'อีเมลหรือรหัสผ่านไม่ถูกต้อง'}[err.code] || 'เข้าสู่ระบบไม่สำเร็จ';
+  }catch(err){
+    var msg = {'auth/wrong-password':'รหัสผ่านไม่ถูกต้อง','auth/user-not-found':'ไม่พบบัญชีนี้','auth/invalid-credential':'อีเมลหรือรหัสผ่านไม่ถูกต้อง'}[err.code]||'เข้าสู่ระบบไม่สำเร็จ';
     showToast(msg,'error');
   }
 };
@@ -739,10 +1290,10 @@ window.handleSignup = async function(){
   var email = $('signup-email').value.trim();
   var phone = $('signup-phone').value.trim();
   var pw = $('signup-password').value;
-  if (!name||!email||!pw) return showToast('กรอกข้อมูลให้ครบ','error');
-  if (pw.length < 6) return showToast('รหัสผ่าน 6+ ตัว','error');
-  try {
-    var cred = await auth.createUserWithEmailAndPassword(email, pw);
+  if(!name||!email||!pw) return showToast('กรอกข้อมูลให้ครบ','error');
+  if(pw.length<6) return showToast('รหัสผ่าน 6+ ตัว','error');
+  try{
+    var cred = await auth.createUserWithEmailAndPassword(email,pw);
     await cred.user.updateProfile({displayName:name});
     await db.collection('users').doc(cred.user.uid).set({
       role:'user',name:name,email:email,phone:phone,
@@ -750,14 +1301,14 @@ window.handleSignup = async function(){
     });
     showToast('✅ สมัครสำเร็จ');
     closeLoginModal();
-  } catch(err) { showToast('สมัครไม่สำเร็จ: '+err.message,'error'); }
+  }catch(err){showToast('สมัครไม่สำเร็จ: '+err.message,'error');}
 };
 
 window.loginWithGoogle = function(){
   var provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider).then(async function(cred){
     var snap = await db.collection('users').doc(cred.user.uid).get();
-    if (!snap.exists) {
+    if(!snap.exists){
       await db.collection('users').doc(cred.user.uid).set({
         role:'user',name:cred.user.displayName||'',email:cred.user.email||'',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -765,285 +1316,472 @@ window.loginWithGoogle = function(){
     }
     showToast('✅ เข้าสู่ระบบด้วย Google');
     closeLoginModal();
-  }).catch(function(err){ showToast('Google: '+err.message,'error'); });
+  }).catch(function(err){showToast('Google: '+err.message,'error');});
 };
-window.loginWithLine = function(){ showToast('LINE Login ต้องตั้งค่า OAuth ก่อน','warning'); };
+window.loginWithLine = function(){showToast('LINE Login ต้องตั้งค่า OAuth ก่อน','warning');};
 
 window.handleLogout = async function(){
-  if (!confirm('ออกจากระบบ?')) return;
-  if (unsubOrders) { unsubOrders(); unsubOrders = null; }
+  if(!confirm('ออกจากระบบ?')) return;
+  if(unsubOrders){unsubOrders();unsubOrders=null;}
   await auth.signOut();
   showToast('ออกจากระบบแล้ว');
   closeProfileSheet();
 };
 
-/* ═══ PROFILE ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   PROFILE
+   ═══════════════════════════════════════════════════════════════ */
 window.openProfileSheet = function(){
-  var sheet = $('profile-sheet'); if (!sheet) return;
+  var sheet = $('profile-sheet'); if(!sheet) return;
   sheet.classList.add('show');
   var loggedIn = !!currentUser;
-  if ($('pf-logged-out')) $('pf-logged-out').style.display = loggedIn?'none':'block';
-  if ($('pf-logged-in')) $('pf-logged-in').style.display = loggedIn?'block':'none';
-  if ($('pf-logged-in-body')) $('pf-logged-in-body').style.display = loggedIn?'block':'none';
-  if (loggedIn) {
+  if($('pf-logged-out')) $('pf-logged-out').style.display = loggedIn?'none':'block';
+  if($('pf-logged-in')) $('pf-logged-in').style.display = loggedIn?'block':'none';
+  if($('pf-logged-in-body')) $('pf-logged-in-body').style.display = loggedIn?'block':'none';
+  if(loggedIn){
     var name = (userProfile&&userProfile.name)||currentUser.displayName||'ผู้ใช้';
     var email = currentUser.email||'';
-    if ($('pf-name')) $('pf-name').textContent = name;
-    if ($('pf-email')) $('pf-email').textContent = email;
-    if ($('pf-email-val')) $('pf-email-val').textContent = email;
-    if ($('pf-phone-val')) $('pf-phone-val').textContent = (userProfile&&userProfile.phone)||'—';
+    var phone = (userProfile&&userProfile.phone)||'—';
+    var lineId = (userProfile&&userProfile.lineId)||'—';
+    var addr = (userProfile&&userProfile.address)||'—';
+    if($('pf-name')) $('pf-name').textContent = name;
+    if($('pf-email')) $('pf-email').textContent = email;
+    if($('pf-email-val')) $('pf-email-val').textContent = email;
+    if($('pf-phone-val')) $('pf-phone-val').textContent = phone;
+    if($('pf-line-val')) $('pf-line-val').textContent = lineId;
+    if($('pf-address-val')) $('pf-address-val').textContent = addr;
   }
   debugLog('👆 เปิด Profile');
 };
-window.closeProfileSheet = function(){ var s=$('profile-sheet'); if(s) s.classList.remove('show'); };
+window.closeProfileSheet = function(){var s=$('profile-sheet');if(s)s.classList.remove('show');};
 
 window.openEditProfile = function(){
-  if (!currentUser) return;
+  if(!currentUser){closeProfileSheet();showLoginModal();return;}
   var name = (userProfile&&userProfile.name)||currentUser.displayName||'';
   var phone = (userProfile&&userProfile.phone)||'';
+  var lineId = (userProfile&&userProfile.lineId)||'';
+  var addr = (userProfile&&userProfile.address)||'';
   $('modal-body').innerHTML =
-    '<h2 style="font-size:20px;text-align:center;margin-bottom:20px">✏️ แก้ไขโปรไฟล์</h2>' +
-    '<div class="form-group"><label>ชื่อ</label><input id="edit-name" value="'+esc(name)+'"></div>' +
-    '<div class="form-group"><label>เบอร์โทร</label><input type="tel" id="edit-phone" value="'+esc(phone)+'"></div>' +
-    '<button class="btn-full btn-green" onclick="saveProfile()">💾 บันทึก</button>' +
-    '<button class="btn-full btn-gray" onclick="closeModal()">ยกเลิก</button>';
+    '<div style="text-align:center;margin-bottom:20px">' +
+    '<div style="font-size:44px;margin-bottom:8px" class="float-anim">✏️</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">แก้ไขโปรไฟล์</h2>' +
+    '</div>' +
+    '<div class="form-group"><label>👤 ชื่อ-นามสกุล</label><input id="edit-name" value="'+esc(name)+'" placeholder="สมชาย ใจดี"></div>' +
+    '<div class="form-group"><label>📱 เบอร์โทรศัพท์</label><input type="tel" id="edit-phone" value="'+esc(phone)+'" placeholder="08X-XXX-XXXX"></div>' +
+    '<div class="form-group"><label>💬 LINE ID</label><input id="edit-line" value="'+esc(lineId)+'" placeholder="line_id"></div>' +
+    '<div class="form-group"><label>🏠 ที่อยู่</label><textarea id="edit-address" rows="3" placeholder="บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด">'+esc(addr)+'</textarea></div>' +
+    '<button class="btn-full btn-green press-scale" onclick="saveProfile()">💾 บันทึก</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
 };
 
 window.saveProfile = async function(){
-  if (!currentUser) return;
+  if(!currentUser){showToast('กรุณาเข้าสู่ระบบ','error');return;}
+  var nameVal = $('edit-name') ? $('edit-name').value.trim() : '';
+  var phoneVal = $('edit-phone') ? $('edit-phone').value.trim() : '';
+  var lineVal = $('edit-line') ? $('edit-line').value.trim() : '';
+  var addrVal = $('edit-address') ? $('edit-address').value.trim() : '';
+
+  if(!nameVal){showToast('กรอกชื่อ','error');return;}
+  if(phoneVal && phoneVal.replace(/\D/g,'').length < 9){showToast('เบอร์ไม่ถูกต้อง','error');return;}
+
   var data = {
-    name: $('edit-name').value.trim(),
-    phone: $('edit-phone').value.trim(),
+    name: nameVal, phone: phoneVal, lineId: lineVal, address: addrVal,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-  try {
-    await db.collection('users').doc(currentUser.uid).set(data, {merge:true});
-    await currentUser.updateProfile({displayName:data.name});
+
+  try{
+    await db.collection('users').doc(currentUser.uid).set(data,{merge:true});
+    await currentUser.updateProfile({displayName:nameVal});
     userProfile = Object.assign({}, userProfile, data);
-    showToast('✅ บันทึกแล้ว');
+    window.userProfile = userProfile;
+    showToast('✅ บันทึกโปรไฟล์แล้ว');
     closeModal();
-  } catch(e) { showToast('บันทึกไม่สำเร็จ','error'); }
+    setTimeout(function(){ openProfileSheet(); }, 300);
+  }catch(e){
+    debugLog('❌ Save profile: '+e.message, true);
+    showToast('บันทึกไม่สำเร็จ: '+e.message,'error');
+  }
 };
 
-/* ═══ SEARCH ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   SEARCH
+   ═══════════════════════════════════════════════════════════════ */
 function bindSearchInput(){
-  var input = $('search-input'); if (!input) return;
+  var input = $('search-input'); if(!input) return;
   input.removeAttribute('oninput');
-  input.addEventListener('input', function(e){ doSearch(e.target.value); });
+  input.addEventListener('input',function(e){doSearch(e.target.value);});
 }
 
 window.doSearch = function(q){
-  var results = $('search-results'); if (!results) return;
-  if (!q || q.trim().length < 1) {
-    results.classList.remove('show');
-    results.style.display = 'none';
-    return;
-  }
+  var results = $('search-results'); if(!results) return;
+  if(!q || q.trim().length<1){results.classList.remove('show');results.style.display='none';return;}
   var query = q.trim().toLowerCase();
   var matches = PLACES.filter(function(p){
     return p.name.toLowerCase().indexOf(query)!==-1 || (CATS[p.category]&&CATS[p.category].name.toLowerCase().indexOf(query)!==-1);
   }).slice(0,20);
 
-  results.style.display = 'block';
-  results.classList.add('show');
+  results.style.display='block'; results.classList.add('show');
 
-  if (!matches.length) {
-    results.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-weight:700">ไม่พบ "'+esc(q)+'"</div>';
+  if(!matches.length){
+    results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div>';
     return;
   }
   results.innerHTML = matches.map(function(p){
     var cat = CATS[p.category]||{name:'',icon:'📍'};
     var hasImg = hasRealImage(p.image);
-    var imgHtml = hasImg
-      ? '<img src="'+esc(p.image)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'
-      : cat.icon;
-    return '<div data-place-id="'+esc(p.id)+'" style="display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:8px;cursor:pointer;background:#f8f9fa;border-radius:12px">' +
-      '<div style="width:50px;height:50px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:22px">'+imgHtml+'</div>' +
-      '<div style="flex:1;min-width:0"><div style="font-weight:900;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>' +
-      '<div style="font-size:11px;color:#6B7280;font-weight:600;margin-top:2px">'+cat.icon+' '+esc(cat.name)+(p.price?' • '+p.price:'')+'</div></div></div>';
+    var imgHtml = hasImg ? '<img src="'+esc(p.image)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : cat.icon;
+    return '<div class="search-item" data-place-id="'+esc(p.id)+'">' +
+      '<div class="search-item-icon">'+imgHtml+'</div>' +
+      '<div class="search-item-info"><div class="search-item-name">'+esc(p.name)+'</div>' +
+      '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+(p.price?' • '+p.price:'')+'</div></div></div>';
   }).join('');
 };
 
-/* ═══ MERCHANT VIEW ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   MERCHANT
+   ═══════════════════════════════════════════════════════════════ */
 window.openMerchantView = async function(type){
   debugLog('🏪 Merchant View: '+type);
-  if ($('home-content')) $('home-content').style.display='none';
-  if ($('search-results')) $('search-results').classList.remove('show');
-  if ($('category-view')) $('category-view').classList.remove('show');
-  if ($('merchant-view')) $('merchant-view').classList.add('show');
-  if ($('merchant-view-title')) $('merchant-view-title').textContent = type==='food'?'🍽️ เลือกร้านอาหาร':'🛒 เลือกร้านค้า';
+  if($('home-content')) $('home-content').style.display='none';
+  if($('search-results')) $('search-results').classList.remove('show');
+  if($('category-view')) $('category-view').classList.remove('show');
+  if($('merchant-view')) $('merchant-view').classList.add('show');
+  if($('merchant-view-title')) $('merchant-view-title').textContent = type==='food'?'🍽️ เลือกร้านอาหาร':'🛒 เลือกร้านค้า';
 
-  var list = $('merchant-list'); if (!list) return;
-  list.innerHTML = '<div class="merchant-loading"><p>กำลังโหลดร้านค้า...</p></div>';
+  var list = $('merchant-list'); if(!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านค้า...</div>';
 
-  try {
+  try{
     var snap = await db.collection('merchants').where('verified','==',true).get();
-    merchantsCache = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
-    if (!merchantsCache.length) {
-      list.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><div style="font-size:40px">🏪</div><div style="font-weight:900;margin-top:8px">ยังไม่มีร้านค้าเข้าร่วม</div></div>';
+    merchantsCache = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    if(!merchantsCache.length){
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🏪</div><div style="font-weight:900;margin-top:8px">ยังไม่มีร้านค้าเข้าร่วม</div></div>';
       return;
     }
     renderMerchantList(merchantsCache);
-  } catch(err) {
-    debugLog('⚠️ Merchant: '+err.code, true);
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><div style="font-size:40px">🏪</div><div style="font-weight:900;margin-top:8px">ยังไม่มีร้านค้าเข้าร่วม</div></div>';
+  }catch(err){
+    debugLog('⚠️ Merchant: '+err.code,true);
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🏪</div><div style="font-weight:900;margin-top:8px">ยังไม่มีร้านค้าเข้าร่วม</div></div>';
   }
 };
 
 function renderMerchantList(merchants){
-  var list = $('merchant-list'); if (!list) return;
+  var list = $('merchant-list'); if(!list) return;
   var q = currentMerchantSearch.toLowerCase();
   var filtered = merchants.filter(function(m){
     var matchQ = !q || (m.name||'').toLowerCase().indexOf(q)!==-1;
     var matchC = currentMerchantFilter==='all' || m.category===currentMerchantFilter;
     return matchQ && matchC;
   });
-  if (!filtered.length) {
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><div style="font-size:40px">🔍</div><div style="font-weight:900;margin-top:8px">ไม่พบร้านค้า</div></div>';
+  if(!filtered.length){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🔍</div><div style="font-weight:900;margin-top:8px">ไม่พบร้านค้า</div></div>';
     return;
   }
-  list.innerHTML = filtered.map(function(m){
-    return '<div class="merchant-card" data-merchant-id="'+esc(m.id)+'">' +
-      '<div class="merchant-card-icon" style="background:#E8F5E9">🏪</div>' +
+  list.innerHTML = filtered.map(function(m, i){
+    var card = document.createElement('div');
+    card.className = 'merchant-card';
+    card.setAttribute('data-merchant-id', esc(m.id));
+    card.style.animationDelay = (i * 0.05) + 's';
+    card.innerHTML = '<div class="merchant-card-icon" style="background:#E8F5E9">🏪</div>' +
       '<div class="merchant-card-info"><div class="merchant-card-name">'+esc(m.name||'ไม่ระบุ')+'</div>' +
       '<div class="merchant-card-meta">'+(m.isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(m.category||'')+'</div>' +
       (m.address?'<div class="merchant-card-meta">📍 '+esc(String(m.address).slice(0,50))+'</div>':'') +
-      '</div><div style="color:#999;font-size:20px">›</div></div>';
+      '</div><div style="color:var(--text-light);font-size:20px">›</div>';
+    return card.outerHTML;
   }).join('');
 }
 
 window.closeMerchantView = function(){
-  if ($('merchant-view')) $('merchant-view').classList.remove('show');
-  if ($('home-content')) $('home-content').style.display='block';
+  if($('merchant-view')) $('merchant-view').classList.remove('show');
+  if($('home-content')) $('home-content').style.display='block';
 };
 
-window.filterMerchantCat = function(cat, el){
+window.filterMerchantCat = function(cat,el){
   currentMerchantFilter = cat;
-  document.querySelectorAll('.m-filter-chip').forEach(function(c){ c.classList.remove('active'); });
-  if (el) el.classList.add('active');
+  document.querySelectorAll('.m-filter-chip').forEach(function(c){c.classList.remove('active');});
+  if(el) el.classList.add('active');
   renderMerchantList(merchantsCache);
 };
 
-var merchantSearchInput = document.getElementById('merchant-search-input');
-if (merchantSearchInput) {
-  merchantSearchInput.addEventListener('input', function(e){
+var msi = document.getElementById('merchant-search-input');
+if(msi){
+  msi.addEventListener('input',function(e){
     currentMerchantSearch = e.target.value;
     renderMerchantList(merchantsCache);
   });
 }
 
 window.openMerchantDetail = async function(merchantId){
-  try {
+  try{
     var snap = await db.collection('merchants').doc(merchantId).get();
-    if (!snap.exists) return showToast('ไม่พบร้านค้า','error');
-    var m = Object.assign({id:snap.id}, snap.data());
+    if(!snap.exists) return showToast('ไม่พบร้านค้า','error');
+    var m = Object.assign({id:snap.id},snap.data());
     var menuSnap = await db.collection('menus').where('merchantId','==',merchantId).get();
     var menus = menuSnap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
     $('modal-body').innerHTML =
-      '<div style="text-align:center;margin-bottom:16px"><h2 style="font-size:20px;font-weight:900">'+esc(m.name||'')+'</h2></div>' +
-      (menus.length === 0 ? '<div style="text-align:center;padding:30px;color:#999">ยังไม่มีเมนู</div>' :
+      '<div style="text-align:center;margin-bottom:16px"><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+esc(m.name||'')+'</h2></div>' +
+      (menus.length===0?'<div style="text-align:center;padding:30px;color:var(--text-light)">ยังไม่มีเมนู</div>':
         menus.map(function(menu){
-          return '<div style="display:flex;gap:12px;padding:12px;background:#f8f9fa;border-radius:12px;margin-bottom:8px">' +
-            '<div style="width:60px;height:60px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px">' +
-              (menu.image?'<img src="'+esc(menu.image)+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px">':'🍽️') +
-            '</div><div style="flex:1"><div style="font-weight:900;font-size:14px">'+esc(menu.name)+'</div>' +
-            '<div style="font-weight:900;color:#00A651;margin-top:4px">'+fmt(menu.price)+'฿</div></div></div>';
+          return '<div style="display:flex;gap:12px;padding:12px;background:var(--surface-2);border-radius:12px;margin-bottom:8px">' +
+            '<div style="width:60px;height:60px;border-radius:12px;background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:24px">' +
+            (menu.image?'<img src="'+esc(menu.image)+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px">':'🍽️') +
+            '</div><div style="flex:1"><div style="font-weight:900;font-size:14px;color:var(--text)">'+esc(menu.name)+'</div>' +
+            '<div style="font-weight:900;color:var(--green);margin-top:4px">'+fmt(menu.price)+'฿</div></div></div>';
         }).join('')) +
-      '<button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>';
+      '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
     openModal();
-  } catch(e) { showToast('โหลดไม่สำเร็จ','error'); }
+  }catch(e){showToast('โหลดไม่สำเร็จ','error');}
 };
 
-/* ═══ CATEGORY VIEW ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   CATEGORY
+   ═══════════════════════════════════════════════════════════════ */
 window.showCategory = function(cat){
   var map2 = {hotel:'h',tourist:'t',restaurant:'r',cafe:'f',convenience:'c',shop:'s',market:'m'};
   var code = map2[cat]||cat;
-  if ($('home-content')) $('home-content').style.display='none';
-  if ($('merchant-view')) $('merchant-view').classList.remove('show');
-  if ($('category-view')) $('category-view').classList.add('show');
-
+  if($('home-content')) $('home-content').style.display='none';
+  if($('merchant-view')) $('merchant-view').classList.remove('show');
+  if($('category-view')) $('category-view').classList.add('show');
   var catInfo = CATS[code]||{name:cat,icon:'📍'};
-  if ($('category-title')) $('category-title').textContent = catInfo.icon+' '+catInfo.name;
-
+  if($('category-title')) $('category-title').textContent = catInfo.icon+' '+catInfo.name;
   var filtered = PLACES.filter(function(p){return p.category===code;});
-  var grid = $('category-grid'); if (!grid) return;
-  if (!filtered.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#999">ไม่มีข้อมูล</div>';
+  var grid = $('category-grid'); if(!grid) return;
+  if(!filtered.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light)">ไม่มีข้อมูล</div>';
     return;
   }
   grid.innerHTML = filtered.map(renderPlaceCardHTML).join('');
 };
-window.showAllCategories = function(cat){ showCategory(cat); };
+window.showAllCategories = function(cat){showCategory(cat);};
 window.closeCategoryView = function(){
-  if ($('category-view')) $('category-view').classList.remove('show');
-  if ($('home-content')) $('home-content').style.display='block';
+  if($('category-view')) $('category-view').classList.remove('show');
+  if($('home-content')) $('home-content').style.display='block';
 };
 
-/* ═══ MAP ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   MAP
+   ═══════════════════════════════════════════════════════════════ */
 window.openMapPage = function(){
   debugLog('🗺️ เปิดแผนที่');
-  if ($('map-page')) $('map-page').classList.add('show');
+  if($('map-page')) $('map-page').classList.add('show');
+
   setTimeout(function(){
-    if (typeof L === 'undefined') return;
-    try {
-      if (!map) {
-        map = L.map('main-map').setView([7.9650, 99.9960], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap', maxZoom:19}).addTo(map);
+    if(typeof L === 'undefined'){
+      var el = $('main-map');
+      if(el) el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">⚠️ แผนที่โหลดไม่ได้</div>';
+      return;
+    }
+    try{
+      if(!map){
+        map = L.map('main-map',{zoomControl:true}).setView([7.9650, 99.9960], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap', maxZoom:19}).addTo(map);
+        map.on('click', function(e){setDestination(e.latlng.lat, e.latlng.lng, true);});
+        if(navigator.geolocation){
+          navigator.geolocation.getCurrentPosition(function(pos){
+            userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+            showCurrentLocationMarker(userLocation.lat, userLocation.lng);
+            map.setView([userLocation.lat, userLocation.lng], 15);
+          }, function(){});
+        }
       }
       map.invalidateSize();
-    } catch(e) {}
+      setTimeout(function(){ map.invalidateSize(); }, 200);
+    }catch(e){debugLog('❌ Map: '+e.message,true);}
   }, 300);
 };
-window.closeMapPage = function(){ if($('map-page')) $('map-page').classList.remove('show'); };
-window.toggleTambonList = function(){ if($('tambon-list')) $('tambon-list').classList.toggle('show'); };
+
+window.closeMapPage = function(){if($('map-page')) $('map-page').classList.remove('show');};
+
+function showCurrentLocationMarker(lat, lng){
+  if(!map) return;
+  if(currentLocationMarker) map.removeLayer(currentLocationMarker);
+  var iconHtml = '<div class="custom-pin blue"><div class="pin-pulse"></div><div class="custom-pin-dot blue">📍</div></div>';
+  var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
+  currentLocationMarker = L.marker([lat,lng],{icon:icon,zIndexOffset:1000}).addTo(map);
+  currentLocationMarker.bindPopup('<b>📍 ตำแหน่งของคุณ</b>');
+}
+
+function setDestination(lat, lng, openPopup){
+  if(!map) return;
+  selectedDestination = {lat:lat, lng:lng};
+  if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;}
+  if(destinationCircle){map.removeLayer(destinationCircle);destinationCircle=null;}
+
+  var iconHtml = '<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>';
+  var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
+
+  destinationMarker = L.marker([lat,lng],{icon:icon,draggable:true,autoPan:true,zIndexOffset:2000}).addTo(map);
+
+  destinationMarker.on('dragend', function(e){
+    var pos = e.target.getLatLng();
+    selectedDestination = {lat:pos.lat, lng:pos.lng};
+    if(destinationCircle) destinationCircle.setLatLng([pos.lat,pos.lng]);
+    updateConfirmBtnState();
+  });
+
+  destinationCircle = L.circle([lat,lng],{radius:100,color:'#E53935',fillColor:'#E53935',fillOpacity:.15,weight:2,dashArray:'5,5'}).addTo(map);
+
+  if(openPopup) destinationMarker.bindPopup('<b>🎯 ปลายทาง</b><br>ลากหมุดเพื่อปรับ').openPopup();
+
+  var banner = $('pick-banner');
+  if(banner) banner.style.display='flex';
+  updateConfirmBtnState();
+}
+
+function updateConfirmBtnState(){
+  var btn = $('map-confirm-btn'); if(!btn) return;
+  if(selectedDestination){
+    btn.disabled = false;
+    btn.innerHTML = '📍 ยืนยันตำแหน่งนี้';
+  } else {
+    btn.disabled = true;
+    btn.innerHTML = '📍 เลือกตำแหน่งก่อน';
+  }
+}
+
 window.centerToUser = function(){
-  if (!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
+  if(!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
-    if (map) map.setView([userLocation.lat, userLocation.lng], 15);
+    if(map){map.setView([userLocation.lat,userLocation.lng],16);showCurrentLocationMarker(userLocation.lat,userLocation.lng);}
     showToast('📍 ตำแหน่งของคุณ');
-  }, function(){ showToast('ไม่สามารถเข้าถึง GPS','error'); });
-};
-window.clearDestination = function(){
-  if (destinationMarker && map) { map.removeLayer(destinationMarker); destinationMarker = null; }
-};
-window.showAllPlacesOnMap = function(){
-  if (!map || typeof L === 'undefined') return;
-  mapMarkers.forEach(function(m){ map.removeLayer(m); });
-  mapMarkers = [];
-  var places = PLACES.slice(0,50);
-  places.forEach(function(p){
-    var marker = L.marker([p.lat,p.lng]).addTo(map);
-    marker.bindPopup('<b>'+esc(p.name)+'</b>');
-    mapMarkers.push(marker);
-  });
-  if (places.length) map.fitBounds(mapMarkers.map(function(m){return m.getLatLng();}), {padding:[50,50]});
-  showToast('📌 แสดง '+places.length+' สถานที่');
+  }, function(){showToast('ไม่สามารถเข้าถึง GPS','error');},{enableHighAccuracy:true,timeout:10000});
 };
 
-/* ═══ ORDER FORM ═══ */
-window.openTravelView = function(){ openOrderForm('ride'); };
-window.openOrderForm = function(type, dest){
-  var titles = {express:'📦 ส่งด่วน', ride:'🚗 เรียกรถ', food:'🍽️ สั่งอาหาร', shopping:'🛒 สั่งของ'};
-  var destInfo = dest ? '📍 '+dest.lat.toFixed(4)+', '+dest.lng.toFixed(4) : '';
+window.clearMap = function(){
+  if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;}
+  if(destinationCircle){map.removeLayer(destinationCircle);destinationCircle=null;}
+  selectedDestination = null;
+  var banner = $('pick-banner');
+  if(banner) banner.style.display='none';
+  updateConfirmBtnState();
+  showToast('🗑️ ล้างหมุดแล้ว');
+};
+
+window.confirmMapLocation = function(){
+  if(!selectedDestination) return showToast('เลือกตำแหน่งก่อน','warning');
+  debugLog('📍 ยืนยัน: '+selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4));
+  closeMapPage();
+  setTimeout(function(){openVehicleModal();},300);
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   VEHICLE
+   ═══════════════════════════════════════════════════════════════ */
+window.openVehicleModal = function(){
+  selectedVehicle = null;
+  document.querySelectorAll('.vehicle-option').forEach(function(o){o.classList.remove('selected');});
+  document.querySelectorAll('.vehicle-check').forEach(function(c){c.textContent='';});
+  if($('vehicle-modal')) $('vehicle-modal').classList.add('show');
+};
+
+window.closeVehicleModal = function(){if($('vehicle-modal')) $('vehicle-modal').classList.remove('show');};
+
+window.selectVehicle = function(el){
+  document.querySelectorAll('.vehicle-option').forEach(function(o){o.classList.remove('selected');});
+  document.querySelectorAll('.vehicle-check').forEach(function(c){c.textContent='';});
+
+  el.classList.add('selected');
+  var check = el.querySelector('.vehicle-check');
+  if(check) check.textContent = '✓';
+
+  selectedVehicle = {type:el.dataset.vehicle, price:parseInt(el.dataset.price)};
+  debugLog('🚗 เลือก: '+selectedVehicle.type+' ฿'+selectedVehicle.price);
+
+  setTimeout(function(){
+    closeVehicleModal();
+    openRideOrderForm(selectedVehicle);
+  }, 400);
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   ORDER FORM
+   ═══════════════════════════════════════════════════════════════ */
+window.openTravelView = function(){openMapPage();};
+
+window.openRideOrderForm = function(vehicle){
+  var vehicleNames = {motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'};
+  var vehicleName = vehicleNames[vehicle.type]||'รถ';
+
   $('modal-body').innerHTML =
-    '<h2 style="font-size:20px;text-align:center;margin-bottom:16px">'+(titles[type]||'📦 บริการ')+'</h2>' +
+    '<div style="text-align:center;margin-bottom:16px">' +
+    '<div style="font-size:44px;margin-bottom:8px">'+vehicleName.split(' ')[0]+'</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+vehicleName+'</h2>' +
+    '<div style="color:var(--green);font-weight:900;font-size:24px;margin-top:8px">฿'+vehicle.price+'</div>' +
+    '<div style="font-size:12px;color:var(--text-light);font-weight:600">ราคาเริ่มต้น</div>' +
+    '</div>' +
+    '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน')+'"></div>' +
+    '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'')+'"></div>' +
+    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2" placeholder="เช่น มีสัมภาระ 2 ใบ"></textarea></div>' +
+    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc((userProfile&&userProfile.phone)||'')+'"></div>' +
+    '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
+  openModal();
+};
+
+window.submitRideOrder = async function(){
+  if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
+  if(!selectedDestination) return showToast('ไม่มีตำแหน่งปลายทาง','error');
+  if(!selectedVehicle) return showToast('ไม่ได้เลือกรถ','error');
+  var from = $('order-from').value.trim();
+  var to = $('order-to').value.trim();
+  if(!from||!to) return showToast('กรอกจุดรับ-ปลายทาง','error');
+
+  try{
+    await db.collection('orders').add({
+      type:'ride',
+      vehicle:selectedVehicle.type,
+      vehicleName:({motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'})[selectedVehicle.type],
+      userId:currentUser.uid,
+      userName:(userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
+      userPhone:$('order-phone').value.trim(),
+      title:'🚗 เรียกรถ: '+selectedVehicle.type,
+      from:from, to:to, address:to,
+      note:$('order-note').value.trim(),
+      lat:selectedDestination.lat,
+      lng:selectedDestination.lng,
+      status:'searching',
+      fare:selectedVehicle.price,
+      total:selectedVehicle.price,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ เรียกรถแล้ว รอไรเดอร์รับงาน');
+    closeModal();
+    selectedDestination = null;
+    selectedVehicle = null;
+    if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;}
+    if(destinationCircle){map.removeLayer(destinationCircle);destinationCircle=null;}
+    if($('pick-banner')) $('pick-banner').style.display='none';
+    updateConfirmBtnState();
+    switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+  }catch(e){
+    debugLog('❌ Order: '+e.message,true);
+    showToast('ส่งไม่สำเร็จ','error');
+  }
+};
+
+window.openOrderForm = function(type, dest){
+  var titles = {express:'📦 ส่งด่วน',ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'};
+  var destInfo = dest ? dest.lat.toFixed(4)+', '+dest.lng.toFixed(4) : (selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'');
+  $('modal-body').innerHTML =
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">'+(titles[type]||'📦').split(' ')[0]+'</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+(titles[type]||'📦 บริการ')+'</h2></div>' +
     '<div class="form-group"><label>📍 ต้นทาง</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'')+'"></div>' +
     '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(destInfo)+'"></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2"></textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc((userProfile&&userProfile.phone)||'')+'"></div>' +
-    '<button class="btn-full btn-green" onclick="submitOrder(\''+esc(type)+'\')">✅ ยืนยัน</button>' +
-    '<button class="btn-full btn-gray" onclick="closeModal()">ยกเลิก</button>';
+    '<button class="btn-full btn-green press-scale" onclick="submitOrder(\''+esc(type)+'\')">✅ ยืนยัน</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
 };
 
 window.submitOrder = async function(type){
-  if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ','warning'); }
+  if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
-  if (!from || !to) return showToast('กรอกต้นทาง-ปลายทาง','error');
-  try {
+  if(!from||!to) return showToast('กรอกต้นทาง-ปลายทาง','error');
+  try{
     await db.collection('orders').add({
       type:type, userId:currentUser.uid,
       userName:(userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
@@ -1056,61 +1794,67 @@ window.submitOrder = async function(type){
     });
     showToast('✅ ส่งออเดอร์แล้ว');
     closeModal();
-  } catch(e) { showToast('ส่งไม่สำเร็จ','error'); }
+    switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+  }catch(e){showToast('ส่งไม่สำเร็จ','error');}
 };
 
-/* ═══ TABS ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   TABS
+   ═══════════════════════════════════════════════════════════════ */
 window.switchTab = function(tab, el){
-  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
-  if (el) el.classList.add('active');
-  if ($('tab-home')) $('tab-home').style.display = tab==='home'?'block':'none';
-  if ($('tab-orders')) $('tab-orders').style.display = tab==='orders'?'block':'none';
-  if ($('tab-messages')) $('tab-messages').style.display = tab==='messages'?'block':'none';
-  if (tab==='orders' && currentUser) subscribeUserOrders();
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  if(el) el.classList.add('active');
+  if($('tab-home')) $('tab-home').style.display = tab==='home'?'block':'none';
+  if($('tab-orders')) $('tab-orders').style.display = tab==='orders'?'block':'none';
+  if($('tab-messages')) $('tab-messages').style.display = tab==='messages'?'block':'none';
+  if(tab==='orders' && currentUser) subscribeUserOrders();
   window.scrollTo(0,0);
 };
 
 function subscribeUserOrders(){
-  if (!currentUser || !db) return;
-  if (unsubOrders) unsubOrders();
+  if(!currentUser || !db) return;
+  if(unsubOrders) unsubOrders();
   unsubOrders = db.collection('orders').where('userId','==',currentUser.uid).limit(50).onSnapshot(function(snap){
     var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
     all.sort(function(a,b){return (b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
     var active = all.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)===-1;});
     var done = all.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)!==-1;});
-    if ($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
-    if ($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
-    if ($('empty-orders')) $('empty-orders').style.display = all.length===0?'block':'none';
+    if($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
+    if($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
+    if($('empty-orders')) $('empty-orders').style.display = all.length===0?'block':'none';
   });
 }
 
 function renderOrderCard(o){
   var statusMap = {searching:'⏳ หาไรเดอร์',pending:'🔔 รอรับ',accepted:'🛵 ไรเดอร์รับ',cooking:'🍳 กำลังทำ',picked_up:'📦 รับของ',on_the_way:'🚀 กำลังส่ง',done:'✅ สำเร็จ',delivered:'✅ สำเร็จ',cancelled:'❌ ยกเลิก'};
   var color = o.status==='cancelled'?'#999':(['done','delivered'].indexOf(o.status)!==-1?'#00A651':'#FF6B35');
-  return '<div style="background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;border-left:4px solid '+color+'">' +
+  return '<div style="background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px;border-left:4px solid '+color+';animation:cardSlideIn .3s">' +
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px">' +
-    '<div style="font-weight:900;font-size:13px">'+esc(o.title||'ออเดอร์')+'</div>' +
+    '<div style="font-weight:900;font-size:13px;color:var(--text)">'+esc(o.title||'ออเดอร์')+'</div>' +
     '<div style="font-size:16px;font-weight:900;color:'+color+'">'+fmt(o.total||o.fare||0)+'฿</div></div>' +
-    '<div style="font-size:11px;color:#666;font-weight:700">'+(statusMap[o.status]||o.status)+'</div></div>';
+    '<div style="font-size:11px;color:var(--text-muted);font-weight:700">'+(statusMap[o.status]||o.status)+'</div></div>';
 }
 
-window.openChat = function(){ if(!currentUser) return showLoginModal(); showToast('💬 เปิดแชท'); };
+window.openChat = function(){if(!currentUser) return showLoginModal();showToast('💬 เปิดแชท');};
 
-/* ═══ CART ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   CART
+   ═══════════════════════════════════════════════════════════════ */
 window.openCart = function(){
-  if (!cart.length) return;
+  if(!cart.length) return;
   var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
   $('modal-body').innerHTML =
-    '<h2 style="font-size:20px;text-align:center;margin-bottom:16px">🛒 ตะกร้า</h2>' +
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">🛒</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">ตะกร้าของคุณ</h2></div>' +
     cart.map(function(c){
-      return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eee">' +
-        '<div><div style="font-weight:900">'+esc(c.menuName)+'</div>' +
-        '<div style="font-size:12px;color:#666">×'+c.qty+'</div></div>' +
-        '<div style="font-weight:900;color:#00A651">'+fmt(c.price*c.qty)+'฿</div></div>';
+      return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">' +
+        '<div><div style="font-weight:900;color:var(--text)">'+esc(c.menuName)+'</div>' +
+        '<div style="font-size:12px;color:var(--text-muted)">×'+c.qty+'</div></div>' +
+        '<div style="font-weight:900;color:var(--green)">'+fmt(c.price*c.qty)+'฿</div></div>';
     }).join('') +
-    '<div style="display:flex;justify-content:space-between;padding:14px 0;font-size:18px;font-weight:900"><span>รวม</span><span style="color:#00A651">'+fmt(total)+'฿</span></div>' +
-    '<button class="btn-full btn-gray" onclick="clearCart()">🗑️ ล้างตะกร้า</button>' +
-    '<button class="btn-full btn-gray" onclick="closeModal()">ปิด</button>';
+    '<div style="display:flex;justify-content:space-between;padding:14px 0;font-size:18px;font-weight:900"><span>รวม</span><span style="color:var(--green)">'+fmt(total)+'฿</span></div>' +
+    '<button class="btn-full btn-gray press-scale" onclick="clearCart()">🗑️ ล้างตะกร้า</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
   openModal();
 };
 
@@ -1123,129 +1867,153 @@ window.clearCart = function(){
 };
 
 function updateCartBar(){
-  var bar = $('cart-bar'); if (!bar) return;
-  if (!cart.length) { bar.classList.remove('show'); return; }
+  var bar = $('cart-bar'); if(!bar) return;
+  if(!cart.length){bar.classList.remove('show');return;}
   bar.classList.add('show');
   var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
   var count = cart.reduce(function(s,c){return s+c.qty;},0);
-  if ($('cart-count')) $('cart-count').textContent = count;
-  if ($('cart-total')) $('cart-total').textContent = fmt(total)+'฿';
-  if ($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
+  if($('cart-count')) $('cart-count').textContent = count;
+  if($('cart-total')) $('cart-total').textContent = fmt(total)+'฿';
+  if($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
 }
 
-/* ═══ MODAL ═══ */
-window.openModal = function(){ if($('modal')) $('modal').classList.add('show'); };
+/* ═══════════════════════════════════════════════════════════════
+   MODAL
+   ═══════════════════════════════════════════════════════════════ */
+window.openModal = function(){if($('modal')) $('modal').classList.add('show');};
 window.closeModal = function(){
-  if ($('modal')) $('modal').classList.remove('show');
-  if ($('modal-body')) $('modal-body').innerHTML = '';
+  if($('modal')) $('modal').classList.remove('show');
+  if($('modal-body')) $('modal-body').innerHTML = '';
 };
 
-window.openLightbox = function(src){ if($('lightbox-img')) $('lightbox-img').src=src; if($('img-lightbox')) $('img-lightbox').classList.add('show'); };
-window.closeLightbox = function(){ if($('img-lightbox')) $('img-lightbox').classList.remove('show'); };
+window.openLightbox = function(src){if($('lightbox-img')) $('lightbox-img').src=src;if($('img-lightbox')) $('img-lightbox').classList.add('show');};
+window.closeLightbox = function(){if($('img-lightbox')) $('img-lightbox').classList.remove('show');};
 
-/* ═══ NETWORK & PWA ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   NETWORK & PWA
+   ═══════════════════════════════════════════════════════════════ */
 function setupNetwork(){
-  window.addEventListener('online', function(){ if($('offline-banner')) $('offline-banner').classList.remove('show'); showToast('🟢 กลับมาออนไลน์'); });
-  window.addEventListener('offline', function(){ if($('offline-banner')) $('offline-banner').classList.add('show'); });
-  if (!navigator.onLine && $('offline-banner')) $('offline-banner').classList.add('show');
+  window.addEventListener('online',function(){if($('offline-banner')) $('offline-banner').classList.remove('show');showToast('🟢 กลับมาออนไลน์');});
+  window.addEventListener('offline',function(){if($('offline-banner')) $('offline-banner').classList.add('show');});
+  if(!navigator.onLine && $('offline-banner')) $('offline-banner').classList.add('show');
 }
 
 function setupPWA(){
-  window.addEventListener('beforeinstallprompt', function(e){
+  window.addEventListener('beforeinstallprompt',function(e){
     e.preventDefault();
     deferredPrompt = e;
-    if (!localStorage.getItem('chauat_pwa_dismissed') && $('pwa-install-banner')) $('pwa-install-banner').classList.remove('hidden');
+    if(!localStorage.getItem('chauat_pwa_dismissed') && $('pwa-install-banner')) $('pwa-install-banner').classList.remove('hidden');
   });
 }
 
 window.installPWA = async function(){
-  if (deferredPrompt) {
+  if(deferredPrompt){
     deferredPrompt.prompt();
     var r = await deferredPrompt.userChoice;
-    if (r.outcome==='accepted') { showToast('✅ ติดตั้งสำเร็จ'); if($('pwa-install-banner')) $('pwa-install-banner').classList.add('hidden'); }
+    if(r.outcome==='accepted'){showToast('✅ ติดตั้งสำเร็จ');if($('pwa-install-banner')) $('pwa-install-banner').classList.add('hidden');}
     deferredPrompt = null;
-  } else { showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก','info'); }
+  } else {showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก','info');}
 };
 
 window.dismissPWA = function(){
-  if ($('pwa-install-banner')) $('pwa-install-banner').classList.add('hidden');
+  if($('pwa-install-banner')) $('pwa-install-banner').classList.add('hidden');
   localStorage.setItem('chauat_pwa_dismissed','1');
 };
 
-/* ═══ PDPA ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   PDPA
+   ═══════════════════════════════════════════════════════════════ */
 function checkPDPA(){
-  if (!localStorage.getItem('chauat_pdpa_accepted')) {
-    if ($('pdpa-overlay')) $('pdpa-overlay').classList.remove('hidden');
+  if(!localStorage.getItem('chauat_pdpa_accepted')){
+    if($('pdpa-overlay')) $('pdpa-overlay').classList.remove('hidden');
   } else {
     setTimeout(checkLocationPopup, 1500);
   }
 }
 window.acceptPDPA = function(){
   localStorage.setItem('chauat_pdpa_accepted','1');
-  if ($('pdpa-overlay')) $('pdpa-overlay').classList.add('hidden');
+  if($('pdpa-overlay')) $('pdpa-overlay').classList.add('hidden');
   setTimeout(checkLocationPopup, 500);
 };
 window.checkLocationPopup = function(){
-  if (!localStorage.getItem('chauat_location_asked') && $('loc-popup-overlay')) $('loc-popup-overlay').classList.remove('hidden');
+  if(!localStorage.getItem('chauat_location_asked') && $('loc-popup-overlay')) $('loc-popup-overlay').classList.remove('hidden');
 };
 window.requestLocation = function(){
   localStorage.setItem('chauat_location_asked','1');
-  if ($('loc-popup-overlay')) $('loc-popup-overlay').classList.add('hidden');
-  if (!navigator.geolocation) return;
+  if($('loc-popup-overlay')) $('loc-popup-overlay').classList.add('hidden');
+  if(!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
     showToast('📍 เปิด GPS แล้ว');
-  }, function(){ showToast('ไม่สามารถเข้าถึง GPS','error'); });
+  }, function(){showToast('ไม่สามารถเข้าถึง GPS','error');});
 };
 window.skipLocation = function(){
   localStorage.setItem('chauat_location_asked','1');
-  if ($('loc-popup-overlay')) $('loc-popup-overlay').classList.add('hidden');
+  if($('loc-popup-overlay')) $('loc-popup-overlay').classList.add('hidden');
 };
 
-/* ═══ PLACE DETAIL ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   PLACE DETAIL
+   ═══════════════════════════════════════════════════════════════ */
 window.showPlaceDetail = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
-  if (!p) return;
+  if(!p) return;
   var cat = CATS[p.category]||{name:'',icon:'📍'};
   var hasImg = hasRealImage(p.image);
   var distance = userLocation ? fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
   $('modal-body').innerHTML =
     (hasImg?'<img src="'+esc(p.image)+'" style="width:100%;border-radius:14px;margin-bottom:14px;max-height:200px;object-fit:cover" onerror="this.style.display=\'none\'">':'') +
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:48px;margin-bottom:8px">'+cat.icon+'</div>' +
-    '<h2 style="font-size:20px;font-weight:900">'+esc(p.name)+'</h2>' +
-    '<div style="font-size:12px;color:#666;margin-top:6px">'+cat.name+(p.rating?' • ⭐ '+p.rating:'')+(distance?' • 📍 '+distance:'')+'</div>' +
-    (p.price?'<div style="margin-top:6px;color:#00A651;font-weight:900">'+esc(p.price)+'</div>':'')+'</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">'+esc(p.name)+'</h2>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:6px">'+cat.name+(p.rating?' • ⭐ '+p.rating:'')+(distance?' • 📍 '+distance:'')+'</div>' +
+    (p.price?'<div style="margin-top:6px;color:var(--green);font-weight:900">'+esc(p.price)+'</div>':'')+'</div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">' +
-    '<button class="btn-full btn-green" onclick="window.open(\'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng+'\',\'_blank\')">🧭 นำทาง</button>' +
-    '<button class="btn-full btn-gray" onclick="closeModal()">ปิด</button></div>';
+    '<button class="btn-full btn-green press-scale" onclick="setDestFromPlace(\''+esc(p.id)+'\')">🎯 ตั้งปลายทาง</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="window.open(\'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng+'\',\'_blank\')">🧭 นำทาง</button>' +
+    '</div>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
   openModal();
 };
 
-/* ═══ GLOBAL CLICK ═══ */
+window.setDestFromPlace = function(placeId){
+  var p = PLACES.find(function(x){return x.id===placeId;});
+  if(!p) return;
+  closeModal();
+  openMapPage();
+  setTimeout(function(){
+    if(map){
+      map.setView([p.lat, p.lng], 17);
+      setDestination(p.lat, p.lng, true);
+    }
+  }, 500);
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOBAL CLICK
+   ═══════════════════════════════════════════════════════════════ */
 function globalClickHandler(e){
   var pc = e.target.closest('[data-place-id]');
-  if (pc && pc.dataset.placeId) { showPlaceDetail(pc.dataset.placeId); return; }
+  if(pc && pc.dataset.placeId){showPlaceDetail(pc.dataset.placeId);return;}
   var mc = e.target.closest('[data-merchant-id]');
-  if (mc && mc.dataset.merchantId) { openMerchantDetail(mc.dataset.merchantId); return; }
-  if (!e.target.closest('.search-bar') && !e.target.closest('.search-results')) {
+  if(mc && mc.dataset.merchantId){openMerchantDetail(mc.dataset.merchantId);return;}
+  if(!e.target.closest('.search-bar') && !e.target.closest('.search-results')){
     var sr = $('search-results');
-    if (sr) { sr.classList.remove('show'); sr.style.display = 'none'; }
+    if(sr){sr.classList.remove('show');sr.style.display='none';}
   }
   var btn = e.target.closest('button, .food-card, .menu-item, .nav-item');
-  if (btn && navigator.vibrate) navigator.vibrate(10);
+  if(btn && navigator.vibrate) navigator.vibrate(10);
 }
 
-/* ═══ SERVICE WORKER ═══ */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'})
-      .then(function(reg){ reg.update(); setInterval(function(){reg.update();}, 60000); })
-      .catch(function(err){ console.warn('[SW]',err); });
+/* ═══════════════════════════════════════════════════════════════
+   SERVICE WORKER
+   ═══════════════════════════════════════════════════════════════ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'})
+      .then(function(reg){reg.update();setInterval(function(){reg.update();},60000);})
+      .catch(function(err){console.warn('[SW]',err);});
   });
 }
 
-console.log('%c🛵 Chauat Go v3.3.3', 'color:#76B82A;font-weight:900;font-size:16px');
-</script>
-
-</body>
-</html>
+console.log('%c🛵 Chauat Go v3.4.0 — Ultimate Edition','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ Splash | ✓ Dark Mode | ✓ Animations | ✓ All Features','color:#00A651;font-weight:700');
