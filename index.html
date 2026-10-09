@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.5</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.6</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,10 +13,9 @@
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.5-20241009-001';
+  var VERSION = 'v3.4.6-20241009-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -53,7 +52,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.5 — FOOD TABS + EXPRESS MAP PICKER
+   CHAUAT GO v3.4.6 — SHOPPING PLACES + MAP PICKER FIX
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -159,9 +158,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-card-name { font-weight: 900; font-size: 14px; color: var(--text); }
 .merchant-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 600; }
 
-/* ═══════════════════════════════════════════════════════════════
-   v3.4.5: MERCHANT 3-TABS
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ MERCHANT 3-TABS ═══ */
 .merchant-tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .m-tab { flex: 1; padding: 10px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; font-family: inherit; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; transition: all .15s; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .m-tab:active { transform: scale(.95); }
@@ -171,9 +168,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 [data-theme="dark"] .merchant-badge { background: #3F2F1F; color: #FFB74D; }
 .merchant-distance { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 800; color: var(--text-muted); margin-top: 3px; }
 
-/* ═══════════════════════════════════════════════════════════════
-   v3.4.5: EXPRESS FORM
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ EXPRESS FORM ═══ */
 .exp-picker-row { display: flex; gap: 8px; margin-top: 6px; }
 .exp-pick-btn { flex: 1; padding: 10px 8px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 900; cursor: pointer; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all .15s; }
 .exp-pick-btn:active { transform: scale(.96); }
@@ -186,10 +181,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .sug-chip { padding: 8px 12px; border-radius: 12px; white-space: nowrap; background: var(--surface-2); border: 1px solid var(--border); font-size: 11px; font-weight: 800; color: var(--text); cursor: pointer; font-family: inherit; }
 .sug-chip:active { transform: scale(.95); background: var(--brand-light); }
 
-/* ═══════════════════════════════════════════════════════════════
-   v3.4.5: MAP PICKER OVERLAY
-   ═══════════════════════════════════════════════════════════════ */
-#map-picker { position: fixed; inset: 0; background: var(--bg); z-index: 8600; display: none; flex-direction: column; }
+/* ═══ MAP PICKER ═══ */
+#map-picker { position: fixed; inset: 0; background: var(--bg); z-index: 9600; display: none; flex-direction: column; }
 #map-picker.show { display: flex !important; animation: fadeIn .2s; }
 #map-picker-map { flex: 1; width: 100%; z-index: 1; }
 .map-picker-header { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
@@ -208,6 +201,25 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .map-picker-coord { font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 10px; text-align: center; }
 .map-picker-confirm { width: 100%; padding: 14px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
 .map-picker-confirm:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.4.6: SHOPPING VIEW
+   ═══════════════════════════════════════════════════════════════ */
+.place-card-shop { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface); border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; animation: cardSlideIn .3s backwards; }
+.place-card-shop:active { transform: scale(.98); }
+.place-card-shop-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; background: #E3F2FD; }
+[data-theme="dark"] .place-card-shop-icon { background: #1F2F3F; }
+.place-card-shop-info { flex: 1; min-width: 0; }
+.place-card-shop-name { font-weight: 900; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.place-card-shop-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-weight: 700; display: flex; gap: 8px; flex-wrap: wrap; }
+.place-card-shop-meta .dist { color: var(--green); }
+.place-card-shop-btn { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; font-family: inherit; cursor: pointer; flex-shrink: 0; white-space: nowrap; }
+
+.shop-items-input { width: 100%; padding: 14px 16px; border: 2px solid var(--border); border-radius: 14px; font-size: 14px; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); outline: none; resize: vertical; min-height: 100px; line-height: 1.6; }
+.shop-items-input:focus { border-color: var(--green); background: var(--surface); }
+.shop-quick-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.shop-quick-chip { padding: 6px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); font-size: 11px; font-weight: 800; color: var(--text); cursor: pointer; font-family: inherit; }
+.shop-quick-chip:active { transform: scale(.95); background: var(--brand-light); }
 
 /* ═══ HOME ═══ */
 #home-content { padding: 14px; }
@@ -412,50 +424,37 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 /* ═══ PRESS EFFECT ═══ */
 .press-scale { transition: transform .12s; }
 .press-scale:active { transform: scale(.95); }
-
-/* ═══ FLOATING ANIMATION ═══ */
 .float-anim { animation: floatUp 3s ease-in-out infinite; }
 
-/* ═══════════════════════════════════════════════════════════════
-   RATING SYSTEM
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ RATING ═══ */
 .rating-star { color: #ddd; transition: color .15s, transform .15s; user-select: none; -webkit-tap-highlight-color: transparent; }
 .rating-star.active { color: #FFC107; }
 .rating-star:active { transform: scale(1.2); }
 [data-theme="dark"] .rating-star { color: #444; }
 [data-theme="dark"] .rating-star.active { color: #FFC107; }
-
 .rating-inline { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; color: var(--text-muted); }
 .rating-inline .star { color: #FFC107; }
-
 .rate-btn { margin-top: 8px; padding: 8px 14px; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; background: linear-gradient(135deg, #FFC107, #FFA000); color: #fff; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(255,193,7,.3); transition: transform .15s; }
 .rate-btn:active { transform: scale(.95); }
 
-/* ═══════════════════════════════════════════════════════════════
-   CHAT SYSTEM
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ CHAT ═══ */
 #chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 8500; display: none; flex-direction: column; }
 #chat-page.show { display: flex !important; animation: fadeIn .2s; }
-
 .chat-header { background: var(--header-grad); color: #fff; padding: 14px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); flex-shrink: 0; }
 .chat-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
 .chat-header-name { font-size: 15px; font-weight: 900; }
 .chat-header-sub { font-size: 11px; opacity: .85; font-weight: 700; margin-top: 2px; }
 .chat-online-dot { width: 10px; height: 10px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 3px rgba(74,222,128,.3); flex-shrink: 0; }
-
 .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
 .chat-empty { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 13px; font-weight: 700; }
-
 .chat-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; font-weight: 600; line-height: 1.4; word-break: break-word; animation: popIn .2s; }
 .chat-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-bottom-right-radius: 6px; }
 .chat-bubble.theirs { align-self: flex-start; background: var(--surface); color: var(--text); border-bottom-left-radius: 6px; box-shadow: var(--shadow-sm); }
 .chat-bubble-meta { font-size: 10px; font-weight: 700; opacity: .7; margin-top: 4px; }
-
 .chat-input-bar { display: flex; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
 .chat-input-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); }
 .chat-input-bar input:focus { border-color: var(--green); }
 .chat-send-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer; font-family: inherit; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,166,81,.3); display: flex; align-items: center; justify-content: center; }
-
 .chat-list-item { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface); border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; }
 .chat-list-item:active { transform: scale(.98); }
 .chat-list-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--header-grad); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
@@ -474,7 +473,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 </head>
 <body>
 
-<!-- ═══ SPLASH SCREEN ═══ -->
+<!-- ═══ SPLASH ═══ -->
 <div id="splash-screen">
   <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go" onerror="this.style.background='linear-gradient(135deg,#76B82A,#5A8E1F)';this.style.display='flex'">
   <div class="splash-title">Chauat Go</div>
@@ -483,7 +482,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
 
-<!-- ═══ THEME TOGGLE FAB ═══ -->
+<!-- ═══ THEME FAB ═══ -->
 <button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
 <!-- ═══ PWA BANNER ═══ -->
@@ -621,7 +620,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ═══ v3.4.5: MAP PICKER (origin / destination) ═══ -->
+<!-- 🗺️ MAP PICKER (v3.4.6) -->
 <div id="map-picker">
   <div class="map-picker-header">
     <button class="map-picker-back press-scale" onclick="closeMapPicker()">← กลับ</button>
@@ -658,7 +657,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <input type="text" id="search-input" placeholder="ค้นหาจาก 490+ สถานที่...">
     </div>
     <div class="profile-avatar press-scale" onclick="openProfileSheet()">
-      <span id="profile-avatar-emoji">👤</span>
+      <span id="profile-avatar-emoji">🧑</span>
     </div>
   </div>
 </div>
@@ -694,13 +693,12 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <button class="m-tab" data-mtab="cart" onclick="switchMerchantTab('cart')">🛒 ตะกร้า</button>
     </div>
 
-    <!-- Category chips (shopping only) -->
+    <!-- Category chips (shopping only) — v3.4.6 -->
     <div class="merchant-filter-bar" id="merchant-filter-bar" style="display:none">
       <button class="m-filter-chip active" onclick="filterMerchantCat('all',this)">🏪 ทั้งหมด</button>
-      <button class="m-filter-chip" onclick="filterMerchantCat('convenience',this)">🏪 สะดวกซื้อ</button>
-      <button class="m-filter-chip" onclick="filterMerchantCat('market',this)">🛒 ตลาด</button>
-      <button class="m-filter-chip" onclick="filterMerchantCat('shop',this)">🏬 ร้านค้า</button>
-      <button class="m-filter-chip" onclick="filterMerchantCat('other',this)">📦 อื่นๆ</button>
+      <button class="m-filter-chip" onclick="filterMerchantCat('c',this)">🏪 สะดวกซื้อ</button>
+      <button class="m-filter-chip" onclick="filterMerchantCat('m',this)">🛒 ตลาด</button>
+      <button class="m-filter-chip" onclick="filterMerchantCat('s',this)">🏬 ร้านค้า</button>
     </div>
 
     <div class="merchant-list" id="merchant-list">
@@ -787,7 +785,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 💬 MESSAGES TAB — Chat list -->
+<!-- 💬 MESSAGES TAB -->
 <div class="messages-tab" id="tab-messages" style="display:none">
   <div class="order-section-title">💬 แชทของฉัน</div>
   <div id="chat-list"></div>
@@ -829,7 +827,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div id="pf-logged-in" style="display:none">
         <div class="pf-user-info">
-          <div class="pf-avatar-big">👤</div>
+          <div class="pf-avatar-big">🧑</div>
           <div>
             <div class="pf-name" id="pf-name">—</div>
             <div class="pf-email" id="pf-email">—</div>
@@ -858,7 +856,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.4.5 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.4.6 • © 2024</div>
       </div>
     </div>
   </div>
@@ -872,7 +870,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.5 — FOOD TABS + EXPRESS MAP PICKER
+   CHAUAT GO v3.4.6 — SHOPPING PLACES + MAP PICKER FIX
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -901,6 +899,8 @@ var currentMerchantFilter = 'all';
 var currentMerchantSearch = '';
 var merchantMode = 'food';
 var merchantTab = 'popular';
+var shopSearchTimer = null;
+var currentShopSearch = '';
 var cart = [];
 try { cart = JSON.parse(localStorage.getItem('chauat_cart') || '[]'); } catch(e) { cart = []; }
 var cartShop = localStorage.getItem('chauat_cart_shop') || '';
@@ -937,6 +937,9 @@ var mapPickerCircle = null;
 var mapPickerValue = null;
 var mapPickerSearchTimer = null;
 
+/* 🛍️ Shopping state */
+var _shoppingPlacesCache = [];
+
 var CATS = {
   r:{name:'ร้านอาหาร',icon:'🍽️'}, f:{name:'คาเฟ่',icon:'☕'},
   c:{name:'สะดวกซื้อ',icon:'🏪'}, m:{name:'ตลาด',icon:'🛒'},
@@ -971,6 +974,21 @@ function haversine(lat1,lng1,lat2,lng2){
 }
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
+
+/* ═══════════════════════════════════════════════════════════════
+   AVATAR EMOJI (v3.4.6)
+   ═══════════════════════════════════════════════════════════════ */
+function getAvatarEmoji(name){
+  if (!name) return '🧑';
+  var n = String(name).toLowerCase().trim();
+  if (n.indexOf('นางสาว') === 0 || n.indexOf('น.ส.') === 0) return '👩';
+  if (n.indexOf('นาง') === 0) return '👩';
+  if (n.indexOf('นาย') === 0) return '👨';
+  var hash = 0;
+  for (var i = 0; i < n.length; i++) hash = (hash * 31 + n.charCodeAt(i)) | 0;
+  var emojis = ['👩','👨','🧑','👧','👦'];
+  return emojis[Math.abs(hash) % emojis.length];
+}
 
 /* ═══════════════════════════════════════════════════════════════
    SPLASH
@@ -1098,7 +1116,7 @@ function countUp(el, target, duration){
    INIT
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function(){
-  debugLog('🚀 Chauat Go v3.4.5');
+  debugLog('🚀 Chauat Go v3.4.6');
   initTheme();
   runSplash();
   loadPlaces();
@@ -1177,11 +1195,12 @@ function initAuth(){
         userProfile = snap.exists ? Object.assign({uid:user.uid},snap.data()) : null;
         window.userProfile = userProfile;
       }catch(e){}
-      if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent='✅';
+      var avName = (userProfile && userProfile.name) || user.displayName || '';
+      if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = getAvatarEmoji(avName);
     } else {
       debugLog('⛔ ยังไม่ได้ล็อกอิน');
       userProfile = null; window.userProfile = null;
-      if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent='👤';
+      if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = '🧑';
     }
   });
 }
@@ -1271,6 +1290,12 @@ window.openProfileSheet = function(){
     var phone = (userProfile&&userProfile.phone)||'—';
     var lineId = (userProfile&&userProfile.lineId)||'—';
     var addr = (userProfile&&userProfile.address)||'—';
+
+    var avatarEmoji = getAvatarEmoji(name);
+    var bigAvatar = document.querySelector('.pf-avatar-big');
+    if (bigAvatar) bigAvatar.textContent = avatarEmoji;
+    if ($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = avatarEmoji;
+
     if($('pf-name')) $('pf-name').textContent = name;
     if($('pf-email')) $('pf-email').textContent = email;
     if($('pf-email-val')) $('pf-email-val').textContent = email;
@@ -1360,7 +1385,7 @@ window.doSearch = function(q){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MERCHANT VIEW — 3 TABS (v3.4.5)
+   MERCHANT VIEW
    ═══════════════════════════════════════════════════════════════ */
 window.openMerchantView = async function(type){
   debugLog('🏪 Merchant View: '+type);
@@ -1372,7 +1397,7 @@ window.openMerchantView = async function(type){
   if($('merchant-view')) $('merchant-view').classList.add('show');
 
   var titleEl = $('merchant-view-title');
-  if (titleEl) titleEl.textContent = merchantMode==='food' ? '🍽️ เลือกร้านอาหาร' : '🛒 เลือกร้านค้า';
+  if (titleEl) titleEl.textContent = merchantMode==='food' ? '🍽️ เลือกร้านอาหาร' : '🛒 เลือกสถานที่ฝากซื้อ';
 
   if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantMode==='food' ? 'flex' : 'none';
   if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = merchantMode==='shopping' ? 'flex' : 'none';
@@ -1385,25 +1410,29 @@ window.openMerchantView = async function(type){
     currentMerchantFilter = 'all';
   } else {
     currentMerchantFilter = 'all';
-    document.querySelectorAll('.m-filter-chip').forEach(function(c){c.classList.remove('active');});
+    currentShopSearch = '';
+    if ($('merchant-search-input')) {
+      $('merchant-search-input').value = '';
+      $('merchant-search-input').placeholder = 'ค้นหาสถานที่...';
+    }
+    document.querySelectorAll('#merchant-filter-bar .m-filter-chip').forEach(function(c){c.classList.remove('active');});
     var first = document.querySelector('#merchant-filter-bar .m-filter-chip');
     if (first) first.classList.add('active');
+    bindShopSearch();
   }
 
   var list = $('merchant-list'); if(!list) return;
-  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านค้า...</div>';
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลด...</div>';
+
+  if (merchantMode === 'shopping') {
+    renderShoppingPlaces();
+    return;
+  }
 
   try{
     var snap = await db.collection('merchants').where('verified','==',true).get();
     var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
-
-    if (merchantMode === 'shopping') {
-      var EXCLUDED = ['restaurant','cafe','temple','school','government','tourist','hotel','hospital'];
-      all = all.filter(function(m){ return EXCLUDED.indexOf(m.category) === -1; });
-    } else {
-      all = all.filter(function(m){ return ['restaurant','cafe'].indexOf(m.category) !== -1; });
-    }
-
+    all = all.filter(function(m){ return ['restaurant','cafe'].indexOf(m.category) !== -1; });
     merchantsCache = all;
 
     if(!merchantsCache.length){
@@ -1533,18 +1562,218 @@ window.filterMerchantCat = function(cat,el){
   currentMerchantFilter = cat;
   document.querySelectorAll('#merchant-filter-bar .m-filter-chip').forEach(function(c){c.classList.remove('active');});
   if(el) el.classList.add('active');
-  renderMerchantList(merchantsCache);
+  if (merchantMode === 'shopping') {
+    renderShoppingPlaces();
+  } else {
+    renderMerchantList(merchantsCache);
+  }
 };
 
 var msiTimer = null;
 var msi = document.getElementById('merchant-search-input');
 if(msi){
   msi.addEventListener('input',function(e){
-    currentMerchantSearch = e.target.value;
-    clearTimeout(msiTimer);
-    msiTimer = setTimeout(function(){ renderMerchantList(merchantsCache); }, 150);
+    if (merchantMode === 'shopping') {
+      currentShopSearch = e.target.value;
+      clearTimeout(shopSearchTimer);
+      shopSearchTimer = setTimeout(function(){ renderShoppingPlaces(); }, 150);
+    } else {
+      currentMerchantSearch = e.target.value;
+      clearTimeout(msiTimer);
+      msiTimer = setTimeout(function(){ renderMerchantList(merchantsCache); }, 150);
+    }
   });
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.4.6: SHOPPING VIEW (PLACES)
+   ═══════════════════════════════════════════════════════════════ */
+function bindShopSearch(){
+  // handled in main input listener above
+}
+
+function renderShoppingPlaces(){
+  var list = $('merchant-list'); if(!list) return;
+
+  var SHOP_CATS = ['c', 'm', 's'];
+  var places = PLACES.filter(function(p){
+    return SHOP_CATS.indexOf(p.category) !== -1;
+  });
+
+  if (currentMerchantFilter !== 'all') {
+    places = places.filter(function(p){ return p.category === currentMerchantFilter; });
+  }
+
+  var q = (currentShopSearch || '').trim().toLowerCase();
+  if (q) {
+    places = places.filter(function(p){
+      return p.name.toLowerCase().indexOf(q) !== -1
+          || (CATS[p.category] && CATS[p.category].name.toLowerCase().indexOf(q) !== -1);
+    });
+  }
+
+  if (userLocation) {
+    places = places.slice().sort(function(a, b){
+      var da = haversine(userLocation.lat, userLocation.lng, a.lat, a.lng);
+      var db = haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+      return da - db;
+    });
+  }
+
+  if (!places.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">' +
+      '<div style="font-size:40px">🔍</div>' +
+      '<div style="font-weight:900;margin-top:8px">ไม่พบสถานที่</div>' +
+      '<div style="font-size:12px;margin-top:6px">ลองพิมพ์ชื่อสถานที่อื่น</div>' +
+      '</div>';
+    return;
+  }
+
+  _shoppingPlacesCache = places.slice(0, 50);
+
+  list.innerHTML = _shoppingPlacesCache.map(function(p, i){
+    var cat = CATS[p.category] || {icon:'📍', name:''};
+    var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : null;
+    var distHtml = dist != null ? '<span class="dist">📍 ' + fmtDistance(dist) + '</span>' : '';
+
+    return '<div class="place-card-shop" data-shop-index="' + i + '" style="animation-delay:' + (i * 0.03) + 's">' +
+      '<div class="place-card-shop-icon">' + cat.icon + '</div>' +
+      '<div class="place-card-shop-info">' +
+        '<div class="place-card-shop-name">' + esc(p.name) + '</div>' +
+        '<div class="place-card-shop-meta">' +
+          '<span>' + cat.icon + ' ' + esc(cat.name) + '</span>' +
+          distHtml +
+        '</div>' +
+      '</div>' +
+      '<button class="place-card-shop-btn" onclick="event.stopPropagation();openShopOrderForm(\'' + esc(p.id) + '\')">🛒 ฝากซื้อ</button>' +
+      '</div>';
+  }).join('');
+
+  // bind click card
+  list.querySelectorAll('.place-card-shop').forEach(function(card){
+    card.addEventListener('click', function(e){
+      if (e.target.closest('.place-card-shop-btn')) return;
+      var idx = parseInt(card.dataset.shopIndex, 10);
+      if (_shoppingPlacesCache[idx]) openShopOrderForm(_shoppingPlacesCache[idx].id);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.4.6: SHOP ORDER FORM (ฝากซื้อของ)
+   ═══════════════════════════════════════════════════════════════ */
+window.openShopOrderForm = function(placeId){
+  var p = PLACES.find(function(x){return x.id===placeId;});
+  if (!p) return showToast('ไม่พบสถานที่','error');
+  if (!currentUser) { showLoginModal(); return showToast('กรุณาเข้าสู่ระบบก่อน','warning'); }
+
+  var cat = CATS[p.category] || {icon:'📍', name:''};
+  var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : null;
+  var baseFare = 30;
+  var perKm = 5;
+  var fare = Math.round(baseFare + ((dist||0) * 1.3 * perKm));
+
+  var quickItems = ['น้ำแข็ง', 'โซดา', 'น้ำเปล่า', 'เบียร์', 'บุหรี่', 'ขนม', 'นม', 'ไข่', 'ข้าวสาร', 'น้ำมันพืช'];
+
+  $('modal-body').innerHTML =
+    '<div style="text-align:center;margin-bottom:16px">' +
+      '<div style="font-size:44px;margin-bottom:8px">' + cat.icon + '</div>' +
+      '<h2 style="font-size:18px;font-weight:900;color:var(--text)">' + esc(p.name) + '</h2>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-weight:700">' +
+        cat.icon + ' ' + esc(cat.name) +
+        (dist != null ? ' • 📍 ' + fmtDistance(dist) : '') +
+      '</div>' +
+    '</div>' +
+
+    '<div class="form-group">' +
+      '<label>🛒 รายการที่ให้ซื้อ</label>' +
+      '<textarea id="shop-items" class="shop-items-input" placeholder="เช่น&#10;- โซดา 2 ขวด&#10;- น้ำแข็ง 1 ถุง&#10;- เบียร์ 3 ขวด"></textarea>' +
+      '<div class="shop-quick-chips">' +
+        quickItems.map(function(item){
+          return '<button class="shop-quick-chip" onclick="addQuickItem(\'' + esc(item) + '\')">+ ' + esc(item) + '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
+
+    '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;font-weight:700">' +
+      '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ค่าไป-กลับ</span><span>฿' + baseFare + '</span></div>' +
+      (dist != null ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ระยะทาง ' + (dist*1.3).toFixed(1) + ' กม. × ฿' + perKm + '</span><span>฿' + Math.round(dist*1.3*perKm) + '</span></div>' : '') +
+      '<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);margin-top:6px;font-size:15px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fare + '</span></div>' +
+      '<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px">* ค่าของจ่ายเพิ่มตอนรับ</div>' +
+    '</div>' +
+
+    '<div class="form-group">' +
+      '<label>📝 หมายเหตุ</label>' +
+      '<textarea id="shop-note" rows="2" placeholder="เช่น ไปซื้อที่ปากซอย..."></textarea>' +
+    '</div>' +
+
+    '<div class="form-group">' +
+      '<label>📞 เบอร์ติดต่อ</label>' +
+      '<input type="tel" id="shop-phone" value="' + esc((userProfile&&userProfile.phone)||'') + '" placeholder="08X-XXX-XXXX">' +
+    '</div>' +
+
+    '<button class="btn-full btn-green press-scale" onclick="submitShopOrder(\'' + esc(p.id) + '\')">✅ เรียกรถไปซื้อ (฿' + fare + ')</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
+  openModal();
+};
+
+window.addQuickItem = function(item){
+  var ta = $('shop-items'); if (!ta) return;
+  var current = ta.value.trim();
+  if (current && !current.endsWith('\n')) current += '\n';
+  ta.value = current + '- ' + item + ' 1';
+  ta.focus();
+};
+
+window.submitShopOrder = async function(placeId){
+  if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ','warning'); }
+  var p = PLACES.find(function(x){return x.id===placeId;});
+  if (!p) return showToast('ไม่พบสถานที่','error');
+
+  var items = ($('shop-items') && $('shop-items').value.trim()) || '';
+  if (!items) return showToast('กรุณาพิมพ์รายการที่ให้ซื้อ','warning');
+
+  var phone = ($('shop-phone') && $('shop-phone').value.trim()) || '';
+  if (!phone) return showToast('กรุณากรอกเบอร์ติดต่อ','warning');
+
+  var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : 0;
+  var baseFare = 30;
+  var fare = Math.round(baseFare + (dist * 1.3 * 5));
+  var note = ($('shop-note') && $('shop-note').value.trim()) || '';
+
+  try{
+    await db.collection('orders').add({
+      type: 'shopping',
+      userId: currentUser.uid,
+      userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
+      userPhone: phone,
+      title: '🛒 ฝากซื้อ: ' + p.name,
+      shopPlaceId: p.id,
+      shopPlaceName: p.name,
+      shopPlaceLat: p.lat,
+      shopPlaceLng: p.lng,
+      from: (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
+      fromLat: userLocation ? userLocation.lat : null,
+      fromLng: userLocation ? userLocation.lng : null,
+      to: (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
+      address: (userProfile&&userProfile.address) || '',
+      items: items,
+      itemsText: items,
+      note: note,
+      distanceKm: dist,
+      status: 'searching',
+      fare: fare,
+      total: fare,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ ส่งออเดอร์แล้ว ฿' + fare);
+    closeModal();
+    switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+  } catch(e){
+    debugLog('❌ Shop order: ' + e.message, true);
+    showToast('ส่งไม่สำเร็จ','error');
+  }
+};
 
 /* ═══════════════════════════════════════════════════════════════
    MERCHANT DETAIL
@@ -1869,7 +2098,7 @@ window.submitOrder = async function(type){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   📦 EXPRESS FORM (v3.4.5)
+   📦 EXPRESS FORM
    ═══════════════════════════════════════════════════════════════ */
 function openExpressForm(dest){
   expOrigin = userLocation
@@ -1877,7 +2106,6 @@ function openExpressForm(dest){
     : null;
   expDestination = dest ? {lat:dest.lat, lng:dest.lng, address:''} : null;
 
-  // 🎲 สุ่ม 4 สถานที่แนะนำ (ปลายทาง)
   var suggestions = [];
   if (PLACES.length) {
     var pool = PLACES.slice();
@@ -2008,9 +2236,11 @@ window.submitExpressOrder = async function(){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   🗺️ MAP PICKER (v3.4.5)
+   🗺️ MAP PICKER (v3.4.6 — fix)
    ═══════════════════════════════════════════════════════════════ */
 window.openMapPicker = function(mode){
+  if ($('modal')) $('modal').classList.remove('show');
+
   mapPickerMode = mode;
   mapPickerValue = null;
 
@@ -2101,8 +2331,16 @@ function doMapPickerSearch(q){
   if (!q || q.trim().length < 1) { box.classList.remove('show'); return; }
   var query = q.trim().toLowerCase();
   var matches = PLACES.filter(function(p){
-    return p.name.toLowerCase().indexOf(query) !== -1;
-  }).slice(0, 12);
+    return p.name.toLowerCase().indexOf(query) !== -1
+        || (CATS[p.category] && CATS[p.category].name.toLowerCase().indexOf(query) !== -1);
+  });
+  if (userLocation) {
+    matches.sort(function(a, b){
+      return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng)
+           - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+    });
+  }
+  matches = matches.slice(0, 15);
 
   if (!matches.length) {
     box.innerHTML = '<div class="sug-item" style="color:var(--text-light)">ไม่พบสถานที่</div>';
@@ -2137,6 +2375,7 @@ window.confirmMapPicker = function(){
   var addr = mapPickerValue.nearestName || ('พิกัด ' + mapPickerValue.lat.toFixed(4) + ', ' + mapPickerValue.lng.toFixed(4));
   var picked = {lat:mapPickerValue.lat, lng:mapPickerValue.lng, address:addr};
 
+  var savedMode = mapPickerMode;
   if (mapPickerMode === 'exp-origin') {
     expOrigin = picked;
   } else if (mapPickerMode === 'exp-destination') {
@@ -2144,7 +2383,7 @@ window.confirmMapPicker = function(){
   }
 
   closeMapPicker();
-  openExpressForm(mapPickerMode === 'exp-origin' ? expDestination : expOrigin);
+  openExpressForm(savedMode === 'exp-origin' ? expDestination : expOrigin);
   showToast('✅ ' + addr);
 };
 
@@ -2333,6 +2572,7 @@ function renderOrderCard(o){
     '<div style="font-size:16px;font-weight:900;color:'+color+'">'+fmt(o.total||o.fare||0)+'฿</div></div>' +
     '<div style="font-size:11px;color:var(--text-muted);font-weight:700">'+(statusMap[o.status]||o.status)+'</div>' +
     (o.distanceKm?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">📍 '+o.distanceKm.toFixed(2)+' กม.</div>':'') +
+    (o.itemsText?'<div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:pre-wrap">🛒 '+esc(o.itemsText.slice(0,120))+'</div>':'') +
     '<div style="display:flex;flex-wrap:wrap;gap:0;margin-top:6px">' +
     (canRate?'<button class="rate-btn" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
     (o.rated?'<div class="rating-inline" style="margin-top:10px;margin-right:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
@@ -2342,7 +2582,7 @@ function renderOrderCard(o){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ⭐ RATING SYSTEM
+   ⭐ RATING
    ═══════════════════════════════════════════════════════════════ */
 window.openRatingModal = function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
@@ -2458,12 +2698,9 @@ async function updateMerchantRatingAggregate(merchantId) {
    ═══════════════════════════════════════════════════════════════ */
 window.openChat = async function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
-
   if (!orderId) {
     try {
-      var snap = await db.collection('orders')
-        .where('userId','==',currentUser.uid)
-        .limit(20).get();
+      var snap = await db.collection('orders').where('userId','==',currentUser.uid).limit(20).get();
       var latest = null;
       snap.forEach(function(d){
         var o = d.data();
@@ -2475,13 +2712,11 @@ window.openChat = async function(orderId) {
       orderId = latest.id;
     } catch (e) { return showToast('โหลดไม่สำเร็จ','error'); }
   }
-
   openChatPage(orderId);
 };
 
 window.openChatPage = async function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
-
   try {
     var orderSnap = await db.collection('orders').doc(orderId).get();
     if (!orderSnap.exists) return showToast('ไม่พบออเดอร์','error');
@@ -2783,9 +3018,10 @@ if('serviceWorker' in navigator){
   });
 }
 
-console.log('%c🛵 Chauat Go v3.4.5 — FOOD TABS + EXPRESS MAP PICKER','color:#76B82A;font-weight:900;font-size:16px');
-console.log('%c✓ Food: Popular/Near/Cart tabs | ✓ Shopping: filter chips','color:#00A651;font-weight:700');
-console.log('%c✓ Express: map picker + 100m radius | ✓ Debug console removed','color:#00A651;font-weight:700');
+console.log('%c🛵 Chauat Go v3.4.6 — SHOPPING PLACES + MAP PICKER FIX','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ ของใช้: แสดง PLACES (สะดวกซื้อ/ตลาด/ร้านค้า) + ค้นหา','color:#00A651;font-weight:700');
+console.log('%c✓ ฝากซื้อ: ฟอร์มพิมพ์รายการ + quick chips | ✓ Map picker fix','color:#00A651;font-weight:700');
+console.log('%c✓ Avatar 👩/👨 ตามชื่อ','color:#00A651;font-weight:700');
 </script>
 
 </body>
