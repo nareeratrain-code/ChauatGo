@@ -1,19 +1,18 @@
-/* ═══════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.3.3
-   Full JavaScript — Production Ready
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+   🏪 CHAUAT GO MERCHANT — v3.4.8
+   Full-featured Production JavaScript
+   ═══════════════════════════════════════════════════════════════════ */
 
-// ═══════════════════════════════════════════════════════════════
-//  1. FIREBASE CONFIG
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   1. FIREBASE CONFIG
+   ═══════════════════════════════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
   projectId: "chauat-go-b9841",
   storageBucket: "chauat-go-b9841.firebasestorage.app",
   messagingSenderId: "282197694521",
-  appId: "1:282197694521:web:0528c22747a0c04bd815e8",
-  measurementId: "G-6E2QEFWK6P"
+  appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -22,98 +21,218 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-// ═══════════════════════════════════════════════════════════════
-//  2. STATE
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   2. GLOBAL STATE
+   ═══════════════════════════════════════════════════════════════════ */
 let currentUser = null;
 let merchantProfile = null;
 let allOrders = [];
-let allHistory = [];
-let myMenus = [];
-let unsubOrders = null;
-let unsubHistory = null;
-let unsubMenus = null;
-let unsubProfile = null;
-let editingMenuId = null;
-let menuImgFile = null;
-let currentMenuImageUrl = null;
-let newPopupOrderId = null;
-let audioCtx = null;
-let seenOrderIds = new Set();
+let allMenus = [];
 let currentHistoryFilter = 'today';
 let activeChatId = null;
 let activeChatUnsub = null;
+let activeChatPartnerPhone = null;
+let activeChatPartnerName = null;
+let newOrderPopupId = null;
+let seenOrderIds = new Set();
+let myProfileUnsub = null;
+let myOrdersUnsub = null;
+let myMenusUnsub = null;
+let audioCtx = null;
 let deferredPrompt = null;
+let isShopOpen = false;
 
+/* Edit menu state */
+let editingMenuId = null;
+let editingMenuImgBlob = null;
+let editingMenuImgUrl = null;
+
+/* GP transfer state */
+let gpSlipFile = null;
+let currentGpPending = 0;
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. CONSTANTS
+   ═══════════════════════════════════════════════════════════════════ */
 const GP_RATE = 0.03;
-const GP_RIDER_RATE = 0.02;
-const GP_PLATFORM_RATE = 0.01;
-const GP_FREE_DAYS = 60;
+const GP_RIDER_SHARE = 0.02;
+const GP_PLATFORM_SHARE = 0.01;
+const PROMO_DAYS = 60;
 const MAX_IMG_SIZE = 5 * 1024 * 1024;
+const GP_BANK_INFO = {
+  bank: 'กสิกรไทย',
+  accountNo: 'xxx-x-xxxxx-x',
+  accountName: 'บริษัท Chauat Go จำกัด'
+};
 
-const CAT_LABELS = {main:'จานหลัก', side:'กับข้าว', drink:'เครื่องดื่ม', dessert:'ของหวาน', other:'อื่นๆ'};
-const CAT_ICONS = {main:'🍽️', side:'🥗', drink:'🥤', dessert:'🍰', other:'📦'};
-
-// ═══════════════════════════════════════════════════════════════
-//  3. HELPERS
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   4. HELPERS
+   ═══════════════════════════════════════════════════════════════════ */
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const jsStr = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+const $$ = (sel) => document.querySelectorAll(sel);
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
 const fmt = (n) => Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
-const toDate = (t) => { if (!t) return null; const d = t.toDate ? t.toDate() : new Date(t); return isNaN(d) ? null : d; };
-const fmtTime = (t) => { const d = toDate(t); return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '—'; };
-const fmtDate = (t) => { const d = toDate(t); return d ? d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'; };
+
+const toDate = (t) => {
+  if (!t) return null;
+  const d = t.toDate ? t.toDate() : new Date(t);
+  return isNaN(d) ? null : d;
+};
+
+const fmtTime = (t) => {
+  const d = toDate(t);
+  return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '—';
+};
+
+const fmtDate = (t) => {
+  const d = toDate(t);
+  return d ? d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+};
+
 const fmtDateTime = (t) => `${fmtDate(t)} ${fmtTime(t)}`;
-const isToday = (t) => { const d = toDate(t); if (!d) return false; const n = new Date(); n.setHours(0,0,0,0); return d >= n; };
-const isYesterday = (t) => { const d = toDate(t); if (!d) return false; const today = new Date(); today.setHours(0,0,0,0); const yest = new Date(today); yest.setDate(yest.getDate()-1); return d >= yest && d < today; };
-const isThisWeek = (t) => { const d = toDate(t); if (!d) return false; const n = new Date(); const w = new Date(n.getTime() - 7*24*60*60*1000); return d >= w; };
-const isThisMonth = (t) => { const d = toDate(t); if (!d) return false; const n = new Date(); return d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear(); };
 
-// ─── Debug Console ───
-function logToScreen(msg, isError = false) {
-  const el = $('debugConsole');
-  if (el) {
-    el.classList.add('show');
-    el.innerHTML += `<span style="color:${isError ? '#ff4444' : '#00ff00'}">> ${esc(msg)}</span><br>`;
-    el.scrollTop = el.scrollHeight;
+const timeAgo = (t) => {
+  const d = toDate(t);
+  if (!d) return '—';
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'เมื่อกี้';
+  if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ชั่วโมงที่แล้ว`;
+  return `${Math.floor(diff / 86400)} วันที่แล้ว`;
+};
+
+const isToday = (t) => {
+  const d = toDate(t);
+  return d ? d.toDateString() === new Date().toDateString() : false;
+};
+
+const isThisWeek = (t) => {
+  const d = toDate(t);
+  if (!d) return false;
+  return d >= new Date(Date.now() - 7 * 86400000);
+};
+
+const isThisMonth = (t) => {
+  const d = toDate(t);
+  if (!d) return false;
+  const now = new Date();
+  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+};
+
+const debugLog = (msg, isError) => {
+  if (typeof window.CHAUAT_MERCHANT_DEBUG !== 'undefined' && window.CHAUAT_MERCHANT_DEBUG) {
+    if (isError) console.warn(msg); else console.log(msg);
   }
-  console.log(msg);
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   5. THEME
+   ═══════════════════════════════════════════════════════════════════ */
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('chauat_merchant_theme', next);
+  const fab = $('theme-fab');
+  if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = next === 'dark' ? '#0F1419' : '#00A651';
+  showToast(next === 'dark' ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง', 'info');
 }
 
-// ─── Toast ───
+function initTheme() {
+  const theme = localStorage.getItem('chauat_merchant_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  const fab = $('theme-fab');
+  if (fab) fab.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. SPLASH
+   ═══════════════════════════════════════════════════════════════════ */
+function runSplash() {
+  const bar = $('splash-bar');
+  if (!bar) { dismissSplash(); return; }
+  const safetyTimer = setTimeout(dismissSplash, 3000);
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 15 + Math.random() * 15;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(interval);
+      clearTimeout(safetyTimer);
+      setTimeout(dismissSplash, 300);
+    }
+    bar.style.width = progress + '%';
+  }, 150);
+}
+
+function dismissSplash() {
+  const splash = $('splash-screen');
+  if (!splash) return;
+  splash.classList.add('hidden');
+  setTimeout(() => {
+    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+  }, 600);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   7. TOAST & SOUND & VIBRATE
+   ═══════════════════════════════════════════════════════════════════ */
 function showToast(msg, type = 'success') {
-  const container = $('toastContainer');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  const icon = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'info' ? 'ℹ️' : '✅';
-  toast.innerHTML = `<span>${icon}</span><span>${esc(msg)}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+  const t = $('toast');
+  if (!t) return;
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  t.textContent = (icons[type] || '') + ' ' + msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 3000);
 }
 
-// ─── Sound ───
-function playNotificationSound() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    [660, 880, 1100, 880].forEach((f, i) => {
-      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.connect(g); g.connect(audioCtx.destination);
-      o.type = 'sine';
-      o.frequency.setValueAtTime(f, audioCtx.currentTime + i * 0.18);
-      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + i * 0.18);
-      g.gain.exponentialRampToValueAtTime(0.4, audioCtx.currentTime + i * 0.18 + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.18 + 0.18);
-      o.start(audioCtx.currentTime + i * 0.18);
-      o.stop(audioCtx.currentTime + i * 0.18 + 0.18);
-    });
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
-  } catch (e) {}
+function getAudioCtx() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
 }
 
-// ─── Image Compress ───
+function playTone(freqs, interval = 0.15, duration = 0.18, volume = 0.35) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  freqs.forEach((f, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(f, ctx.currentTime + i * interval);
+    const start = ctx.currentTime + i * interval;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(volume, start + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    osc.start(start);
+    osc.stop(start + duration);
+  });
+}
+
+function soundNewOrder() {
+  playTone([880, 1108, 1318, 1108], 0.18, 0.18, 0.4);
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
+}
+
+function soundNewChat() {
+  playTone([880], 0, 0.1, 0.25);
+  if (navigator.vibrate) navigator.vibrate(50);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   8. IMAGE COMPRESS
+   ═══════════════════════════════════════════════════════════════════ */
 function compressImage(file, maxWidth = 1000, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -123,10 +242,15 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        let w = img.width, h = img.height;
-        if (w > maxWidth) { h = Math.round(h * (maxWidth / w)); w = maxWidth; }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        let width = img.width, height = img.height;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
       };
       img.onerror = reject;
@@ -135,171 +259,151 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
   });
 }
 
-// ─── GP Calc ───
-function isGPActive() {
-  if (!merchantProfile?.createdAt) return false;
-  const created = toDate(merchantProfile.createdAt);
-  const diff = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
-  return diff >= GP_FREE_DAYS;
-}
-function gpDaysLeft() {
-  if (!merchantProfile?.createdAt) return GP_FREE_DAYS;
-  const created = toDate(merchantProfile.createdAt);
-  const diff = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
-  return Math.max(0, Math.ceil(GP_FREE_DAYS - diff));
-}
-function calcGP(amount) {
-  if (!isGPActive()) return { total: 0, rider: 0, platform: 0 };
-  return {
-    total: Math.round(amount * GP_RATE * 100) / 100,
-    rider: Math.round(amount * GP_RIDER_RATE * 100) / 100,
-    platform: Math.round(amount * GP_PLATFORM_RATE * 100) / 100
-  };
+/* ═══════════════════════════════════════════════════════════════════
+   9. FINANCE — GP
+   ═══════════════════════════════════════════════════════════════════ */
+function isPromoActive(merchant) {
+  if (!merchant || !merchant.gpStartDate) return true;
+  const start = toDate(merchant.gpStartDate);
+  if (!start) return true;
+  const daysPassed = Math.floor((Date.now() - start.getTime()) / 86400000);
+  return daysPassed < PROMO_DAYS;
 }
 
-// ─── Sheets ───
-function openSheet(id) { document.getElementById(id).classList.add('active'); }
-function closeSheet(id) { document.getElementById(id).classList.remove('active'); }
+function getDaysLeft(merchant) {
+  if (!merchant || !merchant.gpStartDate) return PROMO_DAYS;
+  const start = toDate(merchant.gpStartDate);
+  if (!start) return PROMO_DAYS;
+  const daysPassed = Math.floor((Date.now() - start.getTime()) / 86400000);
+  return Math.max(0, PROMO_DAYS - daysPassed);
+}
 
-// ═══════════════════════════════════════════════════════════════
-//  4. AUTH
-// ═══════════════════════════════════════════════════════════════
-auth.onAuthStateChanged(async user => {
-  if (!user) { showLoginScreen(); return; }
-
-  try {
-    // เช็ค users collection (role)
-    const userDoc = await db.collection('users').doc(user.uid).get();
-    if (!userDoc.exists || userDoc.data().role !== 'merchant') {
-      await auth.signOut();
-      setLoginError('❌ บัญชีนี้ไม่มีสิทธิ์เข้าระบบร้านค้า');
-      showLoginScreen();
-      return;
-    }
-
-    // ดึง merchant profile
-    const snap = await db.collection('merchants').doc(user.uid).get();
-    if (!snap.exists) {
-      await auth.signOut();
-      setLoginError('❌ ไม่พบข้อมูลร้านค้า กรุณาสมัครใหม่');
-      showLoginScreen();
-      switchAuthTab('signup');
-      return;
-    }
-    merchantProfile = { uid: user.uid, ...snap.data() };
-    logToScreen('✅ Merchant: ' + merchantProfile.name);
-  } catch (e) {
-    logToScreen('❌ Auth: ' + e.message, true);
-    await auth.signOut();
-    setLoginError('⚠️ ตรวจสอบสิทธิ์ไม่สำเร็จ');
-    showLoginScreen();
-    return;
+function calcGp(foodTotal, merchant) {
+  // ถ้าอยู่ในโปรฯ ไม่คิด
+  if (isPromoActive(merchant)) {
+    return { total: 0, rider: 0, platform: 0, isPromo: true };
   }
-
-  currentUser = user;
-  showApp();
-  initApp();
-});
-
-function showLoginScreen() {
-  $('login-screen').style.display = 'flex';
-  $('app').style.display = 'none';
-  const bl = $('btn-login'); if (bl) { bl.disabled = false; bl.textContent = '🔓 เข้าสู่ระบบ'; }
-  const bs = $('btn-signup'); if (bs) { bs.disabled = false; bs.textContent = '🏪 สมัครร้านค้า'; }
+  const total = Math.round(foodTotal * GP_RATE * 100) / 100;
+  const rider = Math.round(foodTotal * GP_RIDER_SHARE * 100) / 100;
+  const platform = Math.round(foodTotal * GP_PLATFORM_SHARE * 100) / 100;
+  return { total, rider, platform, isPromo: false };
 }
-function showApp() {
-  $('login-screen').style.display = 'none';
-  $('app').style.display = 'block';
-}
-function setLoginError(msg) { const el = $('login-error'); if (el) el.textContent = msg || ''; }
 
+function calcOrderFoodTotal(order) {
+  // ยอดอาหาร = itemsTotal หรือ foodTotal
+  return Number(order.itemsTotal || order.foodTotal || 0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   10. AUTH
+   ═══════════════════════════════════════════════════════════════════ */
 function switchAuthTab(tab) {
   const isLogin = tab === 'login';
-  $('tab-login').classList.toggle('active', isLogin);
-  $('tab-signup').classList.toggle('active', !isLogin);
-  $('form-login').style.display = isLogin ? 'block' : 'none';
-  $('form-signup').style.display = isLogin ? 'none' : 'block';
-  $('login-hint').innerHTML = isLogin
-    ? '🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.'
-    : '⚠️ กรอกข้อมูลให้ครบถ้วน แอดมินจะติดต่อกลับ';
-  setLoginError('');
+  $('tab-login')?.classList.toggle('active', isLogin);
+  $('tab-signup')?.classList.toggle('active', !isLogin);
+  const lf = $('form-login');
+  const sf = $('form-signup');
+  if (lf) lf.style.display = isLogin ? 'block' : 'none';
+  if (sf) sf.style.display = isLogin ? 'none' : 'block';
 }
 
 async function handleLogin(e) {
   e.preventDefault();
   const btn = $('btn-login');
-  const email = $('login-email').value.trim();
+  const email = $('login-email').value.trim().toLowerCase();
   const pw = $('login-password').value;
-  setLoginError('');
-  btn.disabled = true; btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+  if (!email || !pw) return showToast('กรอกอีเมลและรหัสผ่าน', 'error');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+
   try {
     await auth.signInWithEmailAndPassword(email, pw);
+    showToast('✅ เข้าสู่ระบบสำเร็จ');
+    $('login-error').textContent = '';
   } catch (err) {
-    logToScreen('❌ Login: ' + err.code, true);
-    setLoginError(mapAuthErr(err.code));
-    btn.disabled = false; btn.textContent = '🔓 เข้าสู่ระบบ';
+    const msg = {
+      'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
+      'auth/user-not-found': 'ไม่พบอีเมลนี้',
+      'auth/invalid-email': 'อีเมลไม่ถูกต้อง',
+      'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+      'auth/too-many-requests': 'ลองหลายครั้งเกินไป',
+      'auth/network-request-failed': 'ไม่มีการเชื่อมต่อ'
+    }[err.code] || 'เข้าสู่ระบบไม่สำเร็จ';
+    $('login-error').textContent = msg;
+    showToast(msg, 'error');
+    btn.disabled = false;
+    btn.textContent = '🔓 เข้าสู่ระบบ';
   }
 }
 
 async function handleSignup(e) {
   e.preventDefault();
   const btn = $('btn-signup');
-  const name = $('su-shop-name').value.trim();
-  const cat = $('su-category').value;
+  const shopName = $('su-shop-name').value.trim();
+  const category = $('su-category').value;
   const phone = $('su-phone').value.trim();
-  const openTime = $('su-open-time').value || '07:00';
-  const closeTime = $('su-close-time').value || '20:00';
+  const openTime = $('su-open-time').value;
+  const closeTime = $('su-close-time').value;
   const address = $('su-address').value.trim();
-  const email = $('su-email').value.trim();
-  const pw1 = $('su-password').value;
+  const email = $('su-email').value.trim().toLowerCase();
+  const pw = $('su-password').value;
   const pw2 = $('su-password2').value;
 
-  setLoginError('');
-  if (!name) return setLoginError('⚠️ กรุณากรอกชื่อร้าน');
-  if (!cat) return setLoginError('⚠️ กรุณาเลือกประเภทร้าน');
-  if (phone.replace(/\D/g, '').length < 9) return setLoginError('⚠️ เบอร์โทรไม่ถูกต้อง');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setLoginError('⚠️ อีเมลไม่ถูกต้อง');
-  if (pw1.length < 6) return setLoginError('⚠️ รหัสผ่านอย่างน้อย 6 ตัวอักษร');
-  if (pw1 !== pw2) return setLoginError('⚠️ รหัสผ่านไม่ตรงกัน');
-  if (!$('gp-consent-check').checked) return setLoginError('⚠️ กรุณายอมรับเงื่อนไข GP 3%');
+  if (!shopName) return showToast('กรอกชื่อร้าน', 'error');
+  if (!category) return showToast('เลือกประเภทร้าน', 'error');
+  if (phone.replace(/\D/g, '').length < 9) return showToast('เบอร์ไม่ถูกต้อง', 'error');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast('อีเมลไม่ถูกต้อง', 'error');
+  if (pw.length < 6) return showToast('รหัสผ่าน 6+ ตัว', 'error');
+  if (pw !== pw2) return showToast('รหัสไม่ตรงกัน', 'error');
+  if (!$('gp-consent-check').checked) return showToast('กรุณายอมรับเงื่อนไข GP', 'error');
 
-  btn.disabled = true; btn.textContent = '⏳ กำลังสมัคร...';
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังสมัคร...';
   let createdUser = null;
+
   try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pw1);
+    const cred = await auth.createUserWithEmailAndPassword(email, pw);
     createdUser = cred.user;
-    await createdUser.updateProfile({ displayName: name });
+    await createdUser.updateProfile({ displayName: shopName });
 
-    const now = firebase.firestore.FieldValue.serverTimestamp();
-
-    // ⭐ สร้างใน merchants
+    // สร้าง merchant doc (ใช้ uid เป็น mid)
     await db.collection('merchants').doc(createdUser.uid).set({
       merchantId: createdUser.uid,
-      name, category: cat, phone, address,
-      openTime, closeTime,
-      isOpen: false, verified: false,
-      gpAccepted: true, gpAcceptedAt: now,
-      gpFreeDays: GP_FREE_DAYS,
-      totalSales: 0, totalGP: 0, totalOrders: 0,
-      rating: 0, totalRatings: 0,
-      achievements: [],
-      createdAt: now,
-      registeredVia: 'merchant.html'
+      name: shopName,
+      category: category,
+      phone: phone,
+      email: email,
+      address: address,
+      openTime: openTime,
+      closeTime: closeTime,
+      isOpen: false,
+      verified: false,
+      ratingAvg: 0,
+      ratingCount: 0,
+      gpStartDate: null,
+      gpPending: 0,
+      gpPaid: 0,
+      gpConsent: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // ⭐ สร้างใน users (สำหรับ Auth Guard)
+    // สร้าง users doc (Auth Guard)
     await db.collection('users').doc(createdUser.uid).set({
       role: 'merchant',
-      name, email,
-      createdAt: now
+      name: shopName,
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ', 'success');
+    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
   } catch (err) {
-    logToScreen('❌ Signup: ' + err.code, true);
-    if (createdUser) { try { await createdUser.delete(); } catch (e) {} }
-    setLoginError(mapAuthErr(err.code));
-    btn.disabled = false; btn.textContent = '🏪 สมัครร้านค้า';
+    if (createdUser) {
+      try { await createdUser.delete(); } catch (e) {}
+    }
+    showToast('สมัครไม่สำเร็จ: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '🏪 สมัครร้านค้า';
   }
 }
 
@@ -308,49 +412,77 @@ async function handleForgotPassword() {
   if (!email) return showToast('กรอกอีเมลก่อน', 'error');
   try {
     await auth.sendPasswordResetEmail(email);
-    showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว', 'success');
+    showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
   } catch (err) {
-    showToast('ส่งไม่สำเร็จ', 'error');
+    showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
   }
-}
-
-function mapAuthErr(code) {
-  return ({
-    'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
-    'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
-    'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
-    'auth/invalid-email': 'รูปแบบอีเมลไม่ถูกต้อง',
-    'auth/email-already-in-use': 'อีเมลนี้ถูกใช้แล้ว',
-    'auth/weak-password': 'รหัสผ่านอย่างน้อย 6 ตัวอักษร',
-    'auth/too-many-requests': 'พยายามหลายครั้งเกินไป',
-    'auth/network-request-failed': 'ไม่มีการเชื่อมต่อ'
-  })[code] || 'เข้าสู่ระบบไม่สำเร็จ (' + code + ')';
 }
 
 async function handleMerchantLogout() {
   if (!confirm('ออกจากระบบ?')) return;
   closeSheet('menu-sheet');
-  if (unsubOrders) unsubOrders();
-  if (unsubHistory) unsubHistory();
-  if (unsubMenus) unsubMenus();
-  if (unsubProfile) unsubProfile();
+  if (myProfileUnsub) myProfileUnsub();
+  if (myOrdersUnsub) myOrdersUnsub();
+  if (myMenusUnsub) myMenusUnsub();
   if (activeChatUnsub) activeChatUnsub();
+  seenOrderIds.clear();
+  allOrders = [];
   await auth.signOut();
-  allOrders = []; allHistory = []; myMenus = []; merchantProfile = null; seenOrderIds.clear();
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  5. INIT
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   11. AUTH STATE
+   ═══════════════════════════════════════════════════════════════════ */
+auth.onAuthStateChanged(async (user) => {
+  if (myProfileUnsub) myProfileUnsub();
+  if (myOrdersUnsub) myOrdersUnsub();
+  if (myMenusUnsub) myMenusUnsub();
+
+  if (!user) {
+    $('login-screen').style.display = 'flex';
+    $('app').style.display = 'none';
+    return;
+  }
+
+  currentUser = user;
+
+  try {
+    const userDoc = await db.collection('users').doc(user.uid).get();
+    if (!userDoc.exists || userDoc.data().role !== 'merchant') {
+      showToast('บัญชีนี้ไม่ใช่ร้านค้า', 'error');
+      await auth.signOut();
+      return;
+    }
+
+    const merchantDoc = await db.collection('merchants').doc(user.uid).get();
+    if (!merchantDoc.exists) {
+      showToast('ไม่พบข้อมูลร้านค้า', 'error');
+      await auth.signOut();
+      return;
+    }
+
+    merchantProfile = { uid: user.uid, ...merchantDoc.data() };
+    $('login-screen').style.display = 'none';
+    $('app').style.display = 'block';
+
+    initApp();
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด', 'error');
+    await auth.signOut();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   12. INIT APP
+   ═══════════════════════════════════════════════════════════════════ */
 function initApp() {
   updateHeader();
   updatePendingBanner();
   subscribeProfile();
   subscribeOrders();
-  subscribeHistory();
   subscribeMenus();
-  setupNetworkWatcher();
-  setupPWAInstall();
+  setupNetwork();
+  setupPWA();
   requestNotificationPermission();
 }
 
@@ -360,550 +492,438 @@ function requestNotificationPermission() {
   }
 }
 
-// ─── Profile ───
+/* ═══════════════════════════════════════════════════════════════════
+   13. SUBSCRIBE
+   ═══════════════════════════════════════════════════════════════════ */
 function subscribeProfile() {
-  if (unsubProfile) unsubProfile();
-  unsubProfile = db.collection('merchants').doc(currentUser.uid).onSnapshot(snap => {
+  if (myProfileUnsub) myProfileUnsub();
+  myProfileUnsub = db.collection('merchants').doc(currentUser.uid).onSnapshot(snap => {
     if (!snap.exists) return;
-    const prev = merchantProfile?.verified;
+    const prevVerified = merchantProfile?.verified;
     merchantProfile = { uid: currentUser.uid, ...snap.data() };
-    if (prev === false && merchantProfile.verified === true) {
-      showToast('🎉 แอดมินอนุมัติแล้ว! เปิดร้านได้เลย', 'success');
-      playNotificationSound();
+
+    if (prevVerified === false && merchantProfile.verified === true) {
+      showToast('🎉 แอดมินอนุมัติแล้ว!', 'success');
+      soundNewOrder();
     }
+
     updateHeader();
     updatePendingBanner();
-  }, e => logToScreen('❌ Profile: ' + e.code, true));
+    updateShopToggle();
+    updateHeroStats();
+    updateGpTab();
+  });
 }
 
+function subscribeOrders() {
+  if (myOrdersUnsub) myOrdersUnsub();
+  myOrdersUnsub = db.collection('orders')
+    .where('merchantId', '==', currentUser.uid)
+    .orderBy('createdAt', 'desc')
+    .limit(100)
+    .onSnapshot(snap => {
+      const prevIds = seenOrderIds;
+      allOrders = snap.docs.map(d => {
+        const data = d.data();
+        return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
+      });
+
+      // แจ้งเตือนออเดอร์ใหม่
+      const newOnes = allOrders.filter(o =>
+        !prevIds.has(o.id) &&
+        o.status === 'pending' &&
+        merchantProfile?.verified === true &&
+        isShopOpen
+      );
+
+      if (newOnes.length > 0 && prevIds.size > 0) {
+        soundNewOrder();
+        showNewOrderPopup(newOnes[0]);
+      }
+
+      seenOrderIds = new Set(allOrders.map(o => o.id));
+      renderOrders();
+      updateHeroStats();
+      updateGpTab();
+      updateNavBadge();
+    }, err => {
+      debugLog('Orders: ' + err.code, true);
+    });
+}
+
+function subscribeMenus() {
+  if (myMenusUnsub) myMenusUnsub();
+  myMenusUnsub = db.collection('menus')
+    .where('merchantId', '==', currentUser.uid)
+    .onSnapshot(snap => {
+      allMenus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMenus();
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   14. UI UPDATE
+   ═══════════════════════════════════════════════════════════════════ */
 function updateHeader() {
   if (!merchantProfile) return;
-  $('shop-name').textContent = merchantProfile.name || 'ร้านค้า';
-  const mid = merchantProfile.uid || merchantProfile.merchantId || '';
-  $('shop-id-header').textContent = mid ? '🆔 ' + mid.slice(0, 12) + '...' : '';
-  $('shop-id-full').textContent = mid || '—';
+  const nameEl = $('shop-name');
+  if (nameEl) nameEl.textContent = merchantProfile.name || 'ร้านค้า';
+  const idEl = $('shop-id-header');
+  if (idEl) idEl.textContent = 'ID: ' + (currentUser?.uid || '').slice(0, 12) + '...';
+  const idFull = $('shop-id-full');
+  if (idFull) idFull.textContent = currentUser?.uid || '—';
   updateShopToggle();
 }
 
 function updatePendingBanner() {
-  $('pending-banner').classList.toggle('show', merchantProfile?.verified !== true);
+  const banner = $('pending-banner');
+  if (!banner) return;
+  banner.classList.toggle('show', merchantProfile?.verified !== true);
 }
 
 function updateShopToggle() {
   const btn = $('shop-toggle-btn');
   const lbl = $('toggle-label');
   const st = $('shop-status');
-  const isOpen = merchantProfile?.isOpen === true && merchantProfile?.verified === true;
-  btn.classList.toggle('open', isOpen);
+  if (!btn || !lbl || !st) return;
+
+  isShopOpen = merchantProfile?.isOpen === true && merchantProfile?.verified === true;
+  btn.classList.toggle('open', isShopOpen);
   btn.disabled = merchantProfile?.verified !== true;
-  lbl.textContent = isOpen ? 'เปิดร้าน' : 'ปิดร้าน';
-  st.textContent = merchantProfile?.verified !== true ? '⏳ รอการอนุมัติ' : (isOpen ? '🟢 เปิดรับออเดอร์' : '⚫ ปิดร้าน');
+  lbl.textContent = isShopOpen ? 'เปิดร้าน' : 'ปิดร้าน';
+  st.textContent = merchantProfile?.verified !== true
+    ? '⏳ รอการอนุมัติ'
+    : (isShopOpen ? '🟢 เปิดรับออเดอร์' : '⚫ ปิดร้าน');
 }
 
-async function toggleShop() {
-  if (!currentUser || merchantProfile?.verified !== true) {
-    return showToast('⏳ รอแอดมินอนุมัติก่อน', 'warning');
-  }
-  const newState = !merchantProfile.isOpen;
-  try {
-    await db.collection('merchants').doc(currentUser.uid).update({
-      isOpen: newState,
-      toggledAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast(newState ? '🟢 เปิดร้านรับออเดอร์แล้ว' : '⚫ ปิดร้านแล้ว', newState ? 'success' : 'info');
-  } catch (e) {
-    logToScreen('❌ Toggle: ' + e.message, true);
-    showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error');
-  }
-}
-
-function copyShopId() {
-  const mid = merchantProfile?.uid || merchantProfile?.merchantId || '';
-  if (!mid) return showToast('❌ ไม่พบ Merchant ID', 'error');
-  navigator.clipboard.writeText(mid).then(() => {
-    showToast('📋 คัดลอก Merchant ID แล้ว', 'success');
-  }).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = mid; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); showToast('📋 คัดลอกแล้ว', 'success'); } catch (e) {}
-    document.body.removeChild(ta);
-  });
-}
-
-function showShopInfo() {
-  if (!merchantProfile) return;
-  const verified = merchantProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รอการอนุมัติ';
-  const gpStatus = isGPActive() ? '🟠 เริ่มคิด GP แล้ว' : '🟢 โปรโมชั่นฟรี GP';
-  const mid = merchantProfile.uid || merchantProfile.merchantId || '—';
-  alert(
-    `🏪 ${merchantProfile.name || '-'}\n` +
-    `🆔 Merchant ID:\n${mid}\n` +
-    `📂 ประเภท: ${merchantProfile.category || '-'}\n` +
-    `📱 เบอร์: ${merchantProfile.phone || '-'}\n` +
-    `📍 ที่อยู่: ${merchantProfile.address || '-'}\n` +
-    `⏰ เปิด: ${merchantProfile.openTime || '-'}-${merchantProfile.closeTime || '-'}\n` +
-    `⭐ คะแนน: ${(merchantProfile.rating || 0).toFixed(1)} (${merchantProfile.totalRatings || 0} รีวิว)\n` +
-    `📦 ออเดอร์ทั้งหมด: ${merchantProfile.totalOrders || 0}\n` +
-    `💰 สถานะ: ${verified}\n` +
-    `💸 GP: ${gpStatus}\n` +
-    `⏰ เหลืออีก: ${gpDaysLeft()} วัน`
+function updateHeroStats() {
+  const todayOrders = allOrders.filter(o =>
+    (o.status === 'done' || o.status === 'cooking' || o.status === 'ready' || o.status === 'pending') &&
+    isToday(o.createdAt)
   );
+  const doneToday = allOrders.filter(o => o.status === 'done' && isToday(o.createdAt));
+
+  let todayRevenue = 0;
+  let todayGp = 0;
+  doneToday.forEach(o => {
+    const foodTotal = calcOrderFoodTotal(o);
+    todayRevenue += foodTotal;
+    const gp = calcGp(foodTotal, merchantProfile);
+    todayGp += gp.total;
+  });
+
+  const revEl = $('hero-revenue');
+  if (revEl) revEl.textContent = '฿' + fmt(todayRevenue);
+  const subEl = $('hero-sub');
+  if (subEl) subEl.textContent = `📦 ${doneToday.length} ออเดอร์`;
+
+  const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
+  el('stat-new', allOrders.filter(o => o.status === 'pending' && isToday(o.createdAt)).length);
+  el('stat-cooking', allOrders.filter(o => (o.status === 'cooking' || o.status === 'ready') && isToday(o.createdAt)).length);
+  el('stat-done', doneToday.length);
+  el('stat-gp', '฿' + fmt(todayGp));
 }
 
-// ─── Orders (Active) ───
-function subscribeOrders() {
-  if (unsubOrders) unsubOrders();
-  unsubOrders = db.collection('orders')
-    .where('merchantId', '==', currentUser.uid)
-    .where('status', 'in', ['pending', 'accepted', 'cooking', 'ready', 'picked_up', 'on_the_way'])
-    .orderBy('createdAt', 'desc')
-    .limit(50)
-    .onSnapshot(snap => {
-      const prevIds = seenOrderIds;
-      allOrders = snap.docs.map(d => {
-        const x = d.data();
-        return { id: d.id, ...x, createdAt: toDate(x.createdAt) };
-      });
-
-      const newOrders = allOrders.filter(o =>
-        !prevIds.has(o.id) &&
-        (o.status === 'pending' || o.merchantStatus === 'new') &&
-        merchantProfile?.verified === true &&
-        merchantProfile?.isOpen === true
-      );
-
-      if (newOrders.length > 0 && prevIds.size > 0) {
-        const latest = newOrders[0];
-        playNotificationSound();
-        showNewOrderPopup(latest);
-        if ('Notification' in window && Notification.permission === 'granted') {
-          try {
-            new Notification('🔔 ออเดอร์ใหม่!', {
-              body: `${latest.userName || 'ลูกค้า'} สั่งอาหาร`,
-              icon: '/icons/icon-512.png',
-              tag: 'new-order-' + latest.id
-            });
-          } catch (e) {}
-        }
-      }
-
-      seenOrderIds = new Set(allOrders.map(o => o.id));
-      renderOrders();
-      updateStats();
-      updateGP();
-    }, err => {
-      logToScreen('❌ Orders: ' + err.code, true);
-      if (err.code === 'failed-precondition') showToast('⚠️ ต้องสร้าง Firestore Index', 'error');
-    });
+function updateNavBadge() {
+  const pending = allOrders.filter(o => o.status === 'pending').length;
+  const badge = $('nav-orders-badge');
+  if (badge) {
+    if (pending > 0) {
+      badge.textContent = pending;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
 }
 
-// ─── Orders (History) ───
-function subscribeHistory() {
-  if (unsubHistory) unsubHistory();
-  unsubHistory = db.collection('orders')
-    .where('merchantId', '==', currentUser.uid)
-    .where('status', 'in', ['done', 'delivered', 'cancelled'])
-    .orderBy('createdAt', 'desc')
-    .limit(200)
-    .onSnapshot(snap => {
-      allHistory = snap.docs.map(d => {
-        const x = d.data();
-        return { id: d.id, ...x, createdAt: toDate(x.createdAt) };
-      });
-      renderHistory();
-      updateStats();
-      updateGP();
-    }, err => logToScreen('❌ History: ' + err.code, true));
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  6. RENDER ORDERS
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   15. RENDER ORDERS
+   ═══════════════════════════════════════════════════════════════════ */
 function renderOrders() {
-  const newOrders = allOrders.filter(o => (o.status === 'pending' || o.merchantStatus === 'new'));
-  const cookingOrders = allOrders.filter(o => o.merchantStatus === 'cooking' || (o.status === 'accepted' && o.merchantStatus !== 'ready'));
-  const readyOrders = allOrders.filter(o => o.merchantStatus === 'ready');
+  const pending = allOrders.filter(o => o.status === 'pending');
+  const cooking = allOrders.filter(o => o.status === 'cooking' || o.status === 'ready');
+  const done = allOrders.filter(o => o.status === 'done' && isToday(o.createdAt));
 
-  $('cnt-new').textContent = newOrders.length;
-  $('cnt-cooking').textContent = cookingOrders.length + readyOrders.length;
-  $('cnt-done').textContent = allHistory.filter(o => isToday(o.createdAt)).length;
+  const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
+  el('cnt-new', pending.length);
+  el('cnt-cooking', cooking.length);
+  el('cnt-done', done.length);
 
-  const navBadge = $('nav-orders-badge');
-  if (newOrders.length > 0) {
-    navBadge.style.display = 'flex';
-    navBadge.textContent = newOrders.length;
-  } else navBadge.style.display = 'none';
+  const nl = $('new-orders-list');
+  if (nl) nl.innerHTML = pending.map(o => renderOrderCard(o)).join('');
 
-  $('new-orders-list').innerHTML = newOrders.map(o => renderOrderCard(o, 'new')).join('');
-  $('cooking-orders-list').innerHTML = [...cookingOrders, ...readyOrders].map(o => renderOrderCard(o, 'cooking')).join('');
-  $('done-orders-list').innerHTML = allHistory.filter(o => isToday(o.createdAt) && (o.status === 'done' || o.merchantStatus === 'done')).slice(0, 15).map(o => renderOrderCard(o, 'done')).join('');
+  const cl = $('cooking-orders-list');
+  if (cl) cl.innerHTML = cooking.map(o => renderOrderCard(o)).join('');
 
-  $('orders-empty').style.display = (allOrders.length + allHistory.length) > 0 ? 'none' : 'block';
+  const dl = $('done-orders-list');
+  if (dl) dl.innerHTML = done.slice(0, 10).map(o => renderOrderCard(o)).join('');
+
+  const empty = $('orders-empty');
+  if (empty) empty.style.display = (pending.length + cooking.length + done.length) === 0 ? 'block' : 'none';
 }
 
-function renderOrderCard(o, type) {
-  const isNew = type === 'new';
-  const statusCls = o.merchantStatus || o.status;
-  const statusLabel = {
-    pending: '🔔 ใหม่', accepted: '🍳 กำลังทำ', cooking: '🍳 กำลังทำ',
-    ready: '✅ พร้อมส่ง', picked_up: '📦 ไรเดอร์รับแล้ว', on_the_way: '🚀 กำลังส่ง', done: '✅ เสร็จสิ้น'
-  }[statusCls] || o.status;
-  const statusBadge = {
-    pending: 'pending', accepted: 'cooking', cooking: 'cooking', ready: 'ready',
-    picked_up: 'done', on_the_way: 'done', done: 'done'
-  }[statusCls] || 'done';
-
-  let itemsList = '';
-  if (Array.isArray(o.items)) {
-    itemsList = o.items.map(it => `
-      <div class="item-row">
-        <span class="qty">×${it.qty || 1}</span>
-        <span class="item-name">${esc(it.name || '—')}</span>
-        <span class="item-price">${fmt(Number(it.price || 0) * Number(it.qty || 1))}฿</span>
-      </div>`).join('');
-  } else if (typeof o.items === 'string') {
-    itemsList = `<div class="item-row"><span class="item-name">${esc(o.items)}</span></div>`;
-  }
-
-  let actionBtns = '';
-  if (isNew || o.status === 'pending') {
-    actionBtns = `<div class="order-actions two">
-      <button class="order-btn btn-accept ripple" onclick="acceptOrder('${jsStr(o.id)}')">✅ รับออเดอร์</button>
-      <button class="order-btn btn-reject ripple" onclick="rejectOrder('${jsStr(o.id)}')">✕ ปฏิเสธ</button>
-    </div>`;
-  } else if (o.merchantStatus === 'cooking') {
-    actionBtns = `<button class="order-btn btn-ready ripple" onclick="markReady('${jsStr(o.id)}')">📦 อาหารพร้อม — แจ้งไรเดอร์</button>`;
-  } else if (o.merchantStatus === 'ready') {
-    actionBtns = `<button class="order-btn btn-done ripple" onclick="markDone('${jsStr(o.id)}')">✅ ส่งของแล้ว</button>`;
-  }
-
-  const hasSlip = o.riderSlipUrl;
-  const slipBadge = hasSlip ? (o.riderSlipVerified ? '<span class="status-badge done" style="background:#dcfce7;color:#16a34a">📸 ✅ สลิปแล้ว</span>' : '<span class="status-badge pending" style="background:#FFF3E0;color:#E65100">📸 รอสลิป</span>') : '';
-
-  return `<div class="order-card status-${statusBadge} ${isNew ? 'is-new' : ''}">
-    <div class="order-top">
-      <div class="order-emoji">🍽️</div>
-      <div class="order-top-info">
-        <div class="order-title">
-          ${isNew ? '<span class="new-tag">ใหม่!</span>' : ''}
-          <span>#${String(o.id).slice(-6).toUpperCase()}</span>
-          <span class="oid">${fmtTime(o.createdAt)}</span>
-        </div>
-        <div class="order-sub">👤 ${esc(o.userName || 'ลูกค้า')}</div>
-        ${slipBadge}
-      </div>
-      <span class="status-badge ${statusBadge}">${statusLabel}</span>
-    </div>
-    <div class="customer-box">
-      <div class="cname">👤 ${esc(o.userName || 'ลูกค้า')}</div>
-      <div class="cphone">${o.userPhone ? `<a href="tel:${esc(o.userPhone)}">📞 ${esc(o.userPhone)}</a>` : '📞 ไม่มีเบอร์'}</div>
-      ${o.address ? `<div class="caddr">📍 ${esc(o.address.slice(0, 60))}</div>` : ''}
-    </div>
-    <div class="items-list">
-      <div class="items-title">📝 รายการอาหาร</div>
-      ${itemsList}
-    </div>
-    ${o.note ? `<div class="order-note">📌 ${esc(o.note)}</div>` : ''}
-    <div class="order-money">
-      <div>
-        <div class="lbl">💰 ยอดรวม</div>
-        <div class="gp">GP 3%: ${fmt(calcGP(Number(o.total || o.price || 0)).total)}฿</div>
-      </div>
-      <div class="amt">${fmt(o.total || o.price || 0)}฿</div>
-    </div>
-    ${actionBtns}
-    <div class="order-time-bar">
-      <span>🕐 ${fmtTime(o.createdAt)}</span>
-      <button onclick="showOrderDetail('${jsStr(o.id)}')" style="background:none;border:none;color:var(--brand);font-weight:900;font-size:11px;cursor:pointer;font-family:inherit;padding:4px 8px">ดูรายละเอียด →</button>
-    </div>
-  </div>`;
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  7. ORDER DETAIL
-// ═══════════════════════════════════════════════════════════════
-function showOrderDetail(orderId) {
-  const o = allOrders.find(x => x.id === orderId) || allHistory.find(x => x.id === orderId);
-  if (!o) return;
-
-  const cut = calcGP(Number(o.total || o.price || 0));
-  const statusLabel = {
-    pending: '🔔 รอยืนยัน', accepted: '🍳 รับออเดอร์', cooking: '🍳 กำลังทำ',
-    ready: '✅ พร้อมส่ง', picked_up: '📦 ไรเดอร์รับ', on_the_way: '🚀 กำลังส่ง',
-    done: '✅ เสร็จสิ้น', cancelled: '❌ ยกเลิก'
-  }[o.status] || o.status;
-
-  let itemsHtml = '';
-  if (Array.isArray(o.items)) {
-    itemsHtml = o.items.map(it => `
-      <div class="item-row">
-        <span class="qty">×${it.qty || 1}</span>
-        <span class="item-name">${esc(it.name || '—')}</span>
-        <span class="item-price">${fmt(Number(it.price || 0) * Number(it.qty || 1))}฿</span>
-      </div>`).join('');
-  }
-
-  const slipHtml = o.riderSlipUrl ? `
-    <div class="slip-view">
-      <div class="title">📸 สลิปโอนเงินจากไรเดอร์</div>
-      ${o.riderSlipVerified ? '<div style="color:#166534;font-weight:800;font-size:12px">✅ ตรวจสอบแล้ว</div>' : '<div style="color:#E65100;font-weight:800;font-size:12px">⏳ รอตรวจสอบ</div>'}
-      <img src="${esc(o.riderSlipUrl)}" onclick="window.open('${esc(o.riderSlipUrl)}','_blank')">
-    </div>` : '';
-
-  $('order-detail-content').innerHTML = `
-    <div style="background:#f8f9fa;border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-weight:900;font-size:15px;margin-bottom:6px">${statusLabel}</div>
-      <div style="font-size:12px;color:#6B7280;font-weight:700">🆔 ${esc(o.id)}</div>
-      <div style="font-size:12px;color:#6B7280;font-weight:700">🕐 ${fmtDateTime(o.createdAt)}</div>
-    </div>
-
-    <div class="customer-box">
-      <div class="cname">👤 ${esc(o.userName || 'ลูกค้า')}</div>
-      <div class="cphone">${o.userPhone ? `<a href="tel:${esc(o.userPhone)}">📞 ${esc(o.userPhone)}</a>` : '📞 ไม่มีเบอร์'}</div>
-      ${o.address ? `<div class="caddr">📍 ${esc(o.address)}</div>` : ''}
-    </div>
-
-    <div class="items-list">
-      <div class="items-title">📝 รายการอาหาร</div>
-      ${itemsHtml || '<p style="color:#999;font-size:12px">ไม่มีรายการ</p>'}
-    </div>
-
-    ${o.note ? `<div class="order-note">📌 ${esc(o.note)}</div>` : ''}
-
-    <div class="order-money">
-      <div>
-        <div class="lbl">💰 ยอดรวม</div>
-        <div class="gp">GP 3%: ${fmt(cut.total)}฿</div>
-      </div>
-      <div class="amt">${fmt(o.total || o.price || 0)}฿</div>
-    </div>
-
-    ${slipHtml}
-
-    ${o.riderName ? `<div style="background:#E3F2FD;border-radius:12px;padding:12px;margin-bottom:12px">
-      <div style="font-size:12px;font-weight:900;color:#1565C0">🛵 ไรเดอร์: ${esc(o.riderName)}</div>
-      ${o.riderPhone ? `<div style="font-size:12px;color:#1976D2;font-weight:700">📞 ${esc(o.riderPhone)}</div>` : ''}
-    </div>` : ''}
-  `;
+function renderOrderCard(o) {
+  const isCash = o.paymentMode === 'cash';
+  const statusMap = {
+    pending: '🔔 รอรับ', cooking: '🍳 กำลังทำ', ready: '✅ พร้อมส่ง',
+    accepted: '🛵 ไรเดอร์รับ', picked_up: '📦 ไรเดอร์รับของ',
+    on_the_way: '🚀 กำลังส่ง', delivered: '✅ ส่งถึง',
+    done: '✅ เสร็จ', cancelled: '❌ ยกเลิก'
+  };
+  const statusLabel = statusMap[o.status] || o.status;
+  const foodTotal = calcOrderFoodTotal(o);
+  const itemsHtml = (o.items || []).map(i =>
+    `<div class="item-row"><span class="item-name">${esc(i.name)} × ${i.qty}</span><b>฿${fmt(i.price * i.qty)}</b></div>`
+  ).join('') || `<div>${esc(o.itemsText || '—')}</div>`;
 
   let actions = '';
   if (o.status === 'pending') {
     actions = `<div class="order-actions two">
-      <button class="order-btn btn-accept ripple" onclick="acceptOrder('${jsStr(o.id)}');closeSheet('order-detail-sheet')">✅ รับออเดอร์</button>
-      <button class="order-btn btn-reject ripple" onclick="rejectOrder('${jsStr(o.id)}');closeSheet('order-detail-sheet')">✕ ปฏิเสธ</button>
+      <button class="order-btn btn-accept ripple" onclick="acceptOrder('${esc(o.id)}')">✅ รับออเดอร์</button>
+      <button class="order-btn btn-reject ripple" onclick="cancelOrder('${esc(o.id)}')">❌ ยกเลิก</button>
     </div>`;
-  } else if (o.merchantStatus === 'cooking') {
-    actions = `<button class="order-btn btn-ready ripple" onclick="markReady('${jsStr(o.id)}');closeSheet('order-detail-sheet')" style="width:100%">📦 อาหารพร้อม</button>`;
-  } else if (o.riderId && ['accepted','picked_up','on_the_way','ready'].includes(o.status)) {
-    actions = `<button class="order-btn btn-chat ripple" onclick="openChatWithRider('${jsStr(o.id)}')" style="width:100%">💬 แชทกับไรเดอร์</button>`;
-  }
-  $('order-detail-actions').innerHTML = actions;
-  openSheet('order-detail-sheet');
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  8. UPDATE STATS
-// ═══════════════════════════════════════════════════════════════
-function updateStats() {
-  const todayDone = allHistory.filter(o => isToday(o.createdAt) && (o.status === 'done' || o.merchantStatus === 'done'));
-  const yesterdayDone = allHistory.filter(o => isYesterday(o.createdAt) && (o.status === 'done' || o.merchantStatus === 'done'));
-  const newCount = allOrders.filter(o => o.status === 'pending' || o.merchantStatus === 'new').length;
-  const cookingCount = allOrders.filter(o => ['accepted', 'cooking', 'ready', 'picked_up', 'on_the_way'].includes(o.status)).length;
-
-  const todayRev = todayDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const yesterdayRev = yesterdayDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const todayGP = todayDone.reduce((s, o) => s + calcGP(Number(o.total || o.price || 0)).total, 0);
-
-  $('hero-revenue').textContent = fmt(todayRev) + '฿';
-  $('hero-sub').innerHTML = `📦 ${todayDone.length} ออเดอร์ • ⏱️ ${merchantProfile?.openTime || '—'}-${merchantProfile?.closeTime || '—'}`;
-
-  const changeEl = $('hero-change');
-  if (yesterdayRev > 0) {
-    const change = Math.round((todayRev - yesterdayRev) / yesterdayRev * 100);
-    changeEl.textContent = `${change >= 0 ? '📈 +' : '📉 '}${change}% เทียบเมื่อวาน`;
-    changeEl.className = 'hero-change ' + (change >= 0 ? 'up' : 'down');
-  } else if (todayRev > 0) {
-    changeEl.textContent = '📈 +100% เทียบเมื่อวาน';
-    changeEl.className = 'hero-change up';
+  } else if (o.status === 'cooking') {
+    actions = `<div class="order-actions two">
+      <button class="order-btn btn-ready ripple" onclick="readyOrder('${esc(o.id)}')">✅ พร้อมส่ง</button>
+      <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รายละเอียด</button>
+    </div>`;
+  } else if (o.status === 'ready') {
+    actions = `<div class="order-actions">
+      <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รอดำเนินการ</button>
+    </div>`;
   } else {
-    changeEl.textContent = '— เทียบเมื่อวาน';
-    changeEl.className = 'hero-change';
+    actions = `<div class="order-actions">
+      <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 ดูรายละเอียด</button>
+    </div>`;
   }
 
-  $('stat-new').textContent = newCount;
-  $('stat-cooking').textContent = cookingCount;
-  $('stat-done').textContent = todayDone.length;
-  $('stat-gp').textContent = fmt(todayGP) + '฿';
+  const badge = isCash
+    ? '<span class="cash-badge">💵 เงินสด</span>'
+    : '<span class="transfer-badge">💳 โอน</span>';
+
+  const riderInfo = o.riderName
+    ? `<div class="order-meta" style="color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • '+esc(o.riderPhone) : ''}</div>`
+    : '';
+
+  return `<div class="order-card status-${o.status}">
+    <div class="order-top">
+      <div class="order-emoji">🍽️</div>
+      <div class="order-info">
+        <div class="order-id">#${esc(o.id.slice(-8))}</div>
+        <div class="order-title">${esc(o.userName || 'ลูกค้า')}</div>
+        <div class="order-meta">🕐 ${timeAgo(o.createdAt)} • ${statusLabel}</div>
+        ${riderInfo}
+        <div>${badge}</div>
+      </div>
+    </div>
+    <div class="order-items">${itemsHtml}</div>
+    <div class="order-total">
+      <div><div class="sub">ยอดอาหาร</div><div>฿${fmt(foodTotal)}</div></div>
+      <div class="amt">฿${fmt(foodTotal)}</div>
+    </div>
+    ${actions}
+  </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  9. UPDATE GP
-// ═══════════════════════════════════════════════════════════════
-function updateGP() {
-  const todayDone = allHistory.filter(o => isToday(o.createdAt) && (o.status === 'done' || o.merchantStatus === 'done'));
-  const todaySales = todayDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const todayGP = calcGP(todaySales);
-
-  $('gp-today-sales').textContent = fmt(todaySales) + '฿';
-  $('gp-today-total').textContent = fmt(todayGP.total) + '฿';
-  $('gp-today-rider').textContent = fmt(todayGP.rider) + '฿';
-  $('gp-today-platform').textContent = fmt(todayGP.platform) + '฿';
-  $('gp-today-net').textContent = fmt(todaySales - todayGP.total) + '฿';
-
-  // 7 days
-  const weekDone = allHistory.filter(o => isThisWeek(o.createdAt) && (o.status === 'done' || o.merchantStatus === 'done'));
-  const weekSales = weekDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const weekGP = calcGP(weekSales);
-  $('gp-week-sales').textContent = fmt(weekSales) + '฿';
-  $('gp-week-total').textContent = fmt(weekGP.total) + '฿';
-
-  // Month
-  const monthDone = allHistory.filter(o => isThisMonth(o.createdAt) && (o.status === 'done' || o.merchantStatus === 'done'));
-  const monthSales = monthDone.reduce((s, o) => s + Number(o.total || o.price || 0), 0);
-  const monthGP = calcGP(monthSales);
-  const avg = monthDone.length > 0 ? (monthSales / monthDone.length) : 0;
-
-  $('gp-month').textContent = fmt(monthGP.total) + '฿';
-  $('gp-month-sub').textContent = `จากยอดขาย ${fmt(monthSales)}฿`;
-  $('gp-month-orders').textContent = monthDone.length + ' รายการ';
-  $('gp-month-sales').textContent = fmt(monthSales) + '฿';
-  $('gp-month-total').textContent = fmt(monthGP.total) + '฿';
-  $('gp-month-net').textContent = fmt(monthSales - monthGP.total) + '฿';
-  $('gp-month-avg').textContent = fmt(avg) + '฿';
-
-  const daysLeft = gpDaysLeft();
-  if (isGPActive()) {
-    $('gp-countdown').innerHTML = `
-      <div class="days" style="color:#C62828">✓</div>
-      <div class="txt">
-        <div class="t1" style="color:#C62828">⏰ เริ่มคิด GP 3% แล้ว</div>
-        <div class="t2" style="color:#B71C1C">GP ถูกหักอัตโนมัติ</div>
-      </div>`;
-  } else {
-    $('gp-days-left').textContent = daysLeft;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  10. ORDER ACTIONS
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   16. ORDER ACTIONS
+   ═══════════════════════════════════════════════════════════════════ */
 async function acceptOrder(orderId) {
   try {
     await db.collection('orders').doc(orderId).update({
-      status: 'accepted',
-      merchantStatus: 'cooking',
-      merchantAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+      status: 'cooking',
+      cookingAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ รับออเดอร์แล้ว', 'success');
-    closeNewOrderPopup();
-  } catch (e) { showToast('❌ ไม่สำเร็จ', 'error'); }
+    showToast('🍳 เริ่มทำอาหาร');
+  } catch (err) {
+    showToast('ไม่สำเร็จ', 'error');
+  }
 }
 
-async function rejectOrder(orderId) {
-  const reason = prompt('ระบุเหตุผลที่ปฏิเสธ:', '');
-  if (reason === null) return;
+async function readyOrder(orderId) {
+  try {
+    await db.collection('orders').doc(orderId).update({
+      status: 'ready',
+      readyAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ พร้อมส่ง');
+  } catch (err) {
+    showToast('ไม่สำเร็จ', 'error');
+  }
+}
+
+async function cancelOrder(orderId) {
+  if (!confirm('ยกเลิกออเดอร์นี้?')) return;
   try {
     await db.collection('orders').doc(orderId).update({
       status: 'cancelled',
-      merchantStatus: 'rejected',
-      rejectReason: reason || 'ร้านปฏิเสธ',
-      rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+      cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+      cancelledBy: 'merchant'
     });
-    showToast('✕ ปฏิเสธแล้ว', 'info');
-  } catch (e) { showToast('❌ ไม่สำเร็จ', 'error'); }
-}
-
-async function markReady(orderId) {
-  try {
-    await db.collection('orders').doc(orderId).update({
-      merchantStatus: 'ready',
-      status: 'accepted',
-      readyAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('✅ อาหารพร้อม — รอไรเดอร์', 'success');
-  } catch (e) { showToast('❌ ไม่สำเร็จ', 'error'); }
-}
-
-async function markDone(orderId) {
-  try {
-    const order = allOrders.find(o => o.id === orderId);
-    const total = Number(order?.total || order?.price || 0);
-    const gp = calcGP(total);
-    await db.collection('orders').doc(orderId).update({
-      merchantStatus: 'done',
-      merchantDoneAt: firebase.firestore.FieldValue.serverTimestamp(),
-      gpAmount: gp.total, gpRider: gp.rider, gpPlatform: gp.platform
-    });
-    showToast('📦 ส่งให้ไรเดอร์แล้ว', 'success');
-  } catch (e) { showToast('❌ ไม่สำเร็จ', 'error'); }
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  11. NEW ORDER POPUP
-// ═══════════════════════════════════════════════════════════════
-function showNewOrderPopup(o) {
-  newPopupOrderId = o.id;
-  let itemsHtml = '';
-  if (Array.isArray(o.items)) {
-    itemsHtml = o.items.map(it => `<div>${esc(it.name)} × ${it.qty || 1} = <strong>${fmt(Number(it.price || 0) * Number(it.qty || 1))}฿</strong></div>`).join('');
+    showToast('❌ ยกเลิกออเดอร์');
+  } catch (err) {
+    showToast('ไม่สำเร็จ', 'error');
   }
-  $('new-order-detail').innerHTML = `
-    <div>👤 <strong>${esc(o.userName || 'ลูกค้า')}</strong></div>
-    <div>📞 <strong>${esc(o.userPhone || '—')}</strong></div>
-    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd">${itemsHtml}</div>
-    <div style="margin-top:8px;color:var(--brand);font-weight:900;font-size:18px">💰 รวม ${fmt(o.total || o.price || 0)}฿</div>`;
-  $('new-order-popup').classList.add('active');
 }
+
+function viewOrderDetail(orderId) {
+  const o = allOrders.find(x => x.id === orderId);
+  if (!o) return;
+  const foodTotal = calcOrderFoodTotal(o);
+  const gp = calcGp(foodTotal, merchantProfile);
+  const isCash = o.paymentMode === 'cash';
+
+  const itemsHtml = (o.items || []).map(i =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${esc(i.name)} × ${i.qty}</span><b>฿${fmt(i.price * i.qty)}</b>
+    </div>`
+  ).join('') || `<div>${esc(o.itemsText || '—')}</div>`;
+
+  const $content = $('order-detail-content');
+  if ($content) {
+    $content.innerHTML = `
+      <div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:800">#${esc(o.id.slice(-8))}</div>
+        <div style="font-size:15px;font-weight:900;margin-top:4px">${esc(o.userName || 'ลูกค้า')}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📞 ${esc(o.userPhone || '—')}</div>
+        <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📍 ${esc(o.address || '—')}</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:13px;font-weight:900;margin-bottom:8px">🍽️ รายการอาหาร</div>
+        ${itemsHtml}
+      </div>
+      <div style="background:${isCash?'var(--orange-light)':'var(--blue-light)'};border-radius:14px;padding:14px;margin-bottom:14px;font-size:13px;font-weight:700">
+        <div style="font-weight:900;margin-bottom:8px">${isCash?'💵 ลูกค้าจ่ายเงินสด':'💳 ลูกค้าโอนเงิน'}</div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span>ยอดอาหาร</span><b>฿${fmt(foodTotal)}</b></div>
+        ${o.fare?'<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ค่าส่ง (ของไรเดอร์)</span><b>฿'+fmt(o.fare)+'</b></div>':''}
+        ${isCash&&o.cashTip?'<div style="display:flex;justify-content:space-between;padding:3px 0;color:#E65100"><span>ค่าบริการพิเศษ (ทิป)</span><b>฿'+fmt(o.cashTip)+'</b></div>':''}
+        <div style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:1px solid var(--border);margin-top:6px;font-size:15px;font-weight:900">
+          <span>ร้านได้รับ</span><span style="color:var(--green)">฿${fmt(foodTotal)}</span>
+        </div>
+      </div>
+      ${!gp.isPromo ? `<div style="background:var(--yellow-light);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:700">
+        <div style="font-weight:900;margin-bottom:6px">💰 GP 3%</div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0"><span>รวม</span><b>฿${fmt(gp.total)}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;padding-left:16px;color:#FF6B35"><span>├─ ไรเดอร์ 2%</span><b>฿${fmt(gp.rider)}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:2px 0;padding-left:16px;color:#4A90D9"><span>└─ แพลตฟอร์ม 1%</span><b>฿${fmt(gp.platform)}</b></div>
+      </div>` : `<div style="background:var(--green-light);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:900;text-align:center;color:var(--green)">🎉 อยู่ในช่วงโปรโมชั่น — ไม่คิด GP</div>`}
+    `;
+  }
+
+  // Actions
+  const actionsHtml = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      ${o.userPhone?`<a href="tel:${esc(o.userPhone)}" class="order-btn btn-accept ripple" style="text-decoration:none">📞 โทรลูกค้า</a>`:''}
+      <button class="order-btn btn-cook ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
+    </div>
+    ${o.riderPhone?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <a href="tel:${esc(o.riderPhone)}" class="order-btn btn-ready ripple" style="text-decoration:none">📞 โทรไรเดอร์</a>
+      <button class="order-btn btn-gray ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>
+    </div>`:''}
+  `;
+  const $actions = $('order-detail-actions');
+  if ($actions) $actions.innerHTML = actionsHtml;
+
+  openSheet('order-detail-sheet');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   17. NEW ORDER POPUP
+   ═══════════════════════════════════════════════════════════════════ */
+function showNewOrderPopup(order) {
+  newOrderPopupId = order.id;
+  const foodTotal = calcOrderFoodTotal(order);
+  const isCash = order.paymentMode === 'cash';
+
+  const detail = $('new-order-detail');
+  if (detail) {
+    detail.innerHTML = `
+      <div>👤 <b>${esc(order.userName || 'ลูกค้า')}</b></div>
+      <div>📞 <b>${esc(order.userPhone || '—')}</b></div>
+      <div>📍 ${esc((order.address || '').slice(0, 50))}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+        💰 <b style="font-size:18px;color:var(--green)">฿${fmt(foodTotal)}</b>
+        ${isCash?'<div style="font-size:11px;color:#E65100;font-weight:900;margin-top:4px">💵 ลูกค้าจ่ายเงินสด</div>':'<div style="font-size:11px;color:#1976D2;font-weight:900;margin-top:4px">💳 ลูกค้าโอนเงิน</div>'}
+      </div>
+    `;
+  }
+
+  $('new-order-popup')?.classList.add('show');
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('🔔 ออเดอร์ใหม่!', {
+        body: `${order.userName || 'ลูกค้า'} — ฿${fmt(foodTotal)}`,
+        icon: '/icons/icon-512.png',
+        tag: 'new-order-' + order.id
+      });
+    } catch (e) {}
+  }
+}
+
 function closeNewOrderPopup() {
-  $('new-order-popup').classList.remove('active');
-  newPopupOrderId = null;
+  $('new-order-popup')?.classList.remove('show');
+  newOrderPopupId = null;
 }
+
 function acceptFromPopup() {
-  if (newPopupOrderId) acceptOrder(newPopupOrderId);
+  if (newOrderPopupId) acceptOrder(newOrderPopupId);
+  closeNewOrderPopup();
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  12. MENUS
-// ═══════════════════════════════════════════════════════════════
-function subscribeMenus() {
-  if (unsubMenus) unsubMenus();
-  unsubMenus = db.collection('menus')
-    .where('merchantId', '==', currentUser.uid)
-    .onSnapshot(snap => {
-      myMenus = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.category || '').localeCompare(b.category || '') || (a.name || '').localeCompare(b.name || '', 'th'));
-      renderMenus();
-    }, e => logToScreen('❌ Menus: ' + e.code, true));
+/* ═══════════════════════════════════════════════════════════════════
+   18. SHOP TOGGLE
+   ═══════════════════════════════════════════════════════════════════ */
+async function toggleShop() {
+  if (!currentUser || merchantProfile?.verified !== true) {
+    return showToast('รอแอดมินอนุมัติก่อน', 'warning');
+  }
+
+  const newState = !isShopOpen;
+  try {
+    await db.collection('merchants').doc(currentUser.uid).update({
+      isOpen: newState,
+      lastToggle: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast(newState ? '🟢 เปิดร้าน' : '⚫ ปิดร้าน');
+  } catch (err) {
+    showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error');
+  }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   19. MENUS
+   ═══════════════════════════════════════════════════════════════════ */
 function renderMenus() {
   const list = $('menu-list');
-  const availCount = myMenus.filter(m => m.isAvailable !== false).length;
-  $('menu-count-text').textContent = `${myMenus.length} เมนู (${availCount} พร้อมขาย)`;
+  if (!list) return;
+  const empty = $('menus-empty');
+  const countText = $('menu-count-text');
+  if (countText) countText.textContent = allMenus.length + ' เมนู';
 
-  if (!myMenus.length) {
+  if (!allMenus.length) {
     list.innerHTML = '';
-    $('menus-empty').style.display = 'block';
+    if (empty) empty.style.display = 'block';
     return;
   }
-  $('menus-empty').style.display = 'none';
+  if (empty) empty.style.display = 'none';
 
-  list.innerHTML = myMenus.map(m => {
-    const isOff = m.isAvailable === false;
-    return `<div class="menu-card ${isOff ? 'off' : ''}">
-      <div class="menu-img-wrap">
-        ${m.image ? `<img src="${esc(m.image)}" loading="lazy" onerror="this.style.display='none'">` : (CAT_ICONS[m.category] || '🍽️')}
-        <span class="menu-status-badge ${isOff ? 'off' : 'on'}">${isOff ? 'ปิด' : 'ขาย'}</span>
+  list.innerHTML = allMenus.map(m => {
+    const hasImg = m.image && m.image.startsWith('http');
+    const imgHtml = hasImg
+      ? `<img src="${esc(m.image)}" onerror="this.parentElement.innerHTML='🍽️'">`
+      : '🍽️';
+    return `<div class="menu-item">
+      <div class="menu-item-img">${imgHtml}</div>
+      <div class="menu-item-info">
+        <div class="menu-item-name">${esc(m.name)}</div>
+        ${m.description?`<div class="menu-item-desc">${esc(m.description)}</div>`:''}
+        <div class="menu-item-price">฿${fmt(m.price)}</div>
       </div>
-      <div class="menu-card-body">
-        <div class="menu-card-name">${esc(m.name || '—')}</div>
-        <div class="menu-card-cat">${CAT_ICONS[m.category] || '📦'} ${CAT_LABELS[m.category] || 'อื่นๆ'}</div>
-        <div class="menu-card-price">${fmt(m.price)}฿</div>
-        <div class="menu-card-actions">
-          <button class="menu-act-btn edit ripple" onclick="openMenuForm('${jsStr(m.id)}')">✏️</button>
-          <button class="menu-act-btn toggle ripple" onclick="toggleMenuAvail('${jsStr(m.id)}')">${isOff ? 'เปิด' : 'ปิด'}</button>
-          <button class="menu-act-btn del ripple" onclick="deleteMenu('${jsStr(m.id)}')">🗑️</button>
-        </div>
+      <div class="menu-item-actions">
+        <button class="menu-action-btn btn-edit-menu ripple" onclick="editMenu('${esc(m.id)}')">✏️</button>
+        <button class="menu-action-btn btn-del-menu ripple" onclick="deleteMenu('${esc(m.id)}')">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -911,239 +931,560 @@ function renderMenus() {
 
 function openMenuForm(menuId) {
   editingMenuId = menuId || null;
-  menuImgFile = null;
-  currentMenuImageUrl = null;
-  const area = $('img-upload-area');
-  const preview = $('img-preview');
+  editingMenuImgBlob = null;
+  editingMenuImgUrl = null;
 
-  if (menuId) {
-    const m = myMenus.find(x => x.id === menuId);
-    if (!m) return;
-    $('menu-form-title').textContent = '✏️ แก้ไขเมนู';
-    $('mf-name').value = m.name || '';
-    $('mf-price').value = m.price || '';
-    $('mf-category').value = m.category || 'main';
-    $('mf-desc').value = m.description || '';
-    if (m.image) {
-      currentMenuImageUrl = m.image;
-      preview.src = m.image;
-      preview.style.display = 'block';
-      area.classList.add('has-img');
-    } else {
-      preview.style.display = 'none';
-      area.classList.remove('has-img');
+  const titleEl = $('menu-form-title');
+  if (titleEl) titleEl.textContent = editingMenuId ? '✏️ แก้ไขเมนู' : '➕ เพิ่มเมนูใหม่';
+
+  if (editingMenuId) {
+    const m = allMenus.find(x => x.id === editingMenuId);
+    if (m) {
+      $('mf-name').value = m.name || '';
+      $('mf-price').value = m.price || '';
+      $('mf-category').value = m.category || 'main';
+      $('mf-desc').value = m.description || '';
+      if (m.image && m.image.startsWith('http')) {
+        editingMenuImgUrl = m.image;
+        const preview = $('img-preview');
+        if (preview) {
+          preview.src = m.image;
+          preview.style.display = 'block';
+        }
+        const placeholder = $('img-placeholder');
+        if (placeholder) placeholder.style.display = 'none';
+        const removeBtn = $('remove-img-btn');
+        if (removeBtn) removeBtn.style.display = 'block';
+      }
     }
   } else {
-    $('menu-form-title').textContent = '➕ เพิ่มเมนูใหม่';
     $('mf-name').value = '';
     $('mf-price').value = '';
     $('mf-category').value = 'main';
     $('mf-desc').value = '';
-    preview.style.display = 'none';
-    area.classList.remove('has-img');
+    const preview = $('img-preview');
+    if (preview) preview.style.display = 'none';
+    const placeholder = $('img-placeholder');
+    if (placeholder) placeholder.style.display = 'block';
+    const removeBtn = $('remove-img-btn');
+    if (removeBtn) removeBtn.style.display = 'none';
   }
+
   openSheet('menu-form-sheet');
 }
 
-function previewMenuImg(e) {
-  const file = e.target.files[0];
+async function previewMenuImg(event) {
+  const file = event.target.files[0];
   if (!file) return;
-  if (file.size > MAX_IMG_SIZE) return showToast('⚠️ รูปใหญ่เกิน 5MB', 'warning');
-  menuImgFile = file;
+  if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
+  editingMenuImgBlob = file;
+  editingMenuImgUrl = null;
+
   const reader = new FileReader();
-  reader.onload = (ev) => {
+  reader.onload = (e) => {
     const preview = $('img-preview');
-    preview.src = ev.target.result;
-    preview.style.display = 'block';
-    $('img-upload-area').classList.add('has-img');
+    if (preview) {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    }
+    const placeholder = $('img-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    const removeBtn = $('remove-img-btn');
+    if (removeBtn) removeBtn.style.display = 'block';
   };
   reader.readAsDataURL(file);
 }
 
 function removeMenuImg() {
-  menuImgFile = null;
-  currentMenuImageUrl = null;
-  $('img-preview').style.display = 'none';
-  $('img-upload-area').classList.remove('has-img');
-  $('menu-img-input').value = '';
+  editingMenuImgBlob = null;
+  editingMenuImgUrl = null;
+  const preview = $('img-preview');
+  if (preview) {
+    preview.src = '';
+    preview.style.display = 'none';
+  }
+  const placeholder = $('img-placeholder');
+  if (placeholder) placeholder.style.display = 'block';
+  const removeBtn = $('remove-img-btn');
+  if (removeBtn) removeBtn.style.display = 'none';
+  const input = $('menu-img-input');
+  if (input) input.value = '';
 }
 
 async function saveMenu() {
   if (!currentUser) return;
-  const btn = $('btn-save-menu');
   const name = $('mf-name').value.trim();
-  const price = parseFloat($('mf-price').value);
+  const price = parseInt($('mf-price').value);
   const category = $('mf-category').value;
-  const description = $('mf-desc').value.trim();
+  const desc = $('mf-desc').value.trim();
 
-  if (!name) return showToast('⚠️ กรอกชื่อเมนู', 'warning');
-  if (!price || price <= 0) return showToast('⚠️ กรอกราคา', 'warning');
+  if (!name) return showToast('กรอกชื่อเมนู', 'error');
+  if (!price || price < 1) return showToast('กรอกราคา', 'error');
 
-  btn.disabled = true; const orig = btn.textContent;
-  btn.textContent = '⏳ กำลังบันทึก...';
+  const btn = $('btn-save-menu');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
   try {
-    let imageUrl = currentMenuImageUrl || '';
-    if (menuImgFile) {
-      try {
-        const blob = await compressImage(menuImgFile, 800, 0.75);
-        const ref = storage.ref(`menus/${currentUser.uid}/${Date.now()}.jpg`);
-        const snap = await ref.put(blob);
-        imageUrl = await snap.ref.getDownloadURL();
-      } catch (uploadErr) {
-        logToScreen('⚠️ Upload: ' + uploadErr.message, true);
-      }
+    let imageUrl = editingMenuImgUrl;
+
+    if (editingMenuImgBlob) {
+      const compressed = await compressImage(editingMenuImgBlob, 800, 0.8);
+      const path = `menus/${currentUser.uid}/${Date.now()}.jpg`;
+      const ref = storage.ref(path);
+      await ref.put(compressed);
+      imageUrl = await ref.getDownloadURL();
     }
 
     const data = {
       merchantId: currentUser.uid,
-      merchantName: merchantProfile?.name || '',
-      name, price, category, description,
-      image: imageUrl,
-      isAvailable: true,
+      name: name,
+      price: price,
+      category: category,
+      description: desc,
+      image: imageUrl || '',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     if (editingMenuId) {
       await db.collection('menus').doc(editingMenuId).update(data);
-      showToast('✅ อัปเดตเมนูแล้ว', 'success');
+      showToast('✅ แก้ไขเมนูแล้ว');
     } else {
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection('menus').add(data);
-      showToast('✅ เพิ่มเมนูแล้ว', 'success');
+      showToast('✅ เพิ่มเมนูแล้ว');
     }
     closeSheet('menu-form-sheet');
-  } catch (e) {
-    logToScreen('❌ SaveMenu: ' + e.message, true);
-    showToast('❌ บันทึกไม่สำเร็จ', 'error');
+  } catch (err) {
+    showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = orig;
+    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกเมนู'; }
   }
 }
 
-async function toggleMenuAvail(menuId) {
-  const m = myMenus.find(x => x.id === menuId);
-  if (!m) return;
-  const newState = m.isAvailable === false;
-  try {
-    await db.collection('menus').doc(menuId).update({
-      isAvailable: newState,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast(newState ? '🟢 เปิดขาย' : '🔴 ปิดขาย', 'success');
-  } catch (e) { showToast('❌ ไม่สำเร็จ', 'error'); }
+function editMenu(menuId) {
+  openMenuForm(menuId);
 }
 
 async function deleteMenu(menuId) {
-  const m = myMenus.find(x => x.id === menuId);
-  if (!m) return;
-  if (!confirm(`ลบ "${m.name}" ?`)) return;
+  if (!confirm('ลบเมนูนี้?')) return;
   try {
     await db.collection('menus').doc(menuId).delete();
-    showToast('🗑️ ลบแล้ว', 'info');
-  } catch (e) { showToast('❌ ไม่สำเร็จ', 'error'); }
+    showToast('🗑️ ลบเมนูแล้ว');
+  } catch (err) {
+    showToast('ลบไม่สำเร็จ', 'error');
+  }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  13. HISTORY
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════════
+   20. HISTORY
+   ═══════════════════════════════════════════════════════════════════ */
 function filterHistory(filter, el) {
   currentHistoryFilter = filter;
-  document.querySelectorAll('[data-history]').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
+  $$('.filter-chip[data-history]').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
   renderHistory();
 }
 
 function renderHistory() {
-  let filtered = allHistory;
-  if (currentHistoryFilter === 'today') filtered = allHistory.filter(o => isToday(o.createdAt));
-  else if (currentHistoryFilter === 'week') filtered = allHistory.filter(o => isThisWeek(o.createdAt));
-  else if (currentHistoryFilter === 'month') filtered = allHistory.filter(o => isThisMonth(o.createdAt));
+  let filtered = [];
+  const done = allOrders.filter(o => o.status === 'done');
 
-  $('history-count').textContent = filtered.length;
+  if (currentHistoryFilter === 'today') {
+    filtered = done.filter(o => isToday(o.doneAt || o.createdAt));
+  } else if (currentHistoryFilter === 'week') {
+    filtered = done.filter(o => isThisWeek(o.doneAt || o.createdAt));
+  } else if (currentHistoryFilter === 'month') {
+    filtered = done.filter(o => isThisMonth(o.doneAt || o.createdAt));
+  } else {
+    filtered = done;
+  }
+
+  const histCount = $('history-count');
+  if (histCount) histCount.textContent = filtered.length;
+
+  const list = $('history-list');
+  if (!list) return;
 
   if (!filtered.length) {
-    $('history-list').innerHTML = '<div class="empty-state"><div class="icon">📜</div><h4>ไม่มีประวัติ</h4><p>ยังไม่มีออเดอร์ในช่วงเวลานี้</p></div>';
+    list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h4>ไม่มีประวัติ</h4><p>ยังไม่มีออเดอร์ในช่วงนี้</p></div>';
     return;
   }
 
-  $('history-list').innerHTML = filtered.slice(0, 100).map(o => {
-    const isCancelled = o.status === 'cancelled';
-    return `<div class="order-card" style="border-left-color:${isCancelled ? '#ccc' : '#00A651'};cursor:pointer" onclick="showOrderDetail('${jsStr(o.id)}')">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-size:13px;font-weight:900">#${String(o.id).slice(-6).toUpperCase()}</div>
-        <div style="font-size:16px;font-weight:900;color:${isCancelled ? '#999' : 'var(--brand)'}">${fmt(o.total || o.price || 0)}฿</div>
+  list.innerHTML = filtered.map(o => {
+    const foodTotal = calcOrderFoodTotal(o);
+    return `<div class="history-item" onclick="viewOrderDetail('${esc(o.id)}')">
+      <div class="history-info">
+        <div class="history-title">#${esc(o.id.slice(-8))} • ${esc(o.userName || 'ลูกค้า')}</div>
+        <div class="history-meta">🕐 ${fmtDateTime(o.doneAt || o.createdAt)}</div>
       </div>
-      <div style="font-size:11px;color:var(--text-muted);font-weight:700">
-        🕐 ${fmtDateTime(o.createdAt)} • 👤 ${esc(o.userName || 'ลูกค้า')}
+      <div class="history-amount">฿${fmt(foodTotal)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   21. GP TAB
+   ═══════════════════════════════════════════════════════════════════ */
+function updateGpTab() {
+  if (!merchantProfile) return;
+  const doneOrders = allOrders.filter(o => o.status === 'done');
+
+  const today = doneOrders.filter(o => isToday(o.doneAt || o.createdAt));
+  const month = doneOrders.filter(o => isThisMonth(o.doneAt || o.createdAt));
+
+  // GP Pending (จาก merchant.gpPending)
+  const pending = Number(merchantProfile.gpPending || 0);
+  const pendingEl = $('gp-pending');
+  if (pendingEl) pendingEl.textContent = '฿' + fmt(pending);
+  currentGpPending = pending;
+
+  // คำนวณยอดขายเดือนนี้
+  const monthSales = month.reduce((s, o) => s + calcOrderFoodTotal(o), 0);
+  const pendingSub = $('gp-pending-sub');
+  if (pendingSub) pendingSub.textContent = 'จากยอดขาย ' + fmt(monthSales) + '฿';
+
+  // Today breakdown
+  const todaySales = today.reduce((s, o) => s + calcOrderFoodTotal(o), 0);
+  let todayGp = 0, todayRider = 0, todayPlatform = 0;
+  today.forEach(o => {
+    const gp = calcGp(calcOrderFoodTotal(o), merchantProfile);
+    todayGp += gp.total;
+    todayRider += gp.rider;
+    todayPlatform += gp.platform;
+  });
+
+  const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
+  el('gp-today-sales', '฿' + fmt(todaySales));
+  el('gp-today-total', '฿' + fmt(todayGp));
+  el('gp-today-rider', '฿' + fmt(todayRider));
+  el('gp-today-platform', '฿' + fmt(todayPlatform));
+  el('gp-today-net', '฿' + fmt(todaySales - todayGp));
+
+  // Month stats
+  let monthGp = 0;
+  month.forEach(o => {
+    const gp = calcGp(calcOrderFoodTotal(o), merchantProfile);
+    monthGp += gp.total;
+  });
+  el('gp-month-orders', month.length + ' รายการ');
+  el('gp-month-sales', '฿' + fmt(monthSales));
+  el('gp-month-total', '฿' + fmt(monthGp));
+  el('gp-month-net', '฿' + fmt(monthSales - monthGp));
+
+  // Promo countdown
+  const daysLeft = getDaysLeft(merchantProfile);
+  const isPromo = isPromoActive(merchantProfile);
+  const cd = $('gp-countdown');
+  const daysEl = $('gp-days-left');
+  if (cd && daysEl) {
+    if (isPromo) {
+      cd.classList.add('promo');
+      daysEl.textContent = daysLeft;
+    } else {
+      cd.classList.remove('promo');
+      daysEl.textContent = '✓';
+    }
+  }
+
+  // GP history
+  renderGpHistory();
+}
+
+function renderGpHistory() {
+  const list = $('gp-history-list');
+  if (!list) return;
+  const history = merchantProfile.gpHistory || [];
+  if (!history.length) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);font-size:12px;font-weight:700">ยังไม่มีประวัติการโอน</div>';
+    return;
+  }
+  list.innerHTML = history.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).map(h => {
+    const date = toDate(h.createdAt);
+    const status = h.verified ? 'verified' : 'pending';
+    const statusLabel = h.verified ? '✅ ยืนยัน' : '⏳ รอตรวจ';
+    return `<div class="gp-history-item">
+      <div>
+        <div class="date">📅 ${date ? date.toLocaleDateString('th-TH',{day:'2-digit',month:'short'}) : '—'}</div>
+        <div style="font-size:10px;color:var(--text-light);margin-top:2px">${h.roundLabel || ''}</div>
       </div>
-      <div style="font-size:11px;font-weight:800;margin-top:4px;color:${isCancelled ? '#999' : '#00A651'}">
-        ${isCancelled ? '❌ ยกเลิก' : '✅ เสร็จสิ้น'}
+      <div style="text-align:right">
+        <div class="amt">฿${fmt(h.amount || 0)}</div>
+        <div class="status ${status}" style="margin-top:2px">${statusLabel}</div>
       </div>
     </div>`;
   }).join('');
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  14. CHAT WITH RIDER
-// ═══════════════════════════════════════════════════════════════
-async function openChatWithRider(orderId) {
-  const order = allOrders.find(o => o.id === orderId) || allHistory.find(o => o.id === orderId);
-  if (!order || !order.riderId) return;
+/* ═══════════════════════════════════════════════════════════════════
+   22. GP TRANSFER
+   ═══════════════════════════════════════════════════════════════════ */
+function openGpTransferForm() {
+  if (currentGpPending <= 0) {
+    return showToast('ไม่มี GP ค้างโอน', 'info');
+  }
 
-  const chatId = order.chatId || `chat_${[order.merchantId, order.riderId].sort().join('_')}`;
-  activeChatId = chatId;
+  gpSlipFile = null;
+  const amountEl = $('gp-transfer-amount');
+  if (amountEl) amountEl.textContent = '฿' + fmt(currentGpPending);
+
+  const roundEl = $('gp-transfer-round');
+  if (roundEl) {
+    const now = new Date();
+    const month = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    roundEl.textContent = month;
+  }
+
+  const preview = $('gp-slip-preview');
+  if (preview) preview.style.display = 'none';
+  const input = $('gp-slip-input');
+  if (input) input.value = '';
+  const note = $('gp-note');
+  if (note) note.value = '';
+
+  openSheet('gp-transfer-sheet');
+}
+
+// Bind slip upload
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'gp-slip-input') {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
+    gpSlipFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const preview = $('gp-slip-preview');
+      if (preview) {
+        preview.src = ev.target.result;
+        preview.style.display = 'block';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+async function submitGpTransfer() {
+  if (!gpSlipFile) return showToast('กรุณาแนบสลิปโอน', 'warning');
+  if (currentGpPending <= 0) return showToast('ไม่มี GP ค้างโอน', 'warning');
+
+  const btn = $('btn-submit-gp');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
   try {
-    const chatRef = db.collection('chats').doc(chatId);
+    // อัปโหลดสลิป
+    const compressed = await compressImage(gpSlipFile, 1000, 0.8);
+    const path = `gp_slips/${currentUser.uid}/${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(compressed);
+    const slipUrl = await ref.getDownloadURL();
+
+    const note = $('gp-note')?.value.trim() || '';
+    const amount = currentGpPending;
+    const now = new Date();
+    const roundLabel = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+    // เพิ่มเข้า gpHistory
+    const historyEntry = {
+      amount: amount,
+      slipUrl: slipUrl,
+      slipPath: path,
+      note: note,
+      roundLabel: roundLabel,
+      verified: false,
+      createdAt: new Date()
+    };
+
+    await db.collection('merchants').doc(currentUser.uid).update({
+      gpPending: 0,
+      gpHistory: firebase.firestore.FieldValue.arrayUnion(historyEntry),
+      lastGpTransferAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // บันทึก log แยก
+    await db.collection('gp_transfers').add({
+      merchantId: currentUser.uid,
+      merchantName: merchantProfile.name,
+      amount: amount,
+      slipUrl: slipUrl,
+      slipPath: path,
+      note: note,
+      status: 'pending',
+      roundLabel: roundLabel,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast('✅ ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
+    closeSheet('gp-transfer-sheet');
+  } catch (err) {
+    showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันโอนแล้ว'; }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   23. SHEET / MODAL
+   ═══════════════════════════════════════════════════════════════════ */
+function openSheet(id) {
+  const el = $(id);
+  if (el) el.classList.add('show');
+}
+
+function closeSheet(id) {
+  const el = $(id);
+  if (el) el.classList.remove('show');
+  if (id === 'menu-form-sheet') {
+    editingMenuId = null;
+    editingMenuImgBlob = null;
+    editingMenuImgUrl = null;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   24. TABS
+   ═══════════════════════════════════════════════════════════════════ */
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const target = $('tab-' + tab);
+  if (target) target.classList.add('active');
+
+  if (tab === 'history') renderHistory();
+  if (tab === 'gp') updateGpTab();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   25. SHOP INFO
+   ═══════════════════════════════════════════════════════════════════ */
+function showShopInfo() {
+  const m = merchantProfile;
+  if (!m) return;
+  const infoHtml = `
+    <div style="background:var(--surface-2);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:900;margin-bottom:10px">🏪 ${esc(m.name)}</div>
+      <div style="font-size:13px;font-weight:700;line-height:2;color:var(--text-muted)">
+        <div>📂 ประเภท: ${esc(m.category || '—')}</div>
+        <div>📞 เบอร์: ${esc(m.phone || '—')}</div>
+        <div>📧 อีเมล: ${esc(m.email || '—')}</div>
+        <div>📍 ${esc(m.address || '—')}</div>
+        <div>⏰ ${esc(m.openTime || '—')} - ${esc(m.closeTime || '—')}</div>
+        <div>⭐ ${(m.ratingAvg || 0).toFixed(1)} (${m.ratingCount || 0} รีวิว)</div>
+        <div>${m.verified ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}</div>
+      </div>
+    </div>
+    <button class="sheet-close" onclick="closeSheet('menu-sheet')">ปิด</button>
+  `;
+  const sheet = document.querySelector('#menu-sheet .sheet');
+  if (sheet) {
+    // Replace content temporarily
+    sheet.innerHTML = '<div class="sheet-handle"></div><h2>🏪 ข้อมูลร้าน</h2>' + infoHtml;
+    // Restore on close
+    const closeBtn = sheet.querySelector('.sheet-close');
+    if (closeBtn) closeBtn.onclick = () => {
+      closeSheet('menu-sheet');
+      setTimeout(() => location.reload(), 300);
+    };
+  }
+}
+
+function copyShopId() {
+  const id = currentUser?.uid;
+  if (!id) return;
+  navigator.clipboard?.writeText(id).then(() => showToast('📋 คัดลอก ID แล้ว'));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   26. CHAT
+   ═══════════════════════════════════════════════════════════════════ */
+async function openChatWithCustomer(orderId) {
+  const o = allOrders.find(x => x.id === orderId);
+  if (!o) return showToast('ไม่พบออเดอร์', 'error');
+  activeChatId = orderId;
+  activeChatPartnerPhone = o.userPhone || null;
+  activeChatPartnerName = o.userName || 'ลูกค้า';
+  await openChatRoom(orderId, activeChatPartnerName, o.title || 'ออเดอร์');
+  closeSheet('order-detail-sheet');
+}
+
+async function openChatWithRider(orderId) {
+  const o = allOrders.find(x => x.id === orderId);
+  if (!o) return showToast('ไม่พบออเดอร์', 'error');
+  if (!o.riderId) return showToast('ยังไม่มีไรเดอร์รับงาน', 'warning');
+  activeChatId = orderId;
+  activeChatPartnerPhone = o.riderPhone || null;
+  activeChatPartnerName = o.riderName || 'ไรเดอร์';
+  await openChatRoom(orderId, activeChatPartnerName, o.title || 'ออเดอร์');
+  closeSheet('order-detail-sheet');
+}
+
+async function openChatRoom(orderId, name, sub) {
+  try {
+    const chatRef = db.collection('chats').doc(orderId);
     const snap = await chatRef.get();
     if (!snap.exists) {
+      const o = allOrders.find(x => x.id === orderId);
+      if (!o) return;
       await chatRef.set({
-        participantIds: [currentUser.uid, order.riderId].filter(Boolean),
-        participants: [
-          { uid: currentUser.uid, name: merchantProfile.name, role: 'merchant' },
-          { uid: order.riderId, name: order.riderName || 'ไรเดอร์', role: 'rider' }
-        ],
-        type: 'rider_merchant',
-        lastMessage: 'เริ่มสนทนา',
+        orderId: orderId,
+        userId: o.userId || '',
+        userName: o.userName || 'ลูกค้า',
+        riderId: o.riderId || '',
+        riderName: o.riderName || 'ไรเดอร์',
+        merchantId: currentUser.uid,
+        merchantName: merchantProfile.name,
+        lastMessage: '',
+        lastSenderId: '',
         lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
-  } catch (e) { console.warn(e); }
+  } catch (err) {}
 
-  $('chatName').textContent = order.riderName || 'ไรเดอร์';
-  $('chatSub').textContent = `#${String(order.id).slice(-6).toUpperCase()}`;
-  $('chatContainer').classList.add('show');
-  closeSheet('order-detail-sheet');
+  const cn = $('chatName'); if (cn) cn.textContent = name;
+  const cs = $('chatSub'); if (cs) cs.textContent = sub;
+  $('chatContainer')?.classList.add('show');
 
   if (activeChatUnsub) activeChatUnsub();
-  activeChatUnsub = db.collection('chats').doc(chatId).collection('messages')
-    .orderBy('createdAt', 'asc').limitToLast(100)
+  activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')
+    .orderBy('createdAt', 'asc').limit(200)
     .onSnapshot(snap => {
-      renderChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderChatMessages(msgs);
     });
 }
 
 function closeChat() {
-  $('chatContainer').classList.remove('show');
+  $('chatContainer')?.classList.remove('show');
   if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
   activeChatId = null;
 }
 
+function callChatPartner() {
+  if (activeChatPartnerPhone) {
+    window.location.href = 'tel:' + activeChatPartnerPhone;
+  } else {
+    showToast('ไม่มีเบอร์โทร', 'warning');
+  }
+}
+
 function renderChatMessages(msgs) {
   const el = $('chatMessages');
-  if (!msgs.length) {
+  if (!el) return;
+  if (msgs.length === 0) {
     el.innerHTML = '<div class="chat-empty">เริ่มสนทนา</div>';
     return;
   }
   let lastDay = '';
   el.innerHTML = msgs.map(m => {
-    const isMine = m.senderId === currentUser.uid || m.senderRole === 'merchant';
+    const isMine = m.senderId === currentUser.uid;
     const d = toDate(m.createdAt) || new Date();
     const day = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
     let dayDiv = '';
-    if (day !== lastDay) { dayDiv = `<div class="chat-day-divider">${day}</div>`; lastDay = day; }
+    if (day !== lastDay) {
+      dayDiv = `<div class="chat-day-divider">${day}</div>`;
+      lastDay = day;
+    }
     const img = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
     return `${dayDiv}
       <div class="chat-msg ${isMine ? 'out' : 'in'}">
@@ -1156,10 +1497,11 @@ function renderChatMessages(msgs) {
 }
 
 async function sendChatText() {
-  const text = $('chatInput').value.trim();
+  const text = $('chatInput')?.value.trim();
   if (!text || !activeChatId) return;
-  $('chatInput').value = '';
-  $('chatInput').style.height = 'auto';
+  const inp = $('chatInput');
+  inp.value = '';
+  inp.style.height = 'auto';
   try {
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       text,
@@ -1169,10 +1511,13 @@ async function sendChatText() {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('chats').doc(activeChatId).update({
-      lastMessage: `[ร้าน] ${text}`,
+      lastMessage: text.slice(0, 80),
+      lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-  } catch (e) { showToast('ส่งไม่สำเร็จ', 'error'); }
+  } catch (err) {
+    showToast('ส่งไม่สำเร็จ', 'error');
+  }
 }
 
 async function sendChatImage(file) {
@@ -1180,10 +1525,12 @@ async function sendChatImage(file) {
   if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
   showToast('⏳ กำลังอัปโหลด...', 'info');
   try {
-    const blob = await compressImage(file, 800, 0.75);
-    const ref = storage.ref(`chats/${activeChatId}/${Date.now()}.jpg`);
-    await ref.put(blob);
+    const compressed = await compressImage(file, 800, 0.75);
+    const path = `chats/${activeChatId}/${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(compressed);
     const url = await ref.getDownloadURL();
+
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       imageUrl: url,
       senderId: currentUser.uid,
@@ -1192,11 +1539,14 @@ async function sendChatImage(file) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '[ร้าน] 📷 รูปภาพ',
+      lastMessage: '📷 รูปภาพ',
+      lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ ส่งรูปแล้ว', 'success');
-  } catch (e) { showToast('อัปโหลดไม่สำเร็จ', 'error'); }
+    showToast('✅ ส่งรูปแล้ว');
+  } catch (err) {
+    showToast('อัปโหลดไม่สำเร็จ', 'error');
+  }
 }
 
 function autoResize(el) {
@@ -1204,75 +1554,106 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  15. NETWORK & PWA
-// ═══════════════════════════════════════════════════════════════
-function setupNetworkWatcher() {
+/* ═══════════════════════════════════════════════════════════════════
+   27. NETWORK & PWA
+   ═══════════════════════════════════════════════════════════════════ */
+function setupNetwork() {
   window.addEventListener('online', () => {
-    $('offlineBar').classList.remove('show');
-    showToast('🟢 กลับมาออนไลน์', 'success');
+    $('offline-banner')?.classList.remove('show');
+    showToast('🟢 กลับมาออนไลน์');
   });
   window.addEventListener('offline', () => {
-    $('offlineBar').classList.add('show');
+    $('offline-banner')?.classList.add('show');
   });
-  if (!navigator.onLine) $('offlineBar').classList.add('show');
+  if (!navigator.onLine) $('offline-banner')?.classList.add('show');
 }
 
-function setupPWAInstall() {
+function setupPWA() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    const banner = $('pwaBanner');
-    if (banner && !localStorage.getItem('pwa_dismissed')) {
-      banner.classList.remove('hidden');
+    if (!localStorage.getItem('chauat_merchant_pwa_dismissed')) {
+      $('pwa-install-banner')?.classList.remove('hidden');
     }
-  });
-  window.addEventListener('appinstalled', () => {
-    logToScreen('✅ PWA ติดตั้งแล้ว');
-    $('pwaBanner').classList.add('hidden');
   });
 }
 
-async function installPWA() {
+function installPWA() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
-    if (result.outcome === 'accepted') {
-      showToast('✅ ติดตั้งสำเร็จ', 'success');
-      $('pwaBanner').classList.add('hidden');
-    }
-    deferredPrompt = null;
+    deferredPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') {
+        showToast('✅ ติดตั้งสำเร็จ');
+        $('pwa-install-banner')?.classList.add('hidden');
+      }
+      deferredPrompt = null;
+    });
   } else {
-    showToast('เปิดเมนู → "เพิ่มไปที่หน้าจอหลัก"', 'info');
+    showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก', 'info');
   }
 }
 
-function hidePWABanner() {
-  $('pwaBanner').classList.add('hidden');
-  localStorage.setItem('pwa_dismissed', '1');
+function dismissPWA() {
+  $('pwa-install-banner')?.classList.add('hidden');
+  localStorage.setItem('chauat_merchant_pwa_dismissed', '1');
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  16. TAB SWITCHING
-// ═══════════════════════════════════════════════════════════════
-function switchTab(tabId, el) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  $('tab-' + tabId).classList.add('active');
-  if (el) el.classList.add('active');
-  window.scrollTo(0, 0);
+/* ═══════════════════════════════════════════════════════════════════
+   28. INIT
+   ═══════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  runSplash();
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   29. GLOBAL EXPOSE
+   ═══════════════════════════════════════════════════════════════════ */
+window.toggleTheme = toggleTheme;
+window.switchAuthTab = switchAuthTab;
+window.handleLogin = handleLogin;
+window.handleSignup = handleSignup;
+window.handleForgotPassword = handleForgotPassword;
+window.handleMerchantLogout = handleMerchantLogout;
+window.toggleShop = toggleShop;
+window.switchTab = switchTab;
+window.openSheet = openSheet;
+window.closeSheet = closeSheet;
+window.acceptOrder = acceptOrder;
+window.readyOrder = readyOrder;
+window.cancelOrder = cancelOrder;
+window.viewOrderDetail = viewOrderDetail;
+window.closeNewOrderPopup = closeNewOrderPopup;
+window.acceptFromPopup = acceptFromPopup;
+window.openMenuForm = openMenuForm;
+window.previewMenuImg = previewMenuImg;
+window.removeMenuImg = removeMenuImg;
+window.saveMenu = saveMenu;
+window.editMenu = editMenu;
+window.deleteMenu = deleteMenu;
+window.filterHistory = filterHistory;
+window.openGpTransferForm = openGpTransferForm;
+window.submitGpTransfer = submitGpTransfer;
+window.showShopInfo = showShopInfo;
+window.copyShopId = copyShopId;
+window.openChatWithCustomer = openChatWithCustomer;
+window.openChatWithRider = openChatWithRider;
+window.closeChat = closeChat;
+window.callChatPartner = callChatPartner;
+window.sendChatText = sendChatText;
+window.sendChatImage = sendChatImage;
+window.autoResize = autoResize;
+window.installPWA = installPWA;
+window.dismissPWA = dismissPWA;
+
+/* Service Worker */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+      .then(reg => {
+        reg.update();
+        setInterval(() => reg.update(), 60000);
+      })
+      .catch(() => {});
+  });
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  17. HAPTIC
-// ═══════════════════════════════════════════════════════════════
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('button, .nav-tab, .order-btn, .menu-act-btn');
-  if (el && navigator.vibrate) navigator.vibrate(10);
-}, { passive: true });
-
-// ═══════════════════════════════════════════════════════════════
-//  18. INIT LOG
-// ═══════════════════════════════════════════════════════════════
-console.log('%c🏪 Chauat Go Merchant v3.3.3', 'color:#00A651;font-weight:900;font-size:16px');
-console.log('%c✓ PWA | ✓ Merchant ID | ✓ Slip Verify | ✓ Chat | ✓ History', 'color:#4A90D9;font-weight:700');
