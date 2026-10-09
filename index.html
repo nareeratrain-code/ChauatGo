@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.4</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.5</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,7 +16,7 @@
 <!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.4-20241009-001';
+  var VERSION = 'v3.4.5-20241009-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -53,7 +53,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.4 — RATING + CHAT EDITION
+   CHAUAT GO v3.4.5 — FOOD TABS + EXPRESS MAP PICKER
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -101,18 +101,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 @keyframes cardSlideIn { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 /* ═══ SPLASH ═══ */
-#splash-screen {
-  position: fixed; inset: 0; z-index: 99999;
-  background: var(--header-grad);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  transition: opacity .5s ease, visibility .5s ease; overflow: hidden;
-}
-#splash-screen::before {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.15), transparent 50%),
-              radial-gradient(circle at 70% 80%, rgba(255,255,255,.1), transparent 50%);
-  pointer-events: none;
-}
+#splash-screen { position: fixed; inset: 0; z-index: 99999; background: var(--header-grad); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity .5s ease, visibility .5s ease; overflow: hidden; }
+#splash-screen::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.15), transparent 50%), radial-gradient(circle at 70% 80%, rgba(255,255,255,.1), transparent 50%); pointer-events: none; }
 #splash-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 .splash-logo { width: 120px; height: 120px; border-radius: 30px; box-shadow: 0 20px 60px rgba(0,0,0,.4); animation: logoPulse 2s ease-in-out infinite; position: relative; z-index: 1; }
 .splash-title { color: #fff; font-size: 28px; font-weight: 900; margin-top: 24px; letter-spacing: 1px; text-shadow: 0 4px 16px rgba(0,0,0,.3); position: relative; z-index: 1; animation: fadeIn .8s ease .3s backwards; }
@@ -133,13 +123,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .profile-avatar:active { transform: scale(.92); }
 
 /* ═══ THEME FAB ═══ */
-.theme-fab {
-  position: fixed; bottom: 150px; right: 14px; width: 44px; height: 44px;
-  border-radius: 50%; background: var(--surface); border: none;
-  box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 4000; transition: transform .3s, opacity .2s;
-}
+.theme-fab { position: fixed; bottom: 150px; right: 14px; width: 44px; height: 44px; border-radius: 50%; background: var(--surface); border: none; box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; z-index: 4000; transition: transform .3s, opacity .2s; }
 .theme-fab:active { transform: scale(.9) rotate(180deg); }
 .theme-fab.hidden { display: none !important; }
 
@@ -174,6 +158,56 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-card-info { flex: 1; min-width: 0; }
 .merchant-card-name { font-weight: 900; font-size: 14px; color: var(--text); }
 .merchant-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 600; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.4.5: MERCHANT 3-TABS
+   ═══════════════════════════════════════════════════════════════ */
+.merchant-tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.m-tab { flex: 1; padding: 10px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; font-family: inherit; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; transition: all .15s; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+.m-tab:active { transform: scale(.95); }
+.m-tab.active { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; border-color: var(--brand); box-shadow: 0 4px 12px rgba(118,184,42,.3); }
+
+.merchant-badge { display: inline-flex; align-items: center; gap: 3px; background: #FFF3E0; color: #E65100; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 8px; margin-top: 3px; }
+[data-theme="dark"] .merchant-badge { background: #3F2F1F; color: #FFB74D; }
+.merchant-distance { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 800; color: var(--text-muted); margin-top: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.4.5: EXPRESS FORM
+   ═══════════════════════════════════════════════════════════════ */
+.exp-picker-row { display: flex; gap: 8px; margin-top: 6px; }
+.exp-pick-btn { flex: 1; padding: 10px 8px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 900; cursor: pointer; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all .15s; }
+.exp-pick-btn:active { transform: scale(.96); }
+.exp-pick-btn.primary { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-color: var(--green); }
+.exp-coord-badge { display: inline-block; font-size: 10px; font-weight: 800; color: var(--green); background: #E8F5E9; padding: 3px 8px; border-radius: 8px; margin-top: 4px; }
+[data-theme="dark"] .exp-coord-badge { background: #1F3F1F; color: #8FD334; }
+
+.sug-chips { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; padding-bottom: 4px; scrollbar-width: none; }
+.sug-chips::-webkit-scrollbar { display: none; }
+.sug-chip { padding: 8px 12px; border-radius: 12px; white-space: nowrap; background: var(--surface-2); border: 1px solid var(--border); font-size: 11px; font-weight: 800; color: var(--text); cursor: pointer; font-family: inherit; }
+.sug-chip:active { transform: scale(.95); background: var(--brand-light); }
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.4.5: MAP PICKER OVERLAY
+   ═══════════════════════════════════════════════════════════════ */
+#map-picker { position: fixed; inset: 0; background: var(--bg); z-index: 8600; display: none; flex-direction: column; }
+#map-picker.show { display: flex !important; animation: fadeIn .2s; }
+#map-picker-map { flex: 1; width: 100%; z-index: 1; }
+.map-picker-header { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.map-picker-header h3 { font-size: 15px; font-weight: 900; flex: 1; }
+.map-picker-back { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
+.map-picker-search { position: absolute; top: 70px; left: 14px; right: 14px; z-index: 500; background: var(--surface); border-radius: 14px; padding: 10px 14px; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 8px; }
+.map-picker-search input { flex: 1; border: none; outline: none; background: transparent; font-size: 14px; font-weight: 700; font-family: inherit; color: var(--text); }
+.map-picker-suggestions { position: absolute; top: 120px; left: 14px; right: 14px; z-index: 500; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lg); max-height: 45vh; overflow-y: auto; display: none; }
+.map-picker-suggestions.show { display: block; }
+.map-picker-suggestions .sug-item { padding: 12px 14px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+.map-picker-suggestions .sug-item:active { background: var(--surface-2); }
+.map-picker-suggestions .sug-item .sug-icon { font-size: 18px; }
+.map-picker-suggestions .sug-item .sug-name { flex: 1; min-width: 0; }
+.map-picker-suggestions .sug-item .sug-name .sub { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-picker-bottom { background: var(--surface); padding: 14px 16px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 12px rgba(0,0,0,.08); flex-shrink: 0; }
+.map-picker-coord { font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 10px; text-align: center; }
+.map-picker-confirm { width: 100%; padding: 14px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
+.map-picker-confirm:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ═══ HOME ═══ */
 #home-content { padding: 14px; }
@@ -238,8 +272,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .order-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); margin: 14px 0 10px; text-transform: uppercase; letter-spacing: .5px; }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state .icon { font-size: 64px; margin-bottom: 12px; opacity: .5; }
-.chat-card { display: flex; gap: 12px; align-items: center; padding: 16px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-sm); cursor: pointer; margin-bottom: 10px; transition: transform .15s; }
-.chat-card:active { transform: scale(.98); }
 
 /* ═══ CART BAR ═══ */
 .cart-bar { position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s cubic-bezier(.32,.72,0,1); }
@@ -377,9 +409,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 12px; animation: popIn .3s; }
 .lightbox-close { position: absolute; top: 20px; right: 20px; background: #fff; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; font-family: inherit; }
 
-/* ═══ DEBUG ═══ */
-#debugConsole { position: fixed; bottom: 0; left: 0; right: 0; max-height: 80px; overflow-y: auto; background: rgba(0,0,0,.92); color: #0f0; font-size: 10px; font-family: monospace; padding: 6px 12px; z-index: 99999; display: none; border-top: 2px solid #333; line-height: 1.4; -webkit-overflow-scrolling: touch; }
-
 /* ═══ PRESS EFFECT ═══ */
 .press-scale { transition: transform .12s; }
 .press-scale:active { transform: scale(.95); }
@@ -388,7 +417,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .float-anim { animation: floatUp 3s ease-in-out infinite; }
 
 /* ═══════════════════════════════════════════════════════════════
-   ⭐ RATING SYSTEM (v3.4.4)
+   RATING SYSTEM
    ═══════════════════════════════════════════════════════════════ */
 .rating-star { color: #ddd; transition: color .15s, transform .15s; user-select: none; -webkit-tap-highlight-color: transparent; }
 .rating-star.active { color: #FFC107; }
@@ -399,18 +428,11 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .rating-inline { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; color: var(--text-muted); }
 .rating-inline .star { color: #FFC107; }
 
-.rate-btn {
-  margin-top: 8px; padding: 8px 14px; border: none;
-  border-radius: 10px; font-weight: 900; font-size: 12px;
-  background: linear-gradient(135deg, #FFC107, #FFA000); color: #fff;
-  cursor: pointer; font-family: inherit;
-  box-shadow: 0 4px 12px rgba(255,193,7,.3);
-  transition: transform .15s;
-}
+.rate-btn { margin-top: 8px; padding: 8px 14px; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; background: linear-gradient(135deg, #FFC107, #FFA000); color: #fff; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(255,193,7,.3); transition: transform .15s; }
 .rate-btn:active { transform: scale(.95); }
 
 /* ═══════════════════════════════════════════════════════════════
-   💬 CHAT SYSTEM (v3.4.4)
+   CHAT SYSTEM
    ═══════════════════════════════════════════════════════════════ */
 #chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 8500; display: none; flex-direction: column; }
 #chat-page.show { display: flex !important; animation: fadeIn .2s; }
@@ -440,7 +462,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .chat-list-body { flex: 1; min-width: 0; }
 .chat-list-name { font-weight: 900; font-size: 14px; color: var(--text); }
 .chat-list-last { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-list-time { font-size: 10px; color: var(--text-light); font-weight: 700; flex-shrink: 0; }
 
 /* ═══ RESPONSIVE ═══ */
 @media (max-width: 360px) {
@@ -464,9 +485,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 <!-- ═══ THEME TOGGLE FAB ═══ -->
 <button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
-
-<!-- ═══ DEBUG ═══ -->
-<div id="debugConsole"><strong style="color:#FFA500">Debug v3.4.4:</strong><br></div>
 
 <!-- ═══ PWA BANNER ═══ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
@@ -554,7 +572,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ⭐ v3.4.4: RATING MODAL ⭐ -->
+<!-- ⭐ RATING MODAL ⭐ -->
 <div class="modal-overlay" id="rating-modal" onclick="if(event.target===this)closeRatingModal()">
   <div class="modal-content" style="max-width:440px">
     <div style="text-align:center;margin-bottom:16px">
@@ -583,7 +601,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 💬 v3.4.4: CHAT PAGE 💬 -->
+<!-- 💬 CHAT PAGE 💬 -->
 <div id="chat-page">
   <div class="chat-header">
     <button class="chat-back-btn press-scale" onclick="closeChatPage()">← กลับ</button>
@@ -600,6 +618,29 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     <input id="chat-input" type="text" placeholder="พิมพ์ข้อความ..." maxlength="1000"
            onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage();}">
     <button class="chat-send-btn press-scale" onclick="sendChatMessage()">➤</button>
+  </div>
+</div>
+
+<!-- ═══ v3.4.5: MAP PICKER (origin / destination) ═══ -->
+<div id="map-picker">
+  <div class="map-picker-header">
+    <button class="map-picker-back press-scale" onclick="closeMapPicker()">← กลับ</button>
+    <h3 id="map-picker-title">เลือกตำแหน่ง</h3>
+  </div>
+  <div style="position:relative;flex:1;display:flex;flex-direction:column">
+    <div id="map-picker-map"></div>
+
+    <div class="map-picker-search">
+      <span style="font-size:16px;opacity:.5">🔍</span>
+      <input type="text" id="map-picker-search-input" placeholder="ค้นหาสถานที่..." autocomplete="off">
+    </div>
+
+    <div class="map-picker-suggestions" id="map-picker-suggestions"></div>
+
+    <div class="map-picker-bottom">
+      <div class="map-picker-coord" id="map-picker-coord">— เลือกตำแหน่งบนแผนที่ —</div>
+      <button class="map-picker-confirm" id="map-picker-confirm" onclick="confirmMapPicker()" disabled>✓ ยืนยันตำแหน่ง</button>
+    </div>
   </div>
 </div>
 
@@ -645,14 +686,23 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
         <input type="text" id="merchant-search-input" placeholder="ค้นหาร้านค้า...">
       </div>
     </div>
-    <div class="merchant-filter-bar">
+
+    <!-- Tabs (food only) -->
+    <div class="merchant-tabs" id="merchant-tabs">
+      <button class="m-tab active" data-mtab="popular" onclick="switchMerchantTab('popular')">🏆 ยอดนิยม</button>
+      <button class="m-tab" data-mtab="near" onclick="switchMerchantTab('near')">📍 ใกล้ฉัน</button>
+      <button class="m-tab" data-mtab="cart" onclick="switchMerchantTab('cart')">🛒 ตะกร้า</button>
+    </div>
+
+    <!-- Category chips (shopping only) -->
+    <div class="merchant-filter-bar" id="merchant-filter-bar" style="display:none">
       <button class="m-filter-chip active" onclick="filterMerchantCat('all',this)">🏪 ทั้งหมด</button>
-      <button class="m-filter-chip" onclick="filterMerchantCat('restaurant',this)">🍽️ ร้านอาหาร</button>
-      <button class="m-filter-chip" onclick="filterMerchantCat('cafe',this)">☕ คาเฟ่</button>
       <button class="m-filter-chip" onclick="filterMerchantCat('convenience',this)">🏪 สะดวกซื้อ</button>
       <button class="m-filter-chip" onclick="filterMerchantCat('market',this)">🛒 ตลาด</button>
       <button class="m-filter-chip" onclick="filterMerchantCat('shop',this)">🏬 ร้านค้า</button>
+      <button class="m-filter-chip" onclick="filterMerchantCat('other',this)">📦 อื่นๆ</button>
     </div>
+
     <div class="merchant-list" id="merchant-list">
       <div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านค้า...</div>
     </div>
@@ -737,7 +787,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 💬 v3.4.4: MESSAGES TAB — Chat list -->
+<!-- 💬 MESSAGES TAB — Chat list -->
 <div class="messages-tab" id="tab-messages" style="display:none">
   <div class="order-section-title">💬 แชทของฉัน</div>
   <div id="chat-list"></div>
@@ -808,7 +858,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.4.4 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.4.5 • © 2024</div>
       </div>
     </div>
   </div>
@@ -822,7 +872,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.4 — RATING + CHAT EDITION
+   CHAUAT GO v3.4.5 — FOOD TABS + EXPRESS MAP PICKER
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -849,6 +899,8 @@ var userProfile = null;
 var merchantsCache = [];
 var currentMerchantFilter = 'all';
 var currentMerchantSearch = '';
+var merchantMode = 'food';
+var merchantTab = 'popular';
 var cart = [];
 try { cart = JSON.parse(localStorage.getItem('chauat_cart') || '[]'); } catch(e) { cart = []; }
 var cartShop = localStorage.getItem('chauat_cart_shop') || '';
@@ -863,15 +915,27 @@ var selectedVehicle = null;
 var unsubOrders = null;
 var deferredPrompt = null;
 
-/* ⭐ v3.4.4: Rating state */
+/* ⭐ Rating state */
 var ratingOrder = null;
 var ratingMerchant = 0;
 var ratingRider = 0;
 
-/* 💬 v3.4.4: Chat state */
+/* 💬 Chat state */
 var activeChatId = null;
 var chatUnsub = null;
 var chatListUnsub = null;
+
+/* 📦 Express state */
+var expOrigin = null;
+var expDestination = null;
+
+/* 🗺️ Map picker state */
+var mapPickerMode = null;
+var mapPickerMap = null;
+var mapPickerMarker = null;
+var mapPickerCircle = null;
+var mapPickerValue = null;
+var mapPickerSearchTimer = null;
 
 var CATS = {
   r:{name:'ร้านอาหาร',icon:'🍽️'}, f:{name:'คาเฟ่',icon:'☕'},
@@ -888,11 +952,7 @@ function $(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(n){return Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:2});}
 function debugLog(msg,isError){
-  var el = $('debugConsole'); if(!el) return;
-  el.style.display='block';
-  el.innerHTML += '<span style="color:'+(isError?'#ff4444':'#00ff00')+'">> '+msg+'</span><br>';
-  el.scrollTop = el.scrollHeight;
-  console.log(msg);
+  if (isError) console.warn(msg); else console.log(msg);
 }
 window.showToast = function(msg,type){
   type = type||'success';
@@ -962,24 +1022,18 @@ function initTheme(){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   THEME FAB AUTO-HIDE (จาก v3.4.3)
+   THEME FAB AUTO-HIDE
    ═══════════════════════════════════════════════════════════════ */
 (function(){
   'use strict';
   var FAB_ID = 'theme-fab';
   var OVERLAY_SELECTORS = [
-    '#modal.show',
-    '#login-modal.show',
-    '#vehicle-modal.show',
-    '#rating-modal.show',
-    '#profile-sheet.show',
-    '#map-page.show',
-    '#chat-page.show',
-    '#img-lightbox.show',
-    '#pdpa-overlay:not(.hidden)',
-    '#loc-popup-overlay:not(.hidden)'
+    '#modal.show','#login-modal.show','#vehicle-modal.show','#rating-modal.show',
+    '#profile-sheet.show','#map-page.show','#chat-page.show','#map-picker.show',
+    '#img-lightbox.show','#pdpa-overlay:not(.hidden)','#loc-popup-overlay:not(.hidden)'
   ];
-  var OVERLAY_IDS = ['modal','login-modal','vehicle-modal','rating-modal','profile-sheet','map-page','chat-page','img-lightbox','pdpa-overlay','loc-popup-overlay'];
+  var OVERLAY_IDS = ['modal','login-modal','vehicle-modal','rating-modal','profile-sheet',
+                     'map-page','chat-page','map-picker','img-lightbox','pdpa-overlay','loc-popup-overlay'];
 
   function isAnyOverlayOpen() {
     for (var i = 0; i < OVERLAY_SELECTORS.length; i++) {
@@ -1044,7 +1098,7 @@ function countUp(el, target, duration){
    INIT
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function(){
-  debugLog('🚀 Chauat Go v3.4.4');
+  debugLog('🚀 Chauat Go v3.4.5');
   initTheme();
   runSplash();
   loadPlaces();
@@ -1224,7 +1278,6 @@ window.openProfileSheet = function(){
     if($('pf-line-val')) $('pf-line-val').textContent = lineId;
     if($('pf-address-val')) $('pf-address-val').textContent = addr;
   }
-  debugLog('👆 เปิด Profile');
 };
 window.closeProfileSheet = function(){var s=$('profile-sheet');if(s)s.classList.remove('show');};
 
@@ -1307,20 +1360,52 @@ window.doSearch = function(q){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MERCHANT
+   MERCHANT VIEW — 3 TABS (v3.4.5)
    ═══════════════════════════════════════════════════════════════ */
 window.openMerchantView = async function(type){
   debugLog('🏪 Merchant View: '+type);
+  merchantMode = (type === 'shopping') ? 'shopping' : 'food';
+
   if($('home-content')) $('home-content').style.display='none';
   if($('search-results')) $('search-results').classList.remove('show');
   if($('category-view')) $('category-view').classList.remove('show');
   if($('merchant-view')) $('merchant-view').classList.add('show');
-  if($('merchant-view-title')) $('merchant-view-title').textContent = type==='food'?'🍽️ เลือกร้านอาหาร':'🛒 เลือกร้านค้า';
+
+  var titleEl = $('merchant-view-title');
+  if (titleEl) titleEl.textContent = merchantMode==='food' ? '🍽️ เลือกร้านอาหาร' : '🛒 เลือกร้านค้า';
+
+  if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantMode==='food' ? 'flex' : 'none';
+  if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = merchantMode==='shopping' ? 'flex' : 'none';
+
+  if (merchantMode === 'food') {
+    merchantTab = 'popular';
+    document.querySelectorAll('.m-tab').forEach(function(b){
+      b.classList.toggle('active', b.dataset.mtab === 'popular');
+    });
+    currentMerchantFilter = 'all';
+  } else {
+    currentMerchantFilter = 'all';
+    document.querySelectorAll('.m-filter-chip').forEach(function(c){c.classList.remove('active');});
+    var first = document.querySelector('#merchant-filter-bar .m-filter-chip');
+    if (first) first.classList.add('active');
+  }
+
   var list = $('merchant-list'); if(!list) return;
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านค้า...</div>';
+
   try{
     var snap = await db.collection('merchants').where('verified','==',true).get();
-    merchantsCache = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+
+    if (merchantMode === 'shopping') {
+      var EXCLUDED = ['restaurant','cafe','temple','school','government','tourist','hotel','hospital'];
+      all = all.filter(function(m){ return EXCLUDED.indexOf(m.category) === -1; });
+    } else {
+      all = all.filter(function(m){ return ['restaurant','cafe'].indexOf(m.category) !== -1; });
+    }
+
+    merchantsCache = all;
+
     if(!merchantsCache.length){
       list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🏪</div><div style="font-weight:900;margin-top:8px">ยังไม่มีร้านค้าเข้าร่วม</div></div>';
       return;
@@ -1332,51 +1417,138 @@ window.openMerchantView = async function(type){
   }
 };
 
+window.switchMerchantTab = function(tab){
+  merchantTab = tab;
+  document.querySelectorAll('.m-tab').forEach(function(b){
+    b.classList.toggle('active', b.dataset.mtab === tab);
+  });
+  if (tab === 'cart') {
+    renderMerchantCart();
+  } else {
+    renderMerchantList(merchantsCache);
+  }
+};
+
+function merchantDistance(m){
+  if (!userLocation || !m.lat || !m.lng) return null;
+  return haversine(userLocation.lat, userLocation.lng, m.lat, m.lng);
+}
+
 function renderMerchantList(merchants){
   var list = $('merchant-list'); if(!list) return;
+
+  if (merchantMode === 'food' && merchantTab === 'cart') {
+    renderMerchantCart();
+    return;
+  }
+
   var q = currentMerchantSearch.toLowerCase();
   var filtered = merchants.filter(function(m){
     var matchQ = !q || (m.name||'').toLowerCase().indexOf(q)!==-1;
     var matchC = currentMerchantFilter==='all' || m.category===currentMerchantFilter;
     return matchQ && matchC;
   });
+
+  if (merchantMode === 'food') {
+    if (merchantTab === 'popular') {
+      filtered.sort(function(a,b){
+        var ra = Number(a.ratingAvg||0), rb = Number(b.ratingAvg||0);
+        var ca = Number(a.ratingCount||0), cb = Number(b.ratingCount||0);
+        if (rb !== ra) return rb - ra;
+        return cb - ca;
+      });
+    } else if (merchantTab === 'near') {
+      filtered.sort(function(a,b){
+        var da = merchantDistance(a);
+        var db = merchantDistance(b);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da - db;
+      });
+    }
+  }
+
   if(!filtered.length){
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🔍</div><div style="font-weight:900;margin-top:8px">ไม่พบร้านค้า</div></div>';
     return;
   }
+
   list.innerHTML = filtered.map(function(m, i){
-    // ⭐ v3.4.4: แสดง ratingAvg ถ้ามี
     var ratingHtml = (m.ratingAvg && m.ratingCount)
-      ? '<div class="rating-inline" style="margin-top:3px"><span class="star">★</span> ' + Number(m.ratingAvg).toFixed(1) + ' (' + m.ratingCount + ')</div>'
-      : '';
-    return '<div class="merchant-card" data-merchant-id="'+esc(m.id)+'" style="animation-delay:'+(i * 0.05)+'s">' +
+      ? '<span class="merchant-badge">★ ' + Number(m.ratingAvg).toFixed(1) + ' (' + m.ratingCount + ')</span>'
+      : '<span class="merchant-badge" style="background:#F3F4F6;color:#9CA3AF">★ ใหม่</span>';
+
+    var dist = merchantDistance(m);
+    var distHtml = (dist != null)
+      ? '<span class="merchant-distance">📍 ' + fmtDistance(dist) + '</span>'
+      : (m.address ? '<span class="merchant-distance">📍 ' + esc(String(m.address).slice(0,40)) + '</span>' : '');
+
+    return '<div class="merchant-card" data-merchant-id="'+esc(m.id)+'" style="animation-delay:'+(i*0.04)+'s">' +
       '<div class="merchant-card-icon" style="background:#E8F5E9">🏪</div>' +
-      '<div class="merchant-card-info"><div class="merchant-card-name">'+esc(m.name||'ไม่ระบุ')+'</div>' +
-      '<div class="merchant-card-meta">'+(m.isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(m.category||'')+'</div>' +
-      ratingHtml +
-      (m.address?'<div class="merchant-card-meta">📍 '+esc(String(m.address).slice(0,50))+'</div>':'') +
+      '<div class="merchant-card-info">' +
+        '<div class="merchant-card-name">'+esc(m.name||'ไม่ระบุ')+'</div>' +
+        '<div class="merchant-card-meta">'+(m.isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(m.category||'')+'</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + ratingHtml + distHtml + '</div>' +
       '</div><div style="color:var(--text-light);font-size:20px">›</div></div>';
   }).join('');
+}
+
+function renderMerchantCart(){
+  var list = $('merchant-list'); if(!list) return;
+  if (!cart.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🛒</div><div style="font-weight:900;margin-top:8px">ตะกร้าว่าง</div><div style="font-size:12px;margin-top:6px">เลือกร้านเพื่อเพิ่มเมนู</div></div>';
+    return;
+  }
+  var total = cart.reduce(function(s,c){return s+c.price*c.qty;},0);
+  var deliveryFee = 20;
+  list.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow-sm)">' +
+      '<div style="font-size:12px;font-weight:900;color:var(--text-muted);margin-bottom:10px">🏪 ' + esc(cart[0].merchantName) + '</div>' +
+      cart.map(function(c, i){
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:10px">' +
+          '<div style="flex:1;min-width:0"><div style="font-weight:900;color:var(--text);font-size:13px">'+esc(c.menuName)+'</div>' +
+          '<div style="font-size:12px;color:var(--text-muted)">฿'+fmt(c.price)+' × '+c.qty+' = <b style="color:var(--green)">฿'+fmt(c.price*c.qty)+'</b></div></div>' +
+          '<div style="display:flex;gap:6px;align-items:center;flex-shrink:0">' +
+          '<button onclick="changeQty('+i+',-1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;font-weight:900;cursor:pointer;font-family:inherit">−</button>' +
+          '<span style="min-width:24px;text-align:center;font-weight:900">'+c.qty+'</span>' +
+          '<button onclick="changeQty('+i+',1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:16px;font-weight:900;cursor:pointer;font-family:inherit">+</button>' +
+          '<button onclick="removeCartItem('+i+')" style="width:32px;height:32px;border-radius:50%;border:none;background:#FFEBEE;color:#E53935;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;margin-left:4px">✕</button>' +
+          '</div></div>';
+      }).join('') +
+      '<div style="display:flex;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าอาหาร</span><span>฿'+fmt(total)+'</span></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าส่ง</span><span>฿'+deliveryFee+'</span></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:14px 0 0;font-size:18px;font-weight:900;border-top:2px solid var(--green);margin-top:8px"><span>รวม</span><span style="color:var(--green)">'+fmt(total + deliveryFee)+'฿</span></div>' +
+      '<button class="btn-full btn-green press-scale" onclick="checkout()" style="margin-top:14px">✅ สั่งซื้อ (฿'+(total + deliveryFee)+')</button>' +
+      '<button class="btn-full btn-gray press-scale" onclick="clearCart()">🗑️ ล้างตะกร้า</button>' +
+    '</div>';
 }
 
 window.closeMerchantView = function(){
   if($('merchant-view')) $('merchant-view').classList.remove('show');
   if($('home-content')) $('home-content').style.display='block';
 };
+
 window.filterMerchantCat = function(cat,el){
   currentMerchantFilter = cat;
-  document.querySelectorAll('.m-filter-chip').forEach(function(c){c.classList.remove('active');});
+  document.querySelectorAll('#merchant-filter-bar .m-filter-chip').forEach(function(c){c.classList.remove('active');});
   if(el) el.classList.add('active');
   renderMerchantList(merchantsCache);
 };
+
+var msiTimer = null;
 var msi = document.getElementById('merchant-search-input');
 if(msi){
   msi.addEventListener('input',function(e){
     currentMerchantSearch = e.target.value;
-    renderMerchantList(merchantsCache);
+    clearTimeout(msiTimer);
+    msiTimer = setTimeout(function(){ renderMerchantList(merchantsCache); }, 150);
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   MERCHANT DETAIL
+   ═══════════════════════════════════════════════════════════════ */
 window.openMerchantDetail = async function(merchantId){
   try{
     var snap = await db.collection('merchants').doc(merchantId).get();
@@ -1388,7 +1560,6 @@ window.openMerchantDetail = async function(merchantId){
     window._currentMerchant = {id:merchantId, name:m.name||''};
     window._menus = menus;
 
-    // แสดง rating ของร้าน
     var headerRating = (m.ratingAvg && m.ratingCount)
       ? '<div style="text-align:center;margin-top:4px;color:var(--text-muted);font-size:12px;font-weight:800"><span style="color:#FFC107">★</span> ' + Number(m.ratingAvg).toFixed(1) + ' • ' + m.ratingCount + ' รีวิว</div>'
       : '';
@@ -1445,10 +1616,9 @@ window.closeCategoryView = function(){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MAP
+   MAP PAGE (main)
    ═══════════════════════════════════════════════════════════════ */
 window.openMapPage = function(){
-  debugLog('🗺️ เปิดแผนที่');
   if($('map-page')) $('map-page').classList.add('show');
   setTimeout(function(){
     if(typeof L === 'undefined'){
@@ -1533,7 +1703,6 @@ window.clearMap = function(){
 
 window.confirmMapLocation = function(){
   if(!selectedDestination) return showToast('เลือกตำแหน่งก่อน','warning');
-  debugLog('📍 ยืนยัน: '+selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4));
   closeMapPage();
   setTimeout(function(){openVehicleModal();},300);
 };
@@ -1556,7 +1725,6 @@ window.selectVehicle = function(el){
   var check = el.querySelector('.vehicle-check');
   if(check) check.textContent = '✓';
   selectedVehicle = {type:el.dataset.vehicle, price:parseInt(el.dataset.price)};
-  debugLog('🚗 เลือก: '+selectedVehicle.type+' ฿'+selectedVehicle.price);
   setTimeout(function(){ closeVehicleModal(); openRideOrderForm(selectedVehicle); }, 400);
 };
 
@@ -1572,7 +1740,7 @@ function calculateFare(vehicle, destLat, destLng) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ORDER FORM
+   RIDE ORDER FORM
    ═══════════════════════════════════════════════════════════════ */
 window.openTravelView = function(){openMapPage();};
 
@@ -1621,7 +1789,6 @@ window.submitRideOrder = async function(){
   }
 
   var fareInfo = calculateFare(selectedVehicle, selectedDestination.lat, selectedDestination.lng);
-  debugLog('💰 ระยะทาง: ' + fareInfo.distance.toFixed(2) + ' กม. × ฿' + fareInfo.perKm + ' + ฿' + fareInfo.base + ' = ฿' + fareInfo.total);
 
   try{
     await db.collection('orders').add({
@@ -1652,14 +1819,18 @@ window.submitRideOrder = async function(){
     updateConfirmBtnState();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){
-    debugLog('❌ Order: '+e.message,true);
     showToast('ส่งไม่สำเร็จ','error');
   }
 };
 
+/* ═══════════════════════════════════════════════════════════════
+   ORDER FORM (ride / food / shopping)
+   ═══════════════════════════════════════════════════════════════ */
 window.openOrderForm = function(type, dest){
-  var titles = {express:'📦 ส่งด่วน',ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'};
-  var baseFare = {express: 30, ride: 50, food: 20, shopping: 30}[type] || 30;
+  if (type === 'express') return openExpressForm(dest);
+
+  var titles = {ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'};
+  var baseFare = {ride: 50, food: 20, shopping: 30}[type] || 30;
   var destInfo = dest ? dest.lat.toFixed(4)+', '+dest.lng.toFixed(4) : (selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'');
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">'+(titles[type]||'📦').split(' ')[0]+'</div>' +
@@ -1679,13 +1850,13 @@ window.submitOrder = async function(type){
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกต้นทาง-ปลายทาง','error');
-  var baseFare = {express: 30, ride: 50, food: 20, shopping: 30}[type] || 30;
+  var baseFare = {ride: 50, food: 20, shopping: 30}[type] || 30;
   try{
     await db.collection('orders').add({
       type:type, userId:currentUser.uid,
       userName:(userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
       userPhone:$('order-phone').value.trim(),
-      title:({express:'📦 ส่งด่วน',ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร'})[type]||'📦 ออเดอร์',
+      title:({ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'})[type]||'📦 ออเดอร์',
       from:from, to:to, address:to, note:$('order-note').value.trim(),
       status:'searching',
       fare: baseFare, total: baseFare,
@@ -1695,6 +1866,286 @@ window.submitOrder = async function(type){
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){showToast('ส่งไม่สำเร็จ','error');}
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   📦 EXPRESS FORM (v3.4.5)
+   ═══════════════════════════════════════════════════════════════ */
+function openExpressForm(dest){
+  expOrigin = userLocation
+    ? {lat:userLocation.lat, lng:userLocation.lng, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'}
+    : null;
+  expDestination = dest ? {lat:dest.lat, lng:dest.lng, address:''} : null;
+
+  // 🎲 สุ่ม 4 สถานที่แนะนำ (ปลายทาง)
+  var suggestions = [];
+  if (PLACES.length) {
+    var pool = PLACES.slice();
+    for (var i = 0; i < 4 && pool.length; i++) {
+      var idx = Math.floor(Math.random() * pool.length);
+      suggestions.push(pool.splice(idx, 1)[0]);
+    }
+  }
+
+  var sugChipsHtml = suggestions.map(function(p){
+    return '<button class="sug-chip" onclick="setExpDestinationFromPlace(\''+esc(p.id)+'\')">' +
+      esc(p.name.slice(0, 22)) + '</button>';
+  }).join('');
+
+  $('modal-body').innerHTML =
+    '<div style="text-align:center;margin-bottom:16px">' +
+    '<div style="font-size:44px;margin-bottom:8px">📦</div>' +
+    '<h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2>' +
+    '<div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿30 เริ่มต้น</div></div>' +
+
+    '<div class="form-group">' +
+    '<label>📍 ต้นทาง (จุดรับของ)</label>' +
+    '<input id="order-from" value="' + esc(expOrigin ? expOrigin.address : '') + '" placeholder="พิมพ์ที่อยู่ต้นทาง...">' +
+    '<div class="exp-picker-row">' +
+      '<button class="exp-pick-btn primary" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button>' +
+      '<button class="exp-pick-btn" onclick="openMapPicker(\'exp-origin\')">🗺️ เลือกจากแผนที่</button>' +
+    '</div>' +
+    (expOrigin ? '<div class="exp-coord-badge">✓ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '') +
+    '</div>' +
+
+    '<div class="form-group">' +
+    '<label>🎯 ปลายทาง (จุดส่งของ)</label>' +
+    '<input id="order-to" value="' + esc(expDestination ? expDestination.address : '') + '" placeholder="พิมพ์ที่อยู่ปลายทาง...">' +
+    '<div class="sug-chips">' + sugChipsHtml + '</div>' +
+    '<div class="exp-picker-row" style="margin-top:8px">' +
+      '<button class="exp-pick-btn primary" onclick="openMapPicker(\'exp-destination\')">🗺️ เลือกจากแผนที่</button>' +
+    '</div>' +
+    (expDestination ? '<div class="exp-coord-badge">✓ ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '') +
+    '</div>' +
+
+    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2" placeholder="เช่น กล่องเอกสาร 2 ใบ"></textarea></div>' +
+    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc((userProfile&&userProfile.phone)||'') + '"></div>' +
+
+    '<button class="btn-full btn-green press-scale" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
+    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
+  openModal();
+}
+
+window.useCurrentLocationForExp = function(){
+  if (!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
+  showToast('📡 กำลังหาตำแหน่ง...','info');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+    expOrigin = {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      address: (userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'
+    };
+    openExpressForm(expDestination);
+    showToast('✅ ใช้ตำแหน่งปัจจุบัน');
+  }, function(){
+    showToast('ไม่สามารถเข้าถึง GPS','error');
+  }, {enableHighAccuracy:true, timeout:10000});
+};
+
+window.setExpDestinationFromPlace = function(placeId){
+  var p = PLACES.find(function(x){return x.id===placeId;});
+  if (!p) return;
+  expDestination = {lat:p.lat, lng:p.lng, address:p.name};
+  openExpressForm(expOrigin);
+  showToast('🎯 ' + p.name);
+};
+
+window.submitExpressOrder = async function(){
+  if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ','warning'); }
+
+  var fromAddr = $('order-from').value.trim();
+  var toAddr = $('order-to').value.trim();
+
+  if (!expOrigin && !fromAddr) return showToast('กรอกต้นทาง','error');
+  if (!expDestination && !toAddr) return showToast('กรอกปลายทาง','error');
+
+  if (!expOrigin && fromAddr) {
+    var pFrom = PLACES.find(function(x){return x.name.toLowerCase().indexOf(fromAddr.toLowerCase())!==-1;});
+    if (pFrom) expOrigin = {lat:pFrom.lat, lng:pFrom.lng, address:pFrom.name};
+  }
+  if (!expDestination && toAddr) {
+    var pTo = PLACES.find(function(x){return x.name.toLowerCase().indexOf(toAddr.toLowerCase())!==-1;});
+    if (pTo) expDestination = {lat:pTo.lat, lng:pTo.lng, address:pTo.name};
+  }
+
+  var baseFare = 30;
+  var distanceKm = 0;
+  if (expOrigin && expDestination) {
+    distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
+  }
+  var perKm = 5;
+  var total = Math.round(baseFare + (distanceKm * perKm));
+
+  try{
+    await db.collection('orders').add({
+      type: 'express',
+      userId: currentUser.uid,
+      userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
+      userPhone: $('order-phone').value.trim(),
+      title: '📦 ส่งด่วน',
+      from: fromAddr || (expOrigin ? expOrigin.address : ''),
+      to: toAddr || (expDestination ? expDestination.address : ''),
+      address: toAddr || (expDestination ? expDestination.address : ''),
+      fromLat: expOrigin ? expOrigin.lat : null,
+      fromLng: expOrigin ? expOrigin.lng : null,
+      lat: expDestination ? expDestination.lat : null,
+      lng: expDestination ? expDestination.lng : null,
+      distanceKm: distanceKm,
+      note: $('order-note').value.trim(),
+      status: 'searching',
+      fare: total,
+      total: total,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ ส่งออเดอร์แล้ว ฿' + total);
+    closeModal();
+    expOrigin = null; expDestination = null;
+    switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+  }catch(e){
+    showToast('ส่งไม่สำเร็จ','error');
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   🗺️ MAP PICKER (v3.4.5)
+   ═══════════════════════════════════════════════════════════════ */
+window.openMapPicker = function(mode){
+  mapPickerMode = mode;
+  mapPickerValue = null;
+
+  if ($('map-picker-title')) {
+    $('map-picker-title').textContent = mode === 'exp-origin' ? '📍 เลือกจุดรับ' : '🎯 เลือกจุดส่ง';
+  }
+  if ($('map-picker')) $('map-picker').classList.add('show');
+  if ($('map-picker-coord')) $('map-picker-coord').textContent = '— เลือกตำแหน่งบนแผนที่ —';
+  if ($('map-picker-confirm')) $('map-picker-confirm').disabled = true;
+  if ($('map-picker-search-input')) $('map-picker-search-input').value = '';
+  if ($('map-picker-suggestions')) $('map-picker-suggestions').classList.remove('show');
+
+  setTimeout(function(){
+    if (typeof L === 'undefined') return;
+    if (!mapPickerMap) {
+      mapPickerMap = L.map('map-picker-map', {zoomControl:true}).setView([7.9650, 99.9960], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution:'© OpenStreetMap', maxZoom:19
+      }).addTo(mapPickerMap);
+
+      mapPickerMap.on('click', function(e){
+        setMapPickerPosition(e.latlng.lat, e.latlng.lng);
+      });
+    }
+    mapPickerMap.invalidateSize();
+
+    var start = mode === 'exp-origin' && expOrigin ? expOrigin : (userLocation || null);
+    if (start) {
+      mapPickerMap.setView([start.lat, start.lng], 16);
+      setMapPickerPosition(start.lat, start.lng);
+    } else {
+      mapPickerMap.setView([7.9650, 99.9960], 14);
+    }
+
+    setTimeout(function(){ mapPickerMap.invalidateSize(); }, 200);
+  }, 300);
+
+  var si = $('map-picker-search-input');
+  if (si && !si._bound) {
+    si._bound = true;
+    si.addEventListener('input', function(e){
+      clearTimeout(mapPickerSearchTimer);
+      mapPickerSearchTimer = setTimeout(function(){ doMapPickerSearch(e.target.value); }, 200);
+    });
+  }
+};
+
+window.closeMapPicker = function(){
+  if ($('map-picker')) $('map-picker').classList.remove('show');
+  mapPickerMode = null;
+  mapPickerValue = null;
+};
+
+function setMapPickerPosition(lat, lng){
+  mapPickerValue = {lat:lat, lng:lng};
+
+  if (mapPickerMarker) mapPickerMap.removeLayer(mapPickerMarker);
+  if (mapPickerCircle) mapPickerMap.removeLayer(mapPickerCircle);
+
+  var iconHtml = '<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>';
+  var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
+  mapPickerMarker = L.marker([lat,lng], {icon:icon, draggable:true, autoPan:true, zIndexOffset:2000}).addTo(mapPickerMap);
+  mapPickerMarker.on('dragend', function(e){
+    var pos = e.target.getLatLng();
+    setMapPickerPosition(pos.lat, pos.lng);
+  });
+
+  mapPickerCircle = L.circle([lat,lng], {
+    radius:100, color:'#E53935', fillColor:'#E53935',
+    fillOpacity:.15, weight:2, dashArray:'5,5'
+  }).addTo(mapPickerMap);
+
+  if ($('map-picker-coord')) {
+    $('map-picker-coord').textContent = '📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' (รัศมี 100 ม.)';
+  }
+  if ($('map-picker-confirm')) $('map-picker-confirm').disabled = false;
+
+  var nearest = null, minDist = Infinity;
+  for (var i = 0; i < PLACES.length; i++) {
+    var d = haversine(lat, lng, PLACES[i].lat, PLACES[i].lng);
+    if (d < minDist) { minDist = d; nearest = PLACES[i]; }
+  }
+  mapPickerValue.nearestName = (nearest && minDist < 0.15) ? nearest.name : '';
+}
+
+function doMapPickerSearch(q){
+  var box = $('map-picker-suggestions'); if (!box) return;
+  if (!q || q.trim().length < 1) { box.classList.remove('show'); return; }
+  var query = q.trim().toLowerCase();
+  var matches = PLACES.filter(function(p){
+    return p.name.toLowerCase().indexOf(query) !== -1;
+  }).slice(0, 12);
+
+  if (!matches.length) {
+    box.innerHTML = '<div class="sug-item" style="color:var(--text-light)">ไม่พบสถานที่</div>';
+    box.classList.add('show');
+    return;
+  }
+  box.innerHTML = matches.map(function(p){
+    var cat = CATS[p.category] || {icon:'📍'};
+    return '<div class="sug-item" onclick="pickFromSuggestion(\''+esc(p.id)+'\')">' +
+      '<span class="sug-icon">'+cat.icon+'</span>' +
+      '<div class="sug-name"><div>'+esc(p.name)+'</div>' +
+      '<div class="sub">'+p.lat.toFixed(4)+', '+p.lng.toFixed(4)+'</div></div></div>';
+  }).join('');
+  box.classList.add('show');
+}
+
+window.pickFromSuggestion = function(placeId){
+  var p = PLACES.find(function(x){return x.id===placeId;});
+  if (!p) return;
+  if (mapPickerMap) {
+    mapPickerMap.setView([p.lat, p.lng], 17);
+    setMapPickerPosition(p.lat, p.lng);
+    mapPickerValue.nearestName = p.name;
+  }
+  if ($('map-picker-suggestions')) $('map-picker-suggestions').classList.remove('show');
+  if ($('map-picker-search-input')) $('map-picker-search-input').value = p.name;
+};
+
+window.confirmMapPicker = function(){
+  if (!mapPickerValue) return showToast('เลือกตำแหน่งก่อน','warning');
+
+  var addr = mapPickerValue.nearestName || ('พิกัด ' + mapPickerValue.lat.toFixed(4) + ', ' + mapPickerValue.lng.toFixed(4));
+  var picked = {lat:mapPickerValue.lat, lng:mapPickerValue.lng, address:addr};
+
+  if (mapPickerMode === 'exp-origin') {
+    expOrigin = picked;
+  } else if (mapPickerMode === 'exp-destination') {
+    expDestination = picked;
+  }
+
+  closeMapPicker();
+  openExpressForm(mapPickerMode === 'exp-origin' ? expDestination : expOrigin);
+  showToast('✅ ' + addr);
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1724,6 +2175,18 @@ function updateCartBar(){
   if($('cart-count')) $('cart-count').textContent = count;
   if($('cart-total')) $('cart-total').textContent = fmt(total)+'฿';
   if($('cart-shop')) $('cart-shop').textContent = cart[0]?cart[0].merchantName:'';
+}
+
+function _refreshCartViews(){
+  if ($('modal') && $('modal').classList.contains('show') && $('modal-body') &&
+      $('modal-body').querySelector('h2') &&
+      $('modal-body').querySelector('h2').textContent.indexOf('ตะกร้า') !== -1) {
+    openCart();
+  }
+  if (merchantMode === 'food' && merchantTab === 'cart' &&
+      $('merchant-view') && $('merchant-view').classList.contains('show')) {
+    renderMerchantCart();
+  }
 }
 
 window.openCart = function(){
@@ -1761,7 +2224,7 @@ window.changeQty = function(index, delta) {
   localStorage.setItem('chauat_cart', JSON.stringify(cart));
   localStorage.setItem('chauat_cart_shop', cartShop);
   updateCartBar();
-  if (cart.length) openCart(); else { closeModal(); showToast('ตะกร้าว่าง'); }
+  if (cart.length) { _refreshCartViews(); } else { closeModal(); _refreshCartViews(); showToast('ตะกร้าว่าง'); }
 };
 
 window.removeCartItem = function(index) {
@@ -1771,7 +2234,7 @@ window.removeCartItem = function(index) {
   localStorage.setItem('chauat_cart', JSON.stringify(cart));
   localStorage.setItem('chauat_cart_shop', cartShop);
   updateCartBar();
-  if (cart.length) openCart(); else { closeModal(); showToast('ลบรายการแล้ว'); }
+  if (cart.length) { _refreshCartViews(); } else { closeModal(); _refreshCartViews(); showToast('ลบรายการแล้ว'); }
 };
 
 window.checkout = async function(){
@@ -1812,9 +2275,9 @@ window.checkout = async function(){
     localStorage.removeItem('chauat_cart_shop');
     updateCartBar();
     closeModal();
+    _refreshCartViews();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){
-    debugLog('❌ Checkout: '+e.message, true);
     showToast('ส่งไม่สำเร็จ','error');
   }
 };
@@ -1825,6 +2288,7 @@ window.clearCart = function(){
   localStorage.removeItem('chauat_cart_shop');
   updateCartBar();
   closeModal();
+  _refreshCartViews();
   showToast('🗑️ ล้างตะกร้าแล้ว');
 };
 
@@ -1856,7 +2320,6 @@ function subscribeUserOrders(){
   });
 }
 
-/* ⭐ v3.4.4: renderOrderCard — เพิ่มปุ่ม ⭐ rating + 💬 chat */
 function renderOrderCard(o){
   var statusMap = {searching:'⏳ หาไรเดอร์',pending:'🔔 รอรับ',accepted:'🛵 ไรเดอร์รับ',cooking:'🍳 กำลังทำ',picked_up:'📦 รับของ',on_the_way:'🚀 กำลังส่ง',done:'✅ สำเร็จ',delivered:'✅ สำเร็จ',cancelled:'❌ ยกเลิก'};
   var color = o.status==='cancelled'?'#999':(['done','delivered'].indexOf(o.status)!==-1?'#00A651':'#FF6B35');
@@ -1879,7 +2342,7 @@ function renderOrderCard(o){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ⭐ RATING SYSTEM (v3.4.4)
+   ⭐ RATING SYSTEM
    ═══════════════════════════════════════════════════════════════ */
 window.openRatingModal = function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
@@ -1966,7 +2429,6 @@ window.submitRating = async function() {
     showToast('⭐ ขอบคุณสำหรับคะแนน!');
     closeRatingModal();
   } catch (e) {
-    debugLog('❌ Rating: ' + e.message, true);
     showToast('ส่งไม่สำเร็จ: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '✅ ส่งคะแนน'; }
@@ -1992,7 +2454,7 @@ async function updateMerchantRatingAggregate(merchantId) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   💬 CHAT SYSTEM (v3.4.4)
+   💬 CHAT SYSTEM
    ═══════════════════════════════════════════════════════════════ */
 window.openChat = async function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
@@ -2057,7 +2519,6 @@ window.openChatPage = async function(orderId) {
     subscribeChatMessages(orderId);
     setTimeout(scrollChatToBottom, 300);
   } catch (e) {
-    debugLog('❌ Chat: ' + e.message, true);
     showToast('เปิดแชทไม่สำเร็จ','error');
   }
 };
@@ -2126,7 +2587,6 @@ window.sendChatMessage = async function() {
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (e) {
-    debugLog('❌ Send: ' + e.message, true);
     showToast('ส่งไม่สำเร็จ','error');
     inp.value = text;
   }
@@ -2139,9 +2599,6 @@ async function isChatUser(orderId) {
   } catch (e) { return false; }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   📋 CHAT LIST
-   ═══════════════════════════════════════════════════════════════ */
 function subscribeChatList() {
   if (!currentUser || !db) return;
   if (chatListUnsub) chatListUnsub();
@@ -2295,14 +2752,22 @@ window.setDestFromPlace = function(placeId){
    GLOBAL CLICK
    ═══════════════════════════════════════════════════════════════ */
 function globalClickHandler(e){
+  if ($('map-picker') && $('map-picker').classList.contains('show')) return;
+
   var pc = e.target.closest('[data-place-id]');
   if(pc && pc.dataset.placeId){showPlaceDetail(pc.dataset.placeId);return;}
   var mc = e.target.closest('[data-merchant-id]');
   if(mc && mc.dataset.merchantId){openMerchantDetail(mc.dataset.merchantId);return;}
+
   if(!e.target.closest('.search-bar') && !e.target.closest('.search-results')){
     var sr = $('search-results');
     if(sr){sr.classList.remove('show');sr.style.display='none';}
   }
+  if(!e.target.closest('.map-picker-search') && !e.target.closest('.map-picker-suggestions')){
+    var sug = $('map-picker-suggestions');
+    if(sug){sug.classList.remove('show');}
+  }
+
   var btn = e.target.closest('button, .food-card, .menu-item, .nav-item');
   if(btn && navigator.vibrate) navigator.vibrate(10);
 }
@@ -2318,9 +2783,9 @@ if('serviceWorker' in navigator){
   });
 }
 
-console.log('%c🛵 Chauat Go v3.4.4 — RATING + CHAT EDITION','color:#76B82A;font-weight:900;font-size:16px');
-console.log('%c✓ Quote fix | ✓ GPS warning | ✓ Address check | ✓ Haversine ×1.3','color:#00A651;font-weight:700');
-console.log('%c✓ Cart +/- | ✓ Theme-fab auto-hide | ⭐ Rating | 💬 Real Chat','color:#00A651;font-weight:700');
+console.log('%c🛵 Chauat Go v3.4.5 — FOOD TABS + EXPRESS MAP PICKER','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ Food: Popular/Near/Cart tabs | ✓ Shopping: filter chips','color:#00A651;font-weight:700');
+console.log('%c✓ Express: map picker + 100m radius | ✓ Debug console removed','color:#00A651;font-weight:700');
 </script>
 
 </body>
