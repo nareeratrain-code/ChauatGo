@@ -13,7 +13,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- ═══ AUTO CACHE-BUSTING (Strategy C: ล้างเฉพาะเมื่อ VERSION เปลี่ยน) ═══ -->
+<!-- ═══ AUTO CACHE-BUSTING (Strategy C) ═══ -->
 <script>
 (function() {
   var VERSION = 'v3.4.7.1-20241009-001';
@@ -654,7 +654,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ═══ LEGACY MAP PAGE (เก็บไว้ แต่ไม่ใช้จาก "เดินทาง" แล้ว) ═══ -->
+<!-- ═══ LEGACY MAP PAGE ═══ -->
 <div id="map-page">
   <div class="map-header-bar">
     <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
@@ -925,21 +925,17 @@ var selectedVehicle = null;
 var unsubOrders = null;
 var deferredPrompt = null;
 
-/* ⭐ Rating state */
 var ratingOrder = null;
 var ratingMerchant = 0;
 var ratingRider = 0;
 
-/* 💬 Chat state */
 var activeChatId = null;
 var chatUnsub = null;
 var chatListUnsub = null;
 
-/* 📦 Express state */
 var expOrigin = null;
 var expDestination = null;
 
-/* 🗺️ Map picker state */
 var mapPickerMode = null;
 var mapPickerMap = null;
 var mapPickerMarker = null;
@@ -947,7 +943,6 @@ var mapPickerCircle = null;
 var mapPickerValue = null;
 var mapPickerSearchTimer = null;
 
-/* 🛍️ Shopping state */
 var _shoppingPlacesCache = [];
 
 var CATS = {
@@ -965,7 +960,6 @@ function $(id){return document.getElementById(id);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(n){return Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:2});}
 
-/* ⭐ v3.4.7.1: Silent debug — เปิดด้วย window.CHAUAT_DEBUG = true */
 function debugLog(msg, isError){
   if (typeof window.CHAUAT_DEBUG !== 'undefined' && window.CHAUAT_DEBUG) {
     if (isError) console.warn(msg); else console.log(msg);
@@ -990,9 +984,6 @@ function haversine(lat1,lng1,lat2,lng2){
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
-/* ═══════════════════════════════════════════════════════════════
-   AVATAR EMOJI
-   ═══════════════════════════════════════════════════════════════ */
 function getAvatarEmoji(name){
   if (!name) return '🧑';
   var n = String(name).toLowerCase().trim();
