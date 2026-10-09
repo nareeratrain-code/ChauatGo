@@ -5,63 +5,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.3.3</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.4.8</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Chauat Merchant">
+<meta name="mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- PWA -->
+<!-- ═══ AUTO CACHE-BUSTING ═══ -->
+<script>
+(function() {
+  var VERSION = 'v3.4.8-20241009-001';
+  var saved = localStorage.getItem('chauat_ver_merchant');
+  var lastReload = localStorage.getItem('chauat_last_reload_merchant');
+  var now = Date.now();
+  if (lastReload && (now - parseInt(lastReload)) < 5000) {
+    localStorage.setItem('chauat_ver_merchant', VERSION);
+    return;
+  }
+  if (saved !== VERSION) {
+    localStorage.setItem('chauat_ver_merchant', VERSION);
+    localStorage.setItem('chauat_last_reload_merchant', now.toString());
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+      }).then(function() { location.reload(true); });
+    } else { location.reload(true); }
+  }
+})();
+</script>
+
+<script>
+(function() {
+  var theme = localStorage.getItem('chauat_merchant_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
+
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Chauat Merchant">
 
-<!-- Fonts & Styles -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link rel="stylesheet" href="merchant.css">
 </head>
 <body>
 
-<!-- 🔔 Toast -->
-<div id="toastContainer" class="toast-container"></div>
-
-<!-- 🪟 Debug Console -->
-<div id="debugConsole" class="debug-console">
-  <strong>Debug Console:</strong><br>
+<!-- ═══ SPLASH ═══ -->
+<div id="splash-screen">
+  <div class="splash-logo">🏪</div>
+  <div class="splash-title">Chauat Go Merchant</div>
+  <div class="splash-sub">ระบบจัดการร้านค้า</div>
+  <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
+  <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
 
-<!-- 🔴 Offline Bar -->
-<div class="offline-bar" id="offlineBar">🔴 ออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
+<!-- ═══ THEME FAB ═══ -->
+<button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
-<!-- 📱 PWA Install Banner -->
-<div class="pwa-banner hidden" id="pwaBanner">
-  <div class="pwa-banner-icon">🏪</div>
-  <div class="pwa-banner-info">
-    <div class="pwa-banner-title">ติดตั้งแอป Chauat Go</div>
-    <div class="pwa-banner-sub">ใช้งานเร็วขึ้น เปิดได้จากหน้าจอหลัก</div>
+<!-- ═══ OFFLINE ═══ -->
+<div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
+
+<!-- ═══ TOAST ═══ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ PWA BANNER ═══ -->
+<div id="pwa-install-banner" class="pwa-banner hidden">
+  <div style="font-size:28px">🏪</div>
+  <div style="flex:1">
+    <div style="font-size:13px;font-weight:900;color:var(--text)">ติดตั้ง Chauat Merchant</div>
+    <div style="font-size:11px;color:var(--text-muted);font-weight:600">เพิ่มลงหน้าจอหลัก</div>
   </div>
-  <button class="pwa-install-btn" onclick="installPWA()">ติดตั้ง</button>
-  <button class="pwa-close-btn" onclick="hidePWABanner()">✕</button>
+  <button class="pwa-btn-primary" onclick="installPWA()">ติดตั้ง</button>
+  <button class="pwa-btn-close" onclick="dismissPWA()">✕</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     🔐 LOGIN SCREEN
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ LOGIN SCREEN ═══ -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-icon">🏪</div>
     <h1>Chauat Go Merchant</h1>
-    <div class="sub">สำหรับร้านค้า อ.ชะอวด จ.นครศรีธรรมราช</div>
+    <p class="login-subtitle">สำหรับร้านค้า อ.ชะอวด จ.นครศรีธรรมราช</p>
 
     <div class="auth-tabs">
-      <button class="auth-tab active ripple" id="tab-login" onclick="switchAuthTab('login')">🔓 เข้าสู่ระบบ</button>
-      <button class="auth-tab ripple" id="tab-signup" onclick="switchAuthTab('signup')">🏪 สมัครร้านค้า</button>
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">สมัครร้านค้า</button>
     </div>
 
-    <!-- LOGIN -->
     <form id="form-login" onsubmit="handleLogin(event)">
       <div class="form-field">
         <label>📧 อีเมล</label>
@@ -72,10 +104,9 @@
         <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
       </div>
       <button type="submit" class="btn-primary ripple" id="btn-login">🔓 เข้าสู่ระบบ</button>
-      <button type="button" class="btn-secondary ripple" onclick="handleForgotPassword()" style="width:100%;padding:14px;border-radius:14px;background:#f0f0f0;color:#666;font-weight:800;font-size:13px;border:none;cursor:pointer;margin-top:10px;font-family:inherit;min-height:52px">🔑 ลืมรหัสผ่าน</button>
+      <button type="button" class="btn-secondary ripple" onclick="handleForgotPassword()">🔑 ลืมรหัสผ่าน</button>
     </form>
 
-    <!-- SIGNUP -->
     <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
       <div class="form-field">
         <label>🏪 ชื่อร้าน *</label>
@@ -118,7 +149,7 @@
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label>🔒 รหัสผ่าน * (6+ ตัว)</label>
+          <label>🔒 รหัสผ่าน * (6+)</label>
           <input type="password" id="su-password" required minlength="6" autocomplete="new-password">
         </div>
         <div class="form-field">
@@ -133,7 +164,7 @@
           <span>
             ข้าพเจ้ายอมรับเงื่อนไข <b>GP 3%</b> ของยอดขาย<br>
             โดยแบ่งให้ไรเดอร์ 2% และแพลตฟอร์ม 1%<br>
-            <b>โปรโมชั่น: 2 เดือนแรกไม่คิด GP</b>
+            <b>🎉 โปรโมชั่น: 2 เดือนแรกไม่คิด GP</b>
           </span>
         </label>
       </div>
@@ -141,18 +172,16 @@
       <button type="submit" class="btn-primary ripple" id="btn-signup">🏪 สมัครร้านค้า</button>
     </form>
 
-    <div id="login-error"></div>
-    <div class="login-hint" id="login-hint">🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.</div>
+    <div id="login-error" class="login-error"></div>
+    <div class="login-hint">🔐 หลังสมัครแล้ว แอดมินจะอนุมัติภายใน 24 ชม.</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     🏠 MAIN APP
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ MAIN APP ═══ -->
 <div id="app" style="display:none">
 
   <!-- HEADER -->
-  <header>
+  <header class="app-header">
     <div class="header-info">
       <div class="name" id="shop-name">—</div>
       <div class="status" id="shop-status">⚫ ปิดร้าน</div>
@@ -167,7 +196,8 @@
 
   <!-- PENDING BANNER -->
   <div class="pending-banner" id="pending-banner">
-    ⏳ ร้านของคุณรอการอนุมัติจากแอดมิน<br>จะเปิดรับออเดอร์ได้เมื่ออนุมัติแล้ว
+    ⏳ ร้านของคุณรอการอนุมัติจากแอดมิน<br>
+    <span style="font-size:11px;opacity:.8">จะเปิดรับออเดอร์ได้เมื่ออนุมัติแล้ว</span>
   </div>
 
   <!-- NAV TABS -->
@@ -198,8 +228,7 @@
       <div class="hero-card">
         <div class="hero-label">💰 ยอดขายวันนี้</div>
         <div class="hero-value" id="hero-revenue">0฿</div>
-        <div class="hero-sub" id="hero-sub">📦 0 ออเดอร์ • ⏱️ เปิดร้าน: —</div>
-        <span class="hero-change" id="hero-change">— เทียบเมื่อวาน</span>
+        <div class="hero-sub" id="hero-sub">📦 0 ออเดอร์</div>
       </div>
 
       <div class="stats-grid">
@@ -283,11 +312,12 @@
     <!-- ═══ TAB: GP ═══ -->
     <div class="tab-content" id="tab-gp">
       <div class="gp-hero">
-        <div class="label">💰 GP สะสมเดือนนี้</div>
-        <div class="value" id="gp-month">0฿</div>
-        <div class="sub" id="gp-month-sub">จากยอดขาย 0฿</div>
+        <div class="label">💰 GP ค้างโอน</div>
+        <div class="value" id="gp-pending">0฿</div>
+        <div class="sub" id="gp-pending-sub">จากยอดขาย 0฿</div>
       </div>
 
+      <!-- 60 วัน Countdown -->
       <div class="gp-countdown" id="gp-countdown">
         <div class="days" id="gp-days-left">—</div>
         <div class="txt">
@@ -297,72 +327,36 @@
       </div>
 
       <div class="gp-card">
-        <h4>📊 Breakdown วันนี้</h4>
-        <div class="gp-row">
-          <span class="k">ยอดขายรวมวันนี้</span>
-          <span class="v" id="gp-today-sales">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">GP 3% (รวม)</span>
-          <span class="v" id="gp-today-total" style="color:#FFA500">0฿</span>
-        </div>
-        <div class="gp-row indent">
-          <span class="k">├─ ไรเดอร์ได้ 2%</span>
-          <span class="v" id="gp-today-rider" style="color:#FF6B35">0฿</span>
-        </div>
-        <div class="gp-row indent">
-          <span class="k">└─ แพลตฟอร์มได้ 1%</span>
-          <span class="v" id="gp-today-platform" style="color:#4A90D9">0฿</span>
-        </div>
-        <div class="gp-row total">
-          <span class="k">ร้านได้รับสุทธิ</span>
-          <span class="v" id="gp-today-net">0฿</span>
-        </div>
-      </div>
-
-      <div class="gp-card">
-        <h4>📈 สถิติ 7 วันล่าสุด</h4>
-        <div class="gp-row">
-          <span class="k">ยอดขายรวม</span>
-          <span class="v" id="gp-week-sales">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">GP สะสม</span>
-          <span class="v" id="gp-week-total">0฿</span>
-        </div>
+        <h4>📊 GP วันนี้</h4>
+        <div class="gp-row"><span class="k">ยอดขายรวมวันนี้</span><span class="v" id="gp-today-sales">0฿</span></div>
+        <div class="gp-row"><span class="k">GP 3% (รวม)</span><span class="v" id="gp-today-total" style="color:#FFA500">0฿</span></div>
+        <div class="gp-row indent"><span class="k">├─ ไรเดอร์ได้ 2%</span><span class="v" id="gp-today-rider" style="color:#FF6B35">0฿</span></div>
+        <div class="gp-row indent"><span class="k">└─ แพลตฟอร์มได้ 1%</span><span class="v" id="gp-today-platform" style="color:#4A90D9">0฿</span></div>
+        <div class="gp-row total"><span class="k">ร้านได้รับสุทธิ</span><span class="v" id="gp-today-net" style="color:var(--green)">0฿</span></div>
       </div>
 
       <div class="gp-card">
         <h4>📈 สถิติเดือนนี้</h4>
-        <div class="gp-row">
-          <span class="k">ออเดอร์ทั้งหมด</span>
-          <span class="v" id="gp-month-orders">0 รายการ</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">ยอดขายรวม</span>
-          <span class="v" id="gp-month-sales">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">GP สะสม</span>
-          <span class="v" id="gp-month-total">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">ร้านได้รับสุทธิ</span>
-          <span class="v" id="gp-month-net" style="color:var(--brand)">0฿</span>
-        </div>
-        <div class="gp-row">
-          <span class="k">เฉลี่ยต่อออเดอร์</span>
-          <span class="v" id="gp-month-avg">0฿</span>
-        </div>
+        <div class="gp-row"><span class="k">ออเดอร์ทั้งหมด</span><span class="v" id="gp-month-orders">0 รายการ</span></div>
+        <div class="gp-row"><span class="k">ยอดขายรวม</span><span class="v" id="gp-month-sales">0฿</span></div>
+        <div class="gp-row"><span class="k">GP สะสม</span><span class="v" id="gp-month-total" style="color:#FFA500">0฿</span></div>
+        <div class="gp-row"><span class="k">ร้านได้รับสุทธิ</span><span class="v" id="gp-month-net" style="color:var(--green)">0฿</span></div>
+      </div>
+
+      <button class="btn-primary ripple" onclick="openGpTransferForm()" id="gp-transfer-btn" style="margin-top:14px">
+        📤 โอน GP ให้ chauatgo
+      </button>
+
+      <div class="gp-card" style="margin-top:14px">
+        <h4>📋 ประวัติ GP ที่โอนแล้ว</h4>
+        <div id="gp-history-list"></div>
       </div>
     </div>
 
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     🔔 NEW ORDER POPUP
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ NEW ORDER POPUP ═══ -->
 <div class="new-order-popup" id="new-order-popup">
   <div class="new-order-card">
     <div class="bell">🔔</div>
@@ -376,9 +370,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     📋 ORDER DETAIL MODAL
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ ORDER DETAIL SHEET ═══ -->
 <div class="sheet-overlay" id="order-detail-sheet" onclick="if(event.target===this)closeSheet('order-detail-sheet')">
   <div class="sheet">
     <div class="sheet-handle"></div>
@@ -389,17 +381,15 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     🍽️ MENU FORM SHEET
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ MENU FORM SHEET ═══ -->
 <div class="sheet-overlay" id="menu-form-sheet" onclick="if(event.target===this)closeSheet('menu-form-sheet')">
   <div class="sheet">
     <div class="sheet-handle"></div>
     <h2 id="menu-form-title">➕ เพิ่มเมนูใหม่</h2>
 
     <div class="img-upload-area" id="img-upload-area" onclick="document.getElementById('menu-img-input').click()">
-      <button class="remove-img ripple" onclick="event.stopPropagation();removeMenuImg()">✕</button>
-      <div class="ico">📷</div>
+      <button class="remove-img ripple" onclick="event.stopPropagation();removeMenuImg()" id="remove-img-btn" style="display:none">✕</button>
+      <div class="ico" id="img-placeholder">📷</div>
       <div class="txt">แตะเพื่อเพิ่มรูปเมนู</div>
       <img id="img-preview" src="" style="display:none">
     </div>
@@ -435,9 +425,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     ☰ MENU SHEET
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ MENU (hamburger) SHEET ═══ -->
 <div class="sheet-overlay" id="menu-sheet" onclick="if(event.target===this)closeSheet('menu-sheet')">
   <div class="sheet">
     <div class="sheet-handle"></div>
@@ -446,28 +434,67 @@
     <div class="shop-id-box">
       <div class="ico">🆔</div>
       <div class="info">
-        <div class="lbl">Merchant ID ของคุณ</div>
+        <div class="lbl">Merchant ID</div>
         <div class="val" id="shop-id-full">—</div>
       </div>
-      <button class="copy-btn ripple" onclick="copyShopId()">📋 คัดลอก</button>
+      <button class="copy-btn ripple" onclick="copyShopId()">📋</button>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('orders',document.querySelector('[data-tab=orders]'))">📋 ดูออเดอร์</button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('menus',document.querySelector('[data-tab=menus]'))">🍽️ จัดการเมนู</button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('history',document.querySelector('[data-tab=history]'))">📜 ประวัติออเดอร์</button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');switchTab('gp',document.querySelector('[data-tab=gp]'))">💰 สรุป GP</button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');showShopInfo()">🏪 ข้อมูลร้าน</button>
-      <button class="order-btn btn-gray ripple" style="justify-content:flex-start" onclick="closeSheet('menu-sheet');installPWA()">📱 ติดตั้งแอป</button>
-      <button class="order-btn btn-reject ripple" style="justify-content:flex-start" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
-    </div>
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('orders',document.querySelector('[data-tab=orders]'))">📋 ดูออเดอร์</button>
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('menus',document.querySelector('[data-tab=menus]'))">🍽️ จัดการเมนู</button>
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('history',document.querySelector('[data-tab=history]'))">📜 ประวัติออเดอร์</button>
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('gp',document.querySelector('[data-tab=gp]'))">💰 สรุป GP</button>
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');showShopInfo()">🏪 ข้อมูลร้าน</button>
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');installPWA()">📱 ติดตั้งแอป</button>
+    <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
+
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
+    <div class="sheet-version">Chauat Merchant v3.4.8</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     💬 CHAT OVERLAY
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ GP TRANSFER SHEET ═══ -->
+<div class="sheet-overlay" id="gp-transfer-sheet" onclick="if(event.target===this)closeSheet('gp-transfer-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>📤 โอน GP ให้ chauatgo</h2>
+
+    <div style="background:var(--green-light);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="font-size:12px;color:var(--green);font-weight:800;margin-bottom:6px">ยอดที่ต้องโอน</div>
+      <div style="font-size:32px;font-weight:900;color:var(--green)" id="gp-transfer-amount">0฿</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:6px">รอบ: <span id="gp-transfer-round">—</span></div>
+    </div>
+
+    <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px;font-size:12px;font-weight:700">
+      <div style="font-weight:900;margin-bottom:8px">📋 ข้อมูลบัญชี chauatgo</div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>ธนาคาร</span><b>กสิกรไทย</b></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>เลขบัญชี</span><b>xxx-x-xxxxx-x</b></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>ชื่อบัญชี</span><b>บริษัท Chauat Go จำกัด</b></div>
+    </div>
+
+    <div class="slip-upload-box" onclick="document.getElementById('gp-slip-input').click()">
+      <div class="ico">📸</div>
+      <div class="lbl">แตะเพื่อแนบสลิปโอน</div>
+      <div class="hint">แนบสลิปโอนเงินให้ chauatgo</div>
+    </div>
+    <input type="file" id="gp-slip-input" accept="image/*" capture="environment" style="display:none">
+    <img id="gp-slip-preview" class="slip-preview" style="display:none">
+
+    <div class="slip-progress" id="gp-slip-progress" style="display:none">
+      <div class="slip-progress-bar" id="gp-slip-progress-bar"></div>
+    </div>
+
+    <div class="form-field">
+      <label>📝 หมายเหตุ (ไม่บังคับ)</label>
+      <textarea id="gp-note" rows="2" maxlength="200" style="resize:none"></textarea>
+    </div>
+
+    <button class="btn-primary ripple" onclick="submitGpTransfer()" id="btn-submit-gp">✅ ยืนยันโอนแล้ว</button>
+    <button class="sheet-close ripple" onclick="closeSheet('gp-transfer-sheet')">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- ═══ CHAT ═══ -->
 <div class="chat-container" id="chatContainer">
   <div class="chat-header">
     <button class="back-btn ripple" onclick="closeChat()">←</button>
@@ -475,6 +502,7 @@
       <div class="chat-name" id="chatName">-</div>
       <div class="chat-sub" id="chatSub">-</div>
     </div>
+    <button class="chat-call-btn ripple" id="chatCallBtn" onclick="callChatPartner()" title="โทร">📞</button>
   </div>
   <div class="chat-messages" id="chatMessages"></div>
   <div class="chat-input-bar">
@@ -485,9 +513,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     🔥 FIREBASE SDK
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ FIREBASE SDK ═══ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -495,12 +521,5 @@
 
 <script src="merchant.js"></script>
 
-<!-- 🐛 Debug Console Force Fix -->
-<script>
-  window.addEventListener('load', () => {
-    document.body.style.overflow = 'auto';
-    document.documentElement.style.overflow = 'auto';
-  });
-</script>
 </body>
 </html>
