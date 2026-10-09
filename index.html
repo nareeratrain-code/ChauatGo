@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.6</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.4.7</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.4.6-20241009-001';
+  var VERSION = 'v3.4.7-20241009-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -52,7 +52,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.6 — SHOPPING PLACES + MAP PICKER FIX
+   CHAUAT GO v3.4.7 — TRAVEL VIA MAP PICKER
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -202,9 +202,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .map-picker-confirm { width: 100%; padding: 14px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
 .map-picker-confirm:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ═══════════════════════════════════════════════════════════════
-   v3.4.6: SHOPPING VIEW
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ SHOPPING VIEW ═══ */
 .place-card-shop { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface); border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; animation: cardSlideIn .3s backwards; }
 .place-card-shop:active { transform: scale(.98); }
 .place-card-shop-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; background: #E3F2FD; }
@@ -220,6 +218,18 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .shop-quick-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .shop-quick-chip { padding: 6px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); font-size: 11px; font-weight: 800; color: var(--text); cursor: pointer; font-family: inherit; }
 .shop-quick-chip:active { transform: scale(.95); background: var(--brand-light); }
+
+/* ═══ EXPRESS AUTOCOMPLETE (v3.4.7) ═══ */
+.exp-input-wrap { position: relative; }
+.exp-suggest { position: absolute; top: 100%; left: 0; right: 0; z-index: 500; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-lg); max-height: 40vh; overflow-y: auto; margin-top: 4px; display: none; }
+.exp-suggest.show { display: block; animation: slideUp .15s; }
+.exp-suggest-item { padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+.exp-suggest-item:last-child { border-bottom: none; }
+.exp-suggest-item:active { background: var(--surface-2); }
+.exp-suggest-item .ico { font-size: 18px; flex-shrink: 0; }
+.exp-suggest-item .info { flex: 1; min-width: 0; }
+.exp-suggest-item .name { font-weight: 900; }
+.exp-suggest-item .sub { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 
 /* ═══ HOME ═══ */
 #home-content { padding: 14px; }
@@ -363,7 +373,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .vehicle-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; transition: all .2s; }
 .vehicle-option.selected .vehicle-check { background: var(--green); border-color: var(--green); }
 
-/* ═══ MAP ═══ */
+/* ═══ MAP PAGE (legacy) ═══ */
 #map-page { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 8000; overflow-y: auto; }
 #map-page.show { display: block !important; animation: fadeIn .25s; }
 .map-header-bar { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
@@ -620,7 +630,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 🗺️ MAP PICKER (v3.4.6) -->
+<!-- 🗺️ MAP PICKER (v3.4.7: รองรับ travel) -->
 <div id="map-picker">
   <div class="map-picker-header">
     <button class="map-picker-back press-scale" onclick="closeMapPicker()">← กลับ</button>
@@ -639,6 +649,28 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     <div class="map-picker-bottom">
       <div class="map-picker-coord" id="map-picker-coord">— เลือกตำแหน่งบนแผนที่ —</div>
       <button class="map-picker-confirm" id="map-picker-confirm" onclick="confirmMapPicker()" disabled>✓ ยืนยันตำแหน่ง</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LEGACY MAP PAGE (เก็บไว้ แต่ไม่ใช้จาก "เดินทาง" แล้ว) ═══ -->
+<div id="map-page">
+  <div class="map-header-bar">
+    <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
+    <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
+  </div>
+  <div style="position:relative">
+    <div id="main-map"></div>
+    <div class="pick-mode-banner" id="pick-banner" style="display:none">
+      <span class="icon">📍</span>
+      <span style="flex:1">ลากหมุดสีแดงเพื่อปักตำแหน่งที่แน่นอน</span>
+    </div>
+    <div class="map-float-controls">
+      <button class="map-fab press-scale" onclick="centerToUser()" title="ตำแหน่งฉัน">🎯</button>
+      <button class="map-fab press-scale" onclick="clearMap()" title="ล้างหมุด">🗑️</button>
+    </div>
+    <div class="map-bottom-action">
+      <button class="map-confirm-btn" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>📍 เลือกตำแหน่งก่อน</button>
     </div>
   </div>
 </div>
@@ -693,7 +725,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <button class="m-tab" data-mtab="cart" onclick="switchMerchantTab('cart')">🛒 ตะกร้า</button>
     </div>
 
-    <!-- Category chips (shopping only) — v3.4.6 -->
+    <!-- Category chips (shopping only) -->
     <div class="merchant-filter-bar" id="merchant-filter-bar" style="display:none">
       <button class="m-filter-chip active" onclick="filterMerchantCat('all',this)">🏪 ทั้งหมด</button>
       <button class="m-filter-chip" onclick="filterMerchantCat('c',this)">🏪 สะดวกซื้อ</button>
@@ -752,28 +784,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ═══ MAP PAGE ═══ -->
-<div id="map-page">
-  <div class="map-header-bar">
-    <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
-    <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
-  </div>
-  <div style="position:relative">
-    <div id="main-map"></div>
-    <div class="pick-mode-banner" id="pick-banner" style="display:none">
-      <span class="icon">📍</span>
-      <span style="flex:1">ลากหมุดสีแดงเพื่อปักตำแหน่งที่แน่นอน</span>
-    </div>
-    <div class="map-float-controls">
-      <button class="map-fab press-scale" onclick="centerToUser()" title="ตำแหน่งฉัน">🎯</button>
-      <button class="map-fab press-scale" onclick="clearMap()" title="ล้างหมุด">🗑️</button>
-    </div>
-    <div class="map-bottom-action">
-      <button class="map-confirm-btn" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>📍 เลือกตำแหน่งก่อน</button>
-    </div>
-  </div>
-</div>
-
 <!-- ═══ TABS ═══ -->
 <div class="orders-tab" id="tab-orders" style="display:none">
   <div class="order-section-title">🔍 กำลังดำเนินการ</div>
@@ -785,7 +795,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 💬 MESSAGES TAB -->
 <div class="messages-tab" id="tab-messages" style="display:none">
   <div class="order-section-title">💬 แชทของฉัน</div>
   <div id="chat-list"></div>
@@ -856,7 +865,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.4.6 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.4.7 • © 2024</div>
       </div>
     </div>
   </div>
@@ -870,7 +879,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.4.6 — SHOPPING PLACES + MAP PICKER FIX
+   CHAUAT GO v3.4.7 — TRAVEL VIA MAP PICKER
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -976,7 +985,7 @@ function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*10
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
 /* ═══════════════════════════════════════════════════════════════
-   AVATAR EMOJI (v3.4.6)
+   AVATAR EMOJI
    ═══════════════════════════════════════════════════════════════ */
 function getAvatarEmoji(name){
   if (!name) return '🧑';
@@ -1116,7 +1125,7 @@ function countUp(el, target, duration){
    INIT
    ═══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', function(){
-  debugLog('🚀 Chauat Go v3.4.6');
+  debugLog('🚀 Chauat Go v3.4.7');
   initTheme();
   runSplash();
   loadPlaces();
@@ -1418,7 +1427,6 @@ window.openMerchantView = async function(type){
     document.querySelectorAll('#merchant-filter-bar .m-filter-chip').forEach(function(c){c.classList.remove('active');});
     var first = document.querySelector('#merchant-filter-bar .m-filter-chip');
     if (first) first.classList.add('active');
-    bindShopSearch();
   }
 
   var list = $('merchant-list'); if(!list) return;
@@ -1586,12 +1594,8 @@ if(msi){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   v3.4.6: SHOPPING VIEW (PLACES)
+   SHOPPING VIEW (PLACES)
    ═══════════════════════════════════════════════════════════════ */
-function bindShopSearch(){
-  // handled in main input listener above
-}
-
 function renderShoppingPlaces(){
   var list = $('merchant-list'); if(!list) return;
 
@@ -1649,7 +1653,6 @@ function renderShoppingPlaces(){
       '</div>';
   }).join('');
 
-  // bind click card
   list.querySelectorAll('.place-card-shop').forEach(function(card){
     card.addEventListener('click', function(e){
       if (e.target.closest('.place-card-shop-btn')) return;
@@ -1659,9 +1662,6 @@ function renderShoppingPlaces(){
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   v3.4.6: SHOP ORDER FORM (ฝากซื้อของ)
-   ═══════════════════════════════════════════════════════════════ */
 window.openShopOrderForm = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if (!p) return showToast('ไม่พบสถานที่','error');
@@ -1845,7 +1845,7 @@ window.closeCategoryView = function(){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   MAP PAGE (main)
+   MAP PAGE (legacy — ไม่ใช้จาก "เดินทาง" แล้ว)
    ═══════════════════════════════════════════════════════════════ */
 window.openMapPage = function(){
   if($('map-page')) $('map-page').classList.add('show');
@@ -1969,9 +1969,12 @@ function calculateFare(vehicle, destLat, destLng) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   RIDE ORDER FORM
+   TRAVEL / RIDE ORDER FORM (v3.4.7: ใช้ map-picker)
    ═══════════════════════════════════════════════════════════════ */
-window.openTravelView = function(){openMapPage();};
+window.openTravelView = function(){
+  // ⭐ v3.4.7: ใช้ map-picker แทน map-page (มี search + suggestions)
+  openMapPicker('travel');
+};
 
 window.openRideOrderForm = function(vehicle){
   var vehicleNames = {motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'};
@@ -1997,7 +2000,7 @@ window.openRideOrderForm = function(vehicle){
     '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>' +
     '</div>' +
     '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน')+'"></div>' +
-    '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination?selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4):'')+'"></div>' +
+    '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination ? (selectedDestination.address || (selectedDestination.lat.toFixed(4)+', '+selectedDestination.lng.toFixed(4))) : '')+'"></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2" placeholder="เช่น มีสัมภาระ 2 ใบ"></textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc((userProfile&&userProfile.phone)||'')+'"></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ (฿'+fareInfo.total+')</button>' +
@@ -2098,7 +2101,7 @@ window.submitOrder = async function(type){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   📦 EXPRESS FORM
+   📦 EXPRESS FORM + AUTOCOMPLETE (v3.4.7)
    ═══════════════════════════════════════════════════════════════ */
 function openExpressForm(dest){
   expOrigin = userLocation
@@ -2128,7 +2131,10 @@ function openExpressForm(dest){
 
     '<div class="form-group">' +
     '<label>📍 ต้นทาง (จุดรับของ)</label>' +
-    '<input id="order-from" value="' + esc(expOrigin ? expOrigin.address : '') + '" placeholder="พิมพ์ที่อยู่ต้นทาง...">' +
+    '<div class="exp-input-wrap">' +
+      '<input id="order-from" value="' + esc(expOrigin ? expOrigin.address : '') + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off">' +
+      '<div class="exp-suggest" id="exp-from-suggest"></div>' +
+    '</div>' +
     '<div class="exp-picker-row">' +
       '<button class="exp-pick-btn primary" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button>' +
       '<button class="exp-pick-btn" onclick="openMapPicker(\'exp-origin\')">🗺️ เลือกจากแผนที่</button>' +
@@ -2138,7 +2144,10 @@ function openExpressForm(dest){
 
     '<div class="form-group">' +
     '<label>🎯 ปลายทาง (จุดส่งของ)</label>' +
-    '<input id="order-to" value="' + esc(expDestination ? expDestination.address : '') + '" placeholder="พิมพ์ที่อยู่ปลายทาง...">' +
+    '<div class="exp-input-wrap">' +
+      '<input id="order-to" value="' + esc(expDestination ? expDestination.address : '') + '" placeholder="พิมพ์ที่อยู่ปลายทาง..." autocomplete="off">' +
+      '<div class="exp-suggest" id="exp-to-suggest"></div>' +
+    '</div>' +
     '<div class="sug-chips">' + sugChipsHtml + '</div>' +
     '<div class="exp-picker-row" style="margin-top:8px">' +
       '<button class="exp-pick-btn primary" onclick="openMapPicker(\'exp-destination\')">🗺️ เลือกจากแผนที่</button>' +
@@ -2152,7 +2161,74 @@ function openExpressForm(dest){
     '<button class="btn-full btn-green press-scale" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
+
+  // ⭐ v3.4.7: bind autocomplete
+  setTimeout(function(){
+    bindExpressAutocomplete('order-from', 'exp-from-suggest', 'exp-origin');
+    bindExpressAutocomplete('order-to', 'exp-to-suggest', 'exp-destination');
+  }, 100);
 }
+
+/* ⭐ v3.4.7: Autocomplete สำหรับ express inputs */
+function bindExpressAutocomplete(inputId, suggestId, mode){
+  var input = $(inputId);
+  var box = $(suggestId);
+  if (!input || !box) return;
+
+  var timer = null;
+  input.addEventListener('input', function(e){
+    var q = e.target.value.trim().toLowerCase();
+    clearTimeout(timer);
+    if (q.length < 1) { box.classList.remove('show'); return; }
+    timer = setTimeout(function(){
+      var matches = PLACES.filter(function(p){
+        return p.name.toLowerCase().indexOf(q) !== -1
+            || (CATS[p.category] && CATS[p.category].name.toLowerCase().indexOf(q) !== -1);
+      });
+      if (userLocation) {
+        matches.sort(function(a,b){
+          return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng)
+               - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        });
+      }
+      matches = matches.slice(0, 10);
+
+      if (!matches.length) {
+        box.innerHTML = '<div class="exp-suggest-item" style="color:var(--text-light)">ไม่พบสถานที่ "' + esc(e.target.value) + '"</div>';
+        box.classList.add('show');
+        return;
+      }
+      box.innerHTML = matches.map(function(p){
+        var cat = CATS[p.category] || {icon:'📍'};
+        var dist = userLocation ? fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
+        return '<div class="exp-suggest-item" onmousedown="pickExpressPlace(event,\'' + mode + '\',\'' + esc(p.id) + '\')">' +
+          '<span class="ico">' + cat.icon + '</span>' +
+          '<div class="info"><div class="name">' + esc(p.name) + '</div>' +
+          '<div class="sub">' + esc(cat.name) + (dist ? ' • ' + dist : '') + '</div></div>' +
+          '</div>';
+      }).join('');
+      box.classList.add('show');
+    }, 150);
+  });
+
+  input.addEventListener('blur', function(){
+    setTimeout(function(){ box.classList.remove('show'); }, 250);
+  });
+}
+
+window.pickExpressPlace = function(event, mode, placeId){
+  event.preventDefault();
+  var p = PLACES.find(function(x){return x.id === placeId;});
+  if (!p) return;
+  var picked = {lat:p.lat, lng:p.lng, address:p.name};
+  if (mode === 'exp-origin') {
+    expOrigin = picked;
+  } else {
+    expDestination = picked;
+  }
+  openExpressForm(mode === 'exp-origin' ? expDestination : expOrigin);
+  showToast('✅ ' + p.name);
+};
 
 window.useCurrentLocationForExp = function(){
   if (!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
@@ -2236,7 +2312,7 @@ window.submitExpressOrder = async function(){
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   🗺️ MAP PICKER (v3.4.6 — fix)
+   🗺️ MAP PICKER (v3.4.7 — รองรับ travel mode)
    ═══════════════════════════════════════════════════════════════ */
 window.openMapPicker = function(mode){
   if ($('modal')) $('modal').classList.remove('show');
@@ -2245,7 +2321,12 @@ window.openMapPicker = function(mode){
   mapPickerValue = null;
 
   if ($('map-picker-title')) {
-    $('map-picker-title').textContent = mode === 'exp-origin' ? '📍 เลือกจุดรับ' : '🎯 เลือกจุดส่ง';
+    var titles = {
+      'exp-origin': '📍 เลือกจุดรับ',
+      'exp-destination': '🎯 เลือกจุดส่ง',
+      'travel': '🗺️ เลือกตำแหน่งปลายทาง'
+    };
+    $('map-picker-title').textContent = titles[mode] || 'เลือกตำแหน่ง';
   }
   if ($('map-picker')) $('map-picker').classList.add('show');
   if ($('map-picker-coord')) $('map-picker-coord').textContent = '— เลือกตำแหน่งบนแผนที่ —';
@@ -2267,7 +2348,9 @@ window.openMapPicker = function(mode){
     }
     mapPickerMap.invalidateSize();
 
-    var start = mode === 'exp-origin' && expOrigin ? expOrigin : (userLocation || null);
+    var start = mode === 'exp-origin' && expOrigin ? expOrigin
+              : mode === 'exp-destination' && expDestination ? expDestination
+              : userLocation || null;
     if (start) {
       mapPickerMap.setView([start.lat, start.lng], 16);
       setMapPickerPosition(start.lat, start.lng);
@@ -2376,15 +2459,20 @@ window.confirmMapPicker = function(){
   var picked = {lat:mapPickerValue.lat, lng:mapPickerValue.lng, address:addr};
 
   var savedMode = mapPickerMode;
-  if (mapPickerMode === 'exp-origin') {
-    expOrigin = picked;
-  } else if (mapPickerMode === 'exp-destination') {
-    expDestination = picked;
-  }
-
   closeMapPicker();
-  openExpressForm(savedMode === 'exp-origin' ? expDestination : expOrigin);
   showToast('✅ ' + addr);
+
+  if (savedMode === 'exp-origin') {
+    expOrigin = picked;
+    openExpressForm(expDestination);
+  } else if (savedMode === 'exp-destination') {
+    expDestination = picked;
+    openExpressForm(expOrigin);
+  } else if (savedMode === 'travel') {
+    // ⭐ v3.4.7: travel → เก็บ selectedDestination แล้วเปิดเลือกรถ
+    selectedDestination = {lat:picked.lat, lng:picked.lng, address:addr};
+    setTimeout(function(){ openVehicleModal(); }, 300);
+  }
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3018,10 +3106,10 @@ if('serviceWorker' in navigator){
   });
 }
 
-console.log('%c🛵 Chauat Go v3.4.6 — SHOPPING PLACES + MAP PICKER FIX','color:#76B82A;font-weight:900;font-size:16px');
-console.log('%c✓ ของใช้: แสดง PLACES (สะดวกซื้อ/ตลาด/ร้านค้า) + ค้นหา','color:#00A651;font-weight:700');
-console.log('%c✓ ฝากซื้อ: ฟอร์มพิมพ์รายการ + quick chips | ✓ Map picker fix','color:#00A651;font-weight:700');
-console.log('%c✓ Avatar 👩/👨 ตามชื่อ','color:#00A651;font-weight:700');
+console.log('%c🛵 Chauat Go v3.4.7 — TRAVEL VIA MAP PICKER','color:#76B82A;font-weight:900;font-size:16px');
+console.log('%c✓ เดินทาง: ใช้ map-picker (search + suggestions)','color:#00A651;font-weight:700');
+console.log('%c✓ ของใช้: PLACES (สะดวกซื้อ/ตลาด/ร้านค้า) + ค้นหา','color:#00A651;font-weight:700');
+console.log('%c✓ ส่งด่วน: map picker + รัศมี 100 ม. + autocomplete','color:#00A651;font-weight:700');
 </script>
 
 </body>
