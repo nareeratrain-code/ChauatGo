@@ -13,15 +13,23 @@
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- ═══════════════════════════════════════════════════════════
-     ⭐ AUTO CACHE-BUSTING — เปลี่ยนเลขทุกครั้งที่ Deploy
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ AUTO CACHE-BUSTING (แก้ Reload Loop) ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.0-20241009-001';
+  var VERSION = 'v3.4.0-20241009-002';
   var saved = localStorage.getItem('chauat_ver_index');
+  var lastReload = localStorage.getItem('chauat_last_reload');
+  var now = Date.now();
+
+  // กัน Reload Loop: ถ้าเพิ่ง reload ใน 5 วิ ห้าม reload อีก
+  if (lastReload && (now - parseInt(lastReload)) < 5000) {
+    localStorage.setItem('chauat_ver_index', VERSION);
+    return;
+  }
+
   if (saved !== VERSION) {
     localStorage.setItem('chauat_ver_index', VERSION);
+    localStorage.setItem('chauat_last_reload', now.toString());
     if ('caches' in window) {
       caches.keys().then(function(keys) {
         return Promise.all(keys.map(function(k) { return caches.delete(k); }));
@@ -356,6 +364,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .food-name { font-size: 13px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .food-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 3px; }
 .food-price { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 4px; }
+</style>
 
 /* ═══ BOTTOM NAV ═══ */
 .bottom-nav {
@@ -1000,14 +1009,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="locations-data.js"></script>
-
-<!-- ═══ MAIN SCRIPT (ส่วนที่ 2) ═══ -->
 <script>
-/* ... จะให้ในส่วนที่ 2 ... */
-</script>
-
-</body>
-</html>
 /* ═══════════════════════════════════════════════════════════════
    CHAUAT GO v3.4.0 — JavaScript Ultimate
    ═══════════════════════════════════════════════════════════════ */
@@ -1090,28 +1092,35 @@ function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*10
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
 /* ═══════════════════════════════════════════════════════════════
-   SPLASH SCREEN
+   SPLASH SCREEN (แก้ไขให้มี Safety Timer)
    ═══════════════════════════════════════════════════════════════ */
 function runSplash(){
   var bar = $('splash-bar');
-  if (!bar) return;
+  if (!bar) { dismissSplash(); return; }
+
+  // ⭐ SAFETY: บังคับปิด Splash หลัง 3 วินาที ไม่ว่าอะไรจะเกิดขึ้น
+  var safetyTimer = setTimeout(dismissSplash, 3000);
+
   var progress = 0;
   var interval = setInterval(function(){
     progress += 15 + Math.random() * 15;
     if (progress >= 100) {
       progress = 100;
       clearInterval(interval);
-      setTimeout(function(){
-        var splash = $('splash-screen');
-        if (splash) splash.classList.add('hidden');
-        // ลบออกจาก DOM หลัง fade
-        setTimeout(function(){
-          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
-        }, 600);
-      }, 300);
+      clearTimeout(safetyTimer);
+      setTimeout(dismissSplash, 300);
     }
     bar.style.width = progress + '%';
   }, 150);
+}
+
+function dismissSplash(){
+  var splash = $('splash-screen');
+  if (!splash) return;
+  splash.classList.add('hidden');
+  setTimeout(function(){
+    if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+  }, 600);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1126,7 +1135,6 @@ window.toggleTheme = function(){
   var fab = $('theme-fab');
   if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
 
-  // Update meta theme-color
   var meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = next === 'dark' ? '#0F1419' : '#76B82A';
 
@@ -1146,7 +1154,6 @@ function initTheme(){
 function countUp(el, target, duration){
   if (!el) return;
   duration = duration || 800;
-  var start = 0;
   var startTime = null;
   el.classList.add('counted');
   function step(timestamp){
@@ -1479,16 +1486,12 @@ function renderMerchantList(merchants){
     return;
   }
   list.innerHTML = filtered.map(function(m, i){
-    var card = document.createElement('div');
-    card.className = 'merchant-card';
-    card.setAttribute('data-merchant-id', esc(m.id));
-    card.style.animationDelay = (i * 0.05) + 's';
-    card.innerHTML = '<div class="merchant-card-icon" style="background:#E8F5E9">🏪</div>' +
+    return '<div class="merchant-card" data-merchant-id="'+esc(m.id)+'" style="animation-delay:'+(i * 0.05)+'s">' +
+      '<div class="merchant-card-icon" style="background:#E8F5E9">🏪</div>' +
       '<div class="merchant-card-info"><div class="merchant-card-name">'+esc(m.name||'ไม่ระบุ')+'</div>' +
       '<div class="merchant-card-meta">'+(m.isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(m.category||'')+'</div>' +
       (m.address?'<div class="merchant-card-meta">📍 '+esc(String(m.address).slice(0,50))+'</div>':'') +
-      '</div><div style="color:var(--text-light);font-size:20px">›</div>';
-    return card.outerHTML;
+      '</div><div style="color:var(--text-light);font-size:20px">›</div></div>';
   }).join('');
 }
 
@@ -2017,3 +2020,7 @@ if('serviceWorker' in navigator){
 
 console.log('%c🛵 Chauat Go v3.4.0 — Ultimate Edition','color:#76B82A;font-weight:900;font-size:16px');
 console.log('%c✓ Splash | ✓ Dark Mode | ✓ Animations | ✓ All Features','color:#00A651;font-weight:700');
+</script>
+
+</body>
+</html>
