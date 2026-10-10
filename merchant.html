@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.4.9</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.5.0</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chauat Merchant">
@@ -15,7 +15,7 @@
 <!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.9-20241011-001';
+  var VERSION = 'v3.5.0-20241012-001';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -185,7 +185,6 @@
     <div class="header-info">
       <div class="name" id="shop-name">—</div>
       <div class="status" id="shop-status">⚫ ปิดร้าน</div>
-      <div class="shop-id" id="shop-id-header">—</div>
     </div>
     <button class="shop-toggle ripple" id="shop-toggle-btn" onclick="toggleShop()">
       <span class="dot"></span>
@@ -200,7 +199,7 @@
     <span style="font-size:11px;opacity:.8">จะเปิดรับออเดอร์ได้เมื่ออนุมัติแล้ว</span>
   </div>
 
-  <!-- ⭐ SOUND UNLOCK BANNER (v3.4.9) -->
+  <!-- ⭐ v3.4.9: SOUND UNLOCK BANNER -->
   <div class="sound-unlock-banner" id="sound-unlock-banner" style="display:none">
     <span style="font-size:24px">🔔</span>
     <div style="flex:1;min-width:0">
@@ -429,6 +428,75 @@
       <textarea id="mf-desc" rows="2" maxlength="200" style="resize:none"></textarea>
     </div>
 
+    <!-- ⭐ v3.5.0: สถานะเมนู -->
+    <div class="menu-section-box">
+      <div class="menu-section-title">📊 สถานะเมนู</div>
+      <div class="status-picker">
+        <button type="button" class="status-option status-available" data-status="available" onclick="pickMenuStatus('available')">
+          <span class="status-emoji">🟢</span>
+          <span class="status-label">พร้อมขาย</span>
+        </button>
+        <button type="button" class="status-option status-out" data-status="out_of_stock" onclick="pickMenuStatus('out_of_stock')">
+          <span class="status-emoji">🟡</span>
+          <span class="status-label">วัตถุดิบหมด</span>
+        </button>
+        <button type="button" class="status-option status-hidden" data-status="hidden" onclick="pickMenuStatus('hidden')">
+          <span class="status-emoji">⚫</span>
+          <span class="status-label">ซ่อนจากลูกค้า</span>
+        </button>
+      </div>
+      <input type="hidden" id="mf-status" value="available">
+    </div>
+
+    <!-- ⭐ v3.5.0: โปรโมชั่น -->
+    <div class="menu-section-box promo-section">
+      <div class="menu-section-title">🔥 โปรโมชั่น (ไม่บังคับ)</div>
+      
+      <label class="promo-toggle">
+        <input type="checkbox" id="mf-promo-active" onchange="onPromoToggle()">
+        <span>เปิดโปรโมชั่นสำหรับเมนูนี้</span>
+      </label>
+
+      <div id="mf-promo-fields" style="display:none">
+        <div class="promo-type-row">
+          <button type="button" class="promo-type-btn active" data-promo-type="percent" onclick="pickPromoType('percent')">
+            📉 ลดเป็น %
+          </button>
+          <button type="button" class="promo-type-btn" data-promo-type="amount" onclick="pickPromoType('amount')">
+            💰 ลดเป็นบาท
+          </button>
+        </div>
+        <input type="hidden" id="mf-promo-type" value="percent">
+
+        <div class="promo-value-row">
+          <span class="promo-value-label" id="mf-promo-value-label">ลด</span>
+          <input type="number" id="mf-promo-value" placeholder="20" min="1" step="1" oninput="updatePromoPreview()">
+          <span class="promo-value-unit" id="mf-promo-unit">%</span>
+        </div>
+
+        <div class="promo-quick-chips" id="promo-quick-percent">
+          <button type="button" onclick="setPromoValue(5)">5%</button>
+          <button type="button" onclick="setPromoValue(10)">10%</button>
+          <button type="button" onclick="setPromoValue(15)">15%</button>
+          <button type="button" onclick="setPromoValue(20)">20%</button>
+          <button type="button" onclick="setPromoValue(30)">30%</button>
+          <button type="button" onclick="setPromoValue(50)">50%</button>
+        </div>
+        <div class="promo-quick-chips" id="promo-quick-amount" style="display:none">
+          <button type="button" onclick="setPromoValue(5)">5฿</button>
+          <button type="button" onclick="setPromoValue(10)">10฿</button>
+          <button type="button" onclick="setPromoValue(20)">20฿</button>
+          <button type="button" onclick="setPromoValue(50)">50฿</button>
+          <button type="button" onclick="setPromoValue(100)">100฿</button>
+        </div>
+
+        <div class="promo-preview" id="mf-promo-preview">
+          <span class="promo-preview-label">ตัวอย่าง:</span>
+          <span id="mf-promo-preview-text">—</span>
+        </div>
+      </div>
+    </div>
+
     <button class="btn-primary ripple" id="btn-save-menu" onclick="saveMenu()">💾 บันทึกเมนู</button>
     <button class="sheet-close ripple" onclick="closeSheet('menu-form-sheet')">ยกเลิก</button>
   </div>
@@ -440,13 +508,12 @@
     <div class="sheet-handle"></div>
     <h2>☰ เมนูร้านค้า</h2>
 
-    <div class="shop-id-box">
-      <div class="ico">🆔</div>
-      <div class="info">
-        <div class="lbl">Merchant ID</div>
-        <div class="val" id="shop-id-full">—</div>
+    <div class="shop-info-box">
+      <div class="shop-info-emoji">🏪</div>
+      <div class="shop-info-content">
+        <div class="shop-info-name" id="sheet-shop-name">—</div>
+        <div class="shop-info-status" id="sheet-shop-status">—</div>
       </div>
-      <button class="copy-btn ripple" onclick="copyShopId()">📋</button>
     </div>
 
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('orders',document.querySelector('[data-tab=orders]'))">📋 ดูออเดอร์</button>
@@ -458,7 +525,7 @@
     <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
 
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-    <div class="sheet-version">Chauat Merchant v3.4.9</div>
+    <div class="sheet-version">Chauat Merchant v3.5.0</div>
   </div>
 </div>
 
