@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.5.0
+   🏪 CHAUAT GO MERCHANT — v3.5.1
    Design System • Modern UI • Dark/Light Mode
    + Sound Unlock Banner + Loop Animation
    + Menu Status + Promotion
+   + Sound Settings (3 tones × 3 volumes)
    ═══════════════════════════════════════════════════════════════════ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -25,7 +26,6 @@
   --shadow-lg: 0 12px 32px rgba(0,0,0,.12);
   --overlay-bg: rgba(0,0,0,.6);
   --input-bg: #FAFBFC;
-  /* v3.5.0 */
   --promo-red: #E53935;
   --promo-red-light: #FFEBEE;
   --status-available: #00A651;
@@ -90,6 +90,7 @@ body {
 @keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,166,81,.7); } 50% { box-shadow: 0 0 0 12px rgba(0,166,81,0); } }
 @keyframes bellShake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
 @keyframes promoShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes soundWave { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.15); opacity: 0.85; } }
 
 /* ═══ SPLASH ═══ */
 #splash-screen {
@@ -689,7 +690,7 @@ body {
 
 .sheet-version { text-align: center; font-size: 11px; color: var(--text-light); margin-top: 12px; font-weight: 600; }
 
-/* ═══ SHOP INFO BOX (v3.5.0) ═══ */
+/* ═══ SHOP INFO BOX ═══ */
 .shop-info-box {
   background: linear-gradient(135deg, var(--brand-light), #D4E8B8);
   border-radius: 14px;
@@ -895,9 +896,9 @@ body {
   .new-order-card h2 { font-size: 20px; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    ⭐ v3.4.9: SOUND UNLOCK BANNER
-   ═══════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 .sound-unlock-banner {
   display: flex; align-items: center; gap: 12px;
   background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
@@ -941,11 +942,10 @@ body {
   .sound-unlock-btn { width: 100%; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
    ⭐ v3.5.0: MENU STATUS + PROMOTION
-   ═══════════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 
-/* ═══ Section box ใน form ═══ */
 .menu-section-box {
   background: var(--surface-2);
   border-radius: 14px;
@@ -963,7 +963,7 @@ body {
   gap: 6px;
 }
 
-/* ═══ Status Picker (3 ปุ่ม) ═══ */
+/* Status Picker */
 .status-picker {
   display: grid;
   grid-template-columns: 1fr;
@@ -1018,7 +1018,7 @@ body {
 [data-theme="dark"] .status-option.status-out.active { background: #3F2F1F; color: #FFB74D; }
 [data-theme="dark"] .status-option.status-hidden.active { background: #2D333B; color: #9CA3AF; }
 
-/* ═══ Promotion Section ═══ */
+/* Promotion */
 .promo-section {
   background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
   border-color: var(--orange);
@@ -1158,7 +1158,7 @@ body {
   font-weight: 900;
 }
 
-/* ═══ Promo Badge (ในการ์ดเมนู) ═══ */
+/* Promo Badge */
 .promo-badge {
   display: inline-flex;
   align-items: center;
@@ -1170,21 +1170,10 @@ body {
   padding: 4px 10px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(229,57,53,.35);
-  animation: promoShine 3s linear infinite;
-  background-size: 200% 100%;
   white-space: nowrap;
 }
-.promo-badge::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
-  animation: promoShine 2s linear infinite;
-  pointer-events: none;
-  border-radius: 8px;
-}
 
-/* ═══ Status Badge (ในการ์ดเมนู) ═══ */
+/* Status Badge */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1211,7 +1200,7 @@ body {
 [data-theme="dark"] .status-badge.status-out { background: #3F2F1F; color: #FFB74D; }
 [data-theme="dark"] .status-badge.status-hidden { background: #2D333B; color: #9CA3AF; }
 
-/* ═══ Price Display (ราคาเก่า + ใหม่) ═══ */
+/* Price Display */
 .menu-price-display {
   display: flex;
   align-items: baseline;
@@ -1236,7 +1225,6 @@ body {
   color: var(--green);
 }
 
-/* ═══ Menu Item — variant ═══ */
 .menu-item.status-hidden-item {
   opacity: 0.55;
   filter: grayscale(0.3);
@@ -1248,7 +1236,6 @@ body {
   border-left: 3px solid var(--status-available);
 }
 
-/* ═══ Menu Badges Row ═══ */
 .menu-badges-row {
   display: flex;
   flex-wrap: wrap;
@@ -1256,7 +1243,179 @@ body {
   margin-top: 6px;
 }
 
-/* ═══ Responsive ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   ⭐ v3.5.1: SOUND SETTINGS
+   ═══════════════════════════════════════════════════════════════ */
+
+.sound-section {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+}
+.sound-section-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+/* Tone picker */
+.sound-tone-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sound-tone-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all .2s;
+  min-height: 64px;
+  position: relative;
+}
+.sound-tone-option:active { transform: scale(.98); }
+
+.sound-tone-icon {
+  font-size: 26px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  border-radius: 12px;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+.sound-tone-option.active .sound-tone-icon {
+  background: var(--brand-light);
+  animation: soundWave 1.2s ease-in-out infinite;
+}
+.sound-tone-content {
+  flex: 1;
+  min-width: 0;
+}
+.sound-tone-name {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text);
+}
+.sound-tone-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 3px;
+}
+.sound-tone-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+.sound-tone-option.active {
+  border-color: var(--brand);
+  background: var(--brand-light);
+  box-shadow: 0 4px 12px rgba(0,166,81,.15);
+}
+.sound-tone-option.active .sound-tone-check {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+[data-theme="dark"] .sound-tone-option.active { background: #1F3F1F; }
+
+/* Volume picker */
+.sound-volume-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sound-volume-option {
+  padding: 14px 8px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: center;
+  transition: all .2s;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.sound-volume-option:active { transform: scale(.96); }
+.sound-volume-icon {
+  font-size: 26px;
+  line-height: 1;
+  transition: transform .2s;
+}
+.sound-volume-label {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--text);
+}
+.sound-volume-option.active {
+  border-color: var(--brand);
+  background: var(--brand-light);
+  color: var(--brand);
+  box-shadow: 0 4px 12px rgba(0,166,81,.2);
+}
+.sound-volume-option.active .sound-volume-icon {
+  transform: scale(1.15);
+  animation: soundWave 1.2s ease-in-out infinite;
+}
+.sound-volume-option.active .sound-volume-label {
+  color: var(--brand);
+}
+[data-theme="dark"] .sound-volume-option.active { background: #1F3F1F; }
+
+/* Sound test button */
+.sound-test-btn {
+  background: linear-gradient(135deg, #2196F3, #1976D2) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(33,150,243,.3) !important;
+  margin-top: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+/* Responsive */
+@media (max-width: 360px) {
+  .sound-volume-option {
+    padding: 10px 4px;
+    min-height: 70px;
+  }
+  .sound-volume-icon { font-size: 22px; }
+  .sound-volume-label { font-size: 11px; }
+  .sound-tone-option { padding: 10px 12px; }
+  .sound-tone-icon { width: 40px; height: 40px; font-size: 22px; }
+  .sound-tone-name { font-size: 13px; }
+  .sound-tone-desc { font-size: 10px; }
+}
+
+/* Responsive — Menu form */
 @media (max-width: 360px) {
   .promo-type-row { grid-template-columns: 1fr; }
   .status-option { padding: 10px 12px; font-size: 12px; }
