@@ -1,10 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.4.8.1
+   🏪 CHAUAT GO MERCHANT — v3.4.9
    Full-featured Production JavaScript
    - Fix signup/login retry
    - Auto-create docs
    - Debug mode
-   - ⭐ Race condition fix (isSigningUp flag)
+   - Race condition fix (isSigningUp flag)
+   - ⭐ NEW: Sound unlock for auto-play policy
+   - ⭐ NEW: Loop sound until order accepted
+   - ⭐ NEW: isFirstOrdersLoad flag
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -25,9 +28,9 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-// ⭐ v3.4.8.1: DEBUG MODE
+// ⭐ v3.4.9: DEBUG MODE
 window.CHAUAT_MERCHANT_DEBUG = true;
-console.log('%c🏪 Chauat Go Merchant v3.4.8.1 — DEBUG ON', 'color:#00A651;font-weight:900;font-size:14px');
+console.log('%c🏪 Chauat Go Merchant v3.4.9 — DEBUG ON', 'color:#00A651;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -49,7 +52,12 @@ let myMenusUnsub = null;
 let audioCtx = null;
 let deferredPrompt = null;
 let isShopOpen = false;
-let isSigningUp = false;   // ⭐ v3.4.8.1: กัน onAuthStateChanged ทำงานระหว่างสมัคร
+let isSigningUp = false;
+
+// ⭐ v3.4.9: Sound state
+let isAudioUnlocked = false;
+let orderLoopTimer = null;
+let isFirstOrdersLoad = true;
 
 let editingMenuId = null;
 let editingMenuImgBlob = null;
@@ -66,6 +74,7 @@ const GP_RIDER_SHARE = 0.02;
 const GP_PLATFORM_SHARE = 0.01;
 const PROMO_DAYS = 60;
 const MAX_IMG_SIZE = 5 * 1024 * 1024;
+const ORDER_LOOP_INTERVAL = 3000; // ⭐ v3.4.9: 3 วินาที
 const GP_BANK_INFO = {
   bank: 'กสิกรไทย',
   accountNo: 'xxx-x-xxxxx-x',
@@ -237,6 +246,85 @@ function soundNewChat() {
   if (navigator.vibrate) navigator.vibrate(50);
 }
 
+/* ⭐ v3.4.9: Sound Unlock */
+function unlockAudio() {
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) {
+      showToast('ไม่สามารถเปิดเสียงได้', 'error');
+      return;
+    }
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        console.log('🔊 Audio unlocked');
+        isAudioUnlocked = true;
+        hideUnlockBanner();
+        showToast('🔔 เปิดเสียงเตือนแล้ว');
+        // ทดสอบเสียง 1 ครั้ง
+        setTimeout(() => soundNewOrder(), 300);
+      }).catch(e => {
+        console.warn('Resume failed:', e);
+        showToast('เปิดเสียงไม่สำเร็จ', 'error');
+      });
+    } else {
+      console.log('🔊 Audio already unlocked');
+      isAudioUnlocked = true;
+      hideUnlockBanner();
+      showToast('🔔 เปิดเสียงเตือนแล้ว');
+      setTimeout(() => soundNewOrder(), 300);
+    }
+  } catch (e) {
+    console.error('Unlock error:', e);
+    showToast('เปิดเสียงไม่สำเร็จ', 'error');
+  }
+}
+
+function hideUnlockBanner() {
+  const banner = $('sound-unlock-banner');
+  if (banner) {
+    banner.style.display = 'none';
+    banner.classList.add('hidden');
+  }
+}
+
+function showUnlockBanner() {
+  const banner = $('sound-unlock-banner');
+  if (banner && !isAudioUnlocked) {
+    banner.style.display = 'flex';
+    banner.classList.remove('hidden');
+  }
+}
+
+/* ⭐ v3.4.9: Order Loop Sound */
+function startOrderLoop() {
+  if (orderLoopTimer) {
+    console.log('🔔 Loop already running');
+    return;
+  }
+  console.log('🔔 Starting order loop sound');
+  soundNewOrder();
+  orderLoopTimer = setInterval(() => {
+    // ⭐ เช็คก่อนว่ายังมี pending order อยู่ไหม
+    const stillPending = allOrders.some(o => o.status === 'pending');
+    if (!stillPending) {
+      console.log('🔇 No more pending orders — stopping loop');
+      stopOrderLoop();
+      return;
+    }
+    console.log('🔔 Loop sound playing...');
+    soundNewOrder();
+  }, ORDER_LOOP_INTERVAL);
+}
+
+function stopOrderLoop() {
+  if (orderLoopTimer) {
+    console.log('🔇 Stopping order loop sound');
+    clearInterval(orderLoopTimer);
+    orderLoopTimer = null;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    8. IMAGE COMPRESS
    ═══════════════════════════════════════════════════════════════════ */
@@ -342,7 +430,6 @@ async function handleLogin(e) {
   }
 }
 
-/* ⭐ v3.4.8.1: handleSignup — Race condition fix */
 async function handleSignup(e) {
   e.preventDefault();
   const btn = $('btn-signup');
@@ -367,7 +454,7 @@ async function handleSignup(e) {
   btn.disabled = true;
   btn.textContent = '⏳ กำลังสมัคร...';
   let createdUser = null;
-  isSigningUp = true; // ⭐ กัน onAuthStateChanged
+  isSigningUp = true;
 
   try {
     console.log('📝 Step 1: Create Auth user');
@@ -409,7 +496,7 @@ async function handleSignup(e) {
 
     setTimeout(async () => {
       try { await auth.signOut(); } catch (e) {}
-      isSigningUp = false; // ⭐ reset หลัง signOut
+      isSigningUp = false;
       switchAuthTab('login');
       const le = $('login-email');
       if (le) le.value = email;
@@ -424,7 +511,7 @@ async function handleSignup(e) {
       try { await db.collection('users').doc(createdUser.uid).delete(); } catch (e) {}
       try { await createdUser.delete(); } catch (e) {}
     }
-    isSigningUp = false; // ⭐ reset ทันที
+    isSigningUp = false;
     showToast('สมัครไม่สำเร็จ: ' + (err.code || err.message), 'error');
     btn.disabled = false;
     btn.textContent = '🏪 สมัครร้านค้า';
@@ -444,6 +531,7 @@ async function handleForgotPassword() {
 
 async function handleMerchantLogout() {
   if (!confirm('ออกจากระบบ?')) return;
+  stopOrderLoop(); // ⭐ หยุดเสียง
   closeSheet('menu-sheet');
   if (myProfileUnsub) myProfileUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
@@ -451,6 +539,7 @@ async function handleMerchantLogout() {
   if (activeChatUnsub) activeChatUnsub();
   seenOrderIds.clear();
   allOrders = [];
+  isFirstOrdersLoad = true; // ⭐ reset
   await auth.signOut();
 }
 
@@ -458,7 +547,6 @@ async function handleMerchantLogout() {
    11. AUTH STATE
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
-  // ⭐ v3.4.8.1: ข้ามไปขณะกำลังสมัคร (race condition fix)
   if (isSigningUp) {
     console.log('⏭️ Skipping onAuthStateChanged — signup in progress');
     return;
@@ -471,6 +559,7 @@ auth.onAuthStateChanged(async (user) => {
   if (!user) {
     $('login-screen').style.display = 'flex';
     $('app').style.display = 'none';
+    stopOrderLoop(); // ⭐ หยุดเสียง
     return;
   }
 
@@ -478,37 +567,31 @@ auth.onAuthStateChanged(async (user) => {
   console.log('👤 Auth state:', user.email, user.uid);
 
   try {
-    // ⭐ v3.4.8.1: Retry 5 ครั้ง (รอ Firestore propagate)
     let userDoc = null;
     let merchantDoc = null;
 
     for (let attempt = 1; attempt <= 5; attempt++) {
       console.log(`🔍 Attempt ${attempt}/5: check docs`);
-
       try {
         userDoc = await db.collection('users').doc(user.uid).get();
       } catch (e) {
         console.warn('users read error:', e.code);
       }
-
       try {
         merchantDoc = await db.collection('merchants').doc(user.uid).get();
       } catch (e) {
         console.warn('merchants read error:', e.code);
       }
-
       if (userDoc?.exists && merchantDoc?.exists) {
         console.log('✅ Both docs found');
         break;
       }
-
       if (attempt < 5) {
         console.log(`⏳ Waiting 1s before retry...`);
         await new Promise(r => setTimeout(r, 1000));
       }
     }
 
-    // Check users doc
     if (!userDoc || !userDoc.exists) {
       console.error('❌ users doc not found after 5 retries');
       showToast('ไม่พบข้อมูลบัญชี — กรุณาสมัครใหม่', 'error');
@@ -524,7 +607,6 @@ auth.onAuthStateChanged(async (user) => {
       return;
     }
 
-    // Check merchants doc
     if (!merchantDoc || !merchantDoc.exists) {
       console.error('❌ merchants doc not found');
       showToast('ไม่พบข้อมูลร้านค้า — กรุณาสมัครใหม่', 'error');
@@ -557,6 +639,13 @@ function initApp() {
   setupNetwork();
   setupPWA();
   requestNotificationPermission();
+
+  // ⭐ v3.4.9: แสดง unlock banner ถ้ายังไม่ unlock
+  setTimeout(() => {
+    if (!isAudioUnlocked) {
+      showUnlockBanner();
+    }
+  }, 1500);
 }
 
 function requestNotificationPermission() {
@@ -608,12 +697,29 @@ function subscribeOrders() {
         isShopOpen
       );
 
-      if (newOnes.length > 0 && prevIds.size > 0) {
-        soundNewOrder();
-        showNewOrderPopup(newOnes[0]);
+      console.log(`📊 Orders snapshot: ${allOrders.length} total, ${newOnes.length} new, prevIds=${prevIds.size}, isFirstLoad=${isFirstOrdersLoad}`);
+
+      // ⭐ v3.4.9: Logic ใหม่ — เล่นเสียงเมื่อมีออเดอร์ใหม่ (ไม่ใช่ first load)
+      if (newOnes.length > 0) {
+        if (isFirstOrdersLoad || prevIds.size === 0) {
+          console.log('🔇 First load — skip sound');
+        } else {
+          console.log('🔔 NEW ORDER! Playing sound + loop');
+          startOrderLoop();
+          showNewOrderPopup(newOnes[0]);
+        }
+      }
+
+      // ⭐ ถ้าไม่มี pending order แล้ว → หยุดเสียง loop
+      const stillHasPending = allOrders.some(o => o.status === 'pending');
+      if (!stillHasPending && orderLoopTimer) {
+        console.log('🔇 No pending orders left — stopping loop');
+        stopOrderLoop();
       }
 
       seenOrderIds = new Set(allOrders.map(o => o.id));
+      isFirstOrdersLoad = false; // ⭐ ปิด flag หลัง snapshot แรก
+
       renderOrders();
       updateHeroStats();
       updateGpTab();
@@ -803,6 +909,7 @@ async function acceptOrder(orderId) {
       status: 'cooking',
       cookingAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    stopOrderLoop(); // ⭐ v3.4.9: หยุดเสียงทันที
     showToast('🍳 เริ่มทำอาหาร');
   } catch (err) {
     showToast('ไม่สำเร็จ', 'error');
@@ -829,6 +936,7 @@ async function cancelOrder(orderId) {
       cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
       cancelledBy: 'merchant'
     });
+    stopOrderLoop(); // ⭐ v3.4.9: หยุดเสียงทันที
     showToast('❌ ยกเลิกออเดอร์');
   } catch (err) {
     showToast('ไม่สำเร็จ', 'error');
@@ -930,11 +1038,14 @@ function showNewOrderPopup(order) {
 }
 
 function closeNewOrderPopup() {
+  // ⭐ v3.4.9: ไม่หยุดเสียง — ให้ดังต่อจนกว่าจะกดรับ/ยกเลิก
   $('new-order-popup')?.classList.remove('show');
   newOrderPopupId = null;
+  console.log('⏰ Popup closed — sound loop still running');
 }
 
 function acceptFromPopup() {
+  stopOrderLoop(); // ⭐ v3.4.9: หยุดเสียง
   if (newOrderPopupId) acceptOrder(newOrderPopupId);
   closeNewOrderPopup();
 }
@@ -953,6 +1064,8 @@ async function toggleShop() {
       isOpen: newState,
       lastToggle: firebase.firestore.FieldValue.serverTimestamp()
     });
+    // ⭐ v3.4.9: ปิดร้าน → หยุดเสียง loop
+    if (!newState) stopOrderLoop();
     showToast(newState ? '🟢 เปิดร้าน' : '⚫ ปิดร้าน');
   } catch (err) {
     showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error');
@@ -1606,7 +1719,7 @@ async function sendChatImage(file) {
 
 function autoResize(el) {
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  el.style.heightList = Math.min(el.scrollHeight, 120) + 'px';
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1628,7 +1741,7 @@ function setupPWA() {
     e.preventDefault();
     deferredPrompt = e;
     if (!localStorage.getItem('chauat_merchant_pwa_dismissed')) {
-      $('pwa-install-banner')?.classList.remove('hidden');
+      $('pwa-install-banner')?.class.remove('hidden');
     }
   });
 }
@@ -1659,6 +1772,23 @@ function dismissPWA() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   runSplash();
+
+  // ⭐ v3.4.9: ทุกครั้งที่ user กดที่ไหนก็ได้ → unlock audio
+  document.body.addEventListener('click', () => {
+    if (!isAudioUnlocked) {
+      const ctx = getAudioCtx();
+      if (ctx && ctx.state === 'running') {
+        isAudioUnlocked = true;
+        hideUnlockBanner();
+        console.log('🔊 Auto-unlocked by user click');
+      }
+    }
+  }, { once: false });
+});
+
+// ⭐ v3.4.9: ก่อนออกจากหน้า → หยุด loop
+window.addEventListener('beforeunload', () => {
+  stopOrderLoop();
 });
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1700,6 +1830,11 @@ window.sendChatImage = sendChatImage;
 window.autoResize = autoResize;
 window.installPWA = installPWA;
 window.dismissPWA = dismissPWA;
+
+// ⭐ v3.4.9: expose sound functions
+window.unlockAudio = unlockAudio;
+window.startOrderLoop = startOrderLoop;
+window.stopOrderLoop = stopOrderLoop;
 
 /* Service Worker */
 if ('serviceWorker' in navigator) {
