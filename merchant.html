@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.5.1</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.6.0</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chauat Merchant">
@@ -15,7 +15,7 @@
 <!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.5.1-20241013-001';
+  var VERSION = 'v3.6.0-20241014-001';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -49,6 +49,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- ⭐ v3.6.0: Cropper.js -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
+
 <link rel="stylesheet" href="merchant.css">
 </head>
 <body>
@@ -412,17 +416,21 @@
         <label>💰 ราคา (บาท) *</label>
         <input type="number" id="mf-price" placeholder="40" min="1" step="1" oninput="updatePromoPreview()">
       </div>
-      <div class="form-field">
-        <label>📂 หมวดหมู่</label>
+    </div>
+
+    <!-- ⭐ v3.6.0: Category + Manage Button -->
+    <div class="form-field">
+      <label>📂 หมวดหมู่</label>
+      <div class="category-select-wrap">
         <select id="mf-category">
-          <option value="main">อาหารจานหลัก</option>
-          <option value="side">กับข้าว</option>
-          <option value="drink">เครื่องดื่ม</option>
-          <option value="dessert">ของหวาน</option>
-          <option value="other">อื่นๆ</option>
+          <!-- Dynamic จาก menuCategories -->
         </select>
+        <button type="button" class="manage-cat-btn ripple" onclick="openCategoryManager()" title="จัดการหมวดหมู่">
+          ⚙️
+        </button>
       </div>
     </div>
+
     <div class="form-field">
       <label>📝 คำอธิบาย (ไม่บังคับ)</label>
       <textarea id="mf-desc" rows="2" maxlength="200" style="resize:none"></textarea>
@@ -521,7 +529,15 @@
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('history',document.querySelector('[data-tab=history]'))">📜 ประวัติออเดอร์</button>
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('gp',document.querySelector('[data-tab=gp]'))">💰 สรุป GP</button>
 
-    <!-- ⭐ v3.5.1: ตั้งค่าเสียง -->
+    <!-- ⭐ v3.6.0: จัดการหมวดหมู่ -->
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');openCategoryManager()">
+      <span style="display:flex;align-items:center;gap:8px;width:100%">
+        <span style="font-size:20px">📂</span>
+        <span style="flex:1;text-align:left">จัดการหมวดหมู่</span>
+        <span style="font-size:16px;opacity:.5">›</span>
+      </span>
+    </button>
+
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');openSoundSettings()">
       <span style="display:flex;align-items:center;gap:8px;width:100%">
         <span style="font-size:20px">🔊</span>
@@ -535,7 +551,57 @@
     <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
 
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-    <div class="sheet-version">Chauat Merchant v3.5.1</div>
+    <div class="sheet-version">Chauat Merchant v3.6.0</div>
+  </div>
+</div>
+
+<!-- ⭐ v3.6.0: CATEGORY MANAGER SHEET ═══ -->
+<div class="sheet-overlay" id="category-manager-sheet" onclick="if(event.target===this)closeSheet('category-manager-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>📂 จัดการหมวดหมู่</h2>
+
+    <div class="cat-manager-hint">
+      💡 เพิ่ม / แก้ไข / ซ่อน / ลบ หมวดหมู่ได้ตามใจ
+    </div>
+
+    <div class="cat-list" id="cat-list">
+      <!-- Dynamic -->
+    </div>
+
+    <button type="button" class="add-cat-btn ripple" onclick="openAddCategoryForm()">
+      ➕ เพิ่มหมวดใหม่
+    </button>
+
+    <button type="button" class="btn-primary ripple" id="btn-save-cats" onclick="saveCategoryChanges()" style="margin-top:12px">
+      💾 บันทึกหมวดหมู่
+    </button>
+    <button class="sheet-close ripple" onclick="closeSheet('category-manager-sheet')">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- ⭐ v3.6.0: ADD/EDIT CATEGORY SHEET ═══ -->
+<div class="sheet-overlay" id="category-form-sheet" onclick="if(event.target===this)closeSheet('category-form-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="cat-form-title">➕ เพิ่มหมวดใหม่</h2>
+
+    <div class="form-field">
+      <label>📝 ชื่อหมวด *</label>
+      <input type="text" id="cat-name" placeholder="เช่น ยำ, ส้มตำ" maxlength="50">
+    </div>
+
+    <div class="form-field">
+      <label>🎨 ไอคอน (แตะเพื่อเลือก)</label>
+      <div class="cat-icon-picker" id="cat-icon-picker">
+        <!-- Dynamic icons -->
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary ripple" id="btn-save-cat-item" onclick="saveCategoryItem()">
+      💾 บันทึก
+    </button>
+    <button class="sheet-close ripple" onclick="closeSheet('category-form-sheet')">ยกเลิก</button>
   </div>
 </div>
 
@@ -545,7 +611,6 @@
     <div class="sheet-handle"></div>
     <h2>🔊 ตั้งค่าเสียงเตือน</h2>
 
-    <!-- เสียง -->
     <div class="sound-section">
       <div class="sound-section-title">🎵 เลือกเสียงเตือน</div>
       <div class="sound-tone-picker">
@@ -576,7 +641,6 @@
       </div>
     </div>
 
-    <!-- ระดับเสียง -->
     <div class="sound-section">
       <div class="sound-section-title">📊 ระดับความดัง</div>
       <div class="sound-volume-picker">
@@ -595,12 +659,10 @@
       </div>
     </div>
 
-    <!-- ทดสอบ -->
     <button type="button" class="btn-secondary ripple sound-test-btn" onclick="testSound()">
       🔊 ทดสอบเสียง
     </button>
 
-    <!-- บันทึก -->
     <button type="button" class="btn-primary ripple" id="btn-save-sound" onclick="saveSoundSettings()">
       💾 บันทึกการตั้งค่า
     </button>
@@ -668,11 +730,41 @@
   </div>
 </div>
 
+<!-- ⭐ v3.6.0: CROP IMAGE MODAL ═══ -->
+<div class="crop-modal" id="crop-modal">
+  <div class="crop-modal-content">
+    <div class="crop-modal-header">
+      <h3>✂️ ปรับขนาดรูป</h3>
+      <button class="crop-modal-close ripple" onclick="closeCropModal()">✕</button>
+    </div>
+    <div class="crop-modal-body">
+      <div class="crop-image-wrap">
+        <img id="crop-image" src="" alt="crop">
+      </div>
+      <div class="crop-hint">🔍 ใช้ 2 นิ้วซูม / 1 นิ้วลาก เพื่อจัดตำแหน่ง</div>
+    </div>
+    <div class="crop-modal-actions">
+      <button class="crop-btn crop-btn-reset ripple" onclick="resetCrop()">
+        <span>↺</span> รีเซ็ต
+      </button>
+      <button class="crop-btn crop-btn-cancel ripple" onclick="closeCropModal()">
+        ✕ ยกเลิก
+      </button>
+      <button class="crop-btn crop-btn-confirm ripple" onclick="confirmCrop()">
+        ✓ ยืนยัน
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ FIREBASE SDK ═══ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+
+<!-- ⭐ v3.6.0: Cropper.js -->
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.js"></script>
 
 <script src="merchant.js"></script>
 
