@@ -4,6 +4,7 @@
    - Fix signup/login retry
    - Auto-create docs
    - Debug mode
+   - ⭐ Race condition fix (isSigningUp flag)
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -48,6 +49,7 @@ let myMenusUnsub = null;
 let audioCtx = null;
 let deferredPrompt = null;
 let isShopOpen = false;
+let isSigningUp = false;   // ⭐ v3.4.8.1: กัน onAuthStateChanged ทำงานระหว่างสมัคร
 
 let editingMenuId = null;
 let editingMenuImgBlob = null;
@@ -340,6 +342,7 @@ async function handleLogin(e) {
   }
 }
 
+/* ⭐ v3.4.8.1: handleSignup — Race condition fix */
 async function handleSignup(e) {
   e.preventDefault();
   const btn = $('btn-signup');
@@ -364,15 +367,14 @@ async function handleSignup(e) {
   btn.disabled = true;
   btn.textContent = '⏳ กำลังสมัคร...';
   let createdUser = null;
+  isSigningUp = true; // ⭐ กัน onAuthStateChanged
 
   try {
     console.log('📝 Step 1: Create Auth user');
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     createdUser = cred.user;
     await createdUser.updateProfile({ displayName: shopName });
-    console.log('✅ Auth user created:', createdUser.uid);
 
-    // ⭐ v3.4.8.1: สร้าง users ก่อน (ตรวจ role)
     console.log('📄 Step 2: Create users doc');
     await db.collection('users').doc(createdUser.uid).set({
       role: 'merchant',
@@ -380,9 +382,7 @@ async function handleSignup(e) {
       email: email,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    console.log('✅ users doc created');
 
-    // ⭐ สร้าง merchants
     console.log('🏪 Step 3: Create merchants doc');
     await db.collection('merchants').doc(createdUser.uid).set({
       merchantId: createdUser.uid,
@@ -403,26 +403,29 @@ async function handleSignup(e) {
       gpConsent: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    console.log('✅ merchants doc created');
 
-    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
     console.log('🎉 SIGNUP COMPLETE');
+    showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
 
-    // ⭐ Sign out หลังสมัคร → ให้ login เอง (ปลอดภัย)
     setTimeout(async () => {
-      await auth.signOut();
+      try { await auth.signOut(); } catch (e) {}
+      isSigningUp = false; // ⭐ reset หลัง signOut
       switchAuthTab('login');
       const le = $('login-email');
       if (le) le.value = email;
+      btn.disabled = false;
+      btn.textContent = '🏪 สมัครร้านค้า';
       showToast('📧 เข้าสู่ระบบด้วยอีเมลที่สมัคร', 'info');
     }, 1800);
 
   } catch (err) {
-    console.error('❌ Signup error:', err);
+    console.error('❌ Signup error:', err.code, err.message);
     if (createdUser) {
+      try { await db.collection('users').doc(createdUser.uid).delete(); } catch (e) {}
       try { await createdUser.delete(); } catch (e) {}
     }
-    showToast('สมัครไม่สำเร็จ: ' + err.message, 'error');
+    isSigningUp = false; // ⭐ reset ทันที
+    showToast('สมัครไม่สำเร็จ: ' + (err.code || err.message), 'error');
     btn.disabled = false;
     btn.textContent = '🏪 สมัครร้านค้า';
   }
@@ -455,6 +458,12 @@ async function handleMerchantLogout() {
    11. AUTH STATE
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
+  // ⭐ v3.4.8.1: ข้ามไปขณะกำลังสมัคร (race condition fix)
+  if (isSigningUp) {
+    console.log('⏭️ Skipping onAuthStateChanged — signup in progress');
+    return;
+  }
+
   if (myProfileUnsub) myProfileUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
   if (myMenusUnsub) myMenusUnsub();
