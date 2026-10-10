@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.4.8</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.4.9</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chauat Merchant">
@@ -15,7 +15,7 @@
 <!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.8.1-20241010-001';
+  var VERSION = 'v3.4.9-20241011-001';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -200,6 +200,16 @@
     <span style="font-size:11px;opacity:.8">จะเปิดรับออเดอร์ได้เมื่ออนุมัติแล้ว</span>
   </div>
 
+  <!-- ⭐ SOUND UNLOCK BANNER (v3.4.9) -->
+  <div class="sound-unlock-banner" id="sound-unlock-banner" style="display:none">
+    <span style="font-size:24px">🔔</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:900;color:var(--text)">เปิดเสียงเตือนออเดอร์</div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600">แตะปุ่มเพื่อเปิดเสียงแจ้งเตือน</div>
+    </div>
+    <button class="sound-unlock-btn ripple" onclick="unlockAudio()">🔔 เปิดเสียง</button>
+  </div>
+
   <!-- NAV TABS -->
   <div class="nav-tabs">
     <button class="nav-tab active ripple" data-tab="orders" onclick="switchTab('orders',this)">
@@ -317,7 +327,6 @@
         <div class="sub" id="gp-pending-sub">จากยอดขาย 0฿</div>
       </div>
 
-      <!-- 60 วัน Countdown -->
       <div class="gp-countdown" id="gp-countdown">
         <div class="days" id="gp-days-left">—</div>
         <div class="txt">
@@ -449,7 +458,7 @@
     <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
 
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-    <div class="sheet-version">Chauat Merchant v3.4.8.1</div>
+    <div class="sheet-version">Chauat Merchant v3.4.9</div>
   </div>
 </div>
 
@@ -522,4 +531,4 @@
 <script src="merchant.js"></script>
 
 </body>
-</html> 
+</html>
