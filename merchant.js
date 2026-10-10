@@ -1,13 +1,10 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.4.9
+   🏪 CHAUAT GO MERCHANT — v3.5.0
    Full-featured Production JavaScript
-   - Fix signup/login retry
-   - Auto-create docs
-   - Debug mode
-   - Race condition fix (isSigningUp flag)
-   - ⭐ NEW: Sound unlock for auto-play policy
-   - ⭐ NEW: Loop sound until order accepted
-   - ⭐ NEW: isFirstOrdersLoad flag
+   + Race condition fix (isSigningUp flag)
+   + Sound Unlock Banner + Loop Sound
+   + Menu Status (available / out_of_stock / hidden)
+   + Promotion (% / amount)
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -28,9 +25,9 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-// ⭐ v3.4.9: DEBUG MODE
+// ⭐ v3.5.0: DEBUG MODE
 window.CHAUAT_MERCHANT_DEBUG = true;
-console.log('%c🏪 Chauat Go Merchant v3.4.9 — DEBUG ON', 'color:#00A651;font-weight:900;font-size:14px');
+console.log('%c🏪 Chauat Go Merchant v3.5.0 — DEBUG ON', 'color:#00A651;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -59,9 +56,12 @@ let isAudioUnlocked = false;
 let orderLoopTimer = null;
 let isFirstOrdersLoad = true;
 
+// ⭐ v3.5.0: Menu form state
 let editingMenuId = null;
 let editingMenuImgBlob = null;
 let editingMenuImgUrl = null;
+let editingMenuStatus = 'available';
+let editingPromoType = 'percent';
 
 let gpSlipFile = null;
 let currentGpPending = 0;
@@ -74,7 +74,7 @@ const GP_RIDER_SHARE = 0.02;
 const GP_PLATFORM_SHARE = 0.01;
 const PROMO_DAYS = 60;
 const MAX_IMG_SIZE = 5 * 1024 * 1024;
-const ORDER_LOOP_INTERVAL = 3000; // ⭐ v3.4.9: 3 วินาที
+const ORDER_LOOP_INTERVAL = 3000;
 const GP_BANK_INFO = {
   bank: 'กสิกรไทย',
   accountNo: 'xxx-x-xxxxx-x',
@@ -144,6 +144,40 @@ const debugLog = (msg, isError) => {
     if (isError) console.warn(msg); else console.log(msg);
   }
 };
+
+/* ⭐ v3.5.0: คำนวณราคาหลังหักส่วนลด */
+function calcFinalPrice(menu) {
+  if (!menu || !menu.price) return 0;
+  if (!menu.promotion || !menu.promotion.active) return Number(menu.price);
+  const p = menu.promotion;
+  const value = Number(p.value || 0);
+  if (value <= 0) return Number(menu.price);
+  if (p.type === 'percent') {
+    return Math.max(0, Math.round(Number(menu.price) * (1 - value / 100)));
+  }
+  if (p.type === 'amount') {
+    return Math.max(0, Number(menu.price) - value);
+  }
+  return Number(menu.price);
+}
+
+/* ⭐ v3.5.0: สร้าง label โปรอัตโนมัติ */
+function getPromoLabel(menu) {
+  if (!menu || !menu.promotion || !menu.promotion.active) return '';
+  const p = menu.promotion;
+  const value = Number(p.value || 0);
+  if (value <= 0) return '';
+  if (p.type === 'percent') return `🔥 ลด ${value}%`;
+  if (p.type === 'amount') return `🔥 ลด ${value}฿`;
+  return '🔥 โปร';
+}
+
+/* ⭐ v3.5.0: label สถานะเมนู */
+function getStatusLabel(status) {
+  if (status === 'out_of_stock') return { text: '🟡 วัตถุดิบหมด', cls: 'status-out' };
+  if (status === 'hidden') return { text: '⚫ ซ่อน', cls: 'status-hidden' };
+  return { text: '🟢 พร้อมขาย', cls: 'status-available' };
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    5. THEME
@@ -254,14 +288,12 @@ function unlockAudio() {
       showToast('ไม่สามารถเปิดเสียงได้', 'error');
       return;
     }
-
     if (ctx.state === 'suspended') {
       ctx.resume().then(() => {
         console.log('🔊 Audio unlocked');
         isAudioUnlocked = true;
         hideUnlockBanner();
         showToast('🔔 เปิดเสียงเตือนแล้ว');
-        // ทดสอบเสียง 1 ครั้ง
         setTimeout(() => soundNewOrder(), 300);
       }).catch(e => {
         console.warn('Resume failed:', e);
@@ -305,7 +337,6 @@ function startOrderLoop() {
   console.log('🔔 Starting order loop sound');
   soundNewOrder();
   orderLoopTimer = setInterval(() => {
-    // ⭐ เช็คก่อนว่ายังมี pending order อยู่ไหม
     const stillPending = allOrders.some(o => o.status === 'pending');
     if (!stillPending) {
       console.log('🔇 No more pending orders — stopping loop');
@@ -531,7 +562,7 @@ async function handleForgotPassword() {
 
 async function handleMerchantLogout() {
   if (!confirm('ออกจากระบบ?')) return;
-  stopOrderLoop(); // ⭐ หยุดเสียง
+  stopOrderLoop();
   closeSheet('menu-sheet');
   if (myProfileUnsub) myProfileUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
@@ -539,7 +570,7 @@ async function handleMerchantLogout() {
   if (activeChatUnsub) activeChatUnsub();
   seenOrderIds.clear();
   allOrders = [];
-  isFirstOrdersLoad = true; // ⭐ reset
+  isFirstOrdersLoad = true;
   await auth.signOut();
 }
 
@@ -559,7 +590,7 @@ auth.onAuthStateChanged(async (user) => {
   if (!user) {
     $('login-screen').style.display = 'flex';
     $('app').style.display = 'none';
-    stopOrderLoop(); // ⭐ หยุดเสียง
+    stopOrderLoop();
     return;
   }
 
@@ -640,7 +671,6 @@ function initApp() {
   setupPWA();
   requestNotificationPermission();
 
-  // ⭐ v3.4.9: แสดง unlock banner ถ้ายังไม่ unlock
   setTimeout(() => {
     if (!isAudioUnlocked) {
       showUnlockBanner();
@@ -699,7 +729,6 @@ function subscribeOrders() {
 
       console.log(`📊 Orders snapshot: ${allOrders.length} total, ${newOnes.length} new, prevIds=${prevIds.size}, isFirstLoad=${isFirstOrdersLoad}`);
 
-      // ⭐ v3.4.9: Logic ใหม่ — เล่นเสียงเมื่อมีออเดอร์ใหม่ (ไม่ใช่ first load)
       if (newOnes.length > 0) {
         if (isFirstOrdersLoad || prevIds.size === 0) {
           console.log('🔇 First load — skip sound');
@@ -710,7 +739,6 @@ function subscribeOrders() {
         }
       }
 
-      // ⭐ ถ้าไม่มี pending order แล้ว → หยุดเสียง loop
       const stillHasPending = allOrders.some(o => o.status === 'pending');
       if (!stillHasPending && orderLoopTimer) {
         console.log('🔇 No pending orders left — stopping loop');
@@ -718,7 +746,7 @@ function subscribeOrders() {
       }
 
       seenOrderIds = new Set(allOrders.map(o => o.id));
-      isFirstOrdersLoad = false; // ⭐ ปิด flag หลัง snapshot แรก
+      isFirstOrdersLoad = false;
 
       renderOrders();
       updateHeroStats();
@@ -746,11 +774,26 @@ function updateHeader() {
   if (!merchantProfile) return;
   const nameEl = $('shop-name');
   if (nameEl) nameEl.textContent = merchantProfile.name || 'ร้านค้า';
-  const idEl = $('shop-id-header');
-  if (idEl) idEl.textContent = 'ID: ' + (currentUser?.uid || '').slice(0, 12) + '...';
-  const idFull = $('shop-id-full');
-  if (idFull) idFull.textContent = currentUser?.uid || '—';
+  // ⭐ v3.5.0: อัปเดต sheet shop-info-box
+  const sheetName = $('sheet-shop-name');
+  if (sheetName) sheetName.textContent = merchantProfile.name || 'ร้านค้า';
+  updateSheetStatus();
   updateShopToggle();
+}
+
+function updateSheetStatus() {
+  const statusEl = $('sheet-shop-status');
+  if (!statusEl || !merchantProfile) return;
+  if (merchantProfile.verified !== true) {
+    statusEl.textContent = '⏳ รอการอนุมัติ';
+    statusEl.style.color = 'var(--orange)';
+  } else if (isShopOpen) {
+    statusEl.textContent = '🟢 เปิดรับออเดอร์';
+    statusEl.style.color = 'var(--green)';
+  } else {
+    statusEl.textContent = '⚫ ปิดร้าน';
+    statusEl.style.color = 'var(--text-muted)';
+  }
 }
 
 function updatePendingBanner() {
@@ -772,6 +815,7 @@ function updateShopToggle() {
   st.textContent = merchantProfile?.verified !== true
     ? '⏳ รอการอนุมัติ'
     : (isShopOpen ? '🟢 เปิดรับออเดอร์' : '⚫ ปิดร้าน');
+  updateSheetStatus();
 }
 
 function updateHeroStats() {
@@ -909,7 +953,7 @@ async function acceptOrder(orderId) {
       status: 'cooking',
       cookingAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    stopOrderLoop(); // ⭐ v3.4.9: หยุดเสียงทันที
+    stopOrderLoop();
     showToast('🍳 เริ่มทำอาหาร');
   } catch (err) {
     showToast('ไม่สำเร็จ', 'error');
@@ -936,7 +980,7 @@ async function cancelOrder(orderId) {
       cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
       cancelledBy: 'merchant'
     });
-    stopOrderLoop(); // ⭐ v3.4.9: หยุดเสียงทันที
+    stopOrderLoop();
     showToast('❌ ยกเลิกออเดอร์');
   } catch (err) {
     showToast('ไม่สำเร็จ', 'error');
@@ -1038,14 +1082,13 @@ function showNewOrderPopup(order) {
 }
 
 function closeNewOrderPopup() {
-  // ⭐ v3.4.9: ไม่หยุดเสียง — ให้ดังต่อจนกว่าจะกดรับ/ยกเลิก
   $('new-order-popup')?.classList.remove('show');
   newOrderPopupId = null;
   console.log('⏰ Popup closed — sound loop still running');
 }
 
 function acceptFromPopup() {
-  stopOrderLoop(); // ⭐ v3.4.9: หยุดเสียง
+  stopOrderLoop();
   if (newOrderPopupId) acceptOrder(newOrderPopupId);
   closeNewOrderPopup();
 }
@@ -1064,7 +1107,6 @@ async function toggleShop() {
       isOpen: newState,
       lastToggle: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // ⭐ v3.4.9: ปิดร้าน → หยุดเสียง loop
     if (!newState) stopOrderLoop();
     showToast(newState ? '🟢 เปิดร้าน' : '⚫ ปิดร้าน');
   } catch (err) {
@@ -1073,7 +1115,7 @@ async function toggleShop() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   19. MENUS
+   19. MENUS — v3.5.0 (status + promotion)
    ═══════════════════════════════════════════════════════════════════ */
 function renderMenus() {
   const list = $('menu-list');
@@ -1094,12 +1136,40 @@ function renderMenus() {
     const imgHtml = hasImg
       ? `<img src="${esc(m.image)}" onerror="this.parentElement.innerHTML='🍽️'">`
       : '🍽️';
-    return `<div class="menu-item">
+
+    // ⭐ สถานะ
+    const status = m.status || 'available';
+    const statusInfo = getStatusLabel(status);
+    const itemCls = status === 'hidden' ? 'status-hidden-item'
+                  : status === 'out_of_stock' ? 'status-out-item'
+                  : 'status-available-item';
+
+    // ⭐ โปรโมชั่น
+    const promoLabel = getPromoLabel(m);
+    const finalPrice = calcFinalPrice(m);
+    const hasPromo = !!(m.promotion && m.promotion.active && Number(m.promotion.value) > 0);
+
+    const priceHtml = hasPromo
+      ? `<div class="menu-price-display">
+          <span class="menu-price-old">฿${fmt(m.price)}</span>
+          <span class="menu-price-new">฿${fmt(finalPrice)}</span>
+        </div>`
+      : `<div class="menu-item-price">฿${fmt(m.price)}</div>`;
+
+    const badgesHtml = `
+      <div class="menu-badges-row">
+        <span class="status-badge ${statusInfo.cls}">${statusInfo.text}</span>
+        ${promoLabel ? `<span class="promo-badge">${promoLabel}</span>` : ''}
+      </div>
+    `;
+
+    return `<div class="menu-item ${itemCls}">
       <div class="menu-item-img">${imgHtml}</div>
       <div class="menu-item-info">
         <div class="menu-item-name">${esc(m.name)}</div>
         ${m.description?`<div class="menu-item-desc">${esc(m.description)}</div>`:''}
-        <div class="menu-item-price">฿${fmt(m.price)}</div>
+        ${priceHtml}
+        ${badgesHtml}
       </div>
       <div class="menu-item-actions">
         <button class="menu-action-btn btn-edit-menu ripple" onclick="editMenu('${esc(m.id)}')">✏️</button>
@@ -1113,6 +1183,8 @@ function openMenuForm(menuId) {
   editingMenuId = menuId || null;
   editingMenuImgBlob = null;
   editingMenuImgUrl = null;
+  editingMenuStatus = 'available';
+  editingPromoType = 'percent';
 
   const titleEl = $('menu-form-title');
   if (titleEl) titleEl.textContent = editingMenuId ? '✏️ แก้ไขเมนู' : '➕ เพิ่มเมนูใหม่';
@@ -1124,6 +1196,21 @@ function openMenuForm(menuId) {
       $('mf-price').value = m.price || '';
       $('mf-category').value = m.category || 'main';
       $('mf-desc').value = m.description || '';
+
+      // ⭐ โหลดสถานะ
+      editingMenuStatus = m.status || 'available';
+      updateStatusUI();
+
+      // ⭐ โหลดโปรโมชั่น
+      const promo = m.promotion || {};
+      const promoActive = !!promo.active;
+      if ($('mf-promo-active')) $('mf-promo-active').checked = promoActive;
+      editingPromoType = promo.type || 'percent';
+      updatePromoTypeUI();
+      if ($('mf-promo-value')) $('mf-promo-value').value = promo.value || '';
+      onPromoToggle();
+      setTimeout(updatePromoPreview, 100);
+
       if (m.image && m.image.startsWith('http')) {
         editingMenuImgUrl = m.image;
         const preview = $('img-preview');
@@ -1138,6 +1225,7 @@ function openMenuForm(menuId) {
       }
     }
   } else {
+    // Clear form
     $('mf-name').value = '';
     $('mf-price').value = '';
     $('mf-category').value = 'main';
@@ -1148,11 +1236,105 @@ function openMenuForm(menuId) {
     if (placeholder) placeholder.style.display = 'block';
     const removeBtn = $('remove-img-btn');
     if (removeBtn) removeBtn.style.display = 'none';
+
+    // Reset status + promo
+    editingMenuStatus = 'available';
+    updateStatusUI();
+    if ($('mf-promo-active')) $('mf-promo-active').checked = false;
+    editingPromoType = 'percent';
+    updatePromoTypeUI();
+    if ($('mf-promo-value')) $('mf-promo-value').value = '';
+    onPromoToggle();
   }
 
   openSheet('menu-form-sheet');
 }
 
+/* ⭐ v3.5.0: Status picker */
+function pickMenuStatus(status) {
+  editingMenuStatus = status;
+  updateStatusUI();
+}
+
+function updateStatusUI() {
+  document.querySelectorAll('.status-option').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.status === editingMenuStatus);
+  });
+  const hidden = $('mf-status');
+  if (hidden) hidden.value = editingMenuStatus;
+}
+
+/* ⭐ v3.5.0: Promotion controls */
+function onPromoToggle() {
+  const active = $('mf-promo-active')?.checked || false;
+  const fields = $('mf-promo-fields');
+  if (fields) fields.style.display = active ? 'block' : 'none';
+  if (active) updatePromoPreview();
+}
+
+function pickPromoType(type) {
+  editingPromoType = type;
+  updatePromoTypeUI();
+  updatePromoPreview();
+}
+
+function updatePromoTypeUI() {
+  document.querySelectorAll('.promo-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.promoType === editingPromoType);
+  });
+  const hidden = $('mf-promo-type');
+  if (hidden) hidden.value = editingPromoType;
+
+  // อัปเดต unit + label
+  const unit = $('mf-promo-unit');
+  const label = $('mf-promo-value-label');
+  const quickPercent = $('promo-quick-percent');
+  const quickAmount = $('promo-quick-amount');
+
+  if (editingPromoType === 'percent') {
+    if (unit) unit.textContent = '%';
+    if (label) label.textContent = 'ลด';
+    if (quickPercent) quickPercent.style.display = 'flex';
+    if (quickAmount) quickAmount.style.display = 'none';
+  } else {
+    if (unit) unit.textContent = '฿';
+    if (label) label.textContent = 'ลด';
+    if (quickPercent) quickPercent.style.display = 'none';
+    if (quickAmount) quickAmount.style.display = 'flex';
+  }
+}
+
+function setPromoValue(v) {
+  const input = $('mf-promo-value');
+  if (input) input.value = v;
+  updatePromoPreview();
+}
+
+function updatePromoPreview() {
+  const preview = $('mf-promo-preview-text');
+  if (!preview) return;
+
+  const price = Number($('mf-price')?.value || 0);
+  const value = Number($('mf-promo-value')?.value || 0);
+  const active = $('mf-promo-active')?.checked || false;
+
+  if (!active || price <= 0 || value <= 0) {
+    preview.textContent = '—';
+    return;
+  }
+
+  let finalPrice = price;
+  if (editingPromoType === 'percent') {
+    finalPrice = Math.max(0, Math.round(price * (1 - value / 100)));
+  } else {
+    finalPrice = Math.max(0, price - value);
+  }
+
+  const saved = price - finalPrice;
+  preview.textContent = `฿${price} → ฿${finalPrice} (ประหยัด ฿${saved})`;
+}
+
+/* ⭐ v3.5.0: Image preview */
 async function previewMenuImg(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1191,6 +1373,7 @@ function removeMenuImg() {
   if (input) input.value = '';
 }
 
+/* ⭐ v3.5.0: saveMenu — เพิ่ม status + promotion (สำคัญ: ส่ง price เสมอ) */
 async function saveMenu() {
   if (!currentUser) return;
   const name = $('mf-name').value.trim();
@@ -1200,6 +1383,27 @@ async function saveMenu() {
 
   if (!name) return showToast('กรอกชื่อเมนู', 'error');
   if (!price || price < 1) return showToast('กรอกราคา', 'error');
+
+  // ⭐ อ่านสถานะ
+  const status = editingMenuStatus || 'available';
+
+  // ⭐ อ่านโปรโมชั่น
+  const promoActive = $('mf-promo-active')?.checked || false;
+  const promoType = editingPromoType || 'percent';
+  const promoValue = parseInt($('mf-promo-value')?.value || 0);
+
+  // Validation โปร
+  if (promoActive) {
+    if (!promoValue || promoValue < 1) {
+      return showToast('กรอกค่าส่วนลด', 'error');
+    }
+    if (promoType === 'percent' && (promoValue < 1 || promoValue > 100)) {
+      return showToast('ส่วนลด % ต้องอยู่ 1-100', 'error');
+    }
+    if (promoType === 'amount' && promoValue >= price) {
+      return showToast('ส่วนลดต้องน้อยกว่าราคา', 'error');
+    }
+  }
 
   const btn = $('btn-save-menu');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
@@ -1215,13 +1419,31 @@ async function saveMenu() {
       imageUrl = await ref.getDownloadURL();
     }
 
+    // ⭐ สร้างข้อมูลที่บันทึก (price ต้องส่งเสมอ)
+    const promoData = promoActive && promoValue > 0
+      ? {
+          active: true,
+          type: promoType,
+          value: promoValue,
+          label: promoType === 'percent' ? `🔥 ลด ${promoValue}%` : `🔥 ลด ${promoValue}฿`
+        }
+      : {
+          active: false,
+          type: 'percent',
+          value: 0,
+          label: ''
+        };
+
     const data = {
       merchantId: currentUser.uid,
       name: name,
-      price: price,
+      price: price,                 // ⭐ สำคัญ! Rules ใช้ field นี้
       category: category,
       description: desc,
       image: imageUrl || '',
+      status: status,               // ⭐ v3.5.0
+      statusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      promotion: promoData,         // ⭐ v3.5.0
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -1235,6 +1457,7 @@ async function saveMenu() {
     }
     closeSheet('menu-form-sheet');
   } catch (err) {
+    console.error('saveMenu error:', err);
     showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกเมนู'; }
@@ -1507,6 +1730,8 @@ function closeSheet(id) {
     editingMenuId = null;
     editingMenuImgBlob = null;
     editingMenuImgUrl = null;
+    editingMenuStatus = 'available';
+    editingPromoType = 'percent';
   }
 }
 
@@ -1554,12 +1779,6 @@ function showShopInfo() {
       setTimeout(() => location.reload(), 300);
     };
   }
-}
-
-function copyShopId() {
-  const id = currentUser?.uid;
-  if (!id) return;
-  navigator.clipboard?.writeText(id).then(() => showToast('📋 คัดลอก ID แล้ว'));
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1719,7 +1938,7 @@ async function sendChatImage(file) {
 
 function autoResize(el) {
   el.style.height = 'auto';
-  el.style.heightList = Math.min(el.scrollHeight, 120) + 'px';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1741,7 +1960,7 @@ function setupPWA() {
     e.preventDefault();
     deferredPrompt = e;
     if (!localStorage.getItem('chauat_merchant_pwa_dismissed')) {
-      $('pwa-install-banner')?.class.remove('hidden');
+      $('pwa-install-banner')?.classList.remove('hidden');
     }
   });
 }
@@ -1773,7 +1992,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   runSplash();
 
-  // ⭐ v3.4.9: ทุกครั้งที่ user กดที่ไหนก็ได้ → unlock audio
   document.body.addEventListener('click', () => {
     if (!isAudioUnlocked) {
       const ctx = getAudioCtx();
@@ -1786,7 +2004,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { once: false });
 });
 
-// ⭐ v3.4.9: ก่อนออกจากหน้า → หยุด loop
 window.addEventListener('beforeunload', () => {
   stopOrderLoop();
 });
@@ -1820,7 +2037,6 @@ window.filterHistory = filterHistory;
 window.openGpTransferForm = openGpTransferForm;
 window.submitGpTransfer = submitGpTransfer;
 window.showShopInfo = showShopInfo;
-window.copyShopId = copyShopId;
 window.openChatWithCustomer = openChatWithCustomer;
 window.openChatWithRider = openChatWithRider;
 window.closeChat = closeChat;
@@ -1831,10 +2047,17 @@ window.autoResize = autoResize;
 window.installPWA = installPWA;
 window.dismissPWA = dismissPWA;
 
-// ⭐ v3.4.9: expose sound functions
+// ⭐ v3.4.9: sound functions
 window.unlockAudio = unlockAudio;
 window.startOrderLoop = startOrderLoop;
 window.stopOrderLoop = stopOrderLoop;
+
+// ⭐ v3.5.0: menu status + promotion
+window.pickMenuStatus = pickMenuStatus;
+window.pickPromoType = pickPromoType;
+window.setPromoValue = setPromoValue;
+window.updatePromoPreview = updatePromoPreview;
+window.onPromoToggle = onPromoToggle;
 
 /* Service Worker */
 if ('serviceWorker' in navigator) {
