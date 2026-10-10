@@ -2224,3 +2224,384 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+/* ═══════════════════════════════════════════════════════════════════
+   ⭐ v3.6.0: CROP IMAGE + CATEGORY MANAGER
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══ Crop Image State ═══ */
+let cropperInstance = null;
+let cropTargetCallback = null;
+
+const AVAILABLE_ICONS = [
+  '🍚','🍲','🥗','🥤','🍰','📦',
+  '🍜','🍕','🍔','🌮','🍣','🥘',
+  '🍛','🍝','🥪','🍞','☕','🧋',
+  '🍺','🍷','🍦','🍩','🎂','🍭'
+];
+
+/* ═══ Category State ═══ */
+let editingCategories = [];
+let editingCategoryIndex = -1;
+let editingCategoryIcon = '🍚';
+
+const DEFAULT_CATEGORIES = [
+  { id: 'main', name: 'อาหารจานหลัก', icon: '🍚', hidden: false, order: 1 },
+  { id: 'side', name: 'กับข้าว', icon: '🍲', hidden: false, order: 2 },
+  { id: 'yam', name: 'ยำ', icon: '🥗', hidden: false, order: 3 },
+  { id: 'drink', name: 'เครื่องดื่ม', icon: '🥤', hidden: false, order: 4 },
+  { id: 'dessert', name: 'ของหวาน', icon: '🍰', hidden: false, order: 5 },
+  { id: 'other', name: 'อื่นๆ', icon: '📦', hidden: false, order: 6 }
+];
+
+/* ═══ โหลด Categories จาก Merchant ═══ */
+function getMenuCategories() {
+  if (!merchantProfile?.menuCategories || !Array.isArray(merchantProfile.menuCategories) || merchantProfile.menuCategories.length === 0) {
+    return JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  }
+  return merchantProfile.menuCategories.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+/* ═══ Render Category Dropdown ในฟอร์มเมนู ═══ */
+function renderCategoryDropdown(selectedId) {
+  const sel = $('mf-category');
+  if (!sel) return;
+  const cats = getMenuCategories().filter(c => !c.hidden);
+  if (!cats.length) {
+    sel.innerHTML = '<option value="other">📦 อื่นๆ</option>';
+    return;
+  }
+  sel.innerHTML = cats.map(c =>
+    `<option value="${esc(c.id)}" ${c.id === selectedId ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`
+  ).join('');
+}
+
+/* ═══ Open Category Manager ═══ */
+function openCategoryManager() {
+  editingCategories = getMenuCategories();
+  renderCategoryList();
+  openSheet('category-manager-sheet');
+}
+
+function renderCategoryList() {
+  const list = $('cat-list');
+  if (!list) return;
+
+  if (!editingCategories.length) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-light);font-weight:700">ยังไม่มีหมวดหมู่</div>';
+    return;
+  }
+
+  list.innerHTML = editingCategories.map((c, i) => `
+    <div class="cat-item ${c.hidden ? 'hidden' : ''}">
+      <div class="cat-item-icon">${esc(c.icon || '📦')}</div>
+      <div class="cat-item-info">
+        <div class="cat-item-name">${esc(c.name)}</div>
+        <div class="cat-item-status">${c.hidden ? '👁️‍🗨️ ซ่อนจากลูกค้า' : '✅ แสดง'}</div>
+      </div>
+      <div class="cat-item-actions">
+        <button class="cat-action-btn edit" onclick="editCategoryItem(${i})" title="แก้ไข">✏️</button>
+        <button class="cat-action-btn toggle ${c.hidden ? '' : 'active'}" onclick="toggleCategoryItem(${i})" title="${c.hidden ? 'แสดง' : 'ซ่อน'}">
+          ${c.hidden ? '👁️' : '👁️‍🗨️'}
+        </button>
+        <button class="cat-action-btn del" onclick="deleteCategoryItem(${i})" title="ลบ">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ═══ Add/Edit Category Item ═══ */
+function openAddCategoryForm() {
+  editingCategoryIndex = -1;
+  editingCategoryIcon = '🍚';
+  const titleEl = $('cat-form-title');
+  if (titleEl) titleEl.textContent = '➕ เพิ่มหมวดใหม่';
+  if ($('cat-name')) $('cat-name').value = '';
+  renderIconPicker();
+  openSheet('category-form-sheet');
+}
+
+function editCategoryItem(index) {
+  editingCategoryIndex = index;
+  const c = editingCategories[index];
+  editingCategoryIcon = c.icon || '🍚';
+  const titleEl = $('cat-form-title');
+  if (titleEl) titleEl.textContent = '✏️ แก้ไขหมวด';
+  if ($('cat-name')) $('cat-name').value = c.name || '';
+  renderIconPicker();
+  openSheet('category-form-sheet');
+}
+
+function renderIconPicker() {
+  const picker = $('cat-icon-picker');
+  if (!picker) return;
+  picker.innerHTML = AVAILABLE_ICONS.map(icon =>
+    `<button type="button" class="cat-icon-option ${icon === editingCategoryIcon ? 'active' : ''}" onclick="pickCategoryIcon('${icon}')">${icon}</button>`
+  ).join('');
+}
+
+function pickCategoryIcon(icon) {
+  editingCategoryIcon = icon;
+  renderIconPicker();
+}
+
+function saveCategoryItem() {
+  const name = $('cat-name')?.value.trim();
+  if (!name) return showToast('กรอกชื่อหมวด', 'error');
+
+  if (editingCategoryIndex === -1) {
+    // เพิ่มใหม่
+    const newCat = {
+      id: 'cat_' + Date.now(),
+      name: name,
+      icon: editingCategoryIcon,
+      hidden: false,
+      order: editingCategories.length + 1
+    };
+    editingCategories.push(newCat);
+    showToast('✅ เพิ่มหมวด "' + name + '"');
+  } else {
+    // แก้ไข
+    editingCategories[editingCategoryIndex].name = name;
+    editingCategories[editingCategoryIndex].icon = editingCategoryIcon;
+    showToast('✅ แก้ไขหมวดแล้ว');
+  }
+
+  closeSheet('category-form-sheet');
+  renderCategoryList();
+}
+
+function toggleCategoryItem(index) {
+  editingCategories[index].hidden = !editingCategories[index].hidden;
+  renderCategoryList();
+}
+
+function deleteCategoryItem(index) {
+  const c = editingCategories[index];
+  if (!confirm(`ลบหมวด "${c.name}"?\n\nเมนูที่อยู่ในหมวดนี้จะยังอยู่ แต่จะไม่มีหมวด`)) return;
+  editingCategories.splice(index, 1);
+  renderCategoryList();
+  showToast('🗑️ ลบหมวดแล้ว');
+}
+
+/* ═══ Save Category Changes ═══ */
+async function saveCategoryChanges() {
+  if (!currentUser) return;
+
+  const btn = $('btn-save-cats');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+
+  try {
+    // Re-order
+    editingCategories.forEach((c, i) => { c.order = i + 1; });
+
+    await db.collection('merchants').doc(currentUser.uid).update({
+      menuCategories: editingCategories,
+      menuCategoriesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // อัปเดต merchantProfile ทันที
+    merchantProfile.menuCategories = editingCategories.slice();
+
+    showToast('✅ บันทึกหมวดหมู่แล้ว');
+    closeSheet('category-manager-sheet');
+
+    // Refresh dropdown ในฟอร์มเมนู (ถ้าเปิดอยู่)
+    if ($('menu-form-sheet')?.classList.contains('show')) {
+      const current = $('mf-category')?.value;
+      renderCategoryDropdown(current);
+    }
+  } catch (err) {
+    console.error('saveCategoryChanges error:', err);
+    showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกหมวดหมู่'; }
+  }
+}
+
+/* ═══ Crop Image ═══ */
+function openCropModal(imageSrc, onConfirm) {
+  const modal = $('crop-modal');
+  const img = $('crop-image');
+  if (!modal || !img) return;
+
+  img.src = imageSrc;
+  cropTargetCallback = onConfirm;
+
+  modal.classList.add('show');
+
+  // รอ img load ก่อน init Cropper
+  img.onload = () => {
+    if (cropperInstance) {
+      cropperInstance.destroy();
+      cropperInstance = null;
+    }
+    setTimeout(() => {
+      try {
+        cropperInstance = new Cropper(img, {
+          aspectRatio: 1,
+          viewMode: 1,
+          dragMode: 'move',
+          autoCropArea: 1,
+          background: false,
+          guides: false,
+          center: true,
+          highlight: false,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false,
+          responsive: true,
+          restore: false,
+          checkOrientation: false,
+          zoomOnTouch: true,
+          zoomOnWheel: true,
+          wheelZoomRatio: 0.1,
+          minContainerWidth: 200,
+          minContainerHeight: 200
+        });
+      } catch (e) {
+        console.error('Cropper init error:', e);
+        showToast('โหลดตัว crop ไม่สำเร็จ', 'error');
+      }
+    }, 100);
+  };
+}
+
+function resetCrop() {
+  if (cropperInstance) {
+    cropperInstance.reset();
+  }
+  showToast('↺ รีเซ็ตแล้ว', 'info');
+}
+
+function closeCropModal() {
+  const modal = $('crop-modal');
+  if (modal) modal.classList.remove('show');
+  if (cropperInstance) {
+    cropperInstance.destroy();
+    cropperInstance = null;
+  }
+  cropTargetCallback = null;
+  const img = $('crop-image');
+  if (img) img.src = '';
+}
+
+async function confirmCrop() {
+  if (!cropperInstance) return showToast('ยังไม่มีรูป', 'warning');
+
+  try {
+    const canvas = cropperInstance.getCroppedCanvas({
+      width: 800,
+      height: 800,
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: 'high'
+    });
+
+    if (!canvas) return showToast('crop ไม่สำเร็จ', 'error');
+
+    // แปลงเป็น Blob
+    canvas.toBlob((blob) => {
+      if (!blob) return showToast('ไม่สามารถประมวลผลรูป', 'error');
+
+      // สร้าง File object
+      const file = new File([blob], 'menu_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+
+      // ส่งกลับ callback
+      if (typeof cropTargetCallback === 'function') {
+        cropTargetCallback(file, canvas.toDataURL('image/jpeg', 0.85));
+      }
+
+      closeCropModal();
+      showToast('✅ ปรับขนาดรูปแล้ว');
+    }, 'image/jpeg', 0.85);
+
+  } catch (err) {
+    console.error('confirmCrop error:', err);
+    showToast('ไม่สำเร็จ: ' + err.message, 'error');
+  }
+}
+
+/* ═══ Hook: แก้ previewMenuImg ให้เปิด Crop Modal ═══ */
+const _origPreviewMenuImg = window.previewMenuImg;
+window.previewMenuImg = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    openCropModal(e.target.result, (croppedFile, dataUrl) => {
+      // อัปเดต state
+      editingMenuImgBlob = croppedFile;
+      editingMenuImgUrl = null;
+
+      // อัปเดต UI preview
+      const preview = $('img-preview');
+      if (preview) {
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+      }
+      const placeholder = $('img-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+      const removeBtn = $('remove-img-btn');
+      if (removeBtn) removeBtn.style.display = 'block';
+    });
+  };
+  reader.readAsDataURL(file);
+};
+
+/* ═══ Hook: openMenuForm — ใช้ dropdown dynamic ═══ */
+const _origOpenMenuForm = window.openMenuForm;
+window.openMenuForm = function(menuId) {
+  // Call original
+  _origOpenMenuForm(menuId);
+
+  // Override dropdown
+  setTimeout(() => {
+    const currentCat = menuId
+      ? (allMenus.find(x => x.id === menuId)?.category || 'main')
+      : (getMenuCategories().filter(c => !c.hidden)[0]?.id || 'main');
+    renderCategoryDropdown(currentCat);
+  }, 50);
+};
+
+/* ═══ Auto-migrate: ร้านเก่าให้มี menuCategories ═══ */
+async function ensureMenuCategories() {
+  if (!currentUser) return;
+  if (merchantProfile?.menuCategories && Array.isArray(merchantProfile.menuCategories) && merchantProfile.menuCategories.length > 0) {
+    return; // มีแล้ว
+  }
+  try {
+    await db.collection('merchants').doc(currentUser.uid).update({
+      menuCategories: DEFAULT_CATEGORIES,
+      menuCategoriesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    merchantProfile.menuCategories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    console.log('✅ Auto-initialized menuCategories');
+  } catch (e) {
+    console.warn('Cannot init menuCategories:', e.code);
+  }
+}
+
+/* ═══ Call ensureMenuCategories หลัง login ═══ */
+const _origInitApp = window.initApp;
+window.initApp = function() {
+  _origInitApp();
+  setTimeout(ensureMenuCategories, 2000);
+};
+
+/* ═══ Expose ═══ */
+window.openCategoryManager = openCategoryManager;
+window.renderCategoryList = renderCategoryList;
+window.openAddCategoryForm = openAddCategoryForm;
+window.editCategoryItem = editCategoryItem;
+window.pickCategoryIcon = pickCategoryIcon;
+window.saveCategoryItem = saveCategoryItem;
+window.toggleCategoryItem = toggleCategoryItem;
+window.deleteCategoryItem = deleteCategoryItem;
+window.saveCategoryChanges = saveCategoryChanges;
+window.openCropModal = openCropModal;
+window.resetCrop = resetCrop;
+window.closeCropModal = closeCropModal;
+window.confirmCrop = confirmCrop;
+
+console.log('%c⭐ v3.6.0: Crop + Category Manager loaded', 'color:#00A651;font-weight:900;font-size:12px');
