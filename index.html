@@ -1,3 +1,56 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.6.0</title>
+<meta name="theme-color" content="#76B82A">
+<meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ChauatGo">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+
+<script>
+(function() {
+  var VERSION = 'v3.6.0-20241015-001';
+  var saved = localStorage.getItem('chauat_ver_index');
+  var lastReload = localStorage.getItem('chauat_last_reload');
+  var now = Date.now();
+  if (lastReload && (now - parseInt(lastReload)) < 5000) {
+    localStorage.setItem('chauat_ver_index', VERSION);
+    return;
+  }
+  if (saved !== VERSION) {
+    localStorage.setItem('chauat_ver_index', VERSION);
+    localStorage.setItem('chauat_last_reload', now.toString());
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+      }).then(function() { location.reload(true); });
+    } else { location.reload(true); }
+  }
+})();
+</script>
+
+<script>
+(function() {
+  var theme = localStorage.getItem('chauat_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<style>
 /* ═══════════════════════════════════════════════════════════════
    CHAUAT GO v3.6.0 — Nearby Shops + Menu Promo + Cart Option 3
    ═══════════════════════════════════════════════════════════════ */
@@ -61,7 +114,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 @keyframes cardSlideIn { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(118,184,42,.7); } 50% { box-shadow: 0 0 0 12px rgba(118,184,42,0); } }
 @keyframes bellShake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
-@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
 /* ═══ SPLASH ═══ */
 #splash-screen { position: fixed; inset: 0; z-index: 99999; background: var(--header-grad); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity .5s ease, visibility .5s ease; overflow: hidden; }
@@ -228,6 +280,23 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 [data-theme="dark"] .menu-icon.map { background: #1F3F1F; }
 .menu-label { font-size: 12px; font-weight: 900; color: var(--text); }
 
+.hot-section { margin-bottom: 14px; }
+.hot-title { background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; padding: 14px 16px; border-radius: 14px; font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #FFA500; }
+[data-theme="dark"] .hot-title { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
+.hot-badge { background: #E65100; color: #fff; font-size: 10px; padding: 4px 10px; border-radius: 10px; font-weight: 900; }
+
+.food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px 14px; }
+.food-card { background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s, box-shadow .15s; animation: cardSlideIn .35s backwards; }
+.food-card:active { transform: scale(.96); box-shadow: var(--shadow-md); }
+.food-img { width: 100%; height: 130px; background: var(--surface-2); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.food-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.food-img-fallback { width: 100%; height: 130px; display: flex; align-items: center; justify-content: center; font-size: 44px; background: linear-gradient(135deg, #FFF3E0, #FFE0B2); }
+[data-theme="dark"] .food-img-fallback { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
+.food-info { padding: 10px 12px; }
+.food-name { font-size: 13px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.food-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 3px; }
+.food-price { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 4px; }
+
 /* ═══ NEARBY SHOPS (v3.6.0) ═══ */
 .nearby-section { margin-bottom: 14px; }
 .nearby-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -332,6 +401,46 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .cart-bar.show { transform: translateX(-50%) translateY(0); }
 .cart-bar:active { transform: translateX(-50%) translateY(0) scale(.98); }
 
+/* ═══ PROFILE SHEET ═══ */
+.profile-sheet { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9500; display: none; justify-content: flex-end; backdrop-filter: blur(4px); }
+.profile-sheet.show { display: flex !important; animation: fadeIn .2s; }
+.profile-sheet-content { background: var(--surface); width: 88%; max-width: 420px; height: 100%; overflow-y: auto; animation: slideInRight .35s cubic-bezier(.32,.72,0,1); -webkit-overflow-scrolling: touch; }
+.pf-header { background: var(--header-grad); padding: 24px 20px 20px; color: #fff; position: relative; }
+.pf-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,.25); border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; cursor: pointer; font-family: inherit; color: #fff; transition: transform .2s; }
+.pf-close:active { transform: scale(.9) rotate(90deg); }
+.pf-user-info { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.pf-avatar-big { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,.25); border: 3px solid rgba(255,255,255,.5); display: flex; align-items: center; justify-content: center; font-size: 30px; flex-shrink: 0; }
+.pf-name { font-size: 18px; font-weight: 900; }
+.pf-email { font-size: 12px; opacity: .9; font-weight: 600; margin-top: 3px; }
+.pf-section { margin-bottom: 4px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.pf-section-title { font-size: 12px; font-weight: 900; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.pf-info-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; }
+.pf-info-row .ico { font-size: 18px; width: 28px; flex-shrink: 0; }
+.pf-info-row .lbl { font-size: 11px; color: var(--text-light); font-weight: 700; }
+.pf-info-row .val { font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--text); }
+.pf-menu-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left; transition: background .15s; border-radius: 8px; }
+.pf-menu-item:active { background: var(--surface-2); }
+.pf-menu-item .ico { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.pf-menu-item .ico.g { background: #E8F5E9; }
+.pf-menu-item .ico.b { background: #E3F2FD; }
+.pf-menu-item .ico.o { background: #FFF3E0; }
+[data-theme="dark"] .pf-menu-item .ico.g { background: #1F3F1F; }
+[data-theme="dark"] .pf-menu-item .ico.b { background: #1F2F3F; }
+[data-theme="dark"] .pf-menu-item .ico.o { background: #3F2F1F; }
+.pf-menu-item .txt { flex: 1; }
+.pf-menu-item .t { font-size: 14px; font-weight: 900; color: var(--text); }
+.pf-menu-item .s { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+.pf-menu-item .arr { color: var(--text-light); font-size: 20px; }
+.pf-login-prompt { text-align: center; padding: 40px 20px; }
+.pf-login-prompt .big-ico { font-size: 64px; margin-bottom: 12px; }
+.pf-login-prompt h3 { font-size: 20px; font-weight: 900; margin-bottom: 8px; color: #fff; }
+.pf-login-prompt p { font-size: 13px; color: rgba(255,255,255,.9); margin-bottom: 20px; font-weight: 600; }
+.pf-login-btn { width: 100%; padding: 14px; background: #fff; color: var(--green); border: none; border-radius: 14px; font-weight: 900; font-size: 14px; font-family: inherit; cursor: pointer; transition: transform .15s; }
+.pf-login-btn:active { transform: scale(.97); }
+.pf-logout-btn { width: 100%; padding: 14px; background: #FFEBEE; color: #E53935; border: none; border-radius: 14px; font-weight: 900; font-family: inherit; font-size: 14px; cursor: pointer; transition: transform .15s; }
+.pf-logout-btn:active { transform: scale(.97); }
+.pf-version { text-align: center; font-size: 11px; color: var(--text-light); margin-top: 12px; }
+
 /* ═══ MODAL ═══ */
 .modal-overlay { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9000; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
 .modal-overlay.show { display: flex !important; animation: fadeIn .2s; }
@@ -346,18 +455,199 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .btn-gray { background: var(--surface-2); color: var(--text); }
 .btn-orange { background: linear-gradient(135deg, #FF9800, #F57C00); color: #fff; box-shadow: 0 4px 12px rgba(255,152,0,.3); }
 .btn-blue { background: linear-gradient(135deg, #2196F3, #1976D2); color: #fff; box-shadow: 0 4px 12px rgba(33,150,243,.3); }
+.auth-tabs-row { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+.auth-tab-btn { flex: 1; padding: 12px; border-radius: 10px; font-weight: 900; font-size: 13px; background: transparent; border: none; cursor: pointer; font-family: inherit; color: var(--text-muted); transition: all .2s; }
+.auth-tab-btn.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
 
 /* ═══ PAYMENT MODE ═══ */
 .pay-mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .pay-mode-btn { padding: 14px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 900; cursor: pointer; text-align: center; transition: all .15s; position: relative; }
 .pay-mode-btn:active { transform: scale(.97); }
-.pay-mode-btn.active { border-color: var(--green); background: var(--green-light, #E8F5E9); color: var(--green); }
+.pay-mode-btn.active { border-color: var(--green); background: #E8F5E9; color: var(--green); }
 .pay-mode-btn .emoji { display: block; font-size: 26px; margin-bottom: 4px; }
 .pay-mode-btn .sub { display: block; font-size: 10px; font-weight: 700; color: var(--text-muted); margin-top: 4px; }
 .pay-mode-btn.active .sub { color: var(--green); }
 .pay-mode-btn .badge-cash { position: absolute; top: 6px; right: 6px; background: var(--orange); color: #fff; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 6px; }
+[data-theme="dark"] .pay-mode-btn.active { background: #1F3F1F; }
 
-/* ═══ EMPTY STATE ═══ */
+/* ═══ VEHICLE ═══ */
+.vehicle-list { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.vehicle-option { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--surface); border: 2px solid var(--border); border-radius: 16px; cursor: pointer; transition: all .2s; }
+.vehicle-option:active { transform: scale(.97); }
+.vehicle-option.selected { border-color: var(--green); background: #E8F5E9; box-shadow: 0 4px 16px rgba(0,166,81,.15); }
+[data-theme="dark"] .vehicle-option.selected { background: #1F3F1F; }
+.vehicle-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 32px; background: var(--surface-2); flex-shrink: 0; }
+.vehicle-option.selected .vehicle-icon { background: var(--surface); }
+.vehicle-info { flex: 1; }
+.vehicle-name { font-size: 15px; font-weight: 900; }
+.vehicle-desc { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+.vehicle-price { text-align: right; }
+.vehicle-price-num { font-size: 18px; font-weight: 900; color: var(--green); line-height: 1; }
+.vehicle-price-unit { font-size: 10px; color: var(--text-light); font-weight: 700; margin-top: 2px; }
+.vehicle-check { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; flex-shrink: 0; transition: all .2s; }
+.vehicle-option.selected .vehicle-check { background: var(--green); border-color: var(--green); }
+
+/* ═══ MAP PAGE (legacy) ═══ */
+#map-page { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 8000; overflow-y: auto; }
+#map-page.show { display: block !important; animation: fadeIn .25s; }
+.map-header-bar { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+.map-header-bar h3 { font-size: 15px; font-weight: 900; }
+.map-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; transition: transform .15s; }
+.map-back-btn:active { transform: scale(.95); }
+#main-map { width: 100%; height: 65vh; min-height: 400px; z-index: 1; }
+.map-float-controls { position: absolute; right: 14px; bottom: 140px; display: flex; flex-direction: column; gap: 8px; z-index: 500; }
+.map-fab { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); border: none; box-shadow: var(--shadow-md); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; transition: transform .15s; color: var(--text); }
+.map-fab:active { transform: scale(.9); }
+.map-bottom-action { position: absolute; bottom: 24px; left: 14px; right: 14px; z-index: 500; }
+.map-confirm-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 16px; font-weight: 900; font-size: 15px; cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(0,166,81,.4); display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .15s; }
+.map-confirm-btn:active { transform: scale(.97); }
+.map-confirm-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.custom-pin { position: relative; width: 40px; height: 50px; }
+.custom-pin-dot { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; }
+.custom-pin-dot.blue { background: #2196F3; border: 3px solid #fff; }
+.custom-pin-dot.red { background: #E53935; border: 3px solid #fff; }
+.custom-pin-dot.orange { background: #FF6B35; border: 3px solid #fff; }
+.custom-pin::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 12px solid #E53935; }
+.custom-pin.blue::after { border-top-color: #2196F3; }
+.custom-pin.orange::after { border-top-color: #FF6B35; }
+.pin-pulse { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%; background: rgba(33,150,243,.4); animation: pulse 2s infinite; }
+
+.pick-mode-banner { position: absolute; top: 80px; left: 14px; right: 14px; background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; padding: 12px 16px; border-radius: 14px; font-weight: 800; font-size: 13px; box-shadow: var(--shadow-md); z-index: 500; display: flex; align-items: center; gap: 10px; animation: slideUp .3s; border-left: 4px solid #FFA500; }
+[data-theme="dark"] .pick-mode-banner { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
+.pick-mode-banner .icon { font-size: 24px; animation: shake 1.5s infinite; }
+
+/* ═══ TOAST ═══ */
+.toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; max-width: 90%; text-align: center; backdrop-filter: blur(8px); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.success { background: linear-gradient(135deg, #00A651, #008C45); }
+.toast.error { background: linear-gradient(135deg, #E53935, #C62828); }
+.toast.warning { background: linear-gradient(135deg, #FF6B35, #E55A2B); }
+.toast.info { background: linear-gradient(135deg, #2196F3, #1976D2); }
+
+/* ═══ PDPA ═══ */
+.pdpa-overlay, .loc-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+.pdpa-overlay.hidden, .loc-popup-overlay.hidden { display: none !important; }
+.pdpa-content, .loc-popup-content { background: var(--surface); border-radius: 24px; padding: 28px 22px; max-width: 420px; width: 100%; text-align: center; animation: popIn .4s cubic-bezier(.32,.72,0,1); color: var(--text); }
+.pdpa-content h3, .loc-popup-content h3 { font-size: 20px; font-weight: 900; margin-bottom: 12px; color: var(--text); }
+.pdpa-content p, .loc-popup-content p { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; font-weight: 600; }
+.pdpa-btn, .loc-popup-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-bottom: 8px; transition: transform .15s; }
+.pdpa-btn:active, .loc-popup-btn:active { transform: scale(.97); }
+.pdpa-accept, .loc-allow { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; }
+.loc-skip { background: var(--surface-2); color: var(--text-muted); }
+
+/* ═══ PWA & OFFLINE ═══ */
+.offline-banner { position: fixed; top: 0; left: 0; right: 0; background: #E53935; color: #fff; text-align: center; padding: 8px; font-size: 12px; font-weight: 800; z-index: 99999; display: none; }
+.offline-banner.show { display: block; }
+.pwa-banner { position: fixed; top: 10px; left: 10px; right: 10px; background: var(--surface); border-radius: 16px; padding: 12px 14px; box-shadow: var(--shadow-lg); z-index: 9998; display: flex; align-items: center; gap: 10px; max-width: 580px; margin: 0 auto; animation: slideUp .4s; }
+.pwa-banner.hidden { display: none; }
+
+/* ═══ LIGHTBOX ═══ */
+#img-lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.95); z-index: 99999; display: none; align-items: center; justify-content: center; padding: 20px; }
+#img-lightbox.show { display: flex; animation: fadeIn .2s; }
+#lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 12px; animation: popIn .3s; }
+.lightbox-close { position: absolute; top: 20px; right: 20px; background: #fff; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; font-family: inherit; }
+
+/* ═══ PRESS EFFECT ═══ */
+.press-scale { transition: transform .12s; }
+.press-scale:active { transform: scale(.95); }
+.float-anim { animation: floatUp 3s ease-in-out infinite; }
+
+/* ═══ RATING ═══ */
+.rating-star { color: #ddd; transition: color .15s, transform .15s; user-select: none; -webkit-tap-highlight-color: transparent; }
+.rating-star.active { color: #FFC107; }
+.rating-star:active { transform: scale(1.2); }
+[data-theme="dark"] .rating-star { color: #444; }
+[data-theme="dark"] .rating-star.active { color: #FFC107; }
+.rating-inline { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 800; color: var(--text-muted); }
+.rating-inline .star { color: #FFC107; }
+.rate-btn { margin-top: 8px; padding: 8px 14px; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; background: linear-gradient(135deg, #FFC107, #FFA000); color: #fff; cursor: pointer; font-family: inherit; box-shadow: 0 4px 12px rgba(255,193,7,.3); transition: transform .15s; }
+.rate-btn:active { transform: scale(.95); }
+
+/* ═══ CHAT ═══ */
+#chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 8500; display: none; flex-direction: column; }
+#chat-page.show { display: flex !important; animation: fadeIn .2s; }
+.chat-header { background: var(--header-grad); color: #fff; padding: 14px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); flex-shrink: 0; }
+.chat-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
+.chat-header-name { font-size: 15px; font-weight: 900; }
+.chat-header-sub { font-size: 11px; opacity: .85; font-weight: 700; margin-top: 2px; }
+.chat-online-dot { width: 10px; height: 10px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 3px rgba(74,222,128,.3); flex-shrink: 0; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
+.chat-empty { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 13px; font-weight: 700; }
+.chat-day-divider { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 800; margin: 12px 0 4px; padding: 4px 12px; background: var(--surface-2); border-radius: 10px; align-self: center; }
+.chat-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; font-weight: 600; line-height: 1.4; word-break: break-word; animation: popIn .2s; }
+.chat-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-bottom-right-radius: 6px; }
+.chat-bubble.theirs { align-self: flex-start; background: var(--surface); color: var(--text); border-bottom-left-radius: 6px; box-shadow: var(--shadow-sm); }
+.chat-bubble-meta { font-size: 10px; font-weight: 700; opacity: .7; margin-top: 4px; }
+.chat-bubble .msg-image { max-width: 100%; border-radius: 12px; margin-bottom: 6px; cursor: pointer; display: block; }
+.chat-input-bar { display: flex; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+.chat-input-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); }
+.chat-input-bar input:focus { border-color: var(--green); }
+.chat-send-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer; font-family: inherit; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,166,81,.3); display: flex; align-items: center; justify-content: center; }
+.chat-list-item { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface); border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s; }
+.chat-list-item:active { transform: scale(.98); }
+.chat-list-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--header-grad); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.chat-list-body { flex: 1; min-width: 0; }
+.chat-list-name { font-weight: 900; font-size: 14px; color: var(--text); }
+.chat-list-last { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ═══ LIVE TRACKING ═══ */
+#tracking-page { position: fixed; inset: 0; background: var(--bg); z-index: 8700; display: none; flex-direction: column; }
+#tracking-page.show { display: flex !important; animation: fadeIn .2s; }
+.track-header { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.15); flex-shrink: 0; }
+.track-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
+.track-header h3 { font-size: 15px; font-weight: 900; flex: 1; }
+#track-map { flex: 1; width: 100%; z-index: 1; }
+.track-info-panel { position: absolute; bottom: 0; left: 0; right: 0; background: var(--surface); border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 18px 16px; padding-bottom: calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(0,0,0,.1); z-index: 500; max-height: 45vh; overflow-y: auto; }
+.track-status-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.track-status-icon { width: 48px; height: 48px; border-radius: 50%; background: #E8F5E9; color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+.track-status-info { flex: 1; }
+.track-status-title { font-size: 15px; font-weight: 900; color: var(--text); }
+.track-status-sub { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+.track-eta-badge { background: var(--brand-light); color: var(--green); padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 900; flex-shrink: 0; }
+.track-timeline { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.track-step { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.track-step-dot { width: 24px; height: 24px; border-radius: 50%; background: var(--border); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; transition: all .3s; }
+.track-step.done .track-step-dot { background: var(--green); box-shadow: 0 0 0 1px var(--green); color: #fff; }
+.track-step.active .track-step-dot { background: var(--brand); box-shadow: 0 0 0 1px var(--brand); color: #fff; animation: pulse 1.5s infinite; }
+.track-step-text { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.track-step.done .track-step-text, .track-step.active .track-step-text { color: var(--text); font-weight: 900; }
+.track-step-time { font-size: 10px; color: var(--text-light); font-weight: 700; margin-left: auto; }
+.track-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ═══ ORDER TRACKING CARD ═══ */
+.order-track-card { background: var(--surface); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm); border-left: 4px solid var(--brand); animation: cardSlideIn .3s; }
+.order-track-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.order-track-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.order-track-title { font-size: 14px; font-weight: 900; color: var(--text); }
+.order-track-sub { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+.order-track-cta { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; border: none; padding: 10px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.order-track-cta:active { transform: scale(.95); }
+.order-track-progress { display: flex; align-items: center; gap: 3px; margin-top: 12px; }
+.order-track-progress .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+.order-track-progress .dot.done { background: var(--green); }
+.order-track-progress .dot.active { background: var(--brand); animation: pulse 1.5s infinite; width: 10px; height: 10px; }
+.order-track-progress .line { flex: 1; height: 2px; background: var(--border); }
+.order-track-progress .line.done { background: var(--green); }
+
+/* ═══ CASH / TRANSFER BADGE ═══ */
+.cash-badge { display: inline-flex; align-items: center; gap: 4px; background: #FFF3E0; color: #E65100; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 8px; margin-top: 6px; }
+[data-theme="dark"] .cash-badge { background: #3F2F1F; color: #FFB74D; }
+.transfer-badge { display: inline-flex; align-items: center; gap: 4px; background: #E3F2FD; color: #1976D2; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 8px; margin-top: 6px; }
+[data-theme="dark"] .transfer-badge { background: #1F2F3F; color: #60A5FA; }
+
+/* ═══ NEAR ALERT POPUP ═══ */
+.near-alert-popup { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9700; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
+.near-alert-popup.show { display: flex; animation: fadeIn .2s; }
+.near-alert-card { background: var(--surface); border-radius: 24px; padding: 28px 22px; width: 100%; max-width: 400px; text-align: center; animation: bounceIn .5s cubic-bezier(.32,.72,0,1); box-shadow: 0 24px 60px rgba(0,0,0,.3); }
+.near-alert-icon { font-size: 72px; margin-bottom: 12px; animation: bellShake 1s infinite; }
+.near-alert-card h2 { font-size: 24px; font-weight: 900; color: var(--brand); margin-bottom: 6px; }
+.near-alert-card p { font-size: 14px; color: var(--text-muted); font-weight: 700; margin-bottom: 16px; }
+.near-alert-btns { display: flex; gap: 8px; }
+
+/* ═══ ORDERS / MESSAGES TAB ═══ */
+.orders-tab, .messages-tab { padding: 14px; display: none; animation: fadeIn .3s; }
+.order-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); margin: 14px 0 10px; text-transform: uppercase; letter-spacing: .5px; }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state .icon { font-size: 64px; margin-bottom: 12px; opacity: .5; }
 
@@ -372,6 +662,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   .nearby-shop-name { font-size: 12px; }
   .nearby-blank { min-height: 140px; padding: 16px; }
 }
+</style>
+</head>
+<body>
+
 <!-- ═══ SPLASH ═══ -->
 <div id="splash-screen">
   <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go" onerror="this.style.background='linear-gradient(135deg,#76B82A,#5A8E1F)';this.style.display='flex'">
@@ -448,6 +742,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
+<!-- ═══ GENERIC MODAL ═══ -->
 <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal-content" id="modal-body"></div>
 </div>
@@ -470,7 +765,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ⭐ RATING MODAL -->
+<!-- ═══ RATING MODAL ═══ -->
 <div class="modal-overlay" id="rating-modal" onclick="if(event.target===this)closeRatingModal()">
   <div class="modal-content" style="max-width:440px">
     <div style="text-align:center;margin-bottom:16px">
@@ -495,7 +790,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ⭐ v3.6.0: ALL SHOPS MODAL -->
+<!-- ═══ ALL SHOPS MODAL (v3.6.0) ═══ -->
 <div class="all-shops-modal" id="all-shops-modal" onclick="if(event.target===this)closeAllShopsModal()">
   <div class="all-shops-content">
     <div class="all-shops-header">
@@ -508,7 +803,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 💬 CHAT PAGE -->
+<!-- ═══ CHAT PAGE ═══ -->
 <div id="chat-page">
   <div class="chat-header">
     <button class="chat-back-btn press-scale" onclick="closeChatPage()">← กลับ</button>
@@ -528,7 +823,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 🗺️ LIVE TRACKING PAGE -->
+<!-- ═══ LIVE TRACKING PAGE ═══ -->
 <div id="tracking-page">
   <div class="track-header">
     <button class="track-back-btn press-scale" onclick="closeTrackingPage()">← กลับ</button>
@@ -557,7 +852,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 🗺️ MAP PICKER -->
+<!-- ═══ MAP PICKER ═══ -->
 <div id="map-picker">
   <div class="map-picker-header">
     <button class="map-picker-back press-scale" onclick="closeMapPicker()">← กลับ</button>
@@ -599,7 +894,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- 🔔 NEAR ALERT POPUP -->
+<!-- ═══ NEAR ALERT POPUP ═══ -->
 <div class="near-alert-popup" id="nearAlertPopup">
   <div class="near-alert-card">
     <div class="near-alert-icon">🔔</div>
@@ -612,6 +907,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
+<!-- ═══ LIGHTBOX ═══ -->
 <div id="img-lightbox" onclick="closeLightbox()">
   <img id="lightbox-img" src="" alt="">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
@@ -698,7 +994,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="menu-item" onclick="openMapPage()"><div class="menu-icon map">🗺️</div><div class="menu-label">แผนที่</div></div>
     </div>
 
-    <!-- ⭐ v3.6.0: NEARBY SHOPS -->
+    <!-- ═══ NEARBY SHOPS (v3.6.0) ═══ -->
     <div class="nearby-section">
       <div class="nearby-header">
         <div class="nearby-title">🔥 ร้านที่เข้าร่วม Chauat Go ใกล้เคียง</div>
@@ -732,7 +1028,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ═══ TABS ═══ -->
+<!-- ═══ ORDERS TAB ═══ -->
 <div class="orders-tab" id="tab-orders" style="display:none">
   <div class="order-section-title">🔍 กำลังดำเนินการ</div>
   <div id="active-orders"></div>
@@ -743,6 +1039,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
+<!-- ═══ MESSAGES TAB ═══ -->
 <div class="messages-tab" id="tab-messages" style="display:none">
   <div class="order-section-title">💬 แชทของฉัน</div>
   <div id="chat-list"></div>
@@ -818,8 +1115,17 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     </div>
   </div>
 </div>
+<!-- ═══ CDN ═══ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script src="locations-data.js"></script>
+
+<script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.6.0 — Nearby Shops + Promo + Cart Option 3
+   CHAUAT GO v3.6.0 — Main Application
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -864,33 +1170,21 @@ var selectedVehicle = null;
 var unsubOrders = null;
 var deferredPrompt = null;
 var selectedPaymentMode = 'transfer';
-
-/* ⭐ Rating */
 var ratingOrder = null;
 var ratingMerchant = 0;
 var ratingRider = 0;
-
-/* 💬 Chat */
 var activeChatId = null;
 var chatUnsub = null;
 var chatListUnsub = null;
-
-/* 📦 Express */
 var expOrigin = null;
 var expDestination = null;
-
-/* 🗺️ Map picker */
 var mapPickerMode = null;
 var mapPickerMap = null;
 var mapPickerMarker = null;
 var mapPickerCircle = null;
 var mapPickerValue = null;
 var mapPickerSearchTimer = null;
-
-/* 🛍️ Shopping */
 var _shoppingPlacesCache = [];
-
-/* 📍 Live Tracking */
 var trackingOrderId = null;
 var trackingMap = null;
 var trackingRiderMarker = null;
@@ -901,9 +1195,7 @@ var orderListUnsub = null;
 var nearNotifiedOrderIds = new Set();
 var currentTrackingOrder = null;
 var lastTrackedPositions = {};
-
-/* ⭐ v3.6.0: Nearby Shops State */
-var nearbyShopsCache = [];       // ร้าน verified ทั้งหมด
+var nearbyShopsCache = [];
 var nearbyShopsLoaded = false;
 
 var CATS = {
@@ -940,7 +1232,7 @@ function haversine(lat1,lng1,lat2,lng2){
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
-/* ⭐ v3.6.0: คำนวณราคาหลังหักส่วนลด */
+/* ⭐ v3.6.0: Menu helpers */
 function calcFinalPrice(menu) {
   if (!menu || !menu.price) return 0;
   if (!menu.promotion || !menu.promotion.active) return Number(menu.price);
@@ -955,8 +1247,6 @@ function calcFinalPrice(menu) {
   }
   return Number(menu.price);
 }
-
-/* ⭐ v3.6.0: label โปรโมชั่น */
 function getPromoLabel(menu) {
   if (!menu || !menu.promotion || !menu.promotion.active) return '';
   var p = menu.promotion;
@@ -966,17 +1256,9 @@ function getPromoLabel(menu) {
   if (p.type === 'amount') return '🔥 ลด ' + value + '฿';
   return '🔥 โปร';
 }
-
-/* ⭐ v3.6.0: ตรวจสอบเมนูพร้อมขาย */
-function isMenuAvailable(menu) {
-  return (menu.status || 'available') === 'available';
-}
-function isMenuHidden(menu) {
-  return menu.status === 'hidden';
-}
-function isMenuOutOfStock(menu) {
-  return menu.status === 'out_of_stock';
-}
+function isMenuAvailable(menu) { return (menu.status || 'available') === 'available'; }
+function isMenuHidden(menu) { return menu.status === 'hidden'; }
+function isMenuOutOfStock(menu) { return menu.status === 'out_of_stock'; }
 
 /* ═══ AUDIO ═══ */
 var audioCtx = null;
@@ -1179,7 +1461,6 @@ function updateStatsBar(){
   renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,6));
   renderGrid('tourist-grid',PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,6));
   renderGrid('hotel-grid',PLACES.filter(function(p){return p.category==='h'&&hasRealImage(p.image);}).slice(0,6));
-  // v3.6.0: โหลดร้าน Nearby
   loadNearbyShops();
 }
 
@@ -1397,10 +1678,8 @@ window.doSearch = function(q){
       '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+(p.price?' • '+p.price:'')+'</div></div></div>';
   }).join('');
 };
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: NEARBY SHOPS
-   ═══════════════════════════════════════════════════════════════ */
 
+/* ═══ NEARBY SHOPS (v3.6.0) ═══ */
 async function loadNearbyShops() {
   if (!db) return;
   try {
@@ -1419,29 +1698,26 @@ async function loadNearbyShops() {
   }
 }
 
-/* ═══ เรียงตามระยะ ═══ */
 function sortShopsByDistance(shops) {
   var arr = shops.slice();
   if (userLocation) {
     arr.sort(function(a, b) {
       var da = (a.lat && a.lng) ? haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) : Infinity;
-      var db = (b.lat && b.lng) ? haversine(userLocation.lat, userLocation.lng, b.lat, b.lng) : Infinity;
-      if (da === Infinity && db === Infinity) return 0;
+      var db2 = (b.lat && b.lng) ? haversine(userLocation.lat, userLocation.lng, b.lat, b.lng) : Infinity;
+      if (da === Infinity && db2 === Infinity) return 0;
       if (da === Infinity) return 1;
-      if (db === Infinity) return -1;
-      return da - db;
+      if (db2 === Infinity) return -1;
+      return da - db2;
     });
   }
   return arr;
 }
 
-/* ═══ คำนวณระยะร้าน ═══ */
 function getShopDistance(shop) {
   if (!userLocation || !shop.lat || !shop.lng) return null;
   return haversine(userLocation.lat, userLocation.lng, shop.lat, shop.lng);
 }
 
-/* ═══ Render Nearby Shops — 6 slots (2×3) ═══ */
 function renderNearbyShops() {
   var grid = $('nearby-grid');
   if (!grid) return;
@@ -1459,7 +1735,6 @@ function renderNearbyShops() {
   }
   grid.innerHTML = html;
 
-  // ⭐ ปุ่ม "ดูทั้งหมด" — แสดงเมื่อร้าน > 6
   var moreBtn = $('nearby-more-btn');
   if (moreBtn) {
     if (nearbyShopsCache.length > 6) {
@@ -1471,7 +1746,6 @@ function renderNearbyShops() {
   }
 }
 
-/* ═══ การ์ดร้าน Nearby ═══ */
 function renderNearbyShopCard(shop) {
   var hasImg = shop.image && shop.image.startsWith('http');
   var dist = getShopDistance(shop);
@@ -1499,7 +1773,6 @@ function renderNearbyShopCard(shop) {
   '</div>';
 }
 
-/* ═══ Blank Slot ═══ */
 function renderNearbyBlank() {
   return '<div class="nearby-blank">' +
     '<div class="nearby-blank-ico">🏪</div>' +
@@ -1507,7 +1780,6 @@ function renderNearbyBlank() {
   '</div>';
 }
 
-/* ═══ เปิด Modal ร้านทั้งหมด ═══ */
 window.openAllShopsModal = function() {
   if (!nearbyShopsCache.length) {
     return showToast('ยังไม่มีร้านค้าเข้าร่วม', 'info');
@@ -1553,9 +1825,7 @@ function renderAllShopsItem(shop, index) {
     ? '<img src="' + esc(shop.image) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML=\'' + cat.icon + '\'">'
     : cat.icon;
 
-  var distHtml = (dist != null)
-    ? '📍 ' + fmtDistance(dist) + ' • '
-    : '';
+  var distHtml = (dist != null) ? '📍 ' + fmtDistance(dist) + ' • ' : '';
 
   var ratingHtml = (shop.ratingAvg && shop.ratingCount)
     ? ' • ⭐ ' + Number(shop.ratingAvg).toFixed(1)
@@ -1575,13 +1845,9 @@ function renderAllShopsItem(shop, index) {
     '<div style="color:var(--text-light);font-size:20px">›</div>' +
   '</div>';
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: MERCHANT DETAIL — Filter hidden + block out_of_stock
-   ═══════════════════════════════════════════════════════════════ */
-
+</script>
+/* ═══ MERCHANT DETAIL (v3.6.0) ═══ */
 window.openMerchantDetail = async function(merchantId) {
-  // ⭐ ปิด modal ร้านทั้งหมด ถ้าเปิดอยู่
   closeAllShopsModal();
 
   try {
@@ -1594,7 +1860,6 @@ window.openMerchantDetail = async function(merchantId) {
       return Object.assign({ id: d.id }, d.data());
     });
 
-    // ⭐ v3.6.0: filter hidden
     menus = menus.filter(function(menu) {
       return !isMenuHidden(menu);
     });
@@ -1629,7 +1894,6 @@ window.openMerchantDetail = async function(merchantId) {
   }
 };
 
-/* ═══ การ์ดเมนูในร้าน — มีโปร + สถานะ ═══ */
 function renderMenuDetailCard(menu) {
   var hasImg = menu.image && menu.image.startsWith('http');
   var imgHtml = hasImg
@@ -1643,7 +1907,6 @@ function renderMenuDetailCard(menu) {
   var finalPrice = calcFinalPrice(menu);
   var originalPrice = Number(menu.price || 0);
 
-  // ⭐ ราคา
   var priceHtml = hasPromo
     ? '<div class="menu-detail-price-row">' +
         '<span class="menu-detail-price-old">฿' + fmt(originalPrice) + '</span>' +
@@ -1653,7 +1916,6 @@ function renderMenuDetailCard(menu) {
         '<span class="menu-detail-price-normal">฿' + fmt(originalPrice) + '</span>' +
       '</div>';
 
-  // ⭐ Badges
   var badgesHtml = '';
   if (hasPromo && promoLabel) {
     var saved = originalPrice - finalPrice;
@@ -1668,7 +1930,6 @@ function renderMenuDetailCard(menu) {
 
   var cardCls = isOut ? 'menu-detail-card status-out' : 'menu-detail-card';
 
-  // ⭐ ปุ่ม + (block ถ้าหมด)
   var addBtn = isOut
     ? '<button class="menu-add-btn" disabled title="หมดชั่วคราว">🚫</button>'
     : '<button class="menu-add-btn" onclick="addToCartById(\'' + esc(menu.id) + '\')">+</button>';
@@ -1685,17 +1946,13 @@ function renderMenuDetailCard(menu) {
   '</div>';
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: CART — Block out_of_stock + เก็บ discount
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ CART (v3.6.0) ═══ */
 window.addToCartById = function(menuId) {
   var merchant = window._currentMerchant;
   var menus = window._menus || [];
   var menu = menus.find(function(m) { return m.id === menuId; });
   if (!merchant || !menu) return showToast('ไม่พบเมนู', 'error');
 
-  // ⭐ v3.6.0: block ถ้าหมด
   if (isMenuOutOfStock(menu)) {
     showToast('⚠️ เมนูนี้หมดชั่วคราว', 'warning');
     return;
@@ -1708,15 +1965,8 @@ window.addToCartById = function(menuId) {
   var hasPromo = discountPerUnit > 0;
 
   window.addToCart(
-    merchant.id,
-    merchant.name,
-    menu.id,
-    menu.name,
-    originalPrice,
-    finalPrice,
-    discountPerUnit,
-    promoLabel,
-    hasPromo
+    merchant.id, merchant.name, menu.id, menu.name,
+    originalPrice, finalPrice, discountPerUnit, promoLabel, hasPromo
   );
 };
 
@@ -1732,14 +1982,12 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, original
     existing.qty++;
   } else {
     cart.push({
-      merchantId: merchantId,
-      merchantName: merchantName,
-      menuId: menuId,
-      menuName: menuName,
-      price: originalPrice,               // ราคาเต็ม
+      merchantId: merchantId, merchantName: merchantName,
+      menuId: menuId, menuName: menuName,
+      price: originalPrice,
       originalPrice: originalPrice,
-      finalPrice: finalPrice,             // ราคาหลังหัก
-      discount: discountPerUnit,          // ส่วนลดต่อชิ้น
+      finalPrice: finalPrice,
+      discount: discountPerUnit,
       promoLabel: promoLabel || '',
       hasPromo: !!hasPromo,
       qty: 1
@@ -1751,15 +1999,12 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, original
   showToast('✅ เพิ่ม ' + menuName + ' ลงตะกร้า');
 };
 
-/* ═══ Update Cart Bar ═══ */
 function updateCartBar() {
   var bar = $('cart-bar'); if (!bar) return;
   if (!cart.length) { bar.classList.remove('show'); return; }
   bar.classList.add('show');
 
-  var total = cart.reduce(function(s, c) {
-    return s + (c.originalPrice || c.price) * c.qty;
-  }, 0);
+  var total = cart.reduce(function(s, c) { return s + (c.originalPrice || c.price) * c.qty; }, 0);
   var count = cart.reduce(function(s, c) { return s + c.qty; }, 0);
 
   if ($('cart-count')) $('cart-count').textContent = count;
@@ -1779,26 +2024,18 @@ function _refreshCartViews() {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: CART Modal — Option 3 (แยกบรรทัด + รวมส่วนลด)
-   ═══════════════════════════════════════════════════════════════ */
-
 window.openCart = function() {
   if (!cart.length) return;
 
-  // ⭐ v3.6.0: คำนวณ totals
   var subtotal = 0;
   var discountTotal = 0;
   cart.forEach(function(c) {
-    var orig = (c.originalPrice || c.price) * c.qty;
-    var disc = (c.discount || 0) * c.qty;
-    subtotal += orig;
-    discountTotal += disc;
+    subtotal += (c.originalPrice || c.price) * c.qty;
+    discountTotal += (c.discount || 0) * c.qty;
   });
   var deliveryFee = 20;
   var netTotal = subtotal - discountTotal + deliveryFee;
 
-  // ⭐ รายการ + Option 3
   var itemsHtml = cart.map(function(c, i) {
     var orig = c.originalPrice || c.price;
     var final = c.finalPrice || c.price;
@@ -1810,24 +2047,11 @@ window.openCart = function() {
     var detailHtml = '';
     if (c.hasPromo && lineDiscount > 0) {
       detailHtml =
-        '<div class="cart-line">' +
-          '<span>฿' + fmt(orig) + ' × ' + c.qty + '</span>' +
-          '<span>฿' + fmt(lineOriginal) + '</span>' +
-        '</div>' +
-        '<div class="cart-line discount">' +
-          '<span>' + (c.promoLabel || 'ส่วนลด') + '</span>' +
-          '<span>-฿' + fmt(lineDiscount) + '</span>' +
-        '</div>' +
-        '<div class="cart-line total">' +
-          '<span>รวม</span>' +
-          '<span>฿' + fmt(lineTotal) + '</span>' +
-        '</div>';
+        '<div class="cart-line"><span>฿' + fmt(orig) + ' × ' + c.qty + '</span><span>฿' + fmt(lineOriginal) + '</span></div>' +
+        '<div class="cart-line discount"><span>' + (c.promoLabel || 'ส่วนลด') + '</span><span>-฿' + fmt(lineDiscount) + '</span></div>' +
+        '<div class="cart-line total"><span>รวม</span><span>฿' + fmt(lineTotal) + '</span></div>';
     } else {
-      detailHtml =
-        '<div class="cart-line total">' +
-          '<span>฿' + fmt(orig) + ' × ' + c.qty + '</span>' +
-          '<span>฿' + fmt(lineTotal) + '</span>' +
-        '</div>';
+      detailHtml = '<div class="cart-line total"><span>฿' + fmt(orig) + ' × ' + c.qty + '</span><span>฿' + fmt(lineTotal) + '</span></div>';
     }
 
     return '<div class="cart-item-block">' +
@@ -1844,7 +2068,6 @@ window.openCart = function() {
     '</div>';
   }).join('');
 
-  // ⭐ Summary — Option 3
   var summaryHtml =
     '<div class="cart-summary">' +
       '<div class="cart-summary-row"><span>ค่าอาหาร</span><span>฿' + fmt(subtotal) + '</span></div>' +
@@ -1902,10 +2125,7 @@ window.clearCart = function() {
   showToast('🗑️ ล้างตะกร้าแล้ว');
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: CHECKOUT — คำนวณ discount
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ CHECKOUT (v3.6.0) ═══ */
 window.checkout = async function() {
   if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ', 'warning'); }
   if (!cart.length) return showToast('ตะกร้าว่าง', 'error');
@@ -1918,9 +2138,7 @@ window.checkout = async function() {
     return;
   }
 
-  // ⭐ คำนวณ
-  var subtotal = 0;
-  var discountTotal = 0;
+  var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) {
     subtotal += (c.originalPrice || c.price) * c.qty;
     discountTotal += (c.discount || 0) * c.qty;
@@ -1965,7 +2183,7 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
       (isCash ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--orange)"><span>ค่าบริการพิเศษ (เงินสด)</span><span>฿' + fmt(cashTip) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px;font-size:18px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fmt(grandTotal) + '</span></div>' +
     '</div>' +
-    (isCash ? '<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">💵 <b>โหมดเงินสด</b><br>• ไรเดอร์ต้องสำรองจ่ายร้านก่อน<br>• ไรเดอร์อาจปฏิเสธถ้าเงินไม่พอ<br>• ค่าบริการพิเศษ ฿5 จะเป็นทิปให้ไรเดอร์</div>' : '') +
+    (isCash ? '<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">💵 <b>โหมดเงินสด</b><br>• ไรเดอร์ต้องสำรองจ่ายร้านก่อน<br>• ค่าบริการพิเศษ ฿5 จะเป็นทิปให้ไรเดอร์</div>' : '') +
     '<button class="btn-full btn-green press-scale" onclick="confirmCheckout(' + grandTotal + ')">✅ ยืนยันออเดอร์ (฿' + fmt(grandTotal) + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
 }
@@ -1981,11 +2199,9 @@ window.setPaymentMode = function(mode) {
 };
 
 window.confirmCheckout = async function(grandTotal) {
-  // ⭐ คำนวณ items
   var items = cart.map(function(c) {
     return {
-      name: c.menuName,
-      qty: c.qty,
+      name: c.menuName, qty: c.qty,
       price: c.originalPrice || c.price,
       originalPrice: c.originalPrice || c.price,
       finalPrice: c.finalPrice || c.price,
@@ -2014,11 +2230,11 @@ window.confirmCheckout = async function(grandTotal) {
       merchantName: cart[0] ? cart[0].merchantName : '',
       items: items,
       itemsText: items.map(function(i) { return i.name + ' x' + i.qty; }).join(', '),
-      itemsTotal: subtotal,                     // ราคาเต็ม
+      itemsTotal: subtotal,
       subtotal: subtotal,
-      discountTotal: discountTotal,             // ⭐ ส่วนลดรวม
-      netTotal: subtotal - discountTotal,       // ⭐ หลังหัก
-      foodTotal: subtotal,                      // (compat)
+      discountTotal: discountTotal,
+      netTotal: subtotal - discountTotal,
+      foodTotal: subtotal,
       fare: deliveryFee,
       total: grandTotal,
       cashTip: cashTip,
@@ -2042,10 +2258,8 @@ window.confirmCheckout = async function(grandTotal) {
     showToast('ส่งไม่สำเร็จ', 'error');
   }
 };
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: ORDERS — Subscribe + Render Card
-   ═══════════════════════════════════════════════════════════════ */
 
+/* ═══ TABS ═══ */
 window.switchTab = function(tab, el){
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   if(el) el.classList.add('active');
@@ -2091,7 +2305,6 @@ function renderOrderCard(o){
     ? '<span class="cash-badge">💵 เงินสด • จ่าย ฿'+fmt(o.total||0)+'</span>'
     : '<span class="transfer-badge">💳 โอน • ฿'+fmt(o.total||0)+'</span>';
 
-  // ⭐ v3.6.0: แสดงส่วนลดถ้ามี
   var discountHtml = '';
   if (o.discountTotal && o.discountTotal > 0) {
     discountHtml = '<div style="font-size:11px;color:var(--promo-red);font-weight:900;margin-bottom:8px">🔥 ส่วนลด ฿' + fmt(o.discountTotal) + '</div>';
@@ -2131,10 +2344,7 @@ function renderOrderCard(o){
     '</div>';
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   📍 v3.4.8: LIVE TRACKING
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ LIVE TRACKING ═══ */
 window.openTrackingPage = function(orderId){
   if (!currentUser) { showLoginModal(); return; }
   trackingOrderId = orderId;
@@ -2281,7 +2491,7 @@ window.chatRiderFromTracking = function(){
   }
 };
 
-/* ═══ NEAR CUSTOMER NOTIFICATION ═══ */
+/* ═══ NEAR CUSTOMER ═══ */
 function checkNearNotification(orders){
   orders.forEach(function(o){
     if (o.status !== 'on_the_way') return;
@@ -2296,26 +2506,18 @@ function showNearAlert(order){
   var $title = $('near-alert-title');
   var $sub = $('near-alert-sub');
   if ($title) $title.textContent = '🛵 ไรเดอร์ใกล้ถึง!';
-  var payText = order.paymentMode === 'cash'
-    ? 'เตรียมเงินสด ฿' + fmt(order.total || 0)
-    : 'เตรียมรับอาหาร';
+  var payText = order.paymentMode === 'cash' ? 'เตรียมเงินสด ฿' + fmt(order.total || 0) : 'เตรียมรับอาหาร';
   if ($sub) $sub.textContent = 'อีก 100 เมตร — ' + payText;
   $('nearAlertPopup')?.classList.add('show');
   soundNearAlert();
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
-      new Notification('🔔 ไรเดอร์ใกล้ถึง!', {
-        body: 'อีก 100 เมตร — ' + payText,
-        icon: '/icons/icon-512.png',
-        tag: 'near-' + order.id
-      });
+      new Notification('🔔 ไรเดอร์ใกล้ถึง!', {body: 'อีก 100 เมตร — ' + payText, icon: '/icons/icon-512.png', tag: 'near-' + order.id});
     } catch(e){}
   }
 }
 
-window.closeNearAlert = function(){
-  $('nearAlertPopup')?.classList.remove('show');
-};
+window.closeNearAlert = function(){ $('nearAlertPopup')?.classList.remove('show'); };
 
 window.viewTrackingFromAlert = function(){
   closeNearAlert();
@@ -2326,10 +2528,7 @@ window.viewTrackingFromAlert = function(){
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ RATING
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ RATING ═══ */
 window.openRatingModal = function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
   db.collection('orders').doc(orderId).get().then(function(snap){
@@ -2414,10 +2613,7 @@ async function updateMerchantRatingAggregate(merchantId) {
   } catch (e) {}
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ CHAT (กับไรเดอร์)
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ CHAT ═══ */
 window.openChatPage = async function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
   try {
@@ -2432,11 +2628,8 @@ window.openChatPage = async function(orderId) {
     var chatSnap = await chatRef.get();
     if (!chatSnap.exists) {
       await chatRef.set({
-        orderId: orderId,
-        userId: o.userId,
-        userName: o.userName || 'ลูกค้า',
-        riderId: o.riderId,
-        riderName: o.riderName || 'ไรเดอร์',
+        orderId: orderId, userId: o.userId, userName: o.userName || 'ลูกค้า',
+        riderId: o.riderId, riderName: o.riderName || 'ไรเดอร์',
         lastMessage: '', lastSenderId: '',
         lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -2619,7 +2812,6 @@ window.requestLocation = function(){
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
     showToast('📍 เปิด GPS แล้ว');
-    // ⭐ v3.6.0: รีเฟรช nearby shops
     if (nearbyShopsLoaded) renderNearbyShops();
   }, function(){showToast('ไม่สามารถเข้าถึง GPS','error');});
 };
@@ -2649,10 +2841,8 @@ function globalClickHandler(e){
   var btn = e.target.closest('button, .food-card, .menu-item, .nav-item');
   if(btn && navigator.vibrate) navigator.vibrate(10);
 }
-/* ═══════════════════════════════════════════════════════════════
-   MERCHANT VIEW — เลือกร้านอาหาร
-   ═══════════════════════════════════════════════════════════════ */
 
+/* ═══ MERCHANT VIEW ═══ */
 window.openMerchantView = async function(type){
   merchantMode = (type === 'shopping') ? 'shopping' : 'food';
   if($('home-content')) $('home-content').style.display='none';
@@ -2841,10 +3031,7 @@ if(msi){
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   SHOPPING VIEW — ฝากซื้อ
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ SHOPPING VIEW ═══ */
 function renderShoppingPlaces(){
   var list = $('merchant-list'); if(!list) return;
   var SHOP_CATS = ['c', 'm', 's'];
@@ -2865,7 +3052,7 @@ function renderShoppingPlaces(){
     });
   }
   if (!places.length) {
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🔍</div><div style="font-weight:900;margin-top:8px">ไม่พบสถานที่</div><div style="font-size:12px;margin-top:6px">ลองพิมพ์ชื่อสถานที่อื่น</div></div>';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🔍</div><div style="font-weight:900;margin-top:8px">ไม่พบสถานที่</div></div>';
     return;
   }
   _shoppingPlacesCache = places.slice(0, 50);
@@ -2877,9 +3064,7 @@ function renderShoppingPlaces(){
       '<div class="place-card-shop-icon">' + cat.icon + '</div>' +
       '<div class="place-card-shop-info">' +
         '<div class="place-card-shop-name">' + esc(p.name) + '</div>' +
-        '<div class="place-card-shop-meta">' +
-          '<span>' + cat.icon + ' ' + esc(cat.name) + '</span>' + distHtml +
-        '</div>' +
+        '<div class="place-card-shop-meta"><span>' + cat.icon + ' ' + esc(cat.name) + '</span>' + distHtml + '</div>' +
       '</div>' +
       '<button class="place-card-shop-btn" onclick="event.stopPropagation();openShopOrderForm(\'' + esc(p.id) + '\')">🛒 ฝากซื้อ</button>' +
       '</div>';
@@ -2903,12 +3088,9 @@ window.openShopOrderForm = function(placeId){
   var fare = Math.round(baseFare + ((dist||0) * 1.3 * perKm));
   var quickItems = ['น้ำแข็ง', 'โซดา', 'น้ำเปล่า', 'เบียร์', 'บุหรี่', 'ขนม', 'นม', 'ไข่', 'ข้าวสาร', 'น้ำมันพืช'];
   $('modal-body').innerHTML =
-    '<div style="text-align:center;margin-bottom:16px">' +
-      '<div style="font-size:44px;margin-bottom:8px">' + cat.icon + '</div>' +
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">' + cat.icon + '</div>' +
       '<h2 style="font-size:18px;font-weight:900;color:var(--text)">' + esc(p.name) + '</h2>' +
-      '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-weight:700">' +
-        cat.icon + ' ' + esc(cat.name) + (dist != null ? ' • 📍 ' + fmtDistance(dist) : '') +
-      '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-weight:700">' + cat.icon + ' ' + esc(cat.name) + (dist != null ? ' • 📍 ' + fmtDistance(dist) : '') + '</div>' +
     '</div>' +
     '<div class="form-group"><label>🛒 รายการที่ให้ซื้อ</label>' +
       '<textarea id="shop-items" class="shop-items-input" placeholder="เช่น&#10;- โซดา 2 ขวด&#10;- น้ำแข็ง 1 ถุง"></textarea>' +
@@ -2920,10 +3102,9 @@ window.openShopOrderForm = function(placeId){
       '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ค่าไป-กลับ</span><span>฿' + baseFare + '</span></div>' +
       (dist != null ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ระยะทาง ' + (dist*1.3).toFixed(1) + ' กม. × ฿' + perKm + '</span><span>฿' + Math.round(dist*1.3*perKm) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);margin-top:6px;font-size:15px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fare + '</span></div>' +
-      '<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:6px">* ค่าของจ่ายเพิ่มตอนรับ</div>' +
     '</div>' +
-    '<div class="form-group"><label>📝 หมายเหตุ</label><textarea id="shop-note" rows="2" placeholder="เช่น ไปซื้อที่ปากซอย..."></textarea></div>' +
-    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="shop-phone" value="' + esc((userProfile&&userProfile.phone)||'') + '" placeholder="08X-XXX-XXXX"></div>' +
+    '<div class="form-group"><label>📝 หมายเหตุ</label><textarea id="shop-note" rows="2"></textarea></div>' +
+    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="shop-phone" value="' + esc((userProfile&&userProfile.phone)||'') + '"></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitShopOrder(\'' + esc(p.id) + '\')">✅ เรียกรถไปซื้อ (฿' + fare + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
@@ -2946,9 +3127,7 @@ window.submitShopOrder = async function(placeId){
   var phone = ($('shop-phone') && $('shop-phone').value.trim()) || '';
   if (!phone) return showToast('กรุณากรอกเบอร์ติดต่อ','warning');
   var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : 0;
-  var baseFare = 30;
-  var fare = Math.round(baseFare + (dist * 1.3 * 5));
-  var note = ($('shop-note') && $('shop-note').value.trim()) || '';
+  var fare = Math.round(30 + (dist * 1.3 * 5));
   try{
     await db.collection('orders').add({
       type: 'shopping', userId: currentUser.uid,
@@ -2962,7 +3141,7 @@ window.submitShopOrder = async function(placeId){
       fromLng: userLocation ? userLocation.lng : null,
       to: (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
       address: (userProfile&&userProfile.address) || '',
-      items: items, itemsText: items, note: note,
+      items: items, itemsText: items, note: ($('shop-note') && $('shop-note').value.trim()) || '',
       distanceKm: dist, status: 'searching',
       fare: fare, total: fare,
       paymentMode: 'cash',
@@ -2974,10 +3153,7 @@ window.submitShopOrder = async function(placeId){
   } catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   CATEGORY VIEW
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ CATEGORY ═══ */
 window.showCategory = function(cat){
   var map2 = {hotel:'h',tourist:'t',restaurant:'r',cafe:'f',convenience:'c',shop:'s',market:'m'};
   var code = map2[cat]||cat;
@@ -3000,10 +3176,7 @@ window.closeCategoryView = function(){
   if($('home-content')) $('home-content').style.display='block';
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   MAP PAGE (legacy)
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ MAP PAGE ═══ */
 window.openMapPage = function(){
   if($('map-page')) $('map-page').classList.add('show');
   setTimeout(function(){
@@ -3089,10 +3262,7 @@ window.confirmMapLocation = function(){
   setTimeout(function(){openVehicleModal();},300);
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   VEHICLE
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ VEHICLE ═══ */
 window.openVehicleModal = function(){
   selectedVehicle = null;
   document.querySelectorAll('.vehicle-option').forEach(function(o){o.classList.remove('selected');});
@@ -3122,10 +3292,7 @@ function calculateFare(vehicle, destLat, destLng) {
   return { base: baseFare, distance: distanceKm, perKm: perKmRate, total: total };
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   TRAVEL — เรียกรถ
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ TRAVEL ═══ */
 window.openTravelView = function(){ openMapPicker('travel'); };
 
 window.openRideOrderForm = function(vehicle){
@@ -3195,10 +3362,7 @@ window.submitRideOrder = async function(){
   }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   ORDER FORM — Generic
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ ORDER FORM ═══ */
 window.openOrderForm = function(type, dest){
   if (type === 'express') return openExpressForm(dest);
   var titles = {ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'};
@@ -3241,10 +3405,7 @@ window.submitOrder = async function(type){
   }catch(e){showToast('ส่งไม่สำเร็จ','error');}
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   EXPRESS — ส่งด่วน
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ EXPRESS ═══ */
 function openExpressForm(dest){
   expOrigin = userLocation ? {lat:userLocation.lat, lng:userLocation.lng, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'} : null;
   expDestination = dest ? {lat:dest.lat, lng:dest.lng, address:''} : null;
@@ -3368,8 +3529,7 @@ window.submitExpressOrder = async function(){
   if (expOrigin && expDestination) {
     distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
   }
-  var perKm = 5;
-  var total = Math.round(baseFare + (distanceKm * perKm));
+  var total = Math.round(baseFare + (distanceKm * 5));
   try{
     await db.collection('orders').add({
       type: 'express', userId: currentUser.uid,
@@ -3397,10 +3557,7 @@ window.submitExpressOrder = async function(){
   }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   MAP PICKER
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ MAP PICKER ═══ */
 window.openMapPicker = function(mode){
   if ($('modal')) $('modal').classList.remove('show');
   mapPickerMode = mode;
@@ -3511,10 +3668,7 @@ window.confirmMapPicker = function(){
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   PLACE DETAIL
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ PLACE DETAIL ═══ */
 window.showPlaceDetail = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if(!p) return;
@@ -3545,10 +3699,7 @@ window.setDestFromPlace = function(placeId){
   }, 500);
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   SERVICE WORKER
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ SERVICE WORKER ═══ */
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'})
@@ -3559,3 +3710,7 @@ if('serviceWorker' in navigator){
 
 console.log('%c🚀 Chauat Go v3.6.0 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Nearby Shops + Menu Promo + Cart Option 3', 'color:#FF6B35;font-weight:800;font-size:12px');
+</script>
+
+</body>
+</html>
