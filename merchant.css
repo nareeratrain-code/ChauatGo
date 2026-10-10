@@ -867,3 +867,50 @@ body {
   .stat-card .val { font-size: 16px; }
   .new-order-card h2 { font-size: 20px; }
 }
+/* ═══════════════════════════════════════════════════════════════
+   ⭐ v3.4.9: SOUND UNLOCK BANNER
+   ═══════════════════════════════════════════════════════════════ */
+.sound-unlock-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+  border-left: 4px solid var(--orange);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 14px;
+  box-shadow: var(--shadow-sm);
+  animation: slideUp .4s;
+}
+[data-theme="dark"] .sound-unlock-banner {
+  background: linear-gradient(135deg, #3F2F1F, #4F3F2F);
+  border-left-color: var(--yellow);
+}
+.sound-unlock-banner.hidden { display: none !important; }
+
+.sound-unlock-btn {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(255,152,0,.35);
+  transition: transform .15s;
+  min-height: 40px;
+}
+.sound-unlock-btn:active { transform: scale(.95); }
+
+/* ═══ NEW ORDER POPUP — Loop Animation ═══ */
+.new-order-popup.show .bell {
+  animation: bellShake 0.8s infinite;
+}
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 360px) {
+  .sound-unlock-banner { flex-wrap: wrap; }
+  .sound-unlock-btn { width: 100%; }
+}
