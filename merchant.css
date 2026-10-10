@@ -1,6 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.4.9
+   🏪 CHAUAT GO MERCHANT — v3.5.0
    Design System • Modern UI • Dark/Light Mode
+   + Sound Unlock Banner + Loop Animation
+   + Menu Status + Promotion
    ═══════════════════════════════════════════════════════════════════ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -23,6 +25,12 @@
   --shadow-lg: 0 12px 32px rgba(0,0,0,.12);
   --overlay-bg: rgba(0,0,0,.6);
   --input-bg: #FAFBFC;
+  /* v3.5.0 */
+  --promo-red: #E53935;
+  --promo-red-light: #FFEBEE;
+  --status-available: #00A651;
+  --status-out: #FF9800;
+  --status-hidden: #6B7280;
 }
 [data-theme="dark"] {
   --brand: #22C55E; --brand-dark: #16A34A; --brand-light: #1F3F1F;
@@ -42,6 +50,11 @@
   --shadow-lg: 0 12px 32px rgba(0,0,0,.6);
   --overlay-bg: rgba(0,0,0,.8);
   --input-bg: #232830;
+  --promo-red: #EF4444;
+  --promo-red-light: #3F1F1F;
+  --status-available: #22C55E;
+  --status-out: #FBBF24;
+  --status-hidden: #6B7280;
 }
 
 html, body {
@@ -76,6 +89,7 @@ body {
 @keyframes ripple { to { transform: scale(4); opacity: 0; } }
 @keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,166,81,.7); } 50% { box-shadow: 0 0 0 12px rgba(0,166,81,0); } }
 @keyframes bellShake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
+@keyframes promoShine { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
 /* ═══ SPLASH ═══ */
 #splash-screen {
@@ -259,7 +273,6 @@ body {
 .header-info { flex: 1; min-width: 0; }
 .header-info .name { font-size: 16px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .header-info .status { font-size: 11px; opacity: .9; font-weight: 700; margin-top: 2px; }
-.header-info .shop-id { font-size: 10px; opacity: .75; font-weight: 700; margin-top: 2px; }
 
 .shop-toggle {
   background: rgba(255,255,255,.2); color: #fff;
@@ -676,24 +689,38 @@ body {
 
 .sheet-version { text-align: center; font-size: 11px; color: var(--text-light); margin-top: 12px; font-weight: 600; }
 
-/* ═══ SHOP ID BOX ═══ */
-.shop-id-box {
-  background: var(--brand-light); border-radius: 14px;
-  padding: 14px; display: flex; align-items: center; gap: 12px;
+/* ═══ SHOP INFO BOX (v3.5.0) ═══ */
+.shop-info-box {
+  background: linear-gradient(135deg, var(--brand-light), #D4E8B8);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex; align-items: center; gap: 12px;
   margin-bottom: 16px;
+  border-left: 4px solid var(--brand);
 }
-.shop-id-box .ico { font-size: 28px; }
-.shop-id-box .info { flex: 1; min-width: 0; }
-.shop-id-box .lbl { font-size: 11px; color: var(--text-muted); font-weight: 700; }
-.shop-id-box .val { font-size: 12px; font-weight: 900; color: var(--text); word-break: break-all; margin-top: 2px; }
-.copy-btn {
-  background: var(--brand); color: #fff;
-  border: none; padding: 8px 12px; border-radius: 10px;
-  font-size: 12px; font-weight: 900; cursor: pointer;
-  font-family: inherit; min-height: 36px;
+[data-theme="dark"] .shop-info-box {
+  background: linear-gradient(135deg, #1F3F1F, #2F4F2F);
 }
-.copy-btn:active { transform: scale(.95); }
+.shop-info-emoji {
+  font-size: 32px;
+  width: 52px; height: 52px;
+  background: var(--surface);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+}
+.shop-info-content { flex: 1; min-width: 0; }
+.shop-info-name {
+  font-size: 15px; font-weight: 900; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shop-info-status {
+  font-size: 11px; font-weight: 800; color: var(--text-muted);
+  margin-top: 3px;
+}
 
+/* ═══ MENU LINK ═══ */
 .menu-link { justify-content: flex-start !important; margin-bottom: 8px; }
 
 /* ═══ IMG UPLOAD ═══ */
@@ -867,9 +894,10 @@ body {
   .stat-card .val { font-size: 16px; }
   .new-order-card h2 { font-size: 20px; }
 }
-/* ═══════════════════════════════════════════════════════════════
+
+/* ═══════════════════════════════════════════════════════════════════
    ⭐ v3.4.9: SOUND UNLOCK BANNER
-   ═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════════ */
 .sound-unlock-banner {
   display: flex; align-items: center; gap: 12px;
   background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
@@ -904,13 +932,334 @@ body {
 }
 .sound-unlock-btn:active { transform: scale(.95); }
 
-/* ═══ NEW ORDER POPUP — Loop Animation ═══ */
 .new-order-popup.show .bell {
   animation: bellShake 0.8s infinite;
 }
 
-/* ═══ RESPONSIVE ═══ */
 @media (max-width: 360px) {
   .sound-unlock-banner { flex-wrap: wrap; }
   .sound-unlock-btn { width: 100%; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ⭐ v3.5.0: MENU STATUS + PROMOTION
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══ Section box ใน form ═══ */
+.menu-section-box {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+}
+.menu-section-title {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ═══ Status Picker (3 ปุ่ม) ═══ */
+.status-picker {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: left;
+  transition: all .2s;
+  min-height: 52px;
+}
+.status-option:active { transform: scale(.98); }
+.status-option .status-emoji {
+  font-size: 22px;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+.status-option .status-label { flex: 1; }
+
+.status-option.status-available.active {
+  border-color: var(--status-available);
+  background: var(--green-light);
+  color: var(--status-available);
+  box-shadow: 0 4px 12px rgba(0,166,81,.2);
+}
+.status-option.status-out.active {
+  border-color: var(--status-out);
+  background: var(--orange-light);
+  color: #E65100;
+  box-shadow: 0 4px 12px rgba(255,152,0,.2);
+}
+.status-option.status-hidden.active {
+  border-color: var(--status-hidden);
+  background: var(--surface-2);
+  color: var(--status-hidden);
+  box-shadow: 0 4px 12px rgba(107,114,128,.2);
+}
+
+[data-theme="dark"] .status-option.status-available.active { background: #1F3F1F; color: #22C55E; }
+[data-theme="dark"] .status-option.status-out.active { background: #3F2F1F; color: #FFB74D; }
+[data-theme="dark"] .status-option.status-hidden.active { background: #2D333B; color: #9CA3AF; }
+
+/* ═══ Promotion Section ═══ */
+.promo-section {
+  background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+  border-color: var(--orange);
+}
+[data-theme="dark"] .promo-section {
+  background: linear-gradient(135deg, #3F2F1F, #4F3F2F);
+}
+
+.promo-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.promo-toggle input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.promo-type-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.promo-type-btn {
+  padding: 12px 8px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all .15s;
+  min-height: 48px;
+}
+.promo-type-btn:active { transform: scale(.97); }
+.promo-type-btn.active {
+  border-color: var(--promo-red);
+  background: var(--promo-red-light);
+  color: var(--promo-red);
+  box-shadow: 0 4px 12px rgba(229,57,53,.2);
+}
+[data-theme="dark"] .promo-type-btn.active {
+  background: #3F1F1F;
+  color: #EF4444;
+}
+
+.promo-value-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.promo-value-label {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.promo-value-row input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 900;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  text-align: center;
+  min-height: 48px;
+}
+.promo-value-row input:focus { border-color: var(--promo-red); }
+.promo-value-unit {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--promo-red);
+  flex-shrink: 0;
+  min-width: 24px;
+}
+
+.promo-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.promo-quick-chips button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all .15s;
+  min-height: 36px;
+}
+.promo-quick-chips button:active {
+  transform: scale(.95);
+  background: var(--promo-red-light);
+  color: var(--promo-red);
+  border-color: var(--promo-red);
+}
+
+.promo-preview {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  border-left: 3px solid var(--promo-red);
+  margin-top: 8px;
+}
+.promo-preview-label {
+  color: var(--text-muted);
+  margin-right: 6px;
+  font-weight: 700;
+}
+#mf-promo-preview-text {
+  color: var(--promo-red);
+  font-weight: 900;
+}
+
+/* ═══ Promo Badge (ในการ์ดเมนู) ═══ */
+.promo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: linear-gradient(135deg, #E53935, #C62828);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(229,57,53,.35);
+  animation: promoShine 3s linear infinite;
+  background-size: 200% 100%;
+  white-space: nowrap;
+}
+.promo-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+  animation: promoShine 2s linear infinite;
+  pointer-events: none;
+  border-radius: 8px;
+}
+
+/* ═══ Status Badge (ในการ์ดเมนู) ═══ */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.status-badge.status-available {
+  background: var(--green-light);
+  color: var(--status-available);
+}
+.status-badge.status-out {
+  background: var(--orange-light);
+  color: #E65100;
+}
+.status-badge.status-hidden {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .status-badge.status-available { background: #1F3F1F; color: #22C55E; }
+[data-theme="dark"] .status-badge.status-out { background: #3F2F1F; color: #FFB74D; }
+[data-theme="dark"] .status-badge.status-hidden { background: #2D333B; color: #9CA3AF; }
+
+/* ═══ Price Display (ราคาเก่า + ใหม่) ═══ */
+.menu-price-display {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.menu-price-old {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-decoration: line-through;
+}
+.menu-price-new {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--promo-red);
+}
+.menu-price-normal {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--green);
+}
+
+/* ═══ Menu Item — variant ═══ */
+.menu-item.status-hidden-item {
+  opacity: 0.55;
+  filter: grayscale(0.3);
+}
+.menu-item.status-out-item {
+  border-left: 3px solid var(--status-out);
+}
+.menu-item.status-available-item {
+  border-left: 3px solid var(--status-available);
+}
+
+/* ═══ Menu Badges Row ═══ */
+.menu-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* ═══ Responsive ═══ */
+@media (max-width: 360px) {
+  .promo-type-row { grid-template-columns: 1fr; }
+  .status-option { padding: 10px 12px; font-size: 12px; }
+  .status-option .status-emoji { font-size: 20px; }
+  .promo-value-row input { font-size: 14px; }
 }
