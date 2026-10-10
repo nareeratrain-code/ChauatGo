@@ -1,6 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.4.8
+   🏪 CHAUAT GO MERCHANT — v3.4.8.1
    Full-featured Production JavaScript
+   - Fix signup/login retry
+   - Auto-create docs
+   - Debug mode
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -20,6 +23,10 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
+
+// ⭐ v3.4.8.1: DEBUG MODE
+window.CHAUAT_MERCHANT_DEBUG = true;
+console.log('%c🏪 Chauat Go Merchant v3.4.8.1 — DEBUG ON', 'color:#00A651;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -42,12 +49,10 @@ let audioCtx = null;
 let deferredPrompt = null;
 let isShopOpen = false;
 
-/* Edit menu state */
 let editingMenuId = null;
 let editingMenuImgBlob = null;
 let editingMenuImgUrl = null;
 
-/* GP transfer state */
 let gpSlipFile = null;
 let currentGpPending = 0;
 
@@ -124,7 +129,7 @@ const isThisMonth = (t) => {
 };
 
 const debugLog = (msg, isError) => {
-  if (typeof window.CHAUAT_MERCHANT_DEBUG !== 'undefined' && window.CHAUAT_MERCHANT_DEBUG) {
+  if (window.CHAUAT_MERCHANT_DEBUG) {
     if (isError) console.warn(msg); else console.log(msg);
   }
 };
@@ -279,7 +284,6 @@ function getDaysLeft(merchant) {
 }
 
 function calcGp(foodTotal, merchant) {
-  // ถ้าอยู่ในโปรฯ ไม่คิด
   if (isPromoActive(merchant)) {
     return { total: 0, rider: 0, platform: 0, isPromo: true };
   }
@@ -290,7 +294,6 @@ function calcGp(foodTotal, merchant) {
 }
 
 function calcOrderFoodTotal(order) {
-  // ยอดอาหาร = itemsTotal หรือ foodTotal
   return Number(order.itemsTotal || order.foodTotal || 0);
 }
 
@@ -363,11 +366,24 @@ async function handleSignup(e) {
   let createdUser = null;
 
   try {
+    console.log('📝 Step 1: Create Auth user');
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     createdUser = cred.user;
     await createdUser.updateProfile({ displayName: shopName });
+    console.log('✅ Auth user created:', createdUser.uid);
 
-    // สร้าง merchant doc (ใช้ uid เป็น mid)
+    // ⭐ v3.4.8.1: สร้าง users ก่อน (ตรวจ role)
+    console.log('📄 Step 2: Create users doc');
+    await db.collection('users').doc(createdUser.uid).set({
+      role: 'merchant',
+      name: shopName,
+      email: email,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    console.log('✅ users doc created');
+
+    // ⭐ สร้าง merchants
+    console.log('🏪 Step 3: Create merchants doc');
     await db.collection('merchants').doc(createdUser.uid).set({
       merchantId: createdUser.uid,
       name: shopName,
@@ -387,17 +403,22 @@ async function handleSignup(e) {
       gpConsent: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-
-    // สร้าง users doc (Auth Guard)
-    await db.collection('users').doc(createdUser.uid).set({
-      role: 'merchant',
-      name: shopName,
-      email: email,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    console.log('✅ merchants doc created');
 
     showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
+    console.log('🎉 SIGNUP COMPLETE');
+
+    // ⭐ Sign out หลังสมัคร → ให้ login เอง (ปลอดภัย)
+    setTimeout(async () => {
+      await auth.signOut();
+      switchAuthTab('login');
+      const le = $('login-email');
+      if (le) le.value = email;
+      showToast('📧 เข้าสู่ระบบด้วยอีเมลที่สมัคร', 'info');
+    }, 1800);
+
   } catch (err) {
+    console.error('❌ Signup error:', err);
     if (createdUser) {
       try { await createdUser.delete(); } catch (e) {}
     }
@@ -445,18 +466,59 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   currentUser = user;
+  console.log('👤 Auth state:', user.email, user.uid);
 
   try {
-    const userDoc = await db.collection('users').doc(user.uid).get();
-    if (!userDoc.exists || userDoc.data().role !== 'merchant') {
-      showToast('บัญชีนี้ไม่ใช่ร้านค้า', 'error');
+    // ⭐ v3.4.8.1: Retry 5 ครั้ง (รอ Firestore propagate)
+    let userDoc = null;
+    let merchantDoc = null;
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      console.log(`🔍 Attempt ${attempt}/5: check docs`);
+
+      try {
+        userDoc = await db.collection('users').doc(user.uid).get();
+      } catch (e) {
+        console.warn('users read error:', e.code);
+      }
+
+      try {
+        merchantDoc = await db.collection('merchants').doc(user.uid).get();
+      } catch (e) {
+        console.warn('merchants read error:', e.code);
+      }
+
+      if (userDoc?.exists && merchantDoc?.exists) {
+        console.log('✅ Both docs found');
+        break;
+      }
+
+      if (attempt < 5) {
+        console.log(`⏳ Waiting 1s before retry...`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    // Check users doc
+    if (!userDoc || !userDoc.exists) {
+      console.error('❌ users doc not found after 5 retries');
+      showToast('ไม่พบข้อมูลบัญชี — กรุณาสมัครใหม่', 'error');
       await auth.signOut();
       return;
     }
 
-    const merchantDoc = await db.collection('merchants').doc(user.uid).get();
-    if (!merchantDoc.exists) {
-      showToast('ไม่พบข้อมูลร้านค้า', 'error');
+    const userRole = userDoc.data().role;
+    if (userRole !== 'merchant') {
+      console.error('❌ Role is not merchant:', userRole);
+      showToast('บัญชีนี้ไม่ใช่ร้านค้า (role: ' + userRole + ')', 'error');
+      await auth.signOut();
+      return;
+    }
+
+    // Check merchants doc
+    if (!merchantDoc || !merchantDoc.exists) {
+      console.error('❌ merchants doc not found');
+      showToast('ไม่พบข้อมูลร้านค้า — กรุณาสมัครใหม่', 'error');
       await auth.signOut();
       return;
     }
@@ -465,9 +527,11 @@ auth.onAuthStateChanged(async (user) => {
     $('login-screen').style.display = 'none';
     $('app').style.display = 'block';
 
+    console.log('✅ Login success:', merchantProfile.name);
     initApp();
   } catch (err) {
-    showToast('เกิดข้อผิดพลาด', 'error');
+    console.error('❌ Auth state error:', err);
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
     await auth.signOut();
   }
 });
@@ -528,7 +592,6 @@ function subscribeOrders() {
         return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
       });
 
-      // แจ้งเตือนออเดอร์ใหม่
       const newOnes = allOrders.filter(o =>
         !prevIds.has(o.id) &&
         o.status === 'pending' &&
@@ -547,7 +610,7 @@ function subscribeOrders() {
       updateGpTab();
       updateNavBadge();
     }, err => {
-      debugLog('Orders: ' + err.code, true);
+      console.warn('Orders sub:', err.code);
     });
 }
 
@@ -597,10 +660,6 @@ function updateShopToggle() {
 }
 
 function updateHeroStats() {
-  const todayOrders = allOrders.filter(o =>
-    (o.status === 'done' || o.status === 'cooking' || o.status === 'ready' || o.status === 'pending') &&
-    isToday(o.createdAt)
-  );
   const doneToday = allOrders.filter(o => o.status === 'done' && isToday(o.createdAt));
 
   let todayRevenue = 0;
@@ -811,7 +870,6 @@ function viewOrderDetail(orderId) {
     `;
   }
 
-  // Actions
   const actionsHtml = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       ${o.userPhone?`<a href="tel:${esc(o.userPhone)}" class="order-btn btn-accept ripple" style="text-decoration:none">📞 โทรลูกค้า</a>`:''}
@@ -1132,18 +1190,15 @@ function updateGpTab() {
   const today = doneOrders.filter(o => isToday(o.doneAt || o.createdAt));
   const month = doneOrders.filter(o => isThisMonth(o.doneAt || o.createdAt));
 
-  // GP Pending (จาก merchant.gpPending)
   const pending = Number(merchantProfile.gpPending || 0);
   const pendingEl = $('gp-pending');
   if (pendingEl) pendingEl.textContent = '฿' + fmt(pending);
   currentGpPending = pending;
 
-  // คำนวณยอดขายเดือนนี้
   const monthSales = month.reduce((s, o) => s + calcOrderFoodTotal(o), 0);
   const pendingSub = $('gp-pending-sub');
   if (pendingSub) pendingSub.textContent = 'จากยอดขาย ' + fmt(monthSales) + '฿';
 
-  // Today breakdown
   const todaySales = today.reduce((s, o) => s + calcOrderFoodTotal(o), 0);
   let todayGp = 0, todayRider = 0, todayPlatform = 0;
   today.forEach(o => {
@@ -1160,7 +1215,6 @@ function updateGpTab() {
   el('gp-today-platform', '฿' + fmt(todayPlatform));
   el('gp-today-net', '฿' + fmt(todaySales - todayGp));
 
-  // Month stats
   let monthGp = 0;
   month.forEach(o => {
     const gp = calcGp(calcOrderFoodTotal(o), merchantProfile);
@@ -1171,7 +1225,6 @@ function updateGpTab() {
   el('gp-month-total', '฿' + fmt(monthGp));
   el('gp-month-net', '฿' + fmt(monthSales - monthGp));
 
-  // Promo countdown
   const daysLeft = getDaysLeft(merchantProfile);
   const isPromo = isPromoActive(merchantProfile);
   const cd = $('gp-countdown');
@@ -1186,7 +1239,6 @@ function updateGpTab() {
     }
   }
 
-  // GP history
   renderGpHistory();
 }
 
@@ -1244,7 +1296,6 @@ function openGpTransferForm() {
   openSheet('gp-transfer-sheet');
 }
 
-// Bind slip upload
 document.addEventListener('change', (e) => {
   if (e.target.id === 'gp-slip-input') {
     const file = e.target.files[0];
@@ -1271,7 +1322,6 @@ async function submitGpTransfer() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
   try {
-    // อัปโหลดสลิป
     const compressed = await compressImage(gpSlipFile, 1000, 0.8);
     const path = `gp_slips/${currentUser.uid}/${Date.now()}.jpg`;
     const ref = storage.ref(path);
@@ -1283,7 +1333,6 @@ async function submitGpTransfer() {
     const now = new Date();
     const roundLabel = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
-    // เพิ่มเข้า gpHistory
     const historyEntry = {
       amount: amount,
       slipUrl: slipUrl,
@@ -1300,7 +1349,6 @@ async function submitGpTransfer() {
       lastGpTransferAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // บันทึก log แยก
     await db.collection('gp_transfers').add({
       merchantId: currentUser.uid,
       merchantName: merchantProfile.name,
@@ -1377,9 +1425,7 @@ function showShopInfo() {
   `;
   const sheet = document.querySelector('#menu-sheet .sheet');
   if (sheet) {
-    // Replace content temporarily
     sheet.innerHTML = '<div class="sheet-handle"></div><h2>🏪 ข้อมูลร้าน</h2>' + infoHtml;
-    // Restore on close
     const closeBtn = sheet.querySelector('.sheet-close');
     if (closeBtn) closeBtn.onclick = () => {
       closeSheet('menu-sheet');
