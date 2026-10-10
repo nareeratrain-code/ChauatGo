@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.5.0</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.5.1</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chauat Merchant">
@@ -15,7 +15,7 @@
 <!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.5.0-20241012-001';
+  var VERSION = 'v3.5.1-20241013-001';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -199,7 +199,7 @@
     <span style="font-size:11px;opacity:.8">จะเปิดรับออเดอร์ได้เมื่ออนุมัติแล้ว</span>
   </div>
 
-  <!-- ⭐ v3.4.9: SOUND UNLOCK BANNER -->
+  <!-- SOUND UNLOCK BANNER -->
   <div class="sound-unlock-banner" id="sound-unlock-banner" style="display:none">
     <span style="font-size:24px">🔔</span>
     <div style="flex:1;min-width:0">
@@ -410,7 +410,7 @@
     <div class="form-row">
       <div class="form-field">
         <label>💰 ราคา (บาท) *</label>
-        <input type="number" id="mf-price" placeholder="40" min="1" step="1">
+        <input type="number" id="mf-price" placeholder="40" min="1" step="1" oninput="updatePromoPreview()">
       </div>
       <div class="form-field">
         <label>📂 หมวดหมู่</label>
@@ -451,7 +451,7 @@
     <!-- ⭐ v3.5.0: โปรโมชั่น -->
     <div class="menu-section-box promo-section">
       <div class="menu-section-title">🔥 โปรโมชั่น (ไม่บังคับ)</div>
-      
+
       <label class="promo-toggle">
         <input type="checkbox" id="mf-promo-active" onchange="onPromoToggle()">
         <span>เปิดโปรโมชั่นสำหรับเมนูนี้</span>
@@ -520,12 +520,91 @@
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('menus',document.querySelector('[data-tab=menus]'))">🍽️ จัดการเมนู</button>
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('history',document.querySelector('[data-tab=history]'))">📜 ประวัติออเดอร์</button>
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('gp',document.querySelector('[data-tab=gp]'))">💰 สรุป GP</button>
+
+    <!-- ⭐ v3.5.1: ตั้งค่าเสียง -->
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');openSoundSettings()">
+      <span style="display:flex;align-items:center;gap:8px;width:100%">
+        <span style="font-size:20px">🔊</span>
+        <span style="flex:1;text-align:left">ตั้งค่าเสียงเตือน</span>
+        <span style="font-size:16px;opacity:.5">›</span>
+      </span>
+    </button>
+
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');showShopInfo()">🏪 ข้อมูลร้าน</button>
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');installPWA()">📱 ติดตั้งแอป</button>
     <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
 
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-    <div class="sheet-version">Chauat Merchant v3.5.0</div>
+    <div class="sheet-version">Chauat Merchant v3.5.1</div>
+  </div>
+</div>
+
+<!-- ⭐ v3.5.1: SOUND SETTINGS SHEET ═══ -->
+<div class="sheet-overlay" id="sound-settings-sheet" onclick="if(event.target===this)closeSheet('sound-settings-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>🔊 ตั้งค่าเสียงเตือน</h2>
+
+    <!-- เสียง -->
+    <div class="sound-section">
+      <div class="sound-section-title">🎵 เลือกเสียงเตือน</div>
+      <div class="sound-tone-picker">
+        <button type="button" class="sound-tone-option" data-tone="1" onclick="pickSoundTone(1)">
+          <div class="sound-tone-icon">🎵</div>
+          <div class="sound-tone-content">
+            <div class="sound-tone-name">ติ๊ง-ติ๊ง</div>
+            <div class="sound-tone-desc">เสียงสดใส 4 โน้ต</div>
+          </div>
+          <div class="sound-tone-check">✓</div>
+        </button>
+        <button type="button" class="sound-tone-option" data-tone="2" onclick="pickSoundTone(2)">
+          <div class="sound-tone-icon">📢</div>
+          <div class="sound-tone-content">
+            <div class="sound-tone-name">บี๊บ-บี๊บ</div>
+            <div class="sound-tone-desc">เสียงสั้น คมชัด 3 บี๊บ</div>
+          </div>
+          <div class="sound-tone-check">✓</div>
+        </button>
+        <button type="button" class="sound-tone-option" data-tone="3" onclick="pickSoundTone(3)">
+          <div class="sound-tone-icon">🔔</div>
+          <div class="sound-tone-content">
+            <div class="sound-tone-name">ระฆัง</div>
+            <div class="sound-tone-desc">เสียงสูง-ต่ำ สไตล์ระฆัง</div>
+          </div>
+          <div class="sound-tone-check">✓</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- ระดับเสียง -->
+    <div class="sound-section">
+      <div class="sound-section-title">📊 ระดับความดัง</div>
+      <div class="sound-volume-picker">
+        <button type="button" class="sound-volume-option" data-vol="low" onclick="pickSoundVolume('low')">
+          <div class="sound-volume-icon">🔈</div>
+          <div class="sound-volume-label">เบา</div>
+        </button>
+        <button type="button" class="sound-volume-option" data-vol="mid" onclick="pickSoundVolume('mid')">
+          <div class="sound-volume-icon">🔉</div>
+          <div class="sound-volume-label">กลาง</div>
+        </button>
+        <button type="button" class="sound-volume-option" data-vol="high" onclick="pickSoundVolume('high')">
+          <div class="sound-volume-icon">🔊</div>
+          <div class="sound-volume-label">ดัง</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- ทดสอบ -->
+    <button type="button" class="btn-secondary ripple sound-test-btn" onclick="testSound()">
+      🔊 ทดสอบเสียง
+    </button>
+
+    <!-- บันทึก -->
+    <button type="button" class="btn-primary ripple" id="btn-save-sound" onclick="saveSoundSettings()">
+      💾 บันทึกการตั้งค่า
+    </button>
+    <button class="sheet-close ripple" onclick="closeSheet('sound-settings-sheet')">ยกเลิก</button>
   </div>
 </div>
 
