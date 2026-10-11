@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.6.1</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.6.2</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.6.1-20251011-001';
+  var VERSION = 'v3.6.2-20251012-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -52,7 +52,7 @@
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.6.1 — Travel View + Chat Image + Bug Fixes
+   CHAUAT GO v3.6.2 — Full CSS
    ═══════════════════════════════════════════════════════════════ */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
@@ -183,6 +183,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-badge { display: inline-flex; align-items: center; gap: 3px; background: #FFF3E0; color: #E65100; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 8px; margin-top: 3px; }
 [data-theme="dark"] .merchant-badge { background: #3F2F1F; color: #FFB74D; }
 .merchant-distance { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 800; color: var(--text-muted); margin-top: 3px; }
+
 /* ═══ EXPRESS FORM ═══ */
 .exp-picker-row { display: flex; gap: 8px; margin-top: 6px; }
 .exp-pick-btn { flex: 1; padding: 10px 8px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 900; cursor: pointer; min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 4px; transition: all .15s; }
@@ -278,6 +279,11 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 [data-theme="dark"] .menu-icon.hotel { background: #3F2F1F; }
 [data-theme="dark"] .menu-icon.map { background: #1F3F1F; }
 .menu-label { font-size: 12px; font-weight: 900; color: var(--text); }
+
+.hot-section { margin-bottom: 14px; }
+.hot-title { background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; padding: 14px 16px; border-radius: 14px; font-weight: 900; font-size: 14px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid #FFA500; }
+[data-theme="dark"] .hot-title { background: linear-gradient(135deg, #3F2F1F, #4F3F2F); }
+.hot-badge { background: #E65100; color: #fff; font-size: 10px; padding: 4px 10px; border-radius: 10px; font-weight: 900; }
 
 .food-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px 14px; }
 .food-card { background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .15s, box-shadow .15s; animation: cardSlideIn .35s backwards; }
@@ -395,6 +401,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .cart-bar { position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s cubic-bezier(.32,.72,0,1); }
 .cart-bar.show { transform: translateX(-50%) translateY(0); }
 .cart-bar:active { transform: translateX(-50%) translateY(0) scale(.98); }
+
 /* ═══ PROFILE SHEET ═══ */
 .profile-sheet { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9500; display: none; justify-content: flex-end; backdrop-filter: blur(4px); }
 .profile-sheet.show { display: flex !important; animation: fadeIn .2s; }
@@ -559,8 +566,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .chat-header-sub { font-size: 11px; opacity: .85; font-weight: 700; margin-top: 2px; }
 .chat-online-dot { width: 10px; height: 10px; border-radius: 50%; background: #4ADE80; box-shadow: 0 0 0 3px rgba(74,222,128,.3); flex-shrink: 0; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
-.chat-empty { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 13px; font-weight: 700; }
-.chat-day-divider { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 800; margin: 12px 0 4px; padding: 4px 12px; background: var(--surface-2); border-radius: 10px; align-self: center; }
+.chat-empty { text-align: center; padding: 40px-size 20px; color: var(--text-light); font-size: 13px;: font-weight: 700; }
+.chat-day-divider { text-align: center ; font11px; color: var(--text-muted); font-weight: 800; margin: 12px 0 4px; padding: 4px 12px; background: var(--surface-2); border-radius: 10px; align-self: center; }
 .chat-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; font-weight: 600; line-height: 1.4; word-break: break-word; animation: popIn .2s; }
 .chat-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-bottom-right-radius: 6px; }
 .chat-bubble.theirs { align-self: flex-start; background: var(--surface); color: var(--text); border-bottom-left-radius: 6px; box-shadow: var(--shadow-sm); }
@@ -568,8 +575,20 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .chat-bubble .msg-image { max-width: 100%; border-radius: 12px; margin-bottom: 6px; cursor: pointer; display: block; }
 .chat-bubble .msg-image.loading { opacity: .5; }
 
-.chat-input-bar { display: flex; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); align-items: center; }
-.chat-input-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); }
+/* ⭐ v3.6.2: Fix chat-input-bar */
+.chat-input-bar { 
+  display: flex !important; 
+  gap: 8px; 
+  padding: 10px 12px; 
+  background: var(--surface); 
+  border-top: 1px solid var(--border); 
+  flex-shrink: 0; 
+  padding-bottom: calc(10px + env(safe-area-inset-bottom)); 
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.chat-input-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); min-width: 0; }
 .chat-input-bar input:focus { border-color: var(--green); }
 .chat-img-btn { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 20px; cursor: pointer; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .15s; }
 .chat-img-btn:active { transform: scale(.9); background: var(--brand-light); border-color: var(--brand); }
@@ -835,7 +854,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ═══ ALL SHOPS MODAL (v3.6.1 หัวข้อใหม่) ═══ -->
+<!-- ═══ ALL SHOPS MODAL ═══ -->
 <div class="all-shops-modal" id="all-shops-modal" onclick="if(event.target===this)closeAllShopsModal()">
   <div class="all-shops-content">
     <div class="all-shops-header">
@@ -845,7 +864,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     <div class="all-shops-list" id="all-shops-list"></div>
   </div>
 </div>
-<!-- ═══ CHAT PAGE (v3.6.1 + Image Button) ═══ -->
+
+<!-- ═══ CHAT PAGE ═══ -->
 <div id="chat-page">
   <div class="chat-header">
     <button class="chat-back-btn press-scale" onclick="closeChatPage()">← กลับ</button>
@@ -896,7 +916,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   </div>
 </div>
 
-<!-- ═══ NEW v3.6.1 — TRAVEL VIEW (Grab-style) ═══ -->
+<!-- ═══ TRAVEL VIEW (v3.6.1) ═══ -->
 <div id="travel-view" class="travel-view">
   <div class="travel-header">
     <button class="travel-back-btn press-scale" onclick="closeTravelView()">← กลับ</button>
@@ -1020,6 +1040,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <img id="lightbox-img" src="" alt="">
   <button class="lightbox-close" onclick="closeLightbox()">✕</button>
 </div>
+
 <!-- ═══ HEADER ═══ -->
 <div class="header" id="main-header">
   <img src="images/logo-banner.png" class="brand-logo" alt="Chauat Go" onerror="this.style.display='none'">
@@ -1101,7 +1122,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="menu-item" onclick="openMapPage()"><div class="menu-icon map">🗺️</div><div class="menu-label">แผนที่</div></div>
     </div>
 
-    <!-- ═══ NEARBY SHOPS (v3.6.1 หัวข้อใหม่) ═══ -->
+    <!-- ═══ NEARBY SHOPS ═══ -->
     <div class="nearby-section">
       <div class="nearby-header">
         <div class="nearby-title">🍽️ ร้านอาหารใกล้ฉัน ส่งด่วนเดลิเวอรี่</div>
@@ -1206,7 +1227,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="pf-section">
         <div class="pf-section-title">⚙️ การตั้งค่า</div>
         <button class="pf-menu-item" onclick="openEditProfile()"><div class="ico g">✏️</div><div class="txt"><div class="t">แก้ไขโปรไฟล์</div><div class="s">ชื่อ, เบอร์, LINE, ที่อยู่</div></div><div class="arr">›</div></button>
-        <button class="pf-menu-item" onclick="checkLocationPopup();closeProfileSheet()"><div class="ico b">📍</div><div class="txt"><div class="t">การเข้าถึงตำแหน่ง</div><div class="s">GPS</div></div><div class="arr">›</div></button>
+        <button class="pf-menu-item" onclick="event.preventDefault();closeProfileSheet();setTimeout(function(){checkLocationPopup();},300)"><div class="ico b">📍</div><div class="txt"><div class="t">การเข้าถึงตำแหน่ง</div><div class="s">GPS</div></div><div class="arr">›</div></button>
         <button class="pf-menu-item" onclick="toggleTheme();closeProfileSheet()"><div class="ico b">🌙</div><div class="txt"><div class="t">เปลี่ยนธีม</div><div class="s">Light / Dark Mode</div></div><div class="arr">›</div></button>
       </div>
       <div class="pf-section">
@@ -1216,7 +1237,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.6.1 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.6.2 • © 2024</div>
       </div>
     </div>
   </div>
@@ -1231,8 +1252,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="locations-data.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   CHAUAT GO v3.6.1 — Main Application
-   Travel View + Chat Image + Bug Fixes
+   CHAUAT GO v3.6.2 — Main Application Part 1
    ═══════════════════════════════════════════════════════════════ */
 
 var firebaseConfig = {
@@ -1304,7 +1324,7 @@ var currentTrackingOrder = null;
 var lastTrackedPositions = {};
 var nearbyShopsCache = [];
 var nearbyShopsLoaded = false;
-var riderGpsUnsubs = {};  /* v3.6.1: เก็บ unsub ของ gps_riders ต่อ orderId */
+var riderGpsUnsubs = {};
 
 var CATS = {
   r:{name:'ร้านอาหาร',icon:'🍽️'}, f:{name:'คาเฟ่',icon:'☕'},
@@ -1340,19 +1360,15 @@ function haversine(lat1,lng1,lat2,lng2){
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 
-/* ⭐ v3.6.1: Menu helpers */
+/* Menu helpers */
 function calcFinalPrice(menu) {
   if (!menu || !menu.price) return 0;
   if (!menu.promotion || !menu.promotion.active) return Number(menu.price);
   var p = menu.promotion;
   var value = Number(p.value || 0);
   if (value <= 0) return Number(menu.price);
-  if (p.type === 'percent') {
-    return Math.max(0, Math.round(Number(menu.price) * (1 - value / 100)));
-  }
-  if (p.type === 'amount') {
-    return Math.max(0, Number(menu.price) - value);
-  }
+  if (p.type === 'percent') return Math.max(0, Math.round(Number(menu.price) * (1 - value / 100)));
+  if (p.type === 'amount') return Math.max(0, Number(menu.price) - value);
   return Number(menu.price);
 }
 function getPromoLabel(menu) {
@@ -1785,11 +1801,8 @@ window.doSearch = function(q){
       '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+(p.price?' • '+p.price:'')+'</div></div></div>';
   }).join('');
 };
-</script>
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 — NEARBY SHOPS (หัวข้อใหม่ + Bug 7 fix)
-   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══ NEARBY SHOPS ═══ */
 async function loadNearbyShops() {
   if (!db) return;
   try {
@@ -1859,7 +1872,6 @@ function renderNearbyShops() {
 function renderNearbyShopCard(shop) {
   var hasImg = shop.image && shop.image.startsWith('http');
   var dist = getShopDistance(shop);
-  /* v3.6.1 Bug 7: default = เปิด (ถ้าไม่ระบุ isOpen) */
   var isOpen = shop.isOpen !== false;
   var cat = CATS[shop.category] || { icon: '🏪', name: 'ร้านค้า' };
 
@@ -1912,7 +1924,6 @@ function renderAllShopsModal() {
   if (!list) return;
 
   var sorted = sortShopsByDistance(nearbyShopsCache);
-  /* v3.6.1: หัวข้อใหม่ */
   if (titleEl) {
     titleEl.textContent = '🍽️ ร้านอาหารใกล้ฉัน ส่งด่วนเดลิเวอรี่ (' + sorted.length + ')';
   }
@@ -1930,7 +1941,6 @@ function renderAllShopsModal() {
 function renderAllShopsItem(shop, index) {
   var hasImg = shop.image && shop.image.startsWith('http');
   var dist = getShopDistance(shop);
-  /* v3.6.1 Bug 7: default = เปิด */
   var isOpen = shop.isOpen !== false;
   var cat = CATS[shop.category] || { icon: '🏪', name: 'ร้านค้า' };
 
@@ -1959,10 +1969,9 @@ function renderAllShopsItem(shop, index) {
   '</div>';
 }
 </script>
+
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 — MERCHANT DETAIL (Bug 2 fix: หมวดหมู่ dynamic)
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ MERCHANT DETAIL ═══ */
 window.openMerchantDetail = async function(merchantId) {
   closeAllShopsModal();
   try {
@@ -1978,7 +1987,6 @@ window.openMerchantDetail = async function(merchantId) {
       ? '<div style="text-align:center;margin-top:4px;color:var(--text-muted);font-size:12px;font-weight:800"><span style="color:#FFC107">★</span> ' + Number(m.ratingAvg).toFixed(1) + ' • ' + m.ratingCount + ' รีวิว</div>'
       : '';
 
-    /* v3.6.1 Bug 2: จัดกลุ่มเมนูตาม category */
     var menuListHtml = renderMenuGrouped(menus, m.menuCategories);
 
     $('modal-body').innerHTML =
@@ -1992,25 +2000,21 @@ window.openMerchantDetail = async function(merchantId) {
   } catch (e) { console.error(e); showToast('โหลดไม่สำเร็จ', 'error'); }
 };
 
-/* v3.6.1: จัดกลุ่มเมนูตามหมวดหมู่ (A: array ของ string) */
 function renderMenuGrouped(menus, menuCategories) {
   if (!menus.length) {
     return '<div style="text-align:center;padding:30px;color:var(--text-light)">ยังไม่มีเมนู</div>';
   }
 
-  /* ถ้าไม่มี menuCategories → แสดงแบบเดิม */
   if (!menuCategories || !menuCategories.length) {
     return menus.map(function(menu){ return renderMenuDetailCard(menu); }).join('');
   }
 
-  /* normalize categories: A = array ของ string */
   var cats = menuCategories.map(function(c) {
     if (typeof c === 'string') return c;
     if (c && typeof c === 'object') return c.name || c.id || '';
     return '';
   }).filter(Boolean);
 
-  /* group menus by category */
   var grouped = {};
   var uncategorized = [];
   cats.forEach(function(c) { grouped[c] = []; });
@@ -2021,7 +2025,6 @@ function renderMenuGrouped(menus, menuCategories) {
     else { uncategorized.push(menu); }
   });
 
-  /* render */
   var html = '';
   cats.forEach(function(catName) {
     if (grouped[catName].length === 0) return;
@@ -2029,7 +2032,6 @@ function renderMenuGrouped(menus, menuCategories) {
     html += grouped[catName].map(function(menu){ return renderMenuDetailCard(menu); }).join('');
   });
 
-  /* เมนูที่ไม่มีหมวด → แสดงท้ายสุด */
   if (uncategorized.length > 0) {
     if (cats.some(function(c){ return grouped[c].length > 0; })) {
       html += '<div class="menu-cat-header">📂 อื่นๆ</div>';
@@ -2095,7 +2097,6 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, original
   updateCartBar(); showToast('✅ เพิ่ม ' + menuName + ' ลงตะกร้า');
 };
 
-/* v3.6.1 Bug 6: cart bar หักส่วนลดแล้ว */
 function updateCartBar() {
   var bar = $('cart-bar'); if (!bar) return;
   if (!cart.length) { bar.classList.remove('show'); return; }
@@ -2178,7 +2179,7 @@ window.removeCartItem = function(index) {
 
 window.clearCart = function() { cart = []; cartShop = ''; localStorage.removeItem('chauat_cart'); localStorage.removeItem('chauat_cart_shop'); updateCartBar(); closeModal(); _refreshCartViews(); showToast('🗑️ ล้างตะกร้าแล้ว'); };
 
-/* ═══ CHECKOUT (Bug 1 + Bug 5 fix) ═══ */
+/* ═══ CHECKOUT ═══ */
 window.checkout = async function() {
   if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ', 'warning'); }
   if (!cart.length) return showToast('ตะกร้าว่าง', 'error');
@@ -2190,12 +2191,10 @@ window.checkout = async function() {
     return;
   }
 
-  /* v3.6.1 Bug 5: เช็ค out-of-stock ก่อน checkout */
   try {
     var menuIds = cart.map(function(c) { return c.menuId; }).filter(Boolean);
     if (menuIds.length) {
       var outOfStock = [];
-      /* batch: Firestore 'in' รองรับสูงสุด 10 → แบ่ง chunk */
       var chunks = [];
       for (var i = 0; i < menuIds.length; i += 10) chunks.push(menuIds.slice(i, i + 10));
       for (var ci = 0; ci < chunks.length; ci++) {
@@ -2219,7 +2218,7 @@ window.checkout = async function() {
         if (!cart.length) { closeModal(); return showToast('ลบเมนูหมดแล้ว ตะกร้าว่าง', 'info'); }
       }
     }
-  } catch (e) { console.warn('Check stock failed:', e); /* ถ้าเช็คไม่ได้ → ปล่อยผ่าน */ }
+  } catch (e) { console.warn('Check stock failed:', e); }
 
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
@@ -2258,7 +2257,6 @@ window.setPaymentMode = function(mode) {
   $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, 20, 5);
 };
 
-/* v3.6.1 Bug 1: ดึง merchant lat/lng + shopPlaceLat/Lng */
 window.confirmCheckout = async function(grandTotal) {
   var items = cart.map(function(c) {
     return { name: c.menuName, qty: c.qty, price: c.originalPrice || c.price, originalPrice: c.originalPrice || c.price, finalPrice: c.finalPrice || c.price, discount: c.discount || 0, promoLabel: c.promoLabel || '' };
@@ -2267,7 +2265,6 @@ window.confirmCheckout = async function(grandTotal) {
   items.forEach(function(i) { subtotal += i.originalPrice * i.qty; discountTotal += i.discount * i.qty; });
   var deliveryFee = 20; var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
 
-  /* ⭐ Bug 1: ดึง merchant lat/lng */
   var merchantData = {};
   try {
     if (cartShop) {
@@ -2285,8 +2282,8 @@ window.confirmCheckout = async function(grandTotal) {
       title: '🍽️ สั่งอาหาร: ' + (cart[0] ? cart[0].merchantName : ''),
       merchantId: cartShop,
       merchantName: cart[0] ? cart[0].merchantName : '',
-      shopPlaceLat: merchantData.lat || null,     /* ⭐ Bug 1 */
-      shopPlaceLng: merchantData.lng || null,     /* ⭐ Bug 1 */
+      shopPlaceLat: merchantData.lat || null,
+      shopPlaceLng: merchantData.lng || null,
       shopPlaceName: merchantData.name || (cart[0] ? cart[0].merchantName : ''),
       items: items,
       itemsText: items.map(function(i) { return i.name + ' x' + i.qty; }).join(', '),
@@ -2317,290 +2314,11 @@ window.confirmCheckout = async function(grandTotal) {
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
-   v3.6.1 NEW — TRAVEL VIEW (Grab-style) + CHAT IMAGE
+   CHAUAT GO v3.6.2 — Main Application Part 2
+   Travel + Chat + Tracking + Express + SW
    ═══════════════════════════════════════════════════════════════ */
 
-/* ═══ TRAVEL VIEW — Config ═══ */
-var TRAVEL_CATS = ['r','f','h','t','g','b','e','o','l','s','c','m'];
-
-var TRAVEL_FIXED = [
-  { name: 'ท่าอากาศยานนครศรีธรรมราช', sub: '598, ทางหลวงหมายเลข 4103, ปากพูน', lat: 8.5392, lng: 99.9447, icon: '✈️' },
-  { name: 'โรงพยาบาลมหาราชนครศรีธรรมราช', sub: '198, ถนนราชดำเนิน, เมืองนครศรี', lat: 8.4240, lng: 99.9630, icon: '🏥' },
-  { name: 'เซ็นทรัล นครศรี', sub: 'ทางหลวงหมายเลข 403, นาสาร, นครศรี', lat: 8.3961, lng: 99.9646, icon: '🏬' },
-  { name: 'สถานีรถไฟชะอวด', sub: 'ถนนรถไฟ, ชะอวด, นครศรีธรรมราช', lat: 7.9658, lng: 99.9945, icon: '🚂' },
-  { name: 'ตลาดสดชะอวด', sub: 'ถนนเพชรเกษม, ชะอวด', lat: 7.9660, lng: 99.9970, icon: '🛒' },
-  { name: 'ที่ว่าการอำเภอชะอวด', sub: 'ถนนเพชรเกษม, ชะอวด', lat: 7.9690, lng: 99.9985, icon: '🏛️' }
-];
-
-/* ═══ TRAVEL VIEW — Open/Close ═══ */
-window.openTravelView = function() {
-  if ($('travel-view')) $('travel-view').classList.add('show');
-  if (window.syncThemeFab) window.syncThemeFab();
-
-  renderTravelSuggestions();
-
-  var inp = $('travel-dest-input');
-  if (inp && !inp._bound) {
-    inp._bound = true;
-    inp.addEventListener('input', function(e) {
-      clearTimeout(inp._timer);
-      inp._timer = setTimeout(function() { doTravelSearch(e.target.value); }, 180);
-    });
-    inp.addEventListener('blur', function() {
-      setTimeout(function() {
-        if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
-      }, 250);
-    });
-  }
-
-  var body = document.querySelector('#travel-view .travel-body');
-  if (body) body.scrollTop = 0;
-};
-
-window.closeTravelView = function() {
-  if ($('travel-view')) $('travel-view').classList.remove('show');
-  if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
-  if ($('travel-dest-input')) $('travel-dest-input').value = '';
-};
-
-/* ═══ TRAVEL VIEW — Render Suggestions ═══ */
-function renderTravelSuggestions() {
-  var list = $('travel-suggest-list');
-  if (!list) return;
-
-  var suggestions = TRAVEL_FIXED.slice();
-
-  var pool = PLACES.filter(function(p) {
-    return TRAVEL_CATS.indexOf(p.category) !== -1;
-  });
-
-  pool = pool.filter(function(p) {
-    return !TRAVEL_FIXED.some(function(f) { return f.name === p.name; });
-  });
-
-  /* shuffle */
-  var shuffled = pool.slice();
-  for (var i = shuffled.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
-  }
-  var randomPicks = shuffled.slice(0, 10);
-
-  var all = suggestions.concat(randomPicks.map(function(p) {
-    var cat = CATS[p.category] || { icon: '📍' };
-    return {
-      name: p.name,
-      sub: cat.name || '',
-      lat: p.lat, lng: p.lng,
-      icon: cat.icon,
-      placeId: p.id
-    };
-  }));
-
-  list.innerHTML = all.map(function(item, idx) {
-    var dist = '';
-    if (userLocation && item.lat && item.lng) {
-      dist = fmtDistance(haversine(userLocation.lat, userLocation.lng, item.lat, item.lng));
-    }
-    var dataAttrs = item.placeId
-      ? 'data-place-id="' + esc(item.placeId) + '"'
-      : 'data-lat="' + item.lat + '" data-lng="' + item.lng + '"';
-    return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.03) + 's" ' +
-      dataAttrs +
-      ' data-name="' + esc(item.name) + '" ' +
-      'onclick="pickTravelFromItem(this)">' +
-      '<div class="travel-place-icon">' + item.icon + '</div>' +
-      '<div class="travel-place-info">' +
-        '<div class="travel-place-name">' + esc(item.name) + '</div>' +
-        '<div class="travel-place-sub">' + esc(item.sub || (userLocation && dist ? dist : 'ชะอวด')) + '</div>' +
-      '</div>' +
-      (dist ? '<div class="travel-place-dist">' + dist + '</div>' : '') +
-    '</div>';
-  }).join('');
-}
-
-/* ═══ TRAVEL VIEW — Pick from Suggestion ═══ */
-window.pickTravelFromItem = function(el) {
-  var name = el.dataset.name || '';
-  var placeId = el.dataset.placeId;
-  var lat = parseFloat(el.dataset.lat);
-  var lng = parseFloat(el.dataset.lng);
-
-  if (placeId) {
-    var p = PLACES.find(function(x) { return x.id === placeId; });
-    if (p) { lat = p.lat; lng = p.lng; name = p.name; }
-  }
-
-  if (!lat || !lng) return showToast('ไม่พบตำแหน่ง', 'error');
-
-  selectedDestination = { lat: lat, lng: lng, address: name };
-  showToast('📍 ' + name);
-
-  document.querySelectorAll('.travel-place-item').forEach(function(i) { i.style.background = ''; });
-  el.style.background = 'var(--brand-light)';
-
-  var body = document.querySelector('#travel-view .travel-body');
-  if (body) {
-    setTimeout(function() {
-      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
-    }, 200);
-  }
-};
-
-/* ═══ TRAVEL VIEW — Select Vehicle ═══ */
-window.selectTravelVehicle = function(type, baseFare) {
-  if (!selectedDestination) {
-    showToast('⚠️ กรุณาเลือกปลายทางก่อน', 'warning');
-    var body = document.querySelector('#travel-view .travel-body');
-    if (body) body.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
-  closeTravelView();
-  var vehicle = { type: type, price: baseFare };
-  selectedVehicle = vehicle;
-  setTimeout(function() { openRideOrderForm(vehicle); }, 200);
-};
-
-/* ═══ TRAVEL VIEW — Search ═══ */
-window.doTravelSearch = function(q) {
-  var box = $('travel-search-results');
-  if (!box) return;
-  var query = (q || '').trim().toLowerCase();
-  if (query.length < 1) { box.classList.remove('show'); return; }
-  var matches = PLACES.filter(function(p) {
-    return p.name.toLowerCase().indexOf(query) !== -1 ||
-      (CATS[p.category] && CATS[p.category].name.toLowerCase().indexOf(query) !== -1);
-  });
-  if (userLocation) {
-    matches.sort(function(a, b) {
-      return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) -
-             haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
-    });
-  }
-  matches = matches.slice(0, 12);
-  if (!matches.length) {
-    box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "' + esc(q) + '"</div>';
-    box.classList.add('show');
-    return;
-  }
-  box.innerHTML = matches.map(function(p, idx) {
-    var cat = CATS[p.category] || { icon: '📍' };
-    var dist = userLocation ? fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
-    return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.02) + 's;border-radius:0;margin-bottom:0;box-shadow:none;border-bottom:1px solid var(--border)" ' +
-      'data-place-id="' + esc(p.id) + '" data-name="' + esc(p.name) + '" ' +
-      'onclick="pickTravelFromSearch(this)">' +
-      '<div class="travel-place-icon">' + cat.icon + '</div>' +
-      '<div class="travel-place-info">' +
-        '<div class="travel-place-name">' + esc(p.name) + '</div>' +
-        '<div class="travel-place-sub">' + esc(cat.name) + '</div>' +
-      '</div>' +
-      (dist ? '<div class="travel-place-dist">' + dist + '</div>' : '') +
-    '</div>';
-  }).join('');
-  box.classList.add('show');
-};
-
-window.pickTravelFromSearch = function(el) {
-  var placeId = el.dataset.placeId;
-  var p = PLACES.find(function(x) { return x.id === placeId; });
-  if (!p) return;
-
-  selectedDestination = { lat: p.lat, lng: p.lng, address: p.name };
-  showToast('📍 ' + p.name);
-
-  if ($('travel-dest-input')) $('travel-dest-input').value = p.name;
-  if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
-
-  var body = document.querySelector('#travel-view .travel-body');
-  if (body) {
-    setTimeout(function() {
-      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
-    }, 200);
-  }
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 NEW — CHAT IMAGE UPLOAD
-   Storage path: chats/{chatId}/images/{timestamp}_{uid}.jpg
-   ═══════════════════════════════════════════════════════════════ */
-
-window.triggerChatImagePick = function() {
-  if (!activeChatId || !currentUser) return showToast('กรุณาเปิดแชทก่อน', 'warning');
-  var inp = $('chat-image-input');
-  if (inp) inp.click();
-};
-
-window.handleChatImage = async function(event) {
-  var file = event.target.files && event.target.files[0];
-  if (!file || !activeChatId || !currentUser) {
-    if (event.target) event.target.value = '';
-    return;
-  }
-
-  /* ✅ เช็คขนาด ≤ 5MB */
-  if (file.size > 5 * 1024 * 1024) {
-    showToast('⚠️ รูปใหญ่เกิน 5MB', 'error');
-    event.target.value = '';
-    return;
-  }
-
-  /* ✅ เช็ค type */
-  if (!file.type || file.type.indexOf('image/') !== 0) {
-    showToast('⚠️ ต้องเป็นรูปภาพ', 'error');
-    event.target.value = '';
-    return;
-  }
-
-  var btn = $('chat-img-btn');
-  if (btn) btn.disabled = true;
-  showToast('📤 กำลังอัปโหลด...', 'info');
-
-  try {
-    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    if (['jpg','jpeg','png','webp','gif','heic'].indexOf(ext) === -1) ext = 'jpg';
-    var ts = Date.now();
-    var path = 'chats/' + activeChatId + '/images/' + ts + '_' + currentUser.uid + '.' + ext;
-    var ref = storage.ref(path);
-    var snap = await ref.put(file, { contentType: file.type });
-    var url = await snap.ref.getDownloadURL();
-
-    var senderRole = (await isChatUser(activeChatId)) ? 'user' : 'rider';
-
-    await db.collection('chats').doc(activeChatId).collection('messages').add({
-      senderId: currentUser.uid,
-      senderRole: senderRole,
-      senderName: (userProfile && userProfile.name) || currentUser.displayName || '',
-      imageUrl: url,
-      imagePath: path,
-      text: '',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '📷 รูปภาพ',
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
-    showToast('✅ ส่งรูปแล้ว');
-  } catch (e) {
-    console.error('handleChatImage error:', e);
-    var msg = 'อัปโหลดไม่สำเร็จ';
-    if (e.code === 'storage/unauthorized') msg = 'ไม่มีสิทธิ์อัปโหลด (ตรวจ Storage Rules)';
-    else if (e.code === 'storage/canceled') msg = 'ยกเลิก';
-    else if (e.code === 'storage/quota-exceeded') msg = 'พื้นที่เต็ม';
-    showToast(msg, 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-    if (event.target) event.target.value = '';
-  }
-};
-</script>
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 — TABS + USER ORDERS + LIVE TRACKING + NEAR NOTIFY
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ TABS ═══ */
 window.switchTab = function(tab, el){
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   if(el) el.classList.add('active');
@@ -2627,8 +2345,6 @@ function subscribeUserOrders(){
       if($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
       if($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
       if($('empty-orders')) $('empty-orders').style.display = all.length===0?'block':'none';
-
-      /* v3.6.1 Bug 3: monitor rider GPS ของ active orders */
       monitorRiderProximity(active);
     });
 }
@@ -2636,10 +2352,16 @@ function subscribeUserOrders(){
 /* ═══ RENDER ORDER CARD ═══ */
 function renderOrderCard(o){
   var statusMap = {
-    searching:'⏳ หาไรเดอร์', pending:'🔔 รอร้านรับ',
-    accepted:'🛵 ไรเดอร์รับ', picked_up:'📦 ไรเดอร์รับของ',
-    on_the_way:'🚀 กำลังส่ง', delivered:'✅ ส่งถึง',
-    done:'✅ สำเร็จ', cancelled:'❌ ยกเลิก'
+    searching:'⏳ หาไรเดอร์',
+    pending:'🔔 รอร้านรับ',
+    cooking:'🍳 ร้านกำลังทำ',
+    ready:'✅ พร้อมส่ง',
+    accepted:'🛵 ไรเดอร์รับ',
+    picked_up:'📦 ไรเดอร์รับของ',
+    on_the_way:'🚀 กำลังส่ง',
+    delivered:'✅ ส่งถึง',
+    done:'✅ สำเร็จ',
+    cancelled:'❌ ยกเลิก'
   };
   var color = o.status==='cancelled'?'#999':(['done','delivered'].indexOf(o.status)!==-1?'#00A651':'#FF6B35');
   var isDone = ['done','delivered'].indexOf(o.status) !== -1;
@@ -2654,12 +2376,15 @@ function renderOrderCard(o){
   if (o.discountTotal && o.discountTotal > 0) {
     discountHtml = '<div style="font-size:11px;color:var(--promo-red);font-weight:900;margin-bottom:8px">🔥 ส่วนลด ฿' + fmt(o.discountTotal) + '</div>';
   }
-  var progressStep = {'searching':0,'pending':1,'accepted':2,'picked_up':3,'on_the_way':4,'delivered':5,'done':5}[o.status] || 0;
+  var progressStep = {
+    'searching':0,'pending':1,'cooking':2,'ready':3,
+    'accepted':4,'picked_up':5,'on_the_way':6,'delivered':7,'done':7
+  }[o.status] || 0;
   var progressDots = '';
-  for (var i = 0; i <= 5; i++) {
+  for (var i = 0; i <= 7; i++) {
     var cls = i < progressStep ? 'done' : (i === progressStep ? 'active' : '');
     progressDots += '<span class="dot ' + cls + '"></span>';
-    if (i < 5) progressDots += '<span class="line ' + (i < progressStep ? 'done' : '') + '"></span>';
+    if (i < 7) progressDots += '<span class="line ' + (i < progressStep ? 'done' : '') + '"></span>';
   }
   return '<div class="order-track-card" style="border-left-color:' + color + '">' +
     '<div class="order-track-header">' +
@@ -2685,12 +2410,11 @@ function renderOrderCard(o){
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   v3.6.1 Bug 3 — NEAR NOTIFICATION (ตรวจ GPS rider โดยตรง)
+   RIDER PROXIMITY MONITOR (Bug 3 fix)
    ═══════════════════════════════════════════════════════════════ */
-var NEAR_THRESHOLD_KM = 0.1; /* 100 เมตร */
+var NEAR_THRESHOLD_KM = 0.1;
 
 function monitorRiderProximity(activeOrders) {
-  /* Cleanup unsubs ที่ไม่มี order แล้ว */
   var activeIds = {};
   activeOrders.forEach(function(o){ activeIds[o.id] = true; });
   Object.keys(riderGpsUnsubs).forEach(function(orderId){
@@ -2701,25 +2425,19 @@ function monitorRiderProximity(activeOrders) {
     }
   });
 
-  /* เพิ่ม unsub สำหรับ order ที่ on_the_way */
   activeOrders.forEach(function(o){
     if (o.status !== 'on_the_way') return;
     if (!o.riderId) return;
-    if (riderGpsUnsubs[o.id]) return; /* already subscribed */
+    if (riderGpsUnsubs[o.id]) return;
 
     var gpsRef = db.collection('gps_riders').doc(o.riderId);
     riderGpsUnsubs[o.id] = gpsRef.onSnapshot(function(gpsSnap){
       if (!gpsSnap.exists) return;
       var g = gpsSnap.data();
       if (!g.lat || !g.lng) return;
-
       var destLat = o.lat, destLng = o.lng;
       if (!destLat || !destLng) return;
-
       var dist = haversine(g.lat, g.lng, destLat, destLng);
-      console.log('📍 Rider distance (' + o.id + '):', (dist*1000).toFixed(0) + ' ม.');
-
-      /* ใกล้ ≤ 100 ม. → แจ้งเตือนครั้งเดียว */
       if (dist <= NEAR_THRESHOLD_KM && !nearNotifiedOrderIds.has(o.id)) {
         nearNotifiedOrderIds.add(o.id);
         currentTrackingOrder = o;
@@ -2767,9 +2485,7 @@ window.viewTrackingFromAlert = function(){
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   LIVE TRACKING PAGE (with Bug 1 shopPlaceLat/Lng support)
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ LIVE TRACKING PAGE ═══ */
 window.openTrackingPage = function(orderId){
   if (!currentUser) { showLoginModal(); return; }
   trackingOrderId = orderId;
@@ -2809,7 +2525,6 @@ window.closeTrackingPage = function(){
   currentTrackingOrder = null;
 };
 
-/* Watch rider GPS for tracking page */
 function watchTrackingRider(o){
   if (!o.riderId) return;
   if (trackingWatchId) { try { trackingWatchId(); } catch(e){} trackingWatchId = null; }
@@ -2826,6 +2541,8 @@ function renderTrackingInfo(o){
   var statusMap = {
     searching:{icon:'⏳',title:'กำลังหาไรเดอร์',sub:'รอไรเดอร์รับงาน'},
     pending:{icon:'🔔',title:'รอร้านรับออเดอร์',sub:'ร้านกำลังยืนยัน'},
+    cooking:{icon:'🍳',title:'ร้านกำลังทำ',sub:'รออาหารพร้อม'},
+    ready:{icon:'✅',title:'พร้อมส่ง',sub:'รอไรเดอร์มารับ'},
     accepted:{icon:'🛵',title:'ไรเดอร์รับงานแล้ว',sub:'กำลังเดินทางไปร้าน'},
     picked_up:{icon:'📦',title:'ไรเดอร์รับของแล้ว',sub:'รอออกเดินทาง'},
     on_the_way:{icon:'🚀',title:'กำลังส่ง',sub:'ไรเดอร์กำลังมา'},
@@ -2884,7 +2601,6 @@ function renderTrackingMarkers(o){
       lastTrackedPositions.dest = {lat:o.lat, lng:o.lng};
     }
   }
-  /* v3.6.1 Bug 1: ใช้ shopPlaceLat/Lng */
   if (o.shopPlaceLat && o.shopPlaceLng) {
     var shopIcon = L.divIcon({
       className:'',
@@ -2933,9 +2649,7 @@ window.chatRiderFromTracking = function(){
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   RATING
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ RATING ═══ */
 window.openRatingModal = function(orderId) {
   if (!currentUser) { showLoginModal(); return; }
   db.collection('orders').doc(orderId).get().then(function(snap){
@@ -3024,11 +2738,6 @@ async function updateMerchantRatingAggregate(merchantId) {
     await db.collection('merchants').doc(merchantId).update({ ratingAvg: avg, ratingCount: count });
   } catch (e) {}
 }
-</script>
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 — CHAT + MAP PICKER + PLACE DETAIL + MERCHANT VIEW
-   ═══════════════════════════════════════════════════════════════ */
 
 /* ═══ CHAT ═══ */
 window.openChatPage = async function(orderId) {
@@ -3045,10 +2754,14 @@ window.openChatPage = async function(orderId) {
     if (!chatSnap.exists) {
       await chatRef.set({
         orderId: orderId,
-        userId: o.userId, userName: o.userName || 'ลูกค้า',
-        riderId: o.riderId, riderName: o.riderName || 'ไรเดอร์',
+        userId: o.userId,
+        userName: o.userName || 'ลูกค้า',
+        riderId: o.riderId,
+        riderName: o.riderName || 'ไรเดอร์',
+        merchantId: o.merchantId || '',
         lastMessage: '', lastSenderId: '',
-        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
     var isUser = o.userId === currentUser.uid;
@@ -3103,7 +2816,6 @@ function subscribeChatMessages(orderId) {
       box.innerHTML = html;
       scrollChatToBottom();
 
-      /* เสียงแจ้งเมื่อมีข้อความใหม่ */
       if (snap.metadata && snap.metadata.hasPendingWrites) return;
       var lastMsg = snap.docs[snap.docs.length-1];
       if (lastMsg && lastMsg.data().senderId !== currentUser.uid) {
@@ -3151,6 +2863,74 @@ async function isChatUser(orderId) {
   } catch (e) { return false; }
 }
 
+window.triggerChatImagePick = function() {
+  if (!activeChatId || !currentUser) return showToast('กรุณาเปิดแชทก่อน', 'warning');
+  var inp = $('chat-image-input');
+  if (inp) inp.click();
+};
+
+window.handleChatImage = async function(event) {
+  var file = event.target.files && event.target.files[0];
+  if (!file || !activeChatId || !currentUser) {
+    if (event.target) event.target.value = '';
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('⚠️ รูปใหญ่เกิน 5MB', 'error');
+    event.target.value = '';
+    return;
+  }
+  if (!file.type || file.type.indexOf('image/') !== 0) {
+    showToast('⚠️ ต้องเป็นรูปภาพ', 'error');
+    event.target.value = '';
+    return;
+  }
+
+  var btn = $('chat-img-btn');
+  if (btn) btn.disabled = true;
+  showToast('📤 กำลังอัปโหลด...', 'info');
+
+  try {
+    var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    if (['jpg','jpeg','png','webp','gif','heic'].indexOf(ext) === -1) ext = 'jpg';
+    var ts = Date.now();
+    var path = 'chats/' + activeChatId + '/images/' + ts + '_' + currentUser.uid + '.' + ext;
+    var ref = storage.ref(path);
+    var snap = await ref.put(file, { contentType: file.type });
+    var url = await snap.ref.getDownloadURL();
+
+    var senderRole = (await isChatUser(activeChatId)) ? 'user' : 'rider';
+
+    await db.collection('chats').doc(activeChatId).collection('messages').add({
+      senderId: currentUser.uid,
+      senderRole: senderRole,
+      senderName: (userProfile && userProfile.name) || currentUser.displayName || '',
+      imageUrl: url,
+      imagePath: path,
+      text: '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    await db.collection('chats').doc(activeChatId).update({
+      lastMessage: '📷 รูปภาพ',
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    showToast('✅ ส่งรูปแล้ว');
+  } catch (e) {
+    console.error('handleChatImage error:', e);
+    var msg = 'อัปโหลดไม่สำเร็จ';
+    if (e.code === 'storage/unauthorized') msg = 'ไม่มีสิทธิ์อัปโหลด';
+    else if (e.code === 'storage/canceled') msg = 'ยกเลิก';
+    else if (e.code === 'storage/quota-exceeded') msg = 'พื้นที่เต็ม';
+    showToast(msg, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (event.target) event.target.value = '';
+  }
+};
+
 function subscribeChatList() {
   if (!currentUser || !db) return;
   if (chatListUnsub) chatListUnsub();
@@ -3175,9 +2955,11 @@ function subscribeChatList() {
       if (empty) empty.style.display = 'none';
       box.innerHTML = chats.map(function(o){
         var statusMap = {
-          searching:'⏳ หาไรเดอร์',accepted:'🛵 ไรเดอร์รับ',
-          picked_up:'📦 รับของ',on_the_way:'🚀 กำลังส่ง',
-          delivered:'✅ ส่งถึง',done:'✅ สำเร็จ',cancelled:'❌ ยกเลิก'
+          searching:'⏳ หาไรเดอร์',pending:'🔔 รอร้านรับ',
+          cooking:'🍳 ร้านกำลังทำ',ready:'✅ พร้อมส่ง',
+          accepted:'🛵 ไรเดอร์รับ',picked_up:'📦 รับของ',
+          on_the_way:'🚀 กำลังส่ง',delivered:'✅ ส่งถึง',
+          done:'✅ สำเร็จ',cancelled:'❌ ยกเลิก'
         };
         return '<div class="chat-list-item" onclick="openChatPage(\'' + esc(o.id) + '\')">' +
           '<div class="chat-list-avatar">🛵</div>' +
@@ -3764,8 +3546,190 @@ function calculateFare(vehicle, destLat, destLng) {
   return { base: baseFare, distance: distanceKm, perKm: perKmRate, total: total };
 }
 
-/* ═══ TRAVEL (Legacy alias — ยังเรียกใช้ได้) ═══ */
-/* openTravelView ถูก override โดย Part 3C แล้ว */
+/* ═══ TRAVEL VIEW ═══ */
+var TRAVEL_CATS = ['r','f','h','t','g','b','e','o','l','s','c','m'];
+
+var TRAVEL_FIXED = [
+  { name: 'ท่าอากาศยานนครศรีธรรมราช', sub: '598, ทางหลวงหมายเลข 4103, ปากพูน', lat: 8.5392, lng: 99.9447, icon: '✈️' },
+  { name: 'โรงพยาบาลมหาราชนครศรีธรรมราช', sub: '198, ถนนราชดำเนิน, เมืองนครศรี', lat: 8.4240, lng: 99.9630, icon: '🏥' },
+  { name: 'เซ็นทรัล นครศรี', sub: 'ทางหลวงหมายเลข 403, นาสาร, นครศรี', lat: 8.3961, lng: 99.9646, icon: '🏬' },
+  { name: 'สถานีรถไฟชะอวด', sub: 'ถนนรถไฟ, ชะอวด, นครศรีธรรมราช', lat: 7.9658, lng: 99.9945, icon: '🚂' },
+  { name: 'ตลาดสดชะอวด', sub: 'ถนนเพชรเกษม, ชะอวด', lat: 7.9660, lng: 99.9970, icon: '🛒' },
+  { name: 'ที่ว่าการอำเภอชะอวด', sub: 'ถนนเพชรเกษม, ชะอวด', lat: 7.9690, lng: 99.9985, icon: '🏛️' }
+];
+
+window.openTravelView = function() {
+  if ($('travel-view')) $('travel-view').classList.add('show');
+  if (window.syncThemeFab) window.syncThemeFab();
+  renderTravelSuggestions();
+
+  var inp = $('travel-dest-input');
+  if (inp && !inp._bound) {
+    inp._bound = true;
+    inp.addEventListener('input', function(e) {
+      clearTimeout(inp._timer);
+      inp._timer = setTimeout(function() { doTravelSearch(e.target.value); }, 180);
+    });
+    inp.addEventListener('blur', function() {
+      setTimeout(function() {
+        if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
+      }, 250);
+    });
+  }
+  var body = document.querySelector('#travel-view .travel-body');
+  if (body) body.scrollTop = 0;
+};
+
+window.closeTravelView = function() {
+  if ($('travel-view')) $('travel-view').classList.remove('show');
+  if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
+  if ($('travel-dest-input')) $('travel-dest-input').value = '';
+};
+
+function renderTravelSuggestions() {
+  var list = $('travel-suggest-list');
+  if (!list) return;
+
+  var suggestions = TRAVEL_FIXED.slice();
+  var pool = PLACES.filter(function(p) {
+    return TRAVEL_CATS.indexOf(p.category) !== -1;
+  });
+  pool = pool.filter(function(p) {
+    return !TRAVEL_FIXED.some(function(f) { return f.name === p.name; });
+  });
+
+  var shuffled = pool.slice();
+  for (var i = shuffled.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp;
+  }
+  var randomPicks = shuffled.slice(0, 10);
+
+  var all = suggestions.concat(randomPicks.map(function(p) {
+    var cat = CATS[p.category] || { icon: '📍' };
+    return {
+      name: p.name,
+      sub: cat.name || '',
+      lat: p.lat, lng: p.lng,
+      icon: cat.icon,
+      placeId: p.id
+    };
+  }));
+
+  list.innerHTML = all.map(function(item, idx) {
+    var dist = '';
+    if (userLocation && item.lat && item.lng) {
+      dist = fmtDistance(haversine(userLocation.lat, userLocation.lng, item.lat, item.lng));
+    }
+    var dataAttrs = item.placeId
+      ? 'data-place-id="' + esc(item.placeId) + '"'
+      : 'data-lat="' + item.lat + '" data-lng="' + item.lng + '"';
+    return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.03) + 's" ' +
+      dataAttrs +
+      ' data-name="' + esc(item.name) + '" ' +
+      'onclick="pickTravelFromItem(this)">' +
+      '<div class="travel-place-icon">' + item.icon + '</div>' +
+      '<div class="travel-place-info">' +
+        '<div class="travel-place-name">' + esc(item.name) + '</div>' +
+        '<div class="travel-place-sub">' + esc(item.sub || (userLocation && dist ? dist : 'ชะอวด')) + '</div>' +
+      '</div>' +
+      (dist ? '<div class="travel-place-dist">' + dist + '</div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+window.pickTravelFromItem = function(el) {
+  var name = el.dataset.name || '';
+  var placeId = el.dataset.placeId;
+  var lat = parseFloat(el.dataset.lat);
+  var lng = parseFloat(el.dataset.lng);
+
+  if (placeId) {
+    var p = PLACES.find(function(x) { return x.id === placeId; });
+    if (p) { lat = p.lat; lng = p.lng; name = p.name; }
+  }
+  if (!lat || !lng) return showToast('ไม่พบตำแหน่ง', 'error');
+
+  selectedDestination = { lat: lat, lng: lng, address: name };
+  showToast('📍 ' + name);
+
+  document.querySelectorAll('.travel-place-item').forEach(function(i) { i.style.background = ''; });
+  el.style.background = 'var(--brand-light)';
+
+  var body = document.querySelector('#travel-view .travel-body');
+  if (body) {
+    setTimeout(function() {
+      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
+    }, 200);
+  }
+};
+
+window.selectTravelVehicle = function(type, baseFare) {
+  if (!selectedDestination) {
+    showToast('⚠️ กรุณาเลือกปลายทางก่อน', 'warning');
+    var body = document.querySelector('#travel-view .travel-body');
+    if (body) body.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  closeTravelView();
+  var vehicle = { type: type, price: baseFare };
+  selectedVehicle = vehicle;
+  setTimeout(function() { openRideOrderForm(vehicle); }, 200);
+};
+
+window.doTravelSearch = function(q) {
+  var box = $('travel-search-results');
+  if (!box) return;
+  var query = (q || '').trim().toLowerCase();
+  if (query.length < 1) { box.classList.remove('show'); return; }
+  var matches = PLACES.filter(function(p) {
+    return p.name.toLowerCase().indexOf(query) !== -1 ||
+      (CATS[p.category] && CATS[p.category].name.toLowerCase().indexOf(query) !== -1);
+  });
+  if (userLocation) {
+    matches.sort(function(a, b) {
+      return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) -
+             haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+    });
+  }
+  matches = matches.slice(0, 12);
+  if (!matches.length) {
+    box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "' + esc(q) + '"</div>';
+    box.classList.add('show');
+    return;
+  }
+  box.innerHTML = matches.map(function(p, idx) {
+    var cat = CATS[p.category] || { icon: '📍' };
+    var dist = userLocation ? fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
+    return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.02) + 's;border-radius:0;margin-bottom:0;box-shadow:none;border-bottom:1px solid var(--border)" ' +
+      'data-place-id="' + esc(p.id) + '" data-name="' + esc(p.name) + '" ' +
+      'onclick="pickTravelFromSearch(this)">' +
+      '<div class="travel-place-icon">' + cat.icon + '</div>' +
+      '<div class="travel-place-info">' +
+        '<div class="travel-place-name">' + esc(p.name) + '</div>' +
+        '<div class="travel-place-sub">' + esc(cat.name) + '</div>' +
+      '</div>' +
+      (dist ? '<div class="travel-place-dist">' + dist + '</div>' : '') +
+    '</div>';
+  }).join('');
+  box.classList.add('show');
+};
+
+window.pickTravelFromSearch = function(el) {
+  var placeId = el.dataset.placeId;
+  var p = PLACES.find(function(x) { return x.id === placeId; });
+  if (!p) return;
+  selectedDestination = { lat: p.lat, lng: p.lng, address: p.name };
+  showToast('📍 ' + p.name);
+  if ($('travel-dest-input')) $('travel-dest-input').value = p.name;
+  if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
+  var body = document.querySelector('#travel-view .travel-body');
+  if (body) {
+    setTimeout(function() {
+      body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
+    }, 200);
+  }
+};
 
 /* ═══ RIDE ORDER FORM ═══ */
 window.openRideOrderForm = function(vehicle){
@@ -3881,11 +3845,8 @@ window.submitOrder = async function(type){
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
 };
-</script>
-<script>
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 — EXPRESS FORM + AUTOCOMPLETE
-   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══ EXPRESS ═══ */
 function openExpressForm(dest){
   expOrigin = userLocation
     ? {lat:userLocation.lat, lng:userLocation.lng, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'}
@@ -4062,9 +4023,7 @@ window.submitExpressOrder = async function(){
   }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   v3.6.1 — MAP PICKER
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ MAP PICKER ═══ */
 window.openMapPicker = function(mode){
   if ($('modal')) $('modal').classList.remove('show');
   mapPickerMode = mode;
@@ -4210,22 +4169,17 @@ window.confirmMapPicker = function(){
     openExpressForm(expOrigin);
   } else if (savedMode === 'travel') {
     selectedDestination = {lat:picked.lat, lng:picked.lng, address:addr};
-    /* ⭐ กลับไป Travel View */
     if ($('travel-view') && $('travel-view').classList.contains('show')) {
-      /* ยังอยู่ใน Travel View → อัปเดต input + scroll ลง vehicles */
       if ($('travel-dest-input')) $('travel-dest-input').value = addr;
       var body = document.querySelector('#travel-view .travel-body');
       if (body) setTimeout(function(){ body.scrollTo({top: body.scrollHeight, behavior:'smooth'}); }, 300);
     } else {
-      /* fallback: เปิด vehicle modal แบบเดิม */
       setTimeout(function(){ openVehicleModal(); }, 300);
     }
   }
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   PLACE DETAIL
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ PLACE DETAIL ═══ */
 window.showPlaceDetail = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if (!p) return;
@@ -4261,9 +4215,7 @@ window.setDestFromPlace = function(placeId){
   }, 500);
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   SERVICE WORKER + CONSOLE LOGO
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ SERVICE WORKER ═══ */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'})
@@ -4275,9 +4227,9 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.6.1 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
-console.log('%c⭐ Travel View + Chat Image + Bug Fixes', 'color:#FF6B35;font-weight:800;font-size:12px');
-console.log('%c📦 Build: v3.6.1-20251011-001', 'color:#2196F3;font-weight:700;font-size:11px');
+console.log('%c🚀 Chauat Go v3.6.2 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c⭐ Fix chat input bar + GPS setting + Travel + Chat Image', 'color:#FF6B35;font-weight:800;font-size:12px');
+console.log('%c📦 Build: v3.6.2-20251012-001', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
 
 </body>
