@@ -794,7 +794,7 @@ async function acceptJob(jobId) {
     closeNewJobPopup();
     scheduleGPSIfActive();
   } catch (err) {
-    showToast('รับงานไม่สำเร็จ', 'error');
+    showToast('รับงานไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
 }
 
@@ -816,7 +816,7 @@ async function arrivedAtShop(jobId) {
       }).catch(() => {});
     }
   } catch (err) {
-    showToast('ไม่สำเร็จ', 'error');
+    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
 }
 
@@ -828,7 +828,7 @@ async function onTheWayJob(jobId) {
     });
     showToast('🚀 เริ่มส่ง');
   } catch (err) {
-    showToast('ไม่สำเร็จ', 'error');
+    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
 }
 
@@ -950,7 +950,7 @@ function openDeliverModal(job, fin) {
       closeModal();
       stopGPS();
     } catch (err) {
-      showToast('ไม่สำเร็จ: ' + err.message, 'error');
+      showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
       btn.disabled = false;
       btn.textContent = '✅ ยืนยัน';
     }
