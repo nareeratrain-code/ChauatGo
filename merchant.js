@@ -1,11 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.5.1
+   🏪 CHAUAT GO MERCHANT — v3.7.0
    Full-featured Production JavaScript
    + Race condition fix (isSigningUp flag)
    + Sound Unlock Banner + Loop Sound
    + Menu Status (available / out_of_stock / hidden)
    + Promotion (% / amount)
    + Sound Settings (3 tones × 3 volumes)
+   + Crop Image (Cropper.js)
+   + Category Manager
+   + Shop Profile + Avatar Upload ⭐ v3.7.0
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -26,9 +29,8 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-// ⭐ v3.5.1: DEBUG MODE
 window.CHAUAT_MERCHANT_DEBUG = true;
-console.log('%c🏪 Chauat Go Merchant v3.5.1 — DEBUG ON', 'color:#00A651;font-weight:900;font-size:14px');
+console.log('%c🏪 Chauat Go Merchant v3.7.0 — Ready!', 'color:#00A651;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -52,18 +54,15 @@ let deferredPrompt = null;
 let isShopOpen = false;
 let isSigningUp = false;
 
-// ⭐ v3.4.9: Sound state
 let isAudioUnlocked = false;
 let orderLoopTimer = null;
 let isFirstOrdersLoad = true;
 
-// ⭐ v3.5.1: Sound settings (โหลดจาก merchant doc)
 let currentSoundSettings = {
-  tone: 1,        // 1 = ติ๊งติ๊ง, 2 = บี๊บ, 3 = ระฆัง
-  volume: 'mid'   // 'low' | 'mid' | 'high'
+  tone: 1,
+  volume: 'mid'
 };
 
-// ⭐ v3.5.0: Menu form state
 let editingMenuId = null;
 let editingMenuImgBlob = null;
 let editingMenuImgUrl = null;
@@ -72,6 +71,9 @@ let editingPromoType = 'percent';
 
 let gpSlipFile = null;
 let currentGpPending = 0;
+
+/* ⭐ v3.7.0: Shop Avatar */
+let pendingShopAvatarBlob = null;
 
 /* ═══════════════════════════════════════════════════════════════════
    3. CONSTANTS
@@ -88,26 +90,10 @@ const GP_BANK_INFO = {
   accountName: 'บริษัท Chauat Go จำกัด'
 };
 
-// ⭐ v3.5.1: Sound presets
 const SOUND_TONES = {
-  1: {
-    name: 'ติ๊ง-ติ๊ง',
-    freqs: [880, 1108, 1318, 1108],
-    interval: 0.18,
-    duration: 0.18
-  },
-  2: {
-    name: 'บี๊บ-บี๊บ',
-    freqs: [660, 660, 660],
-    interval: 0.14,
-    duration: 0.12
-  },
-  3: {
-    name: 'ระฆัง',
-    freqs: [1318, 1568, 1318, 1046],
-    interval: 0.16,
-    duration: 0.22
-  }
+  1: { name: 'ติ๊ง-ติ๊ง', freqs: [880, 1108, 1318, 1108], interval: 0.18, duration: 0.18 },
+  2: { name: 'บี๊บ-บี๊บ', freqs: [660, 660, 660], interval: 0.14, duration: 0.12 },
+  3: { name: 'ระฆัง', freqs: [1318, 1568, 1318, 1046], interval: 0.16, duration: 0.22 }
 };
 
 const SOUND_VOLUMES = {
@@ -186,12 +172,8 @@ function calcFinalPrice(menu) {
   const p = menu.promotion;
   const value = Number(p.value || 0);
   if (value <= 0) return Number(menu.price);
-  if (p.type === 'percent') {
-    return Math.max(0, Math.round(Number(menu.price) * (1 - value / 100)));
-  }
-  if (p.type === 'amount') {
-    return Math.max(0, Number(menu.price) - value);
-  }
+  if (p.type === 'percent') return Math.max(0, Math.round(Number(menu.price) * (1 - value / 100)));
+  if (p.type === 'amount') return Math.max(0, Number(menu.price) - value);
   return Number(menu.price);
 }
 
@@ -302,7 +284,6 @@ function playTone(freqs, interval = 0.15, duration = 0.18, volume = 0.35) {
   });
 }
 
-/* ⭐ v3.5.1: soundNewOrder ใช้ค่าจาก settings */
 function soundNewOrder() {
   const tone = SOUND_TONES[currentSoundSettings.tone] || SOUND_TONES[1];
   const volume = SOUND_VOLUMES[currentSoundSettings.volume] || SOUND_VOLUMES.mid;
@@ -315,87 +296,56 @@ function soundNewChat() {
   if (navigator.vibrate) navigator.vibrate(50);
 }
 
-/* ⭐ v3.5.1: เล่นเสียงตามที่เลือก (สำหรับทดสอบ) */
 function playToneBySettings(toneId, volumeKey) {
   const tone = SOUND_TONES[toneId] || SOUND_TONES[1];
   const volume = SOUND_VOLUMES[volumeKey] || SOUND_VOLUMES.mid;
   playTone(tone.freqs, tone.interval, tone.duration, volume);
 }
 
-/* Sound Unlock */
 function unlockAudio() {
   try {
     const ctx = getAudioCtx();
-    if (!ctx) {
-      showToast('ไม่สามารถเปิดเสียงได้', 'error');
-      return;
-    }
+    if (!ctx) return showToast('ไม่สามารถเปิดเสียงได้', 'error');
     if (ctx.state === 'suspended') {
       ctx.resume().then(() => {
-        console.log('🔊 Audio unlocked');
         isAudioUnlocked = true;
         hideUnlockBanner();
         showToast('🔔 เปิดเสียงเตือนแล้ว');
         setTimeout(() => soundNewOrder(), 300);
-      }).catch(e => {
-        console.warn('Resume failed:', e);
-        showToast('เปิดเสียงไม่สำเร็จ', 'error');
-      });
+      }).catch(() => showToast('เปิดเสียงไม่สำเร็จ', 'error'));
     } else {
-      console.log('🔊 Audio already unlocked');
       isAudioUnlocked = true;
       hideUnlockBanner();
       showToast('🔔 เปิดเสียงเตือนแล้ว');
       setTimeout(() => soundNewOrder(), 300);
     }
   } catch (e) {
-    console.error('Unlock error:', e);
     showToast('เปิดเสียงไม่สำเร็จ', 'error');
   }
 }
 
 function hideUnlockBanner() {
   const banner = $('sound-unlock-banner');
-  if (banner) {
-    banner.style.display = 'none';
-    banner.classList.add('hidden');
-  }
+  if (banner) { banner.style.display = 'none'; banner.classList.add('hidden'); }
 }
 
 function showUnlockBanner() {
   const banner = $('sound-unlock-banner');
-  if (banner && !isAudioUnlocked) {
-    banner.style.display = 'flex';
-    banner.classList.remove('hidden');
-  }
+  if (banner && !isAudioUnlocked) { banner.style.display = 'flex'; banner.classList.remove('hidden'); }
 }
 
-/* Order Loop Sound */
 function startOrderLoop() {
-  if (orderLoopTimer) {
-    console.log('🔔 Loop already running');
-    return;
-  }
-  console.log('🔔 Starting order loop sound');
+  if (orderLoopTimer) return;
   soundNewOrder();
   orderLoopTimer = setInterval(() => {
     const stillPending = allOrders.some(o => o.status === 'pending');
-    if (!stillPending) {
-      console.log('🔇 No more pending orders — stopping loop');
-      stopOrderLoop();
-      return;
-    }
-    console.log('🔔 Loop sound playing...');
+    if (!stillPending) { stopOrderLoop(); return; }
     soundNewOrder();
   }, ORDER_LOOP_INTERVAL);
 }
 
 function stopOrderLoop() {
-  if (orderLoopTimer) {
-    console.log('🔇 Stopping order loop sound');
-    clearInterval(orderLoopTimer);
-    orderLoopTimer = null;
-  }
+  if (orderLoopTimer) { clearInterval(orderLoopTimer); orderLoopTimer = null; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -530,12 +480,10 @@ async function handleSignup(e) {
   isSigningUp = true;
 
   try {
-    console.log('📝 Step 1: Create Auth user');
     const cred = await auth.createUserWithEmailAndPassword(email, pw);
     createdUser = cred.user;
     await createdUser.updateProfile({ displayName: shopName });
 
-    console.log('📄 Step 2: Create users doc');
     await db.collection('users').doc(createdUser.uid).set({
       role: 'merchant',
       name: shopName,
@@ -543,7 +491,6 @@ async function handleSignup(e) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log('🏪 Step 3: Create merchants doc');
     await db.collection('merchants').doc(createdUser.uid).set({
       merchantId: createdUser.uid,
       name: shopName,
@@ -561,7 +508,6 @@ async function handleSignup(e) {
       gpPending: 0,
       gpPaid: 0,
       gpConsent: true,
-      // ⭐ v3.5.1: default sound settings
       soundSettings: {
         tone: 1,
         volume: 'mid',
@@ -570,7 +516,6 @@ async function handleSignup(e) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log('🎉 SIGNUP COMPLETE');
     showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
 
     setTimeout(async () => {
@@ -626,10 +571,7 @@ async function handleMerchantLogout() {
    11. AUTH STATE
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
-  if (isSigningUp) {
-    console.log('⏭️ Skipping onAuthStateChanged — signup in progress');
-    return;
-  }
+  if (isSigningUp) return;
 
   if (myProfileUnsub) myProfileUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
@@ -643,36 +585,19 @@ auth.onAuthStateChanged(async (user) => {
   }
 
   currentUser = user;
-  console.log('👤 Auth state:', user.email, user.uid);
 
   try {
     let userDoc = null;
     let merchantDoc = null;
 
     for (let attempt = 1; attempt <= 5; attempt++) {
-      console.log(`🔍 Attempt ${attempt}/5: check docs`);
-      try {
-        userDoc = await db.collection('users').doc(user.uid).get();
-      } catch (e) {
-        console.warn('users read error:', e.code);
-      }
-      try {
-        merchantDoc = await db.collection('merchants').doc(user.uid).get();
-      } catch (e) {
-        console.warn('merchants read error:', e.code);
-      }
-      if (userDoc?.exists && merchantDoc?.exists) {
-        console.log('✅ Both docs found');
-        break;
-      }
-      if (attempt < 5) {
-        console.log(`⏳ Waiting 1s before retry...`);
-        await new Promise(r => setTimeout(r, 1000));
-      }
+      try { userDoc = await db.collection('users').doc(user.uid).get(); } catch (e) {}
+      try { merchantDoc = await db.collection('merchants').doc(user.uid).get(); } catch (e) {}
+      if (userDoc?.exists && merchantDoc?.exists) break;
+      if (attempt < 5) await new Promise(r => setTimeout(r, 1000));
     }
 
     if (!userDoc || !userDoc.exists) {
-      console.error('❌ users doc not found after 5 retries');
       showToast('ไม่พบข้อมูลบัญชี — กรุณาสมัครใหม่', 'error');
       await auth.signOut();
       return;
@@ -680,29 +605,23 @@ auth.onAuthStateChanged(async (user) => {
 
     const userRole = userDoc.data().role;
     if (userRole !== 'merchant') {
-      console.error('❌ Role is not merchant:', userRole);
       showToast('บัญชีนี้ไม่ใช่ร้านค้า (role: ' + userRole + ')', 'error');
       await auth.signOut();
       return;
     }
 
     if (!merchantDoc || !merchantDoc.exists) {
-      console.error('❌ merchants doc not found');
       showToast('ไม่พบข้อมูลร้านค้า — กรุณาสมัครใหม่', 'error');
       await auth.signOut();
       return;
     }
 
     merchantProfile = { uid: user.uid, ...merchantDoc.data() };
-
-    // ⭐ v3.5.1: โหลด sound settings จาก merchant doc
     loadSoundSettingsFromProfile();
 
     $('login-screen').style.display = 'none';
     $('app').style.display = 'block';
 
-    console.log('✅ Login success:', merchantProfile.name);
-    console.log('🔊 Sound settings:', currentSoundSettings);
     initApp();
   } catch (err) {
     console.error('❌ Auth state error:', err);
@@ -711,7 +630,6 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-/* ⭐ v3.5.1: โหลด sound settings */
 function loadSoundSettingsFromProfile() {
   if (merchantProfile?.soundSettings) {
     const s = merchantProfile.soundSettings;
@@ -719,10 +637,8 @@ function loadSoundSettingsFromProfile() {
       tone: Number(s.tone) || 1,
       volume: s.volume || 'mid'
     };
-    console.log('🔊 Loaded sound settings:', currentSoundSettings);
   } else {
     currentSoundSettings = { tone: 1, volume: 'mid' };
-    console.log('🔊 No sound settings found — using defaults');
   }
 }
 
@@ -740,9 +656,7 @@ function initApp() {
   requestNotificationPermission();
 
   setTimeout(() => {
-    if (!isAudioUnlocked) {
-      showUnlockBanner();
-    }
+    if (!isAudioUnlocked) showUnlockBanner();
   }, 1500);
 }
 
@@ -762,7 +676,6 @@ function subscribeProfile() {
     const prevVerified = merchantProfile?.verified;
     merchantProfile = { uid: currentUser.uid, ...snap.data() };
 
-    // ⭐ v3.5.1: โหลด sound settings ใหม่ถ้าเปลี่ยน
     loadSoundSettingsFromProfile();
 
     if (prevVerified === false && merchantProfile.verified === true) {
@@ -775,6 +688,11 @@ function subscribeProfile() {
     updateShopToggle();
     updateHeroStats();
     updateGpTab();
+
+    /* ⭐ v3.7.0: refresh avatar preview ถ้าเปิด sheet อยู่ */
+    if ($('shop-profile-sheet')?.classList.contains('show')) {
+      loadShopAvatarPreview();
+    }
   });
 }
 
@@ -798,23 +716,17 @@ function subscribeOrders() {
         isShopOpen
       );
 
-      console.log(`📊 Orders snapshot: ${allOrders.length} total, ${newOnes.length} new, prevIds=${prevIds.size}, isFirstLoad=${isFirstOrdersLoad}`);
-
       if (newOnes.length > 0) {
         if (isFirstOrdersLoad || prevIds.size === 0) {
-          console.log('🔇 First load — skip sound');
+          /* skip sound on first load */
         } else {
-          console.log('🔔 NEW ORDER! Playing sound + loop');
           startOrderLoop();
           showNewOrderPopup(newOnes[0]);
         }
       }
 
       const stillHasPending = allOrders.some(o => o.status === 'pending');
-      if (!stillHasPending && orderLoopTimer) {
-        console.log('🔇 No pending orders left — stopping loop');
-        stopOrderLoop();
-      }
+      if (!stillHasPending && orderLoopTimer) stopOrderLoop();
 
       seenOrderIds = new Set(allOrders.map(o => o.id));
       isFirstOrdersLoad = false;
@@ -1013,7 +925,6 @@ function renderOrderCard(o) {
     ${actions}
   </div>`;
 }
-
 /* ═══════════════════════════════════════════════════════════════════
    16. ORDER ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
@@ -1083,7 +994,7 @@ function viewOrderDetail(orderId) {
         <div style="font-size:13px;font-weight:900;margin-bottom:8px">🍽️ รายการอาหาร</div>
         ${itemsHtml}
       </div>
-      <div style="background:${isCash?'var(--orange-light)':'var(--blue-light)'};border-radius:14px;padding:14px;margin-bottom:14px;font-size:13px;font-weight:700">
+      <div style="background:${isCash?'#FFF3E0':'#E3F2FD'};border-radius:14px;padding:14px;margin-bottom:14px;font-size:13px;font-weight:700">
         <div style="font-weight:900;margin-bottom:8px">${isCash?'💵 ลูกค้าจ่ายเงินสด':'💳 ลูกค้าโอนเงิน'}</div>
         <div style="display:flex;justify-content:space-between;padding:3px 0"><span>ยอดอาหาร</span><b>฿${fmt(foodTotal)}</b></div>
         ${o.fare?'<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ค่าส่ง (ของไรเดอร์)</span><b>฿'+fmt(o.fare)+'</b></div>':''}
@@ -1092,12 +1003,12 @@ function viewOrderDetail(orderId) {
           <span>ร้านได้รับ</span><span style="color:var(--green)">฿${fmt(foodTotal)}</span>
         </div>
       </div>
-      ${!gp.isPromo ? `<div style="background:var(--yellow-light);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:700">
+      ${!gp.isPromo ? `<div style="background:#FFF9C4;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:700">
         <div style="font-weight:900;margin-bottom:6px">💰 GP 3%</div>
         <div style="display:flex;justify-content:space-between;padding:2px 0"><span>รวม</span><b>฿${fmt(gp.total)}</b></div>
         <div style="display:flex;justify-content:space-between;padding:2px 0;padding-left:16px;color:#FF6B35"><span>├─ ไรเดอร์ 2%</span><b>฿${fmt(gp.rider)}</b></div>
         <div style="display:flex;justify-content:space-between;padding:2px 0;padding-left:16px;color:#4A90D9"><span>└─ แพลตฟอร์ม 1%</span><b>฿${fmt(gp.platform)}</b></div>
-      </div>` : `<div style="background:var(--green-light);border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:900;text-align:center;color:var(--green)">🎉 อยู่ในช่วงโปรโมชั่น — ไม่คิด GP</div>`}
+      </div>` : `<div style="background:#E8F5E9;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:900;text-align:center;color:var(--green)">🎉 อยู่ในช่วงโปรโมชั่น — ไม่คิด GP</div>`}
     `;
   }
 
@@ -1154,7 +1065,6 @@ function showNewOrderPopup(order) {
 function closeNewOrderPopup() {
   $('new-order-popup')?.classList.remove('show');
   newOrderPopupId = null;
-  console.log('⏰ Popup closed — sound loop still running');
 }
 
 function acceptFromPopup() {
@@ -1280,10 +1190,7 @@ function openMenuForm(menuId) {
       if (m.image && m.image.startsWith('http')) {
         editingMenuImgUrl = m.image;
         const preview = $('img-preview');
-        if (preview) {
-          preview.src = m.image;
-          preview.style.display = 'block';
-        }
+        if (preview) { preview.src = m.image; preview.style.display = 'block'; }
         const placeholder = $('img-placeholder');
         if (placeholder) placeholder.style.display = 'none';
         const removeBtn = $('remove-img-btn');
@@ -1405,10 +1312,7 @@ async function previewMenuImg(event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const preview = $('img-preview');
-    if (preview) {
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-    }
+    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
     const placeholder = $('img-placeholder');
     if (placeholder) placeholder.style.display = 'none';
     const removeBtn = $('remove-img-btn');
@@ -1421,10 +1325,7 @@ function removeMenuImg() {
   editingMenuImgBlob = null;
   editingMenuImgUrl = null;
   const preview = $('img-preview');
-  if (preview) {
-    preview.src = '';
-    preview.style.display = 'none';
-  }
+  if (preview) { preview.src = ''; preview.style.display = 'none'; }
   const placeholder = $('img-placeholder');
   if (placeholder) placeholder.style.display = 'block';
   const removeBtn = $('remove-img-btn');
@@ -1444,21 +1345,14 @@ async function saveMenu() {
   if (!price || price < 1) return showToast('กรอกราคา', 'error');
 
   const status = editingMenuStatus || 'available';
-
   const promoActive = $('mf-promo-active')?.checked || false;
   const promoType = editingPromoType || 'percent';
   const promoValue = parseInt($('mf-promo-value')?.value || 0);
 
   if (promoActive) {
-    if (!promoValue || promoValue < 1) {
-      return showToast('กรอกค่าส่วนลด', 'error');
-    }
-    if (promoType === 'percent' && (promoValue < 1 || promoValue > 100)) {
-      return showToast('ส่วนลด % ต้องอยู่ 1-100', 'error');
-    }
-    if (promoType === 'amount' && promoValue >= price) {
-      return showToast('ส่วนลดต้องน้อยกว่าราคา', 'error');
-    }
+    if (!promoValue || promoValue < 1) return showToast('กรอกค่าส่วนลด', 'error');
+    if (promoType === 'percent' && (promoValue < 1 || promoValue > 100)) return showToast('ส่วนลด % ต้องอยู่ 1-100', 'error');
+    if (promoType === 'amount' && promoValue >= price) return showToast('ส่วนลดต้องน้อยกว่าราคา', 'error');
   }
 
   const btn = $('btn-save-menu');
@@ -1476,18 +1370,8 @@ async function saveMenu() {
     }
 
     const promoData = promoActive && promoValue > 0
-      ? {
-          active: true,
-          type: promoType,
-          value: promoValue,
-          label: promoType === 'percent' ? `🔥 ลด ${promoValue}%` : `🔥 ลด ${promoValue}฿`
-        }
-      : {
-          active: false,
-          type: 'percent',
-          value: 0,
-          label: ''
-        };
+      ? { active: true, type: promoType, value: promoValue, label: promoType === 'percent' ? `🔥 ลด ${promoValue}%` : `🔥 ลด ${promoValue}฿` }
+      : { active: false, type: 'percent', value: 0, label: '' };
 
     const data = {
       merchantId: currentUser.uid,
@@ -1519,9 +1403,7 @@ async function saveMenu() {
   }
 }
 
-function editMenu(menuId) {
-  openMenuForm(menuId);
-}
+function editMenu(menuId) { openMenuForm(menuId); }
 
 async function deleteMenu(menuId) {
   if (!confirm('ลบเมนูนี้?')) return;
@@ -1534,41 +1416,29 @@ async function deleteMenu(menuId) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   20. SOUND SETTINGS ⭐ v3.5.1
+   20. SOUND SETTINGS
    ═══════════════════════════════════════════════════════════════════ */
 let editingSoundTone = 1;
 let editingSoundVolume = 'mid';
 
 function openSoundSettings() {
-  // โหลดค่าปัจจุบัน
   editingSoundTone = currentSoundSettings.tone || 1;
   editingSoundVolume = currentSoundSettings.volume || 'mid';
-
-  // อัปเดต UI
   updateSoundToneUI();
   updateSoundVolumeUI();
-
   openSheet('sound-settings-sheet');
 }
 
 function pickSoundTone(toneId) {
   editingSoundTone = toneId;
   updateSoundToneUI();
-
-  // เล่นเสียงทันทีที่เลือก (feedback)
-  setTimeout(() => {
-    playToneBySettings(toneId, editingSoundVolume);
-  }, 100);
+  setTimeout(() => playToneBySettings(toneId, editingSoundVolume), 100);
 }
 
 function pickSoundVolume(volumeKey) {
   editingSoundVolume = volumeKey;
   updateSoundVolumeUI();
-
-  // เล่นเสียงทันทีที่เลือก (feedback)
-  setTimeout(() => {
-    playToneBySettings(editingSoundTone, volumeKey);
-  }, 100);
+  setTimeout(() => playToneBySettings(editingSoundTone, volumeKey), 100);
 }
 
 function updateSoundToneUI() {
@@ -1585,12 +1455,11 @@ function updateSoundVolumeUI() {
 
 function testSound() {
   playToneBySettings(editingSoundTone, editingSoundVolume);
-  showToast('🔊 ทดสอบเสียง — ' + (SOUND_TONES[editingSoundTone]?.name || '') + ' (' + editingSoundVolume + ')', 'info');
+  showToast('🔊 ทดสอบเสียง — ' + (SOUND_TONES[editingSoundTone]?.name || ''), 'info');
 }
 
 async function saveSoundSettings() {
   if (!currentUser) return;
-
   const btn = $('btn-save-sound');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
@@ -1600,25 +1469,12 @@ async function saveSoundSettings() {
       volume: editingSoundVolume,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-
-    await db.collection('merchants').doc(currentUser.uid).update({
-      soundSettings: newSettings
-    });
-
-    // อัปเดต local state
-    currentSoundSettings = {
-      tone: editingSoundTone,
-      volume: editingSoundVolume
-    };
-
-    console.log('💾 Sound settings saved:', currentSoundSettings);
+    await db.collection('merchants').doc(currentUser.uid).update({ soundSettings: newSettings });
+    currentSoundSettings = { tone: editingSoundTone, volume: editingSoundVolume };
     showToast('✅ บันทึกการตั้งค่าเสียงแล้ว');
     closeSheet('sound-settings-sheet');
-
-    // เล่นเสียงยืนยัน
     setTimeout(() => soundNewOrder(), 300);
   } catch (err) {
-    console.error('saveSoundSettings error:', err);
     showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกการตั้งค่า'; }
@@ -1639,15 +1495,10 @@ function renderHistory() {
   let filtered = [];
   const done = allOrders.filter(o => o.status === 'done');
 
-  if (currentHistoryFilter === 'today') {
-    filtered = done.filter(o => isToday(o.doneAt || o.createdAt));
-  } else if (currentHistoryFilter === 'week') {
-    filtered = done.filter(o => isThisWeek(o.doneAt || o.createdAt));
-  } else if (currentHistoryFilter === 'month') {
-    filtered = done.filter(o => isThisMonth(o.doneAt || o.createdAt));
-  } else {
-    filtered = done;
-  }
+  if (currentHistoryFilter === 'today') filtered = done.filter(o => isToday(o.doneAt || o.createdAt));
+  else if (currentHistoryFilter === 'week') filtered = done.filter(o => isThisWeek(o.doneAt || o.createdAt));
+  else if (currentHistoryFilter === 'month') filtered = done.filter(o => isThisMonth(o.doneAt || o.createdAt));
+  else filtered = done;
 
   const histCount = $('history-count');
   if (histCount) histCount.textContent = filtered.length;
@@ -1722,13 +1573,8 @@ function updateGpTab() {
   const cd = $('gp-countdown');
   const daysEl = $('gp-days-left');
   if (cd && daysEl) {
-    if (isPromo) {
-      cd.classList.add('promo');
-      daysEl.textContent = daysLeft;
-    } else {
-      cd.classList.remove('promo');
-      daysEl.textContent = '✓';
-    }
+    if (isPromo) { cd.classList.add('promo'); daysEl.textContent = daysLeft; }
+    else { cd.classList.remove('promo'); daysEl.textContent = '✓'; }
   }
 
   renderGpHistory();
@@ -1763,9 +1609,7 @@ function renderGpHistory() {
    23. GP TRANSFER
    ═══════════════════════════════════════════════════════════════════ */
 function openGpTransferForm() {
-  if (currentGpPending <= 0) {
-    return showToast('ไม่มี GP ค้างโอน', 'info');
-  }
+  if (currentGpPending <= 0) return showToast('ไม่มี GP ค้างโอน', 'info');
 
   gpSlipFile = null;
   const amountEl = $('gp-transfer-amount');
@@ -1774,8 +1618,7 @@ function openGpTransferForm() {
   const roundEl = $('gp-transfer-round');
   if (roundEl) {
     const now = new Date();
-    const month = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-    roundEl.textContent = month;
+    roundEl.textContent = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
   }
 
   const preview = $('gp-slip-preview');
@@ -1797,10 +1640,7 @@ document.addEventListener('change', (e) => {
     const reader = new FileReader();
     reader.onload = (ev) => {
       const preview = $('gp-slip-preview');
-      if (preview) {
-        preview.src = ev.target.result;
-        preview.style.display = 'block';
-      }
+      if (preview) { preview.src = ev.target.result; preview.style.display = 'block'; }
     };
     reader.readAsDataURL(file);
   }
@@ -1897,35 +1737,120 @@ function switchTab(tab, el) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   26. SHOP INFO
+   ⭐ v3.7.0 — SHOP PROFILE + AVATAR
    ═══════════════════════════════════════════════════════════════════ */
-function showShopInfo() {
+window.openShopProfile = function() {
+  if (!merchantProfile) return;
+  loadShopAvatarPreview();
+  renderShopProfileInfo();
+  openSheet('shop-profile-sheet');
+};
+
+function renderShopProfileInfo() {
   const m = merchantProfile;
   if (!m) return;
-  const infoHtml = `
-    <div style="background:var(--surface-2);border-radius:14px;padding:16px;margin-bottom:14px">
-      <div style="font-size:16px;font-weight:900;margin-bottom:10px">🏪 ${esc(m.name)}</div>
-      <div style="font-size:13px;font-weight:700;line-height:2;color:var(--text-muted)">
-        <div>📂 ประเภท: ${esc(m.category || '—')}</div>
-        <div>📞 เบอร์: ${esc(m.phone || '—')}</div>
-        <div>📧 อีเมล: ${esc(m.email || '—')}</div>
-        <div>📍 ${esc(m.address || '—')}</div>
-        <div>⏰ ${esc(m.openTime || '—')} - ${esc(m.closeTime || '—')}</div>
-        <div>⭐ ${(m.ratingAvg || 0).toFixed(1)} (${m.ratingCount || 0} รีวิว)</div>
-        <div>${m.verified ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}</div>
+  const box = $('shop-profile-info');
+  if (!box) return;
+  box.innerHTML = `
+    <div class="shop-info-block-inner">
+      <div class="shop-info-name-big">🏪 ${esc(m.name)}</div>
+      <div class="shop-info-rows">
+        <div class="shop-info-row"><span class="k">📂 ประเภท</span><span class="v">${esc(m.category || '—')}</span></div>
+        <div class="shop-info-row"><span class="k">📞 เบอร์</span><span class="v">${esc(m.phone || '—')}</span></div>
+        <div class="shop-info-row"><span class="k">📧 อีเมล</span><span class="v">${esc(m.email || '—')}</span></div>
+        <div class="shop-info-row"><span class="k">📍 ที่อยู่</span><span class="v">${esc(m.address || '—')}</span></div>
+        <div class="shop-info-row"><span class="k">⏰ เวลา</span><span class="v">${esc(m.openTime || '—')} - ${esc(m.closeTime || '—')}</span></div>
+        <div class="shop-info-row"><span class="k">⭐ Rating</span><span class="v">${(m.ratingAvg || 0).toFixed(1)} (${m.ratingCount || 0} รีวิว)</span></div>
+        <div class="shop-info-row"><span class="k">สถานะ</span><span class="v">${m.verified ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}</span></div>
       </div>
     </div>
-    <button class="sheet-close" onclick="closeSheet('menu-sheet')">ปิด</button>
   `;
-  const sheet = document.querySelector('#menu-sheet .sheet');
-  if (sheet) {
-    sheet.innerHTML = '<div class="sheet-handle"></div><h2>🏪 ข้อมูลร้าน</h2>' + infoHtml;
-    const closeBtn = sheet.querySelector('.sheet-close');
-    if (closeBtn) closeBtn.onclick = () => {
-      closeSheet('menu-sheet');
-      setTimeout(() => location.reload(), 300);
-    };
+}
+
+function loadShopAvatarPreview() {
+  const preview = $('shop-avatar-preview');
+  if (!preview) return;
+  if (merchantProfile && merchantProfile.image) {
+    preview.src = merchantProfile.image;
+  } else {
+    preview.src = 'icons/icon-192.png';
   }
+  const saveBtn = $('shop-avatar-save-btn');
+  if (saveBtn) saveBtn.style.display = 'none';
+  pendingShopAvatarBlob = null;
+}
+
+window.uploadShopAvatar = function(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (file.size > MAX_IMG_SIZE) {
+    showToast('รูปใหญ่เกิน 5MB', 'error');
+    event.target.value = '';
+    return;
+  }
+  if (!file.type || file.type.indexOf('image/') !== 0) {
+    showToast('ต้องเป็นรูปภาพ', 'error');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    openCropModal(e.target.result, async (croppedFile, dataUrl) => {
+      pendingShopAvatarBlob = croppedFile;
+      const preview = $('shop-avatar-preview');
+      if (preview) preview.src = dataUrl;
+      const saveBtn = $('shop-avatar-save-btn');
+      if (saveBtn) saveBtn.style.display = 'block';
+      showToast('📷 เลือกรูปแล้ว — กด "บันทึก"', 'info');
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+};
+
+window.saveShopAvatar = async function() {
+  if (!pendingShopAvatarBlob || !currentUser) {
+    return showToast('ยังไม่ได้เลือกรูป', 'warning');
+  }
+  const btn = $('shop-avatar-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
+
+  try {
+    const compressed = await compressImage(pendingShopAvatarBlob, 800, 0.85);
+    const path = `shops/${currentUser.uid}/avatar_${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(compressed);
+    const url = await ref.getDownloadURL();
+
+    await db.collection('merchants').doc(currentUser.uid).update({
+      image: url,
+      imagePath: path,
+      imageUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    if (merchantProfile) {
+      merchantProfile.image = url;
+      merchantProfile.imagePath = path;
+    }
+
+    const preview = $('shop-avatar-preview');
+    if (preview) preview.src = url;
+    if (btn) btn.style.display = 'none';
+    pendingShopAvatarBlob = null;
+
+    showToast('✅ บันทึกรูปโปรไฟล์แล้ว!');
+  } catch (err) {
+    console.error('saveShopAvatar error:', err);
+    showToast('บันทึกไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกรูปโปรไฟล์'; }
+  }
+};
+
+/* ⭐ Redirect showShopInfo → openShopProfile */
+function showShopInfo() {
+  openShopProfile();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1995,11 +1920,8 @@ function closeChat() {
 }
 
 function callChatPartner() {
-  if (activeChatPartnerPhone) {
-    window.location.href = 'tel:' + activeChatPartnerPhone;
-  } else {
-    showToast('ไม่มีเบอร์โทร', 'warning');
-  }
+  if (activeChatPartnerPhone) window.location.href = 'tel:' + activeChatPartnerPhone;
+  else showToast('ไม่มีเบอร์โทร', 'warning');
 }
 
 function renderChatMessages(msgs) {
@@ -2060,7 +1982,7 @@ async function sendChatImage(file) {
   showToast('⏳ กำลังอัปโหลด...', 'info');
   try {
     const compressed = await compressImage(file, 800, 0.75);
-    const path = `chats/${activeChatId}/${Date.now()}.jpg`;
+    const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed);
     const url = await ref.getDownloadURL();
@@ -2145,7 +2067,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (ctx && ctx.state === 'running') {
         isAudioUnlocked = true;
         hideUnlockBanner();
-        console.log('🔊 Auto-unlocked by user click');
       }
     }
   }, { once: false });
@@ -2194,19 +2115,16 @@ window.autoResize = autoResize;
 window.installPWA = installPWA;
 window.dismissPWA = dismissPWA;
 
-// v3.4.9: sound functions
 window.unlockAudio = unlockAudio;
 window.startOrderLoop = startOrderLoop;
 window.stopOrderLoop = stopOrderLoop;
 
-// v3.5.0: menu status + promotion
 window.pickMenuStatus = pickMenuStatus;
 window.pickPromoType = pickPromoType;
 window.setPromoValue = setPromoValue;
 window.updatePromoPreview = updatePromoPreview;
 window.onPromoToggle = onPromoToggle;
 
-// ⭐ v3.5.1: sound settings
 window.openSoundSettings = openSoundSettings;
 window.pickSoundTone = pickSoundTone;
 window.pickSoundVolume = pickSoundVolume;
@@ -2224,11 +2142,11 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+
 /* ═══════════════════════════════════════════════════════════════════
    ⭐ v3.6.0: CROP IMAGE + CATEGORY MANAGER
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ═══ Crop Image State ═══ */
 let cropperInstance = null;
 let cropTargetCallback = null;
 
@@ -2239,7 +2157,6 @@ const AVAILABLE_ICONS = [
   '🍺','🍷','🍦','🍩','🎂','🍭'
 ];
 
-/* ═══ Category State ═══ */
 let editingCategories = [];
 let editingCategoryIndex = -1;
 let editingCategoryIcon = '🍚';
@@ -2253,7 +2170,6 @@ const DEFAULT_CATEGORIES = [
   { id: 'other', name: 'อื่นๆ', icon: '📦', hidden: false, order: 6 }
 ];
 
-/* ═══ โหลด Categories จาก Merchant ═══ */
 function getMenuCategories() {
   if (!merchantProfile?.menuCategories || !Array.isArray(merchantProfile.menuCategories) || merchantProfile.menuCategories.length === 0) {
     return JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
@@ -2261,7 +2177,6 @@ function getMenuCategories() {
   return merchantProfile.menuCategories.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
-/* ═══ Render Category Dropdown ในฟอร์มเมนู ═══ */
 function renderCategoryDropdown(selectedId) {
   const sel = $('mf-category');
   if (!sel) return;
@@ -2275,7 +2190,6 @@ function renderCategoryDropdown(selectedId) {
   ).join('');
 }
 
-/* ═══ Open Category Manager ═══ */
 function openCategoryManager() {
   editingCategories = getMenuCategories();
   renderCategoryList();
@@ -2309,7 +2223,6 @@ function renderCategoryList() {
   `).join('');
 }
 
-/* ═══ Add/Edit Category Item ═══ */
 function openAddCategoryForm() {
   editingCategoryIndex = -1;
   editingCategoryIcon = '🍚';
@@ -2349,7 +2262,6 @@ function saveCategoryItem() {
   if (!name) return showToast('กรอกชื่อหมวด', 'error');
 
   if (editingCategoryIndex === -1) {
-    // เพิ่มใหม่
     const newCat = {
       id: 'cat_' + Date.now(),
       name: name,
@@ -2360,7 +2272,6 @@ function saveCategoryItem() {
     editingCategories.push(newCat);
     showToast('✅ เพิ่มหมวด "' + name + '"');
   } else {
-    // แก้ไข
     editingCategories[editingCategoryIndex].name = name;
     editingCategories[editingCategoryIndex].icon = editingCategoryIcon;
     showToast('✅ แก้ไขหมวดแล้ว');
@@ -2383,35 +2294,25 @@ function deleteCategoryItem(index) {
   showToast('🗑️ ลบหมวดแล้ว');
 }
 
-/* ═══ Save Category Changes ═══ */
 async function saveCategoryChanges() {
   if (!currentUser) return;
-
   const btn = $('btn-save-cats');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
 
   try {
-    // Re-order
     editingCategories.forEach((c, i) => { c.order = i + 1; });
-
     await db.collection('merchants').doc(currentUser.uid).update({
       menuCategories: editingCategories,
       menuCategoriesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-
-    // อัปเดต merchantProfile ทันที
     merchantProfile.menuCategories = editingCategories.slice();
-
     showToast('✅ บันทึกหมวดหมู่แล้ว');
     closeSheet('category-manager-sheet');
-
-    // Refresh dropdown ในฟอร์มเมนู (ถ้าเปิดอยู่)
     if ($('menu-form-sheet')?.classList.contains('show')) {
       const current = $('mf-category')?.value;
       renderCategoryDropdown(current);
     }
   } catch (err) {
-    console.error('saveCategoryChanges error:', err);
     showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกหมวดหมู่'; }
@@ -2426,15 +2327,10 @@ function openCropModal(imageSrc, onConfirm) {
 
   img.src = imageSrc;
   cropTargetCallback = onConfirm;
-
   modal.classList.add('show');
 
-  // รอ img load ก่อน init Cropper
   img.onload = () => {
-    if (cropperInstance) {
-      cropperInstance.destroy();
-      cropperInstance = null;
-    }
+    if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
     setTimeout(() => {
       try {
         cropperInstance = new Cropper(img, {
@@ -2467,19 +2363,14 @@ function openCropModal(imageSrc, onConfirm) {
 }
 
 function resetCrop() {
-  if (cropperInstance) {
-    cropperInstance.reset();
-  }
+  if (cropperInstance) cropperInstance.reset();
   showToast('↺ รีเซ็ตแล้ว', 'info');
 }
 
 function closeCropModal() {
   const modal = $('crop-modal');
   if (modal) modal.classList.remove('show');
-  if (cropperInstance) {
-    cropperInstance.destroy();
-    cropperInstance = null;
-  }
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
   cropTargetCallback = null;
   const img = $('crop-image');
   if (img) img.src = '';
@@ -2487,7 +2378,6 @@ function closeCropModal() {
 
 async function confirmCrop() {
   if (!cropperInstance) return showToast('ยังไม่มีรูป', 'warning');
-
   try {
     const canvas = cropperInstance.getCroppedCanvas({
       width: 800,
@@ -2495,32 +2385,22 @@ async function confirmCrop() {
       imageSmoothingEnabled: true,
       imageSmoothingQuality: 'high'
     });
-
     if (!canvas) return showToast('crop ไม่สำเร็จ', 'error');
-
-    // แปลงเป็น Blob
     canvas.toBlob((blob) => {
       if (!blob) return showToast('ไม่สามารถประมวลผลรูป', 'error');
-
-      // สร้าง File object
       const file = new File([blob], 'menu_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-
-      // ส่งกลับ callback
       if (typeof cropTargetCallback === 'function') {
         cropTargetCallback(file, canvas.toDataURL('image/jpeg', 0.85));
       }
-
       closeCropModal();
       showToast('✅ ปรับขนาดรูปแล้ว');
     }, 'image/jpeg', 0.85);
-
   } catch (err) {
-    console.error('confirmCrop error:', err);
     showToast('ไม่สำเร็จ: ' + err.message, 'error');
   }
 }
 
-/* ═══ Hook: แก้ previewMenuImg ให้เปิด Crop Modal ═══ */
+/* ═══ Hook: previewMenuImg → Crop ═══ */
 const _origPreviewMenuImg = window.previewMenuImg;
 window.previewMenuImg = function(event) {
   const file = event.target.files[0];
@@ -2530,16 +2410,10 @@ window.previewMenuImg = function(event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     openCropModal(e.target.result, (croppedFile, dataUrl) => {
-      // อัปเดต state
       editingMenuImgBlob = croppedFile;
       editingMenuImgUrl = null;
-
-      // อัปเดต UI preview
       const preview = $('img-preview');
-      if (preview) {
-        preview.src = dataUrl;
-        preview.style.display = 'block';
-      }
+      if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
       const placeholder = $('img-placeholder');
       if (placeholder) placeholder.style.display = 'none';
       const removeBtn = $('remove-img-btn');
@@ -2549,13 +2423,10 @@ window.previewMenuImg = function(event) {
   reader.readAsDataURL(file);
 };
 
-/* ═══ Hook: openMenuForm — ใช้ dropdown dynamic ═══ */
+/* ═══ Hook: openMenuForm → dropdown dynamic ═══ */
 const _origOpenMenuForm = window.openMenuForm;
 window.openMenuForm = function(menuId) {
-  // Call original
   _origOpenMenuForm(menuId);
-
-  // Override dropdown
   setTimeout(() => {
     const currentCat = menuId
       ? (allMenus.find(x => x.id === menuId)?.category || 'main')
@@ -2564,32 +2435,32 @@ window.openMenuForm = function(menuId) {
   }, 50);
 };
 
-/* ═══ Auto-migrate: ร้านเก่าให้มี menuCategories ═══ */
+/* ═══ Auto-migrate ═══ */
 async function ensureMenuCategories() {
   if (!currentUser) return;
-  if (merchantProfile?.menuCategories && Array.isArray(merchantProfile.menuCategories) && merchantProfile.menuCategories.length > 0) {
-    return; // มีแล้ว
-  }
+  if (merchantProfile?.menuCategories && Array.isArray(merchantProfile.menuCategories) && merchantProfile.menuCategories.length > 0) return;
   try {
     await db.collection('merchants').doc(currentUser.uid).update({
       menuCategories: DEFAULT_CATEGORIES,
       menuCategoriesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     merchantProfile.menuCategories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-    console.log('✅ Auto-initialized menuCategories');
   } catch (e) {
     console.warn('Cannot init menuCategories:', e.code);
   }
 }
 
-/* ═══ Call ensureMenuCategories หลัง login ═══ */
 const _origInitApp = window.initApp;
 window.initApp = function() {
   _origInitApp();
   setTimeout(ensureMenuCategories, 2000);
 };
 
-/* ═══ Expose ═══ */
+/* ⭐ v3.7.0: Expose new functions */
+window.openShopProfile = openShopProfile;
+window.uploadShopAvatar = uploadShopAvatar;
+window.saveShopAvatar = saveShopAvatar;
+
 window.openCategoryManager = openCategoryManager;
 window.renderCategoryList = renderCategoryList;
 window.openAddCategoryForm = openAddCategoryForm;
@@ -2604,4 +2475,4 @@ window.resetCrop = resetCrop;
 window.closeCropModal = closeCropModal;
 window.confirmCrop = confirmCrop;
 
-console.log('%c⭐ v3.6.0: Crop + Category Manager loaded', 'color:#00A651;font-weight:900;font-size:12px');
+console.log('%c⭐ v3.7.0: Crop + Category Manager + Shop Profile loaded', 'color:#00A651;font-weight:900;font-size:12px');
