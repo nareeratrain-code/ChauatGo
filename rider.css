@@ -941,3 +941,254 @@ body {
   .chat-msg { font-size: 13px; }
   .stat-mini .n { font-size: 20px; }
 }
+/* ═══════════════════════════════════════════════════════════════
+   v3.5.0 Phase 1A — Job Card ใหม่ (แบบ Grab)
+   ═══════════════════════════════════════════════════════════════ */
+
+.jc-card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  border-left: 4px solid var(--brand);
+  transition: transform .15s, box-shadow .15s;
+  animation: cardSlideIn .35s backwards;
+}
+.jc-card:active { transform: scale(.99); }
+.jc-card.jc-new {
+  border-left-color: var(--orange);
+  background: linear-gradient(135deg, #FFFBF5, var(--surface));
+  animation: pulseGlow 2s ease-in-out infinite, cardSlideIn .35s backwards;
+}
+[data-theme="dark"] .jc-card.jc-new {
+  background: linear-gradient(135deg, #2F2A1F, var(--surface));
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 2px 12px rgba(255,107,53,.15); }
+  50% { box-shadow: 0 4px 20px rgba(255,107,53,.35); }
+}
+
+/* ─── Header ─── */
+.jc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.jc-type-icon {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.jc-header-info { flex: 1; min-width: 0; }
+.jc-title {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jc-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+.jc-header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.jc-icon-btn {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  transition: all .15s;
+}
+.jc-icon-btn:active {
+  transform: scale(.9);
+  background: var(--brand-light);
+  border-color: var(--brand);
+}
+
+/* ─── Body ─── */
+.jc-body {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.jc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 3px 0;
+}
+.jc-row:first-child { padding-top: 0; }
+.jc-row:last-child { padding-bottom: 0; }
+.jc-row-icon { font-size: 14px; flex-shrink: 0; }
+.jc-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jc-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 900;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ─── Payment Badge ─── */
+.jc-payment-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.jc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 900;
+}
+.jc-cash {
+  background: #FFF3E0;
+  color: #E65100;
+}
+[data-theme="dark"] .jc-cash {
+  background: #3F2F1F;
+  color: #FFB74D;
+}
+.jc-transfer {
+  background: #E3F2FD;
+  color: #1976D2;
+}
+[data-theme="dark"] .jc-transfer {
+  background: #1F2F3F;
+  color: #60A5FA;
+}
+
+/* ─── Finance ─── */
+.jc-finance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #E8F5E9, #F1F8E9);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+[data-theme="dark"] .jc-finance {
+  background: linear-gradient(135deg, #1F3F1F, #2A3A1F);
+}
+.jc-finance-left { flex: 1; min-width: 0; }
+.jc-finance-label {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--green);
+  margin-bottom: 2px;
+}
+.jc-finance-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.jc-finance-amount {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--green);
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+/* ─── Actions ─── */
+.jc-actions {
+  display: flex;
+  gap: 8px;
+}
+.jc-primary-btn {
+  flex: 1;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.jc-primary-btn:active { transform: scale(.97); }
+.jc-accept {
+  background: linear-gradient(135deg, #00A651, #008C45);
+  box-shadow: 0 4px 12px rgba(0,166,81,.35);
+  animation: glowPulse 2s infinite;
+}
+.jc-green {
+  background: linear-gradient(135deg, #00A651, #008C45);
+  box-shadow: 0 4px 12px rgba(0,166,81,.3);
+}
+.jc-orange {
+  background: linear-gradient(135deg, #FF9800, #F57C00);
+  box-shadow: 0 4px 12px rgba(255,152,0,.3);
+}
+.jc-blue {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  box-shadow: 0 4px 12px rgba(33,150,243,.3);
+}
+.jc-gray {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.jc-secondary-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.jc-secondary-btn:active {
+  transform: scale(.92);
+  background: var(--brand-light);
+  border-color: var(--brand);
+}
