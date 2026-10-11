@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.5.0
+   🛵 CHAUAT GO RIDER — v3.5.1
    Full-featured Production JavaScript
    + Job Card ใหม่ (แบบ Grab) — Phase 1A
    + รองรับ cooking / ready (Flow A)
+   + Fix sendChatImage path → /images/ (Phase A)
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1404,13 +1405,14 @@ async function sendChatText() {
   }
 }
 
+/* ⭐ v3.5.1: Fix path — เพิ่ม /images/ ให้ตรง Storage Rules */
 async function sendChatImage(file) {
   if (!file || !activeChatId) return;
   if (file.size > MAX_SLIP_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
   showToast('⏳ กำลังอัปโหลด...', 'info');
   try {
     const compressed = await compressImage(file, 800, 0.75);
-    const path = `chats/${activeChatId}/${Date.now()}.jpg`;
+    const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed);
     const url = await ref.getDownloadURL();
@@ -1428,7 +1430,8 @@ async function sendChatImage(file) {
     });
     showToast('✅ ส่งรูปแล้ว');
   } catch (err) {
-    showToast('อัปโหลดไม่สำเร็จ', 'error');
+    console.error('sendChatImage error:', err);
+    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
 }
 
@@ -1614,5 +1617,5 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🛵 Chauat Go Rider v3.5.0 — Phase 1A Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
-console.log('%c⭐ Job Card ใหม่ (แบบ Grab) + รองรับ cooking/ready', 'color:#00A651;font-weight:800;font-size:12px');
+console.log('%c🛵 Chauat Go Rider v3.5.1 — Phase A Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
+console.log('%c⭐ Fix sendChatImage path + Job Card (Grab style)', 'color:#00A651;font-weight:800;font-size:12px');
