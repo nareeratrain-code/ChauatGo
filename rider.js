@@ -1,6 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.4.7.1
+   🛵 CHAUAT GO RIDER — v3.5.0
    Full-featured Production JavaScript
+   + Job Card ใหม่ (แบบ Grab) — Phase 1A
+   + รองรับ cooking / ready (Flow A)
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -59,6 +61,10 @@ const ARRIVAL_RADIUS_M = 150;
 const NEAR_CUSTOMER_RADIUS_M = 100;
 const MAX_SLIP_SIZE = 5 * 1024 * 1024;
 const GPS_UPDATE_INTERVAL = 10000;
+
+/* ⭐ v3.5.0: Status ที่ rider เห็นได้ (Flow A) */
+const RIDER_VISIBLE_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
+const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'on_the_way'];
 
 /* ═══════════════════════════════════════════════════════════════════
    4. HELPERS
@@ -480,7 +486,7 @@ function requestNotificationPermission() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   13. SUBSCRIBE
+   13. SUBSCRIBE — ⭐ v3.5.0: รับ cooking + ready
    ═══════════════════════════════════════════════════════════════════ */
 function subscribeProfile() {
   if (myProfileUnsub) myProfileUnsub();
@@ -501,8 +507,9 @@ function subscribeProfile() {
 
 function subscribeJobs() {
   if (myJobsUnsub) myJobsUnsub();
+  /* ⭐ v3.5.0: query รับ cooking + ready (Flow A) */
   myJobsUnsub = db.collection('orders')
-    .where('status', 'in', ['searching', 'pending', 'accepted', 'picked_up', 'on_the_way'])
+    .where('status', 'in', ['searching', 'pending', 'cooking', 'ready', 'accepted', 'picked_up', 'on_the_way'])
     .orderBy('createdAt', 'desc')
     .limit(50)
     .onSnapshot(snap => {
@@ -512,9 +519,10 @@ function subscribeJobs() {
         return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
       });
 
+      /* ⭐ v3.5.0: rider เห็นงานได้ 4 status */
       const newJobs = allJobs.filter(j =>
         !prevIds.has(j.id) &&
-        j.status === 'searching' &&
+        RIDER_VISIBLE_STATUSES.includes(j.status) &&
         !j.riderId &&
         riderProfile?.verified === true &&
         isOnline
@@ -548,7 +556,6 @@ function subscribeHistory() {
       renderJobs();
     });
 }
-
 /* ═══════════════════════════════════════════════════════════════════
    14. UI UPDATE
    ═══════════════════════════════════════════════════════════════════ */
@@ -614,7 +621,7 @@ function updateHeroStats() {
 
   const activeCount = allJobs.filter(j =>
     j.riderId === currentUser?.uid &&
-    ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
+    RIDER_ACTIVE_STATUSES.includes(j.status)
   ).length;
 
   const doneEl = $('stat-done');
@@ -626,19 +633,21 @@ function updateHeroStats() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   15. RENDER JOBS
+   15. RENDER JOBS — ⭐ v3.5.0 (4 statuses)
    ═══════════════════════════════════════════════════════════════════ */
 function renderJobs() {
   const myId = currentUser?.uid;
 
+  /* ⭐ v3.5.0: งานใหม่ = searching + pending + cooking + ready */
   const newJobs = allJobs.filter(j =>
-    j.status === 'searching' && !j.riderId &&
+    RIDER_VISIBLE_STATUSES.includes(j.status) &&
+    !j.riderId &&
     riderProfile?.verified && isOnline
   );
 
   const activeJobs = allJobs.filter(j =>
     j.riderId === myId &&
-    ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
+    RIDER_ACTIVE_STATUSES.includes(j.status)
   );
 
   const doneToday = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
@@ -666,65 +675,101 @@ function renderJobs() {
   if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   ⭐ v3.5.0 Phase 1A — Job Card ใหม่ (แบบ Grab)
+   ═══════════════════════════════════════════════════════════════════ */
 function renderJobCard(j, type) {
   const isNew = type === 'new';
   const fin = calcOrderFinance(j);
-  const statusLabel = {
-    searching: '🔔 ใหม่', accepted: '🛵 รับแล้ว',
-    picked_up: '📦 รับของ', on_the_way: '🚀 กำลังส่ง', done: '✅ เสร็จ'
-  }[j.status] || j.status;
 
-  const cashBadge = fin.isCash
-    ? `<div class="cash-badge">💵 เงินสด • ต้องมี ฿${fmt(fin.foodAmount)}</div>`
-    : `<div class="cash-badge" style="background:var(--blue-light);color:#1976D2">💳 โอน • ลูกค้าจ่าย ฿${fmt(fin.totalCustomerPay)}</div>`;
+  /* Status + icon */
+  const statusInfo = {
+    searching: { label: '🔔 ใหม่', color: 'var(--orange)', bg: '#FFF3E0' },
+    pending: { label: '🔔 รอร้านรับ', color: 'var(--orange)', bg: '#FFF3E0' },
+    cooking: { label: '🍳 ร้านกำลังทำ', color: '#E65100', bg: '#FFF3E0' },
+    ready: { label: '✅ พร้อมส่ง', color: 'var(--green)', bg: '#E8F5E9' },
+    accepted: { label: '🛵 รับแล้ว', color: 'var(--blue)', bg: '#E3F2FD' },
+    picked_up: { label: '📦 รับของแล้ว', color: 'var(--blue)', bg: '#E3F2FD' },
+    on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
+    done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' }
+  }[j.status] || { label: j.status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
 
-  let actions = '';
+  /* Payment badge */
+  const payBadge = fin.isCash
+    ? `<span class="jc-badge jc-cash">💵 เงินสด • ต้องมี ฿${fmt(fin.foodAmount)}</span>`
+    : `<span class="jc-badge jc-transfer">💳 โอน • ลูกค้าจ่าย ฿${fmt(fin.totalCustomerPay)}</span>`;
+
+  /* Job type icon */
+  const typeIcon = (j.type === 'ride') ? '🚗'
+    : (j.type === 'express') ? '📦'
+    : (j.type === 'shopping') ? '🛒'
+    : '🍽️';
+
+  /* ปุ่มโทร */
+  const phoneBtn = j.userPhone
+    ? `<a href="tel:${esc(j.userPhone)}" class="jc-icon-btn" onclick="event.stopPropagation()" title="โทร">📞</a>`
+    : '';
+
+  /* ปุ่มแชท */
+  const chatBtn = `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
+
+  /* ปุ่ม action ตามสถานะ */
+  let primaryAction = '';
   if (isNew) {
-    actions = `<div class="job-actions two">
-      <button class="action-btn-big btn-green-big ripple" data-accept="${esc(j.id)}">✅ รับงาน</button>
-      <button class="action-btn-big btn-gray-big ripple" data-skip="${esc(j.id)}">⏭️ ข้าม</button>
-    </div>`;
+    primaryAction = `<button class="jc-primary-btn jc-accept" data-accept="${esc(j.id)}">✅ รับงาน</button>
+      <button class="jc-secondary-btn" data-skip="${esc(j.id)}">⏭️</button>`;
   } else if (j.status === 'accepted') {
-    actions = `<div class="job-actions two">
-      <button class="action-btn-big btn-orange-big ripple" data-arrived="${esc(j.id)}">📍 ถึงร้าน</button>
-      <button class="action-btn-big btn-blue-big ripple" data-detail="${esc(j.id)}">📋 รายละเอียด</button>
-    </div>`;
+    primaryAction = `<button class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}">📍 ถึงร้าน</button>
+      <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
   } else if (j.status === 'picked_up') {
-    actions = `<div class="job-actions two">
-      <button class="action-btn-big btn-blue-big ripple" data-ontheway="${esc(j.id)}">🚀 เริ่มส่ง</button>
-      <button class="action-btn-big btn-gray-big ripple" data-chat="${esc(j.id)}">💬 แชท</button>
-    </div>`;
+    primaryAction = `<button class="jc-primary-btn jc-blue" data-ontheway="${esc(j.id)}">🚀 เริ่มส่ง</button>
+      <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
   } else if (j.status === 'on_the_way') {
-    actions = `<div class="job-actions two">
-      <button class="action-btn-big btn-green-big ripple" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
-      <button class="action-btn-big btn-blue-big ripple" data-chat="${esc(j.id)}">💬 แชท</button>
-    </div>`;
+    primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
+      <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
   } else if (j.status === 'done') {
-    actions = `<div class="job-actions">
-      <button class="action-btn-big btn-gray-big ripple" data-detail="${esc(j.id)}">📄 ดูรายละเอียด</button>
-    </div>`;
+    primaryAction = `<button class="jc-primary-btn jc-gray" data-detail="${esc(j.id)}">📄 ดูรายละเอียด</button>`;
   }
 
   return `
-    <div class="job-card status-${j.status} ${isNew ? 'is-new' : ''}">
-      <div class="job-top">
-        <div class="job-emoji">🛵</div>
-        <div class="job-info">
-          <div class="job-title">${esc(j.title || 'งานใหม่')}</div>
-          <div class="job-meta">👤 ${esc(j.userName || 'ลูกค้า')}</div>
-          <div class="job-meta">📍 ${esc((j.address || j.destination || '').slice(0, 60))}</div>
-          <div class="job-meta">🕐 ${timeAgo(j.createdAt)} • ${statusLabel}</div>
-          ${cashBadge}
+    <div class="jc-card ${isNew ? 'jc-new' : ''}" data-card-id="${esc(j.id)}">
+      <div class="jc-header">
+        <div class="jc-type-icon">${typeIcon}</div>
+        <div class="jc-header-info">
+          <div class="jc-title">${esc(j.title || 'งานใหม่')}</div>
+          <div class="jc-sub">👤 ${esc(j.userName || 'ลูกค้า')}</div>
+        </div>
+        <div class="jc-header-actions">
+          ${phoneBtn}
+          ${chatBtn}
         </div>
       </div>
-      <div class="job-price">
-        <div>
-          <div class="lbl">💰 ค่าบริการ</div>
-          <div class="lbl" style="opacity:.8;font-size:10px">คุณได้ 80% = ฿${fmt(fin.riderShare)}${fin.tip > 0 ? ` + ทิป ฿${fin.tip}` : ''}</div>
+
+      <div class="jc-body">
+        <div class="jc-row">
+          <span class="jc-row-icon">📍</span>
+          <span class="jc-row-text">${esc((j.address || j.destination || '—').slice(0, 80))}</span>
         </div>
-        <div class="amt">฿${fmt(fin.totalRider)}</div>
+        <div class="jc-row">
+          <span class="jc-row-icon">🕐</span>
+          <span class="jc-row-text">${timeAgo(j.createdAt)}</span>
+          <span class="jc-status-chip" style="background:${statusInfo.bg};color:${statusInfo.color}">${statusInfo.label}</span>
+        </div>
       </div>
-      ${actions}
+
+      <div class="jc-payment-row">${payBadge}</div>
+
+      <div class="jc-finance">
+        <div class="jc-finance-left">
+          <div class="jc-finance-label">💰 ค่าบริการ</div>
+          <div class="jc-finance-sub">คุณได้ 80% = ฿${fmt(fin.riderShare)}${fin.tip > 0 ? ` + ทิป ฿${fin.tip}` : ''}</div>
+        </div>
+        <div class="jc-finance-amount">฿${fmt(fin.totalRider)}</div>
+      </div>
+
+      <div class="jc-actions">
+        ${primaryAction}
+      </div>
     </div>`;
 }
 
@@ -764,7 +809,6 @@ async function arrivedAtShop(jobId) {
     showToast('📍 แจ้งร้านค้าและลูกค้าแล้ว');
     arrivedShopNotifiedOrderIds.add(jobId);
 
-    // แจ้งร้านค้าผ่าน order
     const jobSnap = await db.collection('orders').doc(jobId).get();
     if (jobSnap.exists && jobSnap.data().merchantId) {
       await db.collection('orders').doc(jobId).update({
@@ -1033,7 +1077,7 @@ async function toggleOnline() {
 function scheduleGPSIfActive() {
   const hasActive = allJobs.some(j =>
     j.riderId === currentUser?.uid &&
-    ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
+    RIDER_ACTIVE_STATUSES.includes(j.status)
   );
   if (hasActive && isOnline) startGPS();
   else stopGPS();
@@ -1073,11 +1117,10 @@ function stopGPS() {
 async function checkArrivalForActiveOrders(myLat, myLng) {
   const myActive = allJobs.filter(j =>
     j.riderId === currentUser?.uid &&
-    ['accepted', 'picked_up', 'on_the_way'].includes(j.status)
+    RIDER_ACTIVE_STATUSES.includes(j.status)
   );
 
   for (const job of myActive) {
-    // ถึงร้าน
     if (job.status === 'accepted' && job.shopPlaceLat && job.shopPlaceLng
       && !arrivedShopNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.shopPlaceLat, job.shopPlaceLng) * 1000;
@@ -1088,7 +1131,6 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
       }
     }
 
-    // ใกล้ถึงลูกค้า
     if (job.status === 'on_the_way' && job.lat && job.lng
       && !nearNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.lat, job.lng) * 1000;
@@ -1097,7 +1139,6 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
         soundNearCustomer();
         showToast('🔔 ใกล้ถึงลูกค้า 100 ม. — แจ้งเตือนแล้ว');
 
-        // บันทึก flag ลง Firestore ให้ลูกค้าเห็น
         await db.collection('orders').doc(job.id).update({
           riderNearCustomerAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
@@ -1197,17 +1238,9 @@ function showFinance() {
   $('modalOverlay').classList.add('show');
 }
 
-function showTransferShop() {
-  showToast('💡 ระบบโอนร้านค้า — เร็ว ๆ นี้', 'info');
-}
-
-function showTransferApp() {
-  showToast('💡 ระบบโอน chauatgo — เร็ว ๆ นี้', 'info');
-}
-
-function showGPIncome() {
-  showToast('💎 GP 2% รอรับจาก chauatgo ทุก 15 วัน', 'info');
-}
+function showTransferShop() { showToast('💡 ระบบโอนร้านค้า — เร็ว ๆ นี้', 'info'); }
+function showTransferApp() { showToast('💡 ระบบโอน chauatgo — เร็ว ๆ นี้', 'info'); }
+function showGPIncome() { showToast('💎 GP 2% รอรับจาก chauatgo ทุก 15 วัน', 'info'); }
 
 function showTrustScore() {
   const score = riderProfile?.trustScore || 100;
@@ -1271,7 +1304,6 @@ async function openChatWithCustomer(orderId) {
   activeChatPartnerPhone = job.userPhone || null;
   activeChatPartnerName = job.userName || 'ลูกค้า';
 
-  // สร้าง chat doc ถ้าไม่มี
   try {
     const chatRef = db.collection('chats').doc(orderId);
     const snap = await chatRef.get();
@@ -1521,7 +1553,7 @@ document.addEventListener('click', async (e) => {
 });
 
 document.addEventListener('click', (e) => {
-  const btn = e.target.closest('button, .job-card');
+  const btn = e.target.closest('button, .job-card, .jc-card, .jc-primary-btn');
   if (btn && navigator.vibrate) navigator.vibrate(10);
 }, { passive: true });
 
@@ -1581,3 +1613,6 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+
+console.log('%c🛵 Chauat Go Rider v3.5.0 — Phase 1A Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
+console.log('%c⭐ Job Card ใหม่ (แบบ Grab) + รองรับ cooking/ready', 'color:#00A651;font-weight:800;font-size:12px');
