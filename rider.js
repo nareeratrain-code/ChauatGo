@@ -1,9 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.5.1
+   🛵 CHAUAT GO RIDER — v3.7.1
    Full-featured Production JavaScript
-   + Job Card ใหม่ (แบบ Grab) — Phase 1A
-   + รองรับ cooking / ready (Flow A)
-   + Fix sendChatImage path → /images/ (Phase A)
+   ✅ Fix chat merchantId (Phase A)
+   ✅ รองรับ cooking / ready (Flow A)
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -24,6 +23,8 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
+console.log('%c🛵 Chauat Go Rider v3.7.1', 'color:#FF6B35;font-weight:900;font-size:14px');
+
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
    ═══════════════════════════════════════════════════════════════════ */
@@ -42,12 +43,15 @@ let newJobPopupId = null;
 let seenJobIds = new Set();
 let audioCtx = null;
 let gpsWatchId = null;
-let mapPickerMap = null;
 let isOnline = false;
 let currentHistoryFilter = 'all';
 let cameraFile = null;
 let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
+
+/* ⭐ v3.7.0: Status */
+const RIDER_VISIBLE_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
+const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'on_the_way'];
 
 /* ═══════════════════════════════════════════════════════════════════
    3. CONSTANTS
@@ -61,11 +65,6 @@ const FREE_KM = 1;
 const ARRIVAL_RADIUS_M = 150;
 const NEAR_CUSTOMER_RADIUS_M = 100;
 const MAX_SLIP_SIZE = 5 * 1024 * 1024;
-const GPS_UPDATE_INTERVAL = 10000;
-
-/* ⭐ v3.5.0: Status ที่ rider เห็นได้ (Flow A) */
-const RIDER_VISIBLE_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
-const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'on_the_way'];
 
 /* ═══════════════════════════════════════════════════════════════════
    4. HELPERS
@@ -85,25 +84,9 @@ const toDate = (t) => {
   return isNaN(d) ? null : d;
 };
 
-const fmtTime = (t) => {
-  const d = toDate(t);
-  if (!d) return '—';
-  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-};
-
-const fmtDate = (t) => {
-  const d = toDate(t);
-  if (!d) return '—';
-  return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
-};
-
+const fmtTime = (t) => { const d = toDate(t); return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '—'; };
+const fmtDate = (t) => { const d = toDate(t); return d ? d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'; };
 const fmtDateTime = (t) => `${fmtDate(t)} ${fmtTime(t)}`;
-
-const isToday = (t) => {
-  const d = toDate(t);
-  if (!d) return false;
-  return d.toDateString() === new Date().toDateString();
-};
 
 const timeAgo = (t) => {
   const d = toDate(t);
@@ -115,6 +98,8 @@ const timeAgo = (t) => {
   return `${Math.floor(diff / 86400)} วันที่แล้ว`;
 };
 
+const isToday = (t) => { const d = toDate(t); return d ? d.toDateString() === new Date().toDateString() : false; };
+
 const haversine = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -123,12 +108,6 @@ const haversine = (lat1, lng1, lat2, lng2) => {
     + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
     * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
-
-const debugLog = (msg, isError) => {
-  if (typeof window.CHAUAT_RIDER_DEBUG !== 'undefined' && window.CHAUAT_RIDER_DEBUG) {
-    if (isError) console.warn(msg); else console.log(msg);
-  }
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -183,7 +162,7 @@ function dismissSplash() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   7. TOAST & SOUND & VIBRATE
+   7. TOAST & SOUND
    ═══════════════════════════════════════════════════════════════════ */
 function showToast(msg, type = 'success') {
   const t = $('toast');
@@ -197,9 +176,8 @@ function showToast(msg, type = 'success') {
 
 function getAudioCtx() {
   if (!audioCtx) {
-    try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) { return null; }
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e) { return null; }
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
@@ -273,15 +251,8 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   9. FINANCE CALC
+   9. FINANCE
    ═══════════════════════════════════════════════════════════════════ */
-function calcServiceFee(distanceKm) {
-  const base = SERVICE_BASE;
-  const extraKm = Math.max(0, distanceKm - FREE_KM);
-  const extra = Math.ceil(extraKm * SERVICE_PER_KM);
-  return base + extra;
-}
-
 function calcOrderFinance(order) {
   const fare = Number(order.fare || 0);
   const isCash = order.paymentMode === 'cash';
@@ -292,8 +263,7 @@ function calcOrderFinance(order) {
   const foodAmount = Number(order.foodTotal || order.itemsTotal || 0);
   return {
     fare, tip, riderShare, platformShare, totalRider, foodAmount,
-    isCash,
-    totalCustomerPay: fare + foodAmount + tip
+    isCash, totalCustomerPay: fare + foodAmount + tip
   };
 }
 
@@ -327,10 +297,10 @@ async function handleLogin(e) {
   } catch (err) {
     const msg = {
       'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
-      'auth/user-not-found': 'ไม่พบอีเมลนี้ในระบบ',
+      'auth/user-not-found': 'ไม่พบอีเมลนี้',
       'auth/invalid-email': 'อีเมลไม่ถูกต้อง',
       'auth/invalid-credential': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
-      'auth/too-many-requests': 'ลองหลายครั้งเกินไป รอ 5 นาที',
+      'auth/too-many-requests': 'ลองหลายครั้งเกินไป',
       'auth/network-request-failed': 'ไม่มีการเชื่อมต่อ'
     }[err.code] || 'เข้าสู่ระบบไม่สำเร็จ';
     $('login-error').textContent = msg;
@@ -370,26 +340,20 @@ async function handleSignup(e) {
     await db.collection('riders').doc(createdUser.uid).set({
       riderId: createdUser.uid,
       name, phone, email, vehicle, plate,
-      verified: false,
-      status: 'inactive',
-      rating: 0, totalRatings: 0,
-      totalJobs: 0, totalIncome: 0,
-      trustScore: 100,
-      gpsConsent: true,
+      verified: false, status: 'inactive',
+      rating: 0, totalRatings: 0, totalJobs: 0, totalIncome: 0,
+      trustScore: 100, gpsConsent: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
     await db.collection('users').doc(createdUser.uid).set({
-      role: 'rider',
-      name, email,
+      role: 'rider', name, email,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
     showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
   } catch (err) {
-    if (createdUser) {
-      try { await createdUser.delete(); } catch (e) {}
-    }
+    if (createdUser) { try { await createdUser.delete(); } catch (e) {} }
     showToast('สมัครไม่สำเร็จ: ' + err.message, 'error');
     btn.disabled = false;
     btn.textContent = '✅ สมัครเป็นไรเดอร์';
@@ -402,9 +366,7 @@ async function handleForgotPassword() {
   try {
     await auth.sendPasswordResetEmail(email);
     showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
-  }
+  } catch (err) { showToast('ส่งไม่สำเร็จ: ' + err.message, 'error'); }
 }
 
 async function handleLogout() {
@@ -487,7 +449,7 @@ function requestNotificationPermission() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   13. SUBSCRIBE — ⭐ v3.5.0: รับ cooking + ready
+   13. SUBSCRIBE
    ═══════════════════════════════════════════════════════════════════ */
 function subscribeProfile() {
   if (myProfileUnsub) myProfileUnsub();
@@ -508,7 +470,6 @@ function subscribeProfile() {
 
 function subscribeJobs() {
   if (myJobsUnsub) myJobsUnsub();
-  /* ⭐ v3.5.0: query รับ cooking + ready (Flow A) */
   myJobsUnsub = db.collection('orders')
     .where('status', 'in', ['searching', 'pending', 'cooking', 'ready', 'accepted', 'picked_up', 'on_the_way'])
     .orderBy('createdAt', 'desc')
@@ -520,7 +481,6 @@ function subscribeJobs() {
         return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
       });
 
-      /* ⭐ v3.5.0: rider เห็นงานได้ 4 status */
       const newJobs = allJobs.filter(j =>
         !prevIds.has(j.id) &&
         RIDER_VISIBLE_STATUSES.includes(j.status) &&
@@ -557,6 +517,7 @@ function subscribeHistory() {
       renderJobs();
     });
 }
+
 /* ═══════════════════════════════════════════════════════════════════
    14. UI UPDATE
    ═══════════════════════════════════════════════════════════════════ */
@@ -634,12 +595,11 @@ function updateHeroStats() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   15. RENDER JOBS — ⭐ v3.5.0 (4 statuses)
+   15. RENDER JOBS — Job Card ใหม่ (Grab-style)
    ═══════════════════════════════════════════════════════════════════ */
 function renderJobs() {
   const myId = currentUser?.uid;
 
-  /* ⭐ v3.5.0: งานใหม่ = searching + pending + cooking + ready */
   const newJobs = allJobs.filter(j =>
     RIDER_VISIBLE_STATUSES.includes(j.status) &&
     !j.riderId &&
@@ -676,14 +636,10 @@ function renderJobs() {
   if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   ⭐ v3.5.0 Phase 1A — Job Card ใหม่ (แบบ Grab)
-   ═══════════════════════════════════════════════════════════════════ */
 function renderJobCard(j, type) {
   const isNew = type === 'new';
   const fin = calcOrderFinance(j);
 
-  /* Status + icon */
   const statusInfo = {
     searching: { label: '🔔 ใหม่', color: 'var(--orange)', bg: '#FFF3E0' },
     pending: { label: '🔔 รอร้านรับ', color: 'var(--orange)', bg: '#FFF3E0' },
@@ -695,26 +651,21 @@ function renderJobCard(j, type) {
     done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' }
   }[j.status] || { label: j.status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
 
-  /* Payment badge */
   const payBadge = fin.isCash
     ? `<span class="jc-badge jc-cash">💵 เงินสด • ต้องมี ฿${fmt(fin.foodAmount)}</span>`
     : `<span class="jc-badge jc-transfer">💳 โอน • ลูกค้าจ่าย ฿${fmt(fin.totalCustomerPay)}</span>`;
 
-  /* Job type icon */
   const typeIcon = (j.type === 'ride') ? '🚗'
     : (j.type === 'express') ? '📦'
     : (j.type === 'shopping') ? '🛒'
     : '🍽️';
 
-  /* ปุ่มโทร */
   const phoneBtn = j.userPhone
     ? `<a href="tel:${esc(j.userPhone)}" class="jc-icon-btn" onclick="event.stopPropagation()" title="โทร">📞</a>`
     : '';
 
-  /* ปุ่มแชท */
   const chatBtn = `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
 
-  /* ปุ่ม action ตามสถานะ */
   let primaryAction = '';
   if (isNew) {
     primaryAction = `<button class="jc-primary-btn jc-accept" data-accept="${esc(j.id)}">✅ รับงาน</button>
@@ -809,16 +760,7 @@ async function arrivedAtShop(jobId) {
     });
     showToast('📍 แจ้งร้านค้าและลูกค้าแล้ว');
     arrivedShopNotifiedOrderIds.add(jobId);
-
-    const jobSnap = await db.collection('orders').doc(jobId).get();
-    if (jobSnap.exists && jobSnap.data().merchantId) {
-      await db.collection('orders').doc(jobId).update({
-        merchantNotifiedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(() => {});
-    }
-  } catch (err) {
-    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
-  }
+  } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
 async function onTheWayJob(jobId) {
@@ -828,9 +770,7 @@ async function onTheWayJob(jobId) {
       onTheWayAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('🚀 เริ่มส่ง');
-  } catch (err) {
-    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
-  }
+  } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
 async function deliverJob(jobId) {
@@ -951,7 +891,7 @@ function openDeliverModal(job, fin) {
       closeModal();
       stopGPS();
     } catch (err) {
-      showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+      showToast('ไม่สำเร็จ: ' + err.message, 'error');
       btn.disabled = false;
       btn.textContent = '✅ ยืนยัน';
     }
@@ -1054,7 +994,7 @@ function skipJob(jobId) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   20. ONLINE/OFFLINE + GPS
+   20. ONLINE / GPS
    ═══════════════════════════════════════════════════════════════════ */
 async function toggleOnline() {
   if (!currentUser || riderProfile?.verified !== true) {
@@ -1070,9 +1010,7 @@ async function toggleOnline() {
     showToast(newState ? '🟢 ออนไลน์' : '⚫ ออฟไลน์');
     if (newState) scheduleGPSIfActive();
     else stopGPS();
-  } catch (err) {
-    showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error'); }
 }
 
 function scheduleGPSIfActive() {
@@ -1151,9 +1089,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
 function requestGPS() {
   if (!navigator.geolocation) return showToast('ไม่รองรับ GPS', 'error');
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      showToast(`📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-    },
+    (pos) => { showToast(`📍 ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`); },
     () => { showToast('ไม่สามารถเข้าถึง GPS', 'error'); }
   );
 }
@@ -1168,454 +1104,3 @@ function closeModal() {
   const mc = $('modalContent');
   if (mc) mc.innerHTML = '';
 }
-
-/* ═══════════════════════════════════════════════════════════════════
-   22. PROFILE / FINANCE
-   ═══════════════════════════════════════════════════════════════════ */
-function showProfile() {
-  const mc = $('modalContent');
-  if (!mc) return;
-  mc.innerHTML = `
-    <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">👤 ข้อมูลส่วนตัว</h2>
-    <div style="line-height:2;font-size:14px">
-      <p><b>ชื่อ:</b> ${esc(riderProfile.name)}</p>
-      <p><b>เบอร์:</b> ${esc(riderProfile.phone || '—')}</p>
-      <p><b>อีเมล:</b> ${esc(riderProfile.email || '—')}</p>
-      <p><b>ยานพาหนะ:</b> ${esc(riderProfile.vehicle || '—')}</p>
-      <p><b>ทะเบียน:</b> ${esc(riderProfile.plate || '—')}</p>
-      <p><b>สถานะ:</b> ${riderProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}</p>
-      <p><b>Rating:</b> ⭐ ${(riderProfile.rating || 0).toFixed(1)} (${riderProfile.totalRatings || 0} รีวิว)</p>
-      <p><b>งานทั้งหมด:</b> ${riderProfile.totalJobs || 0} งาน</p>
-      <p><b>รายได้รวม:</b> ฿${fmt(riderProfile.totalIncome || 0)}</p>
-      <p><b>Trust Score:</b> ⭐ ${riderProfile.trustScore || 100} / 100</p>
-    </div>
-    <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
-  `;
-  $('modalOverlay').classList.add('show');
-}
-
-function showFinance() {
-  const today = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
-  const week = allHistory.filter(j => {
-    const d = toDate(j.doneAt);
-    if (!d) return false;
-    return d >= new Date(Date.now() - 7 * 86400000);
-  });
-  const month = allHistory.filter(j => {
-    const d = toDate(j.doneAt);
-    if (!d) return false;
-    return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
-  });
-
-  const sum = (arr) => arr.reduce((s, j) => s + Number(j.riderIncome || 0), 0);
-  const pendingOwe = allHistory.filter(j => !j.riderPaid).reduce((s, j) => s + Number(j.riderOwe || 0), 0);
-
-  const mc = $('modalContent');
-  if (!mc) return;
-  mc.innerHTML = `
-    <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">💰 รายได้ & GP</h2>
-    <div style="background:var(--header-grad);color:#fff;border-radius:16px;padding:20px;margin-bottom:12px">
-      <div style="font-size:12px;opacity:.9;font-weight:700">รายได้วันนี้</div>
-      <div style="font-size:36px;font-weight:900;margin-top:4px">฿${fmt(sum(today))}</div>
-      <div style="font-size:12px;opacity:.9;margin-top:6px;font-weight:700">จาก ${today.length} งาน</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;box-shadow:var(--shadow-sm)">
-        <div style="font-size:11px;color:var(--text-muted);font-weight:800">7 วัน</div>
-        <div style="font-size:20px;font-weight:900;color:var(--brand);margin-top:4px">฿${fmt(sum(week))}</div>
-      </div>
-      <div style="background:var(--surface);border-radius:12px;padding:14px;text-align:center;box-shadow:var(--shadow-sm)">
-        <div style="font-size:11px;color:var(--text-muted);font-weight:800">30 วัน</div>
-        <div style="font-size:20px;font-weight:900;color:var(--brand);margin-top:4px">฿${fmt(sum(month))}</div>
-      </div>
-    </div>
-    <div style="background:var(--orange-light);border-left:4px solid var(--orange);border-radius:12px;padding:14px;margin-bottom:14px">
-      <div style="font-size:12px;color:#E65100;font-weight:800">⚠️ GP ค้างโอน chauatgo (20%)</div>
-      <div style="font-size:24px;font-weight:900;color:#E65100;margin-top:4px">฿${fmt(pendingOwe)}</div>
-      <div style="font-size:11px;color:#E65100;font-weight:600;margin-top:2px">${allHistory.filter(j => !j.riderPaid).length} งาน</div>
-    </div>
-    <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
-  `;
-  $('modalOverlay').classList.add('show');
-}
-
-function showTransferShop() { showToast('💡 ระบบโอนร้านค้า — เร็ว ๆ นี้', 'info'); }
-function showTransferApp() { showToast('💡 ระบบโอน chauatgo — เร็ว ๆ นี้', 'info'); }
-function showGPIncome() { showToast('💎 GP 2% รอรับจาก chauatgo ทุก 15 วัน', 'info'); }
-
-function showTrustScore() {
-  const score = riderProfile?.trustScore || 100;
-  const level = score >= 90 ? 'ยอดเยี่ยม' : score >= 70 ? 'ดี' : score >= 50 ? 'ปานกลาง' : 'ต้องปรับปรุง';
-  const color = score >= 90 ? 'var(--green)' : score >= 70 ? 'var(--blue)' : score >= 50 ? 'var(--orange)' : 'var(--red)';
-
-  const mc = $('modalContent');
-  if (!mc) return;
-  mc.innerHTML = `
-    <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">🏆 Trust Score</h2>
-    <div style="text-align:center;padding:20px;background:var(--surface-2);border-radius:16px;margin-bottom:14px">
-      <div style="font-size:64px;font-weight:900;color:${color};line-height:1">${score}</div>
-      <div style="font-size:13px;font-weight:800;color:var(--text-muted);margin-top:8px">${level}</div>
-    </div>
-    <div style="background:var(--surface-2);border-radius:12px;padding:14px;font-size:13px;font-weight:700;line-height:1.9">
-      <div>✅ โอนตรงเวลา: <b>+คะแนน</b></div>
-      <div>✅ รีวิวดี: <b>+คะแนน</b></div>
-      <div>✅ งานสำเร็จ: <b>+คะแนน</b></div>
-      <div>⚠️ โอนช้า: <b>−คะแนน</b></div>
-      <div>⚠️ ยกเลิกงานบ่อย: <b>−คะแนน</b></div>
-    </div>
-    <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
-  `;
-  $('modalOverlay').classList.add('show');
-}
-
-function showHistory() {
-  const filtered = currentHistoryFilter === 'all' ? allHistory : allHistory;
-  const mc = $('modalContent');
-  if (!mc) return;
-  mc.innerHTML = `
-    <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 ประวัติงาน (${filtered.length})</h2>
-    <div style="max-height:400px;overflow-y:auto">
-    ${filtered.length === 0 ? '<p style="text-align:center;color:var(--text-light);padding:20px">ยังไม่มีงาน</p>' :
-      filtered.slice(0, 50).map(j => `
-        <div style="padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" data-detail="${esc(j.id)}">
-          <div style="display:flex;justify-content:space-between;font-weight:900;font-size:13px">
-            <span>${esc(j.title || 'งาน')}</span>
-            <span style="color:var(--green)">฿${fmt(j.riderIncome || 0)}</span>
-          </div>
-          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:4px">
-            🕐 ${fmtDateTime(j.doneAt || j.createdAt)} • 👤 ${esc(j.userName || '')}
-          </div>
-        </div>
-      `).join('')
-    }
-    </div>
-    <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
-  `;
-  $('modalOverlay').classList.add('show');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   23. CHAT (Rider ↔ Customer)
-   ═══════════════════════════════════════════════════════════════════ */
-async function openChatWithCustomer(orderId) {
-  const job = allJobs.find(j => j.id === orderId) || allHistory.find(j => j.id === orderId);
-  if (!job) return showToast('ไม่พบออเดอร์', 'error');
-
-  activeChatId = orderId;
-  activeChatPartnerPhone = job.userPhone || null;
-  activeChatPartnerName = job.userName || 'ลูกค้า';
-
-  try {
-    const chatRef = db.collection('chats').doc(orderId);
-    const snap = await chatRef.get();
-    if (!snap.exists) {
-      await chatRef.set({
-        orderId: orderId,
-        userId: job.userId,
-        userName: job.userName || 'ลูกค้า',
-        riderId: currentUser.uid,
-        riderName: riderProfile.name,
-        lastMessage: '',
-        lastSenderId: '',
-        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-  } catch (err) {}
-
-  const cn = $('chatName'); if (cn) cn.textContent = activeChatPartnerName;
-  const cs = $('chatSub'); if (cs) cs.textContent = job.title || 'ออเดอร์';
-  $('chatContainer')?.classList.add('show');
-  closeModal();
-
-  if (activeChatUnsub) activeChatUnsub();
-  activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')
-    .orderBy('createdAt', 'asc').limit(200)
-    .onSnapshot(snap => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderChatMessages(msgs);
-    });
-}
-
-function closeChat() {
-  $('chatContainer')?.classList.remove('show');
-  if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
-  activeChatId = null;
-}
-
-function callChatPartner() {
-  if (activeChatPartnerPhone) {
-    window.location.href = 'tel:' + activeChatPartnerPhone;
-  } else {
-    showToast('ไม่มีเบอร์โทร', 'warning');
-  }
-}
-
-function renderChatMessages(msgs) {
-  const el = $('chatMessages');
-  if (!el) return;
-  if (msgs.length === 0) {
-    el.innerHTML = '<div class="chat-empty">เริ่มสนทนากับลูกค้า</div>';
-    return;
-  }
-
-  let lastDay = '';
-  el.innerHTML = msgs.map(m => {
-    const isMine = m.senderId === currentUser.uid || m.senderRole === 'rider';
-    const d = toDate(m.createdAt) || new Date();
-    const day = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
-    let dayDiv = '';
-    if (day !== lastDay) {
-      dayDiv = `<div class="chat-day-divider">${day}</div>`;
-      lastDay = day;
-    }
-    const img = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
-    return `${dayDiv}
-      <div class="chat-msg ${isMine ? 'out' : 'in'}">
-        ${img}
-        ${m.text ? `<div>${esc(m.text)}</div>` : ''}
-        <div class="msg-time">${fmtTime(m.createdAt)}</div>
-      </div>`;
-  }).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-async function sendChatText() {
-  const text = $('chatInput')?.value.trim();
-  if (!text || !activeChatId) return;
-  const inp = $('chatInput');
-  inp.value = '';
-  inp.style.height = 'auto';
-
-  try {
-    await db.collection('chats').doc(activeChatId).collection('messages').add({
-      text,
-      senderId: currentUser.uid,
-      senderRole: 'rider',
-      senderName: riderProfile.name,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: text.slice(0, 80),
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ', 'error');
-  }
-}
-
-/* ⭐ v3.5.1: Fix path — เพิ่ม /images/ ให้ตรง Storage Rules */
-async function sendChatImage(file) {
-  if (!file || !activeChatId) return;
-  if (file.size > MAX_SLIP_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
-  showToast('⏳ กำลังอัปโหลด...', 'info');
-  try {
-    const compressed = await compressImage(file, 800, 0.75);
-    const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
-    const ref = storage.ref(path);
-    await ref.put(compressed);
-    const url = await ref.getDownloadURL();
-    await db.collection('chats').doc(activeChatId).collection('messages').add({
-      imageUrl: url,
-      senderId: currentUser.uid,
-      senderRole: 'rider',
-      senderName: riderProfile.name,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '📷 รูปภาพ',
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast('✅ ส่งรูปแล้ว');
-  } catch (err) {
-    console.error('sendChatImage error:', err);
-    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
-  }
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   24. CAMERA (ถ่ายรูปอาหาร)
-   ═══════════════════════════════════════════════════════════════════ */
-function openCamera() {
-  $('cameraModal')?.classList.add('show');
-  cameraFile = null;
-  const preview = $('cameraPreview');
-  if (preview) preview.style.display = 'none';
-  const placeholder = $('cameraPlaceholder');
-  if (placeholder) placeholder.style.display = 'block';
-  const sendBtn = $('cameraSendBtn');
-  if (sendBtn) sendBtn.style.display = 'none';
-}
-
-function closeCamera() {
-  $('cameraModal')?.classList.remove('show');
-  cameraFile = null;
-}
-
-function previewFoodImage(file) {
-  if (!file) return;
-  cameraFile = file;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const preview = $('cameraPreview');
-    if (preview) {
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-    }
-    const placeholder = $('cameraPlaceholder');
-    if (placeholder) placeholder.style.display = 'none';
-    const sendBtn = $('cameraSendBtn');
-    if (sendBtn) sendBtn.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
-}
-
-async function sendFoodImage() {
-  if (!cameraFile || !activeChatId) {
-    showToast('ไม่มีรูป', 'warning');
-    return;
-  }
-  try {
-    await sendChatImage(cameraFile);
-    closeCamera();
-    closeChat();
-    showToast('✅ ส่งรูปอาหารให้ลูกค้าแล้ว');
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ', 'error');
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   25. NETWORK & PWA
-   ═══════════════════════════════════════════════════════════════════ */
-function setupNetwork() {
-  window.addEventListener('online', () => {
-    $('offline-banner')?.classList.remove('show');
-    showToast('🟢 กลับมาออนไลน์');
-  });
-  window.addEventListener('offline', () => {
-    $('offline-banner')?.classList.add('show');
-  });
-  if (!navigator.onLine) $('offline-banner')?.classList.add('show');
-}
-
-let deferredPrompt = null;
-function setupPWA() {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (!localStorage.getItem('chauat_rider_pwa_dismissed')) {
-      $('pwa-install-banner')?.classList.remove('hidden');
-    }
-  });
-}
-
-function installPWA() {
-  if (deferredPrompt) {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(r => {
-      if (r.outcome === 'accepted') {
-        showToast('✅ ติดตั้งสำเร็จ');
-        $('pwa-install-banner')?.classList.add('hidden');
-      }
-      deferredPrompt = null;
-    });
-  } else {
-    showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก', 'info');
-  }
-}
-
-function dismissPWA() {
-  $('pwa-install-banner')?.classList.add('hidden');
-  localStorage.setItem('chauat_rider_pwa_dismissed', '1');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   26. EVENT DELEGATION
-   ═══════════════════════════════════════════════════════════════════ */
-document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-ontheway],[data-deliver],[data-detail],[data-chat]');
-  if (!t) return;
-
-  try {
-    if (t.dataset.accept) await acceptJob(t.dataset.accept);
-    else if (t.dataset.skip) skipJob(t.dataset.skip);
-    else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
-    else if (t.dataset.ontheway) await onTheWayJob(t.dataset.ontheway);
-    else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
-    else if (t.dataset.detail) showJobDetail(t.dataset.detail);
-    else if (t.dataset.chat) openChatWithCustomer(t.dataset.chat);
-  } catch (err) {}
-});
-
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('button, .job-card, .jc-card, .jc-primary-btn');
-  if (btn && navigator.vibrate) navigator.vibrate(10);
-}, { passive: true });
-
-/* ═══════════════════════════════════════════════════════════════════
-   27. INIT
-   ═══════════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  runSplash();
-});
-
-/* ═══════════════════════════════════════════════════════════════════
-   28. EXPOSE GLOBALS
-   ═══════════════════════════════════════════════════════════════════ */
-window.toggleTheme = toggleTheme;
-window.switchAuthTab = switchAuthTab;
-window.handleLogin = handleLogin;
-window.handleSignup = handleSignup;
-window.handleForgotPassword = handleForgotPassword;
-window.handleLogout = handleLogout;
-window.toggleOnline = toggleOnline;
-window.openSheet = openSheet;
-window.closeSheet = closeSheet;
-window.closeModal = closeModal;
-window.showProfile = showProfile;
-window.showFinance = showFinance;
-window.showTransferShop = showTransferShop;
-window.showTransferApp = showTransferApp;
-window.showGPIncome = showGPIncome;
-window.showTrustScore = showTrustScore;
-window.showHistory = showHistory;
-window.showJobDetail = showJobDetail;
-window.closeNewJobPopup = closeNewJobPopup;
-window.acceptFromPopup = acceptFromPopup;
-window.openChatWithCustomer = openChatWithCustomer;
-window.closeChat = closeChat;
-window.callChatPartner = callChatPartner;
-window.sendChatText = sendChatText;
-window.sendChatImage = sendChatImage;
-window.autoResize = autoResize;
-window.requestGPS = requestGPS;
-window.installPWA = installPWA;
-window.dismissPWA = dismissPWA;
-window.openCamera = openCamera;
-window.closeCamera = closeCamera;
-window.previewFoodImage = previewFoodImage;
-window.sendFoodImage = sendFoodImage;
-
-/* Service Worker */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-      .then(reg => {
-        reg.update();
-        setInterval(() => reg.update(), 60000);
-      })
-      .catch(() => {});
-  });
-}
-
-console.log('%c🛵 Chauat Go Rider v3.5.1 — Phase A Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
-console.log('%c⭐ Fix sendChatImage path + Job Card (Grab style)', 'color:#00A651;font-weight:800;font-size:12px');
