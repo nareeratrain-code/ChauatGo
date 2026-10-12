@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.7.0
+   🏪 CHAUAT GO MERCHANT — v3.7.1
    Full-featured Production JavaScript
+   ✅ Clean Code — แก้ทุก bug จาก v3.7.0
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -22,7 +23,7 @@ const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
 window.CHAUAT_MERCHANT_DEBUG = true;
-console.log('%c🏪 Chauat Go Merchant v3.7.0 — Ready!', 'color:#00A651;font-weight:900;font-size:14px');
+console.log('%c🏪 Chauat Go Merchant v3.7.1 — Clean Code', 'color:#00A651;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -61,8 +62,17 @@ let editingPromoType = 'percent';
 let gpSlipFile = null;
 let currentGpPending = 0;
 
-/* ⭐ v3.7.0: Shop Avatar */
 let pendingShopAvatarBlob = null;
+
+let cropperInstance = null;
+let cropTargetCallback = null;
+
+let editingCategories = [];
+let editingCategoryIndex = -1;
+let editingCategoryIcon = '🍚';
+
+let editingSoundTone = 1;
+let editingSoundVolume = 'mid';
 
 /* ═══════════════════════════════════════════════════════════════════
    3. CONSTANTS
@@ -82,6 +92,22 @@ const SOUND_TONES = {
 };
 
 const SOUND_VOLUMES = { low: 0.15, mid: 0.35, high: 0.65 };
+
+const AVAILABLE_ICONS = [
+  '🍚','🍲','🥗','🥤','🍰','📦',
+  '🍜','🍕','🍔','🌮','🍣','🥘',
+  '🍛','🍝','🥪','🍞','☕','🧋',
+  '🍺','🍷','🍦','🍩','🎂','🍭'
+];
+
+const DEFAULT_CATEGORIES = [
+  { id: 'main', name: 'อาหารจานหลัก', icon: '🍚', hidden: false, order: 1 },
+  { id: 'side', name: 'กับข้าว', icon: '🍲', hidden: false, order: 2 },
+  { id: 'yam', name: 'ยำ', icon: '🥗', hidden: false, order: 3 },
+  { id: 'drink', name: 'เครื่องดื่ม', icon: '🥤', hidden: false, order: 4 },
+  { id: 'dessert', name: 'ของหวาน', icon: '🍰', hidden: false, order: 5 },
+  { id: 'other', name: 'อื่นๆ', icon: '📦', hidden: false, order: 6 }
+];
 
 /* ═══════════════════════════════════════════════════════════════════
    4. HELPERS
@@ -122,12 +148,6 @@ const isThisMonth = (t) => {
   if (!d) return false;
   const now = new Date();
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-};
-
-const debugLog = (msg, isError) => {
-  if (window.CHAUAT_MERCHANT_DEBUG) {
-    if (isError) console.warn(msg); else console.log(msg);
-  }
 };
 
 function calcFinalPrice(menu) {
@@ -209,7 +229,7 @@ function dismissSplash() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   7. TOAST & SOUND & VIBRATE
+   7. TOAST & SOUND
    ═══════════════════════════════════════════════════════════════════ */
 function showToast(msg, type = 'success') {
   const t = $('toast');
@@ -359,9 +379,7 @@ function getDaysLeft(merchant) {
 }
 
 function calcGp(foodTotal, merchant) {
-  if (isPromoActive(merchant)) {
-    return { total: 0, rider: 0, platform: 0, isPromo: true };
-  }
+  if (isPromoActive(merchant)) return { total: 0, rider: 0, platform: 0, isPromo: true };
   const total = Math.round(foodTotal * GP_RATE * 100) / 100;
   const rider = Math.round(foodTotal * GP_RIDER_SHARE * 100) / 100;
   const platform = Math.round(foodTotal * GP_PLATFORM_SHARE * 100) / 100;
@@ -391,10 +409,8 @@ async function handleLogin(e) {
   const email = $('login-email').value.trim().toLowerCase();
   const pw = $('login-password').value;
   if (!email || !pw) return showToast('กรอกอีเมลและรหัสผ่าน', 'error');
-
   btn.disabled = true;
   btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
-
   try {
     await auth.signInWithEmailAndPassword(email, pw);
     showToast('✅ เข้าสู่ระบบสำเร็จ');
@@ -474,7 +490,6 @@ async function handleSignup(e) {
       btn.textContent = '🏪 สมัครร้านค้า';
       showToast('📧 เข้าสู่ระบบด้วยอีเมลที่สมัคร', 'info');
     }, 1800);
-
   } catch (err) {
     console.error('❌ Signup error:', err.code, err.message);
     if (createdUser) {
@@ -516,7 +531,6 @@ async function handleMerchantLogout() {
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
   if (isSigningUp) return;
-
   if (myProfileUnsub) myProfileUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
   if (myMenusUnsub) myMenusUnsub();
@@ -533,7 +547,6 @@ auth.onAuthStateChanged(async (user) => {
   try {
     let userDoc = null;
     let merchantDoc = null;
-
     for (let attempt = 1; attempt <= 5; attempt++) {
       try { userDoc = await db.collection('users').doc(user.uid).get(); } catch (e) {}
       try { merchantDoc = await db.collection('merchants').doc(user.uid).get(); } catch (e) {}
@@ -562,7 +575,6 @@ auth.onAuthStateChanged(async (user) => {
 
     merchantProfile = { uid: user.uid, ...merchantDoc.data() };
     loadSoundSettingsFromProfile();
-
     $('login-screen').style.display = 'none';
     $('app').style.display = 'block';
 
@@ -599,6 +611,9 @@ function initApp() {
   setTimeout(() => {
     if (!isAudioUnlocked) showUnlockBanner();
   }, 1500);
+
+  /* ⭐ v3.7.1: auto-migrate categories */
+  setTimeout(ensureMenuCategories, 2000);
 }
 
 function requestNotificationPermission() {
@@ -616,7 +631,6 @@ function subscribeProfile() {
     if (!snap.exists) return;
     const prevVerified = merchantProfile?.verified;
     merchantProfile = { uid: currentUser.uid, ...snap.data() };
-
     loadSoundSettingsFromProfile();
 
     if (prevVerified === false && merchantProfile.verified === true) {
@@ -654,13 +668,9 @@ function subscribeOrders() {
         merchantProfile?.verified === true && isShopOpen
       );
 
-      if (newOnes.length > 0) {
-        if (isFirstOrdersLoad || prevIds.size === 0) {
-          /* skip */
-        } else {
-          startOrderLoop();
-          showNewOrderPopup(newOnes[0]);
-        }
+      if (newOnes.length > 0 && prevIds.size > 0) {
+        startOrderLoop();
+        showNewOrderPopup(newOnes[0]);
       }
 
       const stillHasPending = allOrders.some(o => o.status === 'pending');
@@ -738,7 +748,6 @@ function updateShopToggle() {
 
 function updateHeroStats() {
   const doneToday = allOrders.filter(o => o.status === 'done' && isToday(o.createdAt));
-
   let todayRevenue = 0;
   let todayGp = 0;
   doneToday.forEach(o => {
@@ -764,17 +773,13 @@ function updateNavBadge() {
   const pending = allOrders.filter(o => o.status === 'pending').length;
   const badge = $('nav-orders-badge');
   if (badge) {
-    if (pending > 0) {
-      badge.textContent = pending;
-      badge.style.display = 'flex';
-    } else {
-      badge.style.display = 'none';
-    }
+    if (pending > 0) { badge.textContent = pending; badge.style.display = 'flex'; }
+    else { badge.style.display = 'none'; }
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   15. RENDER ORDERS — ⭐ v3.7.0: เพิ่มปุ่มโทร/แชท
+   15. RENDER ORDERS — ⭐ v3.7.1: ปุ่มโทร/แชท + Contact
    ═══════════════════════════════════════════════════════════════════ */
 function renderOrders() {
   const pending = allOrders.filter(o => o.status === 'pending');
@@ -788,10 +793,8 @@ function renderOrders() {
 
   const nl = $('new-orders-list');
   if (nl) nl.innerHTML = pending.map(o => renderOrderCard(o)).join('');
-
   const cl = $('cooking-orders-list');
   if (cl) cl.innerHTML = cooking.map(o => renderOrderCard(o)).join('');
-
   const dl = $('done-orders-list');
   if (dl) dl.innerHTML = done.slice(0, 10).map(o => renderOrderCard(o)).join('');
 
@@ -834,7 +837,7 @@ function renderOrderCard(o) {
     </div>`;
   }
 
-  /* ⭐ v3.7.0: ปุ่มโทร + แชท (ถ้ามีคู่สนทนา) */
+  /* ⭐ v3.7.1: ปุ่มโทร + แชท */
   let contactActions = '';
   const hasCustomer = !!o.userPhone;
   const hasRider = !!o.riderPhone;
@@ -888,14 +891,14 @@ function renderOrderCard(o) {
     ${contactActions}
   </div>`;
 }
+
 /* ═══════════════════════════════════════════════════════════════════
    16. ORDER ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
 async function acceptOrder(orderId) {
   try {
     await db.collection('orders').doc(orderId).update({
-      status: 'cooking',
-      cookingAt: firebase.firestore.FieldValue.serverTimestamp()
+      status: 'cooking', cookingAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     stopOrderLoop();
     showToast('🍳 เริ่มทำอาหาร');
@@ -905,8 +908,7 @@ async function acceptOrder(orderId) {
 async function readyOrder(orderId) {
   try {
     await db.collection('orders').doc(orderId).update({
-      status: 'ready',
-      readyAt: firebase.firestore.FieldValue.serverTimestamp()
+      status: 'ready', readyAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ พร้อมส่ง');
   } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
@@ -1049,7 +1051,7 @@ async function toggleShop() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   19. MENUS — v3.5.0 (status + promotion)
+   19. MENUS
    ═══════════════════════════════════════════════════════════════════ */
 function renderMenus() {
   const list = $('menu-list');
@@ -1173,6 +1175,14 @@ function openMenuForm(menuId) {
   }
 
   openSheet('menu-form-sheet');
+
+  /* ⭐ v3.7.1: dynamic dropdown */
+  setTimeout(() => {
+    const currentCat = menuId
+      ? (allMenus.find(x => x.id === menuId)?.category || 'main')
+      : (getMenuCategories().filter(c => !c.hidden)[0]?.id || 'main');
+    renderCategoryDropdown(currentCat);
+  }, 50);
 }
 
 function pickMenuStatus(status) { editingMenuStatus = status; updateStatusUI(); }
@@ -1228,38 +1238,38 @@ function setPromoValue(v) {
 function updatePromoPreview() {
   const preview = $('mf-promo-preview-text');
   if (!preview) return;
-
   const price = Number($('mf-price')?.value || 0);
   const value = Number($('mf-promo-value')?.value || 0);
   const active = $('mf-promo-active')?.checked || false;
-
   if (!active || price <= 0 || value <= 0) { preview.textContent = '—'; return; }
-
   let finalPrice = price;
   if (editingPromoType === 'percent') finalPrice = Math.max(0, Math.round(price * (1 - value / 100)));
   else finalPrice = Math.max(0, price - value);
-
   const saved = price - finalPrice;
   preview.textContent = `฿${price} → ฿${finalPrice} (ประหยัด ฿${saved})`;
 }
 
-async function previewMenuImg(event) {
+/* ⭐ v3.7.1: previewMenuImg รวม Crop */
+function previewMenuImg(event) {
   const file = event.target.files[0];
   if (!file) return;
   if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
-  editingMenuImgBlob = file;
-  editingMenuImgUrl = null;
 
   const reader = new FileReader();
   reader.onload = (e) => {
-    const preview = $('img-preview');
-    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
-    const placeholder = $('img-placeholder');
-    if (placeholder) placeholder.style.display = 'none';
-    const removeBtn = $('remove-img-btn');
-    if (removeBtn) removeBtn.style.display = 'block';
+    openCropModal(e.target.result, (croppedFile, dataUrl) => {
+      editingMenuImgBlob = croppedFile;
+      editingMenuImgUrl = null;
+      const preview = $('img-preview');
+      if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
+      const placeholder = $('img-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+      const removeBtn = $('remove-img-btn');
+      if (removeBtn) removeBtn.style.display = 'block';
+    });
   };
   reader.readAsDataURL(file);
+  event.target.value = '';
 }
 
 function removeMenuImg() {
@@ -1301,7 +1311,6 @@ async function saveMenu() {
 
   try {
     let imageUrl = editingMenuImgUrl;
-
     if (editingMenuImgBlob) {
       const compressed = await compressImage(editingMenuImgBlob, 800, 0.8);
       const path = `menus/${currentUser.uid}/${Date.now()}.jpg`;
@@ -1316,12 +1325,8 @@ async function saveMenu() {
 
     const data = {
       merchantId: currentUser.uid,
-      name: name,
-      price: price,
-      category: category,
-      description: desc,
-      image: imageUrl || '',
-      status: status,
+      name: name, price: price, category: category, description: desc,
+      image: imageUrl || '', status: status,
       statusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       promotion: promoData,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1357,9 +1362,6 @@ async function deleteMenu(menuId) {
 /* ═══════════════════════════════════════════════════════════════════
    20. SOUND SETTINGS
    ═══════════════════════════════════════════════════════════════════ */
-let editingSoundTone = 1;
-let editingSoundVolume = 'mid';
-
 function openSoundSettings() {
   editingSoundTone = currentSoundSettings.tone || 1;
   editingSoundVolume = currentSoundSettings.volume || 'mid';
@@ -1404,8 +1406,7 @@ async function saveSoundSettings() {
 
   try {
     const newSettings = {
-      tone: editingSoundTone,
-      volume: editingSoundVolume,
+      tone: editingSoundTone, volume: editingSoundVolume,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     await db.collection('merchants').doc(currentUser.uid).update({ soundSettings: newSettings });
@@ -1430,7 +1431,6 @@ function filterHistory(filter, el) {
 function renderHistory() {
   let filtered = [];
   const done = allOrders.filter(o => o.status === 'done');
-
   if (currentHistoryFilter === 'today') filtered = done.filter(o => isToday(o.doneAt || o.createdAt));
   else if (currentHistoryFilter === 'week') filtered = done.filter(o => isThisWeek(o.doneAt || o.createdAt));
   else if (currentHistoryFilter === 'month') filtered = done.filter(o => isThisMonth(o.doneAt || o.createdAt));
@@ -1441,12 +1441,10 @@ function renderHistory() {
 
   const list = $('history-list');
   if (!list) return;
-
   if (!filtered.length) {
     list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h4>ไม่มีประวัติ</h4><p>ยังไม่มีออเดอร์ในช่วงนี้</p></div>';
     return;
   }
-
   list.innerHTML = filtered.map(o => {
     const foodTotal = calcOrderFoodTotal(o);
     return `<div class="history-item" onclick="viewOrderDetail('${esc(o.id)}')">
@@ -1465,7 +1463,6 @@ function renderHistory() {
 function updateGpTab() {
   if (!merchantProfile) return;
   const doneOrders = allOrders.filter(o => o.status === 'done');
-
   const today = doneOrders.filter(o => isToday(o.doneAt || o.createdAt));
   const month = doneOrders.filter(o => isThisMonth(o.doneAt || o.createdAt));
 
@@ -1482,9 +1479,7 @@ function updateGpTab() {
   let todayGp = 0, todayRider = 0, todayPlatform = 0;
   today.forEach(o => {
     const gp = calcGp(calcOrderFoodTotal(o), merchantProfile);
-    todayGp += gp.total;
-    todayRider += gp.rider;
-    todayPlatform += gp.platform;
+    todayGp += gp.total; todayRider += gp.rider; todayPlatform += gp.platform;
   });
 
   const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
@@ -1546,24 +1541,17 @@ function renderGpHistory() {
    ═══════════════════════════════════════════════════════════════════ */
 function openGpTransferForm() {
   if (currentGpPending <= 0) return showToast('ไม่มี GP ค้างโอน', 'info');
-
   gpSlipFile = null;
   const amountEl = $('gp-transfer-amount');
   if (amountEl) amountEl.textContent = '฿' + fmt(currentGpPending);
-
   const roundEl = $('gp-transfer-round');
-  if (roundEl) {
-    const now = new Date();
-    roundEl.textContent = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-  }
-
+  if (roundEl) roundEl.textContent = new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
   const preview = $('gp-slip-preview');
   if (preview) preview.style.display = 'none';
   const input = $('gp-slip-input');
   if (input) input.value = '';
   const note = $('gp-note');
   if (note) note.value = '';
-
   openSheet('gp-transfer-sheet');
 }
 
@@ -1595,11 +1583,9 @@ async function submitGpTransfer() {
     const ref = storage.ref(path);
     await ref.put(compressed);
     const slipUrl = await ref.getDownloadURL();
-
     const note = $('gp-note')?.value.trim() || '';
     const amount = currentGpPending;
-    const now = new Date();
-    const roundLabel = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    const roundLabel = new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
     const historyEntry = {
       amount: amount, slipUrl: slipUrl, slipPath: path, note: note,
@@ -1627,10 +1613,9 @@ async function submitGpTransfer() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   24. SHEET / MODAL
+   24. SHEET / MODAL / TABS
    ═══════════════════════════════════════════════════════════════════ */
 function openSheet(id) { const el = $(id); if (el) el.classList.add('show'); }
-
 function closeSheet(id) {
   const el = $(id);
   if (el) el.classList.remove('show');
@@ -1643,29 +1628,24 @@ function closeSheet(id) {
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   25. TABS
-   ═══════════════════════════════════════════════════════════════════ */
 function switchTab(tab, el) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   if (el) el.classList.add('active');
   const target = $('tab-' + tab);
   if (target) target.classList.add('active');
-
   if (tab === 'history') renderHistory();
   if (tab === 'gp') updateGpTab();
 }
-
 /* ═══════════════════════════════════════════════════════════════════
-   ⭐ v3.7.0 — SHOP PROFILE + AVATAR
+   ⭐ v3.7.1 — SHOP PROFILE + AVATAR
    ═══════════════════════════════════════════════════════════════════ */
-window.openShopProfile = function() {
+function openShopProfile() {
   if (!merchantProfile) return;
   loadShopAvatarPreview();
   renderShopProfileInfo();
   openSheet('shop-profile-sheet');
-};
+}
 
 function renderShopProfileInfo() {
   const m = merchantProfile;
@@ -1701,7 +1681,7 @@ function loadShopAvatarPreview() {
   pendingShopAvatarBlob = null;
 }
 
-window.uploadShopAvatar = function(event) {
+function uploadShopAvatar(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
 
@@ -1718,7 +1698,7 @@ window.uploadShopAvatar = function(event) {
 
   const reader = new FileReader();
   reader.onload = (e) => {
-    openCropModal(e.target.result, async (croppedFile, dataUrl) => {
+    openCropModal(e.target.result, (croppedFile, dataUrl) => {
       pendingShopAvatarBlob = croppedFile;
       const preview = $('shop-avatar-preview');
       if (preview) preview.src = dataUrl;
@@ -1729,9 +1709,9 @@ window.uploadShopAvatar = function(event) {
   };
   reader.readAsDataURL(file);
   event.target.value = '';
-};
+}
 
-window.saveShopAvatar = async function() {
+async function saveShopAvatar() {
   if (!pendingShopAvatarBlob || !currentUser) {
     return showToast('ยังไม่ได้เลือกรูป', 'warning');
   }
@@ -1767,7 +1747,7 @@ window.saveShopAvatar = async function() {
     showToast('บันทึกไม่สำเร็จ: ' + (err.code || err.message), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกรูปโปรไฟล์'; }
   }
-};
+}
 
 function showShopInfo() { openShopProfile(); }
 
@@ -1815,7 +1795,7 @@ async function openChatRoom(orderId, name, sub) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     }
-  } catch (err) {}
+  } catch (err) { console.warn('openChatRoom:', err.message); }
 
   const cn = $('chatName'); if (cn) cn.textContent = name;
   const cs = $('chatSub'); if (cs) cs.textContent = sub;
@@ -1827,7 +1807,7 @@ async function openChatRoom(orderId, name, sub) {
     .onSnapshot(snap => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderChatMessages(msgs);
-    });
+    }, err => { console.warn('Chat sub:', err.message); });
 }
 
 function closeChat() {
@@ -1929,11 +1909,9 @@ function setupPWA() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    if (!localStorage}
-
-.getItem('chauat_merchant_pwa_dismiss/*ed')) {
-      $('pwa-install ═-banner')?.classList.remove('hidden');
-════    }
+    if (!localStorage.getItem('chauat_merchant_pwa_dismissed')) {
+      $('pwa-install-banner')?.classList.remove('hidden');
+    }
   });
 }
 
@@ -1953,7 +1931,9 @@ function installPWA() {
 function dismissPWA() {
   $('pwa-install-banner')?.classList.add('hidden');
   localStorage.setItem('chauat_merchant_pwa_dismissed', '1');
-══════════════════════════════════════════════════════════════
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    29. INIT
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -2002,6 +1982,9 @@ window.filterHistory = filterHistory;
 window.openGpTransferForm = openGpTransferForm;
 window.submitGpTransfer = submitGpTransfer;
 window.showShopInfo = showShopInfo;
+window.openShopProfile = openShopProfile;
+window.uploadShopAvatar = uploadShopAvatar;
+window.saveShopAvatar = saveShopAvatar;
 window.openChatWithCustomer = openChatWithCustomer;
 window.openChatWithRider = openChatWithRider;
 window.closeChat = closeChat;
@@ -2028,11 +2011,6 @@ window.pickSoundVolume = pickSoundVolume;
 window.testSound = testSound;
 window.saveSoundSettings = saveSoundSettings;
 
-/* ⭐ v3.7.0: Expose new functions */
-window.openShopProfile = openShopProfile;
-window.uploadShopAvatar = uploadShopAvatar;
-window.saveShopAvatar = saveShopAvatar;
-
 /* Service Worker */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -2046,31 +2024,8 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ⭐ v3.6.0: CROP IMAGE + CATEGORY MANAGER
+   ⭐ v3.6.0 → v3.7.1: CROP IMAGE + CATEGORY MANAGER
    ═══════════════════════════════════════════════════════════════════ */
-let cropperInstance = null;
-let cropTargetCallback = null;
-
-const AVAILABLE_ICONS = [
-  '🍚','🍲','🥗','🥤','🍰','📦',
-  '🍜','🍕','🍔','🌮','🍣','🥘',
-  '🍛','🍝','🥪','🍞','☕','🧋',
-  '🍺','🍷','🍦','🍩','🎂','🍭'
-];
-
-let editingCategories = [];
-let editingCategoryIndex = -1;
-let editingCategoryIcon = '🍚';
-
-const DEFAULT_CATEGORIES = [
-  { id: 'main', name: 'อาหารจานหลัก', icon: '🍚', hidden: false, order: 1 },
-  { id: 'side', name: 'กับข้าว', icon: '🍲', hidden: false, order: 2 },
-  { id: 'yam', name: 'ยำ', icon: '🥗', hidden: false, order: 3 },
-  { id: 'drink', name: 'เครื่องดื่ม', icon: '🥤', hidden: false, order: 4 },
-  { id: 'dessert', name: 'ของหวาน', icon: '🍰', hidden: false, order: 5 },
-  { id: 'other', name: 'อื่นๆ', icon: '📦', hidden: false, order: 6 }
-];
-
 function getMenuCategories() {
   if (!merchantProfile?.menuCategories || !Array.isArray(merchantProfile.menuCategories) || merchantProfile.menuCategories.length === 0) {
     return JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
@@ -2268,7 +2223,7 @@ async function confirmCrop() {
     if (!canvas) return showToast('crop ไม่สำเร็จ', 'error');
     canvas.toBlob((blob) => {
       if (!blob) return showToast('ไม่สามารถประมวลผลรูป', 'error');
-      const file = new File([blob], 'menu_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+      const file = new File([blob], 'crop_' + Date.now() + '.jpg', { type: 'image/jpeg' });
       if (typeof cropTargetCallback === 'function') {
         cropTargetCallback(file, canvas.toDataURL('image/jpeg', 0.85));
       }
@@ -2277,41 +2232,6 @@ async function confirmCrop() {
     }, 'image/jpeg', 0.85);
   } catch (err) { showToast('ไม่สำเร็จ: ' + err.message, 'error'); }
 }
-
-/* ═══ Hook: previewMenuImg → Crop ═══ */
-const _origPreviewMenuImg = window.previewMenuImg;
-window.previewMenuImg = function(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
-
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    openCropModal(e.target.result, (croppedFile, dataUrl) => {
-      editingMenuImgBlob = croppedFile;
-      editingMenuImgUrl = null;
-      const preview = $('img-preview');
-      if (preview) { preview.src = dataUrl; preview.style.display = 'block'; }
-      const placeholder = $('img-placeholder');
-      if (placeholder) placeholder.style.display = 'none';
-      const removeBtn = $('remove-img-btn');
-      if (removeBtn) removeBtn.style.display = 'block';
-    });
-  };
-  reader.readAsDataURL(file);
-};
-
-/* ═══ Hook: openMenuForm → dropdown dynamic ═══ */
-const _origOpenMenuForm = window.openMenuForm;
-window.openMenuForm = function(menuId) {
-  _origOpenMenuForm(menuId);
-  setTimeout(() => {
-    const currentCat = menuId
-      ? (allMenus.find(x => x.id === menuId)?.category || 'main')
-      : (getMenuCategories().filter(c => !c.hidden)[0]?.id || 'main');
-    renderCategoryDropdown(currentCat);
-  }, 50);
-};
 
 /* ═══ Auto-migrate ═══ */
 async function ensureMenuCategories() {
@@ -2323,15 +2243,11 @@ async function ensureMenuCategories() {
       menuCategoriesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     merchantProfile.menuCategories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+    console.log('✅ Auto-initialized menuCategories');
   } catch (e) { console.warn('Cannot init menuCategories:', e.code); }
 }
 
-const _origInitApp = window.initApp;
-window.init2App = function() {
-  _origInitApp();
-  setTimeout(ensureMenuCategories, 2000);
-};
-
+/* ═══ Expose category + crop functions ═══ */
 window.openCategoryManager = openCategoryManager;
 window.renderCategoryList = renderCategoryList;
 window.openAddCategoryForm = openAddCategoryForm;
@@ -2346,4 +2262,4 @@ window.resetCrop = resetCrop;
 window.closeCropModal = closeCropModal;
 window.confirmCrop = confirmCrop;
 
-console.log('%c⭐ v3.7.0: Crop + Category Manager + Shop Profile + Contact Buttons loaded', 'color:#00A651;font-weight:900;font-size:12px');
+console.log('%c✅ v3.7.1: Shop Profile + Contact + Crop + Category loaded', 'color:#00A651;font-weight:900;font-size:13px');
