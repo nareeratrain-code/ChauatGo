@@ -1,14 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════
    🏪 CHAUAT GO MERCHANT — v3.7.0
    Full-featured Production JavaScript
-   + Race condition fix (isSigningUp flag)
-   + Sound Unlock Banner + Loop Sound
-   + Menu Status (available / out_of_stock / hidden)
-   + Promotion (% / amount)
-   + Sound Settings (3 tones × 3 volumes)
-   + Crop Image (Cropper.js)
-   + Category Manager
-   + Shop Profile + Avatar Upload ⭐ v3.7.0
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -58,10 +50,7 @@ let isAudioUnlocked = false;
 let orderLoopTimer = null;
 let isFirstOrdersLoad = true;
 
-let currentSoundSettings = {
-  tone: 1,
-  volume: 'mid'
-};
+let currentSoundSettings = { tone: 1, volume: 'mid' };
 
 let editingMenuId = null;
 let editingMenuImgBlob = null;
@@ -84,11 +73,7 @@ const GP_PLATFORM_SHARE = 0.01;
 const PROMO_DAYS = 60;
 const MAX_IMG_SIZE = 5 * 1024 * 1024;
 const ORDER_LOOP_INTERVAL = 3000;
-const GP_BANK_INFO = {
-  bank: 'กสิกรไทย',
-  accountNo: 'xxx-x-xxxxx-x',
-  accountName: 'บริษัท Chauat Go จำกัด'
-};
+const GP_BANK_INFO = { bank: 'กสิกรไทย', accountNo: 'xxx-x-xxxxx-x', accountName: 'บริษัท Chauat Go จำกัด' };
 
 const SOUND_TONES = {
   1: { name: 'ติ๊ง-ติ๊ง', freqs: [880, 1108, 1318, 1108], interval: 0.18, duration: 0.18 },
@@ -96,11 +81,7 @@ const SOUND_TONES = {
   3: { name: 'ระฆัง', freqs: [1318, 1568, 1318, 1046], interval: 0.16, duration: 0.22 }
 };
 
-const SOUND_VOLUMES = {
-  low: 0.15,
-  mid: 0.35,
-  high: 0.65
-};
+const SOUND_VOLUMES = { low: 0.15, mid: 0.35, high: 0.65 };
 
 /* ═══════════════════════════════════════════════════════════════════
    4. HELPERS
@@ -120,16 +101,8 @@ const toDate = (t) => {
   return isNaN(d) ? null : d;
 };
 
-const fmtTime = (t) => {
-  const d = toDate(t);
-  return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '—';
-};
-
-const fmtDate = (t) => {
-  const d = toDate(t);
-  return d ? d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
-};
-
+const fmtTime = (t) => { const d = toDate(t); return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '—'; };
+const fmtDate = (t) => { const d = toDate(t); return d ? d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' }) : '—'; };
 const fmtDateTime = (t) => `${fmtDate(t)} ${fmtTime(t)}`;
 
 const timeAgo = (t) => {
@@ -142,17 +115,8 @@ const timeAgo = (t) => {
   return `${Math.floor(diff / 86400)} วันที่แล้ว`;
 };
 
-const isToday = (t) => {
-  const d = toDate(t);
-  return d ? d.toDateString() === new Date().toDateString() : false;
-};
-
-const isThisWeek = (t) => {
-  const d = toDate(t);
-  if (!d) return false;
-  return d >= new Date(Date.now() - 7 * 86400000);
-};
-
+const isToday = (t) => { const d = toDate(t); return d ? d.toDateString() === new Date().toDateString() : false; };
+const isThisWeek = (t) => { const d = toDate(t); return d ? d >= new Date(Date.now() - 7 * 86400000) : false; };
 const isThisMonth = (t) => {
   const d = toDate(t);
   if (!d) return false;
@@ -319,9 +283,7 @@ function unlockAudio() {
       showToast('🔔 เปิดเสียงเตือนแล้ว');
       setTimeout(() => soundNewOrder(), 300);
     }
-  } catch (e) {
-    showToast('เปิดเสียงไม่สำเร็จ', 'error');
-  }
+  } catch (e) { showToast('เปิดเสียงไม่สำเร็จ', 'error'); }
 }
 
 function hideUnlockBanner() {
@@ -485,34 +447,18 @@ async function handleSignup(e) {
     await createdUser.updateProfile({ displayName: shopName });
 
     await db.collection('users').doc(createdUser.uid).set({
-      role: 'merchant',
-      name: shopName,
-      email: email,
+      role: 'merchant', name: shopName, email: email,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
     await db.collection('merchants').doc(createdUser.uid).set({
       merchantId: createdUser.uid,
-      name: shopName,
-      category: category,
-      phone: phone,
-      email: email,
-      address: address,
-      openTime: openTime,
-      closeTime: closeTime,
-      isOpen: false,
-      verified: false,
-      ratingAvg: 0,
-      ratingCount: 0,
-      gpStartDate: null,
-      gpPending: 0,
-      gpPaid: 0,
-      gpConsent: true,
-      soundSettings: {
-        tone: 1,
-        volume: 'mid',
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      },
+      name: shopName, category: category, phone: phone, email: email,
+      address: address, openTime: openTime, closeTime: closeTime,
+      isOpen: false, verified: false,
+      ratingAvg: 0, ratingCount: 0,
+      gpStartDate: null, gpPending: 0, gpPaid: 0, gpConsent: true,
+      soundSettings: { tone: 1, volume: 'mid', updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -548,9 +494,7 @@ async function handleForgotPassword() {
   try {
     await auth.sendPasswordResetEmail(email);
     showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
-  }
+  } catch (err) { showToast('ส่งไม่สำเร็จ: ' + err.message, 'error'); }
 }
 
 async function handleMerchantLogout() {
@@ -633,10 +577,7 @@ auth.onAuthStateChanged(async (user) => {
 function loadSoundSettingsFromProfile() {
   if (merchantProfile?.soundSettings) {
     const s = merchantProfile.soundSettings;
-    currentSoundSettings = {
-      tone: Number(s.tone) || 1,
-      volume: s.volume || 'mid'
-    };
+    currentSoundSettings = { tone: Number(s.tone) || 1, volume: s.volume || 'mid' };
   } else {
     currentSoundSettings = { tone: 1, volume: 'mid' };
   }
@@ -689,7 +630,6 @@ function subscribeProfile() {
     updateHeroStats();
     updateGpTab();
 
-    /* ⭐ v3.7.0: refresh avatar preview ถ้าเปิด sheet อยู่ */
     if ($('shop-profile-sheet')?.classList.contains('show')) {
       loadShopAvatarPreview();
     }
@@ -710,15 +650,13 @@ function subscribeOrders() {
       });
 
       const newOnes = allOrders.filter(o =>
-        !prevIds.has(o.id) &&
-        o.status === 'pending' &&
-        merchantProfile?.verified === true &&
-        isShopOpen
+        !prevIds.has(o.id) && o.status === 'pending' &&
+        merchantProfile?.verified === true && isShopOpen
       );
 
       if (newOnes.length > 0) {
         if (isFirstOrdersLoad || prevIds.size === 0) {
-          /* skip sound on first load */
+          /* skip */
         } else {
           startOrderLoop();
           showNewOrderPopup(newOnes[0]);
@@ -735,9 +673,7 @@ function subscribeOrders() {
       updateHeroStats();
       updateGpTab();
       updateNavBadge();
-    }, err => {
-      console.warn('Orders sub:', err.code);
-    });
+    }, err => { console.warn('Orders sub:', err.code); });
 }
 
 function subscribeMenus() {
@@ -838,7 +774,7 @@ function updateNavBadge() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   15. RENDER ORDERS
+   15. RENDER ORDERS — ⭐ v3.7.0: เพิ่มปุ่มโทร/แชท
    ═══════════════════════════════════════════════════════════════════ */
 function renderOrders() {
   const pending = allOrders.filter(o => o.status === 'pending');
@@ -898,6 +834,32 @@ function renderOrderCard(o) {
     </div>`;
   }
 
+  /* ⭐ v3.7.0: ปุ่มโทร + แชท (ถ้ามีคู่สนทนา) */
+  let contactActions = '';
+  const hasCustomer = !!o.userPhone;
+  const hasRider = !!o.riderPhone;
+
+  if (hasCustomer && hasRider) {
+    contactActions = `<div class="order-actions two" style="margin-top:8px">
+      <a href="tel:${esc(o.userPhone)}" class="order-btn btn-blue ripple" style="text-decoration:none">📞 โทรลูกค้า</a>
+      <button class="order-btn btn-blue ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
+    </div>
+    <div class="order-actions two" style="margin-top:6px">
+      <a href="tel:${esc(o.riderPhone)}" class="order-btn btn-ready ripple" style="text-decoration:none">📞 โทรไรเดอร์</a>
+      <button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>
+    </div>`;
+  } else if (hasCustomer) {
+    contactActions = `<div class="order-actions two" style="margin-top:8px">
+      <a href="tel:${esc(o.userPhone)}" class="order-btn btn-blue ripple" style="text-decoration:none">📞 โทรลูกค้า</a>
+      <button class="order-btn btn-blue ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
+    </div>`;
+  } else if (hasRider) {
+    contactActions = `<div class="order-actions two" style="margin-top:8px">
+      <a href="tel:${esc(o.riderPhone)}" class="order-btn btn-ready ripple" style="text-decoration:none">📞 โทรไรเดอร์</a>
+      <button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>
+    </div>`;
+  }
+
   const badge = isCash
     ? '<span class="cash-badge">💵 เงินสด</span>'
     : '<span class="transfer-badge">💳 โอน</span>';
@@ -923,6 +885,7 @@ function renderOrderCard(o) {
       <div class="amt">฿${fmt(foodTotal)}</div>
     </div>
     ${actions}
+    ${contactActions}
   </div>`;
 }
 /* ═══════════════════════════════════════════════════════════════════
@@ -936,9 +899,7 @@ async function acceptOrder(orderId) {
     });
     stopOrderLoop();
     showToast('🍳 เริ่มทำอาหาร');
-  } catch (err) {
-    showToast('ไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
 async function readyOrder(orderId) {
@@ -948,9 +909,7 @@ async function readyOrder(orderId) {
       readyAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ พร้อมส่ง');
-  } catch (err) {
-    showToast('ไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
 async function cancelOrder(orderId) {
@@ -963,9 +922,7 @@ async function cancelOrder(orderId) {
     });
     stopOrderLoop();
     showToast('❌ ยกเลิกออเดอร์');
-  } catch (err) {
-    showToast('ไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
 function viewOrderDetail(orderId) {
@@ -1080,7 +1037,6 @@ async function toggleShop() {
   if (!currentUser || merchantProfile?.verified !== true) {
     return showToast('รอแอดมินอนุมัติก่อน', 'warning');
   }
-
   const newState = !isShopOpen;
   try {
     await db.collection('merchants').doc(currentUser.uid).update({
@@ -1089,9 +1045,7 @@ async function toggleShop() {
     });
     if (!newState) stopOrderLoop();
     showToast(newState ? '🟢 เปิดร้าน' : '⚫ ปิดร้าน');
-  } catch (err) {
-    showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('เปลี่ยนสถานะไม่สำเร็จ', 'error'); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1221,10 +1175,7 @@ function openMenuForm(menuId) {
   openSheet('menu-form-sheet');
 }
 
-function pickMenuStatus(status) {
-  editingMenuStatus = status;
-  updateStatusUI();
-}
+function pickMenuStatus(status) { editingMenuStatus = status; updateStatusUI(); }
 
 function updateStatusUI() {
   document.querySelectorAll('.status-option').forEach(btn => {
@@ -1241,11 +1192,7 @@ function onPromoToggle() {
   if (active) updatePromoPreview();
 }
 
-function pickPromoType(type) {
-  editingPromoType = type;
-  updatePromoTypeUI();
-  updatePromoPreview();
-}
+function pickPromoType(type) { editingPromoType = type; updatePromoTypeUI(); updatePromoPreview(); }
 
 function updatePromoTypeUI() {
   document.querySelectorAll('.promo-type-btn').forEach(btn => {
@@ -1286,17 +1233,11 @@ function updatePromoPreview() {
   const value = Number($('mf-promo-value')?.value || 0);
   const active = $('mf-promo-active')?.checked || false;
 
-  if (!active || price <= 0 || value <= 0) {
-    preview.textContent = '—';
-    return;
-  }
+  if (!active || price <= 0 || value <= 0) { preview.textContent = '—'; return; }
 
   let finalPrice = price;
-  if (editingPromoType === 'percent') {
-    finalPrice = Math.max(0, Math.round(price * (1 - value / 100)));
-  } else {
-    finalPrice = Math.max(0, price - value);
-  }
+  if (editingPromoType === 'percent') finalPrice = Math.max(0, Math.round(price * (1 - value / 100)));
+  else finalPrice = Math.max(0, price - value);
 
   const saved = price - finalPrice;
   preview.textContent = `฿${price} → ฿${finalPrice} (ประหยัด ฿${saved})`;
@@ -1410,9 +1351,7 @@ async function deleteMenu(menuId) {
   try {
     await db.collection('menus').doc(menuId).delete();
     showToast('🗑️ ลบเมนูแล้ว');
-  } catch (err) {
-    showToast('ลบไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('ลบไม่สำเร็จ', 'error'); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1474,11 +1413,8 @@ async function saveSoundSettings() {
     showToast('✅ บันทึกการตั้งค่าเสียงแล้ว');
     closeSheet('sound-settings-sheet');
     setTimeout(() => soundNewOrder(), 300);
-  } catch (err) {
-    showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกการตั้งค่า'; }
-  }
+  } catch (err) { showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกการตั้งค่า'; } }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1666,13 +1602,8 @@ async function submitGpTransfer() {
     const roundLabel = now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
     const historyEntry = {
-      amount: amount,
-      slipUrl: slipUrl,
-      slipPath: path,
-      note: note,
-      roundLabel: roundLabel,
-      verified: false,
-      createdAt: new Date()
+      amount: amount, slipUrl: slipUrl, slipPath: path, note: note,
+      roundLabel: roundLabel, verified: false, createdAt: new Date()
     };
 
     await db.collection('merchants').doc(currentUser.uid).update({
@@ -1684,31 +1615,21 @@ async function submitGpTransfer() {
     await db.collection('gp_transfers').add({
       merchantId: currentUser.uid,
       merchantName: merchantProfile.name,
-      amount: amount,
-      slipUrl: slipUrl,
-      slipPath: path,
-      note: note,
-      status: 'pending',
-      roundLabel: roundLabel,
+      amount: amount, slipUrl: slipUrl, slipPath: path, note: note,
+      status: 'pending', roundLabel: roundLabel,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
     showToast('✅ ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
     closeSheet('gp-transfer-sheet');
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันโอนแล้ว'; }
-  }
+  } catch (err) { showToast('ส่งไม่สำเร็จ: ' + err.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันโอนแล้ว'; } }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    24. SHEET / MODAL
    ═══════════════════════════════════════════════════════════════════ */
-function openSheet(id) {
-  const el = $(id);
-  if (el) el.classList.add('show');
-}
+function openSheet(id) { const el = $(id); if (el) el.classList.add('show'); }
 
 function closeSheet(id) {
   const el = $(id);
@@ -1848,10 +1769,7 @@ window.saveShopAvatar = async function() {
   }
 };
 
-/* ⭐ Redirect showShopInfo → openShopProfile */
-function showShopInfo() {
-  openShopProfile();
-}
+function showShopInfo() { openShopProfile(); }
 
 /* ═══════════════════════════════════════════════════════════════════
    27. CHAT
@@ -1892,8 +1810,7 @@ async function openChatRoom(orderId, name, sub) {
         riderName: o.riderName || 'ไรเดอร์',
         merchantId: currentUser.uid,
         merchantName: merchantProfile.name,
-        lastMessage: '',
-        lastSenderId: '',
+        lastMessage: '', lastSenderId: '',
         lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -1927,20 +1844,14 @@ function callChatPartner() {
 function renderChatMessages(msgs) {
   const el = $('chatMessages');
   if (!el) return;
-  if (msgs.length === 0) {
-    el.innerHTML = '<div class="chat-empty">เริ่มสนทนา</div>';
-    return;
-  }
+  if (msgs.length === 0) { el.innerHTML = '<div class="chat-empty">เริ่มสนทนา</div>'; return; }
   let lastDay = '';
   el.innerHTML = msgs.map(m => {
     const isMine = m.senderId === currentUser.uid;
     const d = toDate(m.createdAt) || new Date();
     const day = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
     let dayDiv = '';
-    if (day !== lastDay) {
-      dayDiv = `<div class="chat-day-divider">${day}</div>`;
-      lastDay = day;
-    }
+    if (day !== lastDay) { dayDiv = `<div class="chat-day-divider">${day}</div>`; lastDay = day; }
     const img = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
     return `${dayDiv}
       <div class="chat-msg ${isMine ? 'out' : 'in'}">
@@ -1960,9 +1871,7 @@ async function sendChatText() {
   inp.style.height = 'auto';
   try {
     await db.collection('chats').doc(activeChatId).collection('messages').add({
-      text,
-      senderId: currentUser.uid,
-      senderRole: 'merchant',
+      text, senderId: currentUser.uid, senderRole: 'merchant',
       senderName: merchantProfile.name,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1971,9 +1880,7 @@ async function sendChatText() {
       lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('ส่งไม่สำเร็จ', 'error'); }
 }
 
 async function sendChatImage(file) {
@@ -1988,9 +1895,7 @@ async function sendChatImage(file) {
     const url = await ref.getDownloadURL();
 
     await db.collection('chats').doc(activeChatId).collection('messages').add({
-      imageUrl: url,
-      senderId: currentUser.uid,
-      senderRole: 'merchant',
+      imageUrl: url, senderId: currentUser.uid, senderRole: 'merchant',
       senderName: merchantProfile.name,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -2000,9 +1905,7 @@ async function sendChatImage(file) {
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งรูปแล้ว');
-  } catch (err) {
-    showToast('อัปโหลดไม่สำเร็จ', 'error');
-  }
+  } catch (err) { showToast('อัปโหลดไม่สำเร็จ', 'error'); }
 }
 
 function autoResize(el) {
@@ -2018,9 +1921,7 @@ function setupNetwork() {
     $('offline-banner')?.classList.remove('show');
     showToast('🟢 กลับมาออนไลน์');
   });
-  window.addEventListener('offline', () => {
-    $('offline-banner')?.classList.add('show');
-  });
+  window.addEventListener('offline', () => { $('offline-banner')?.classList.add('show'); });
   if (!navigator.onLine) $('offline-banner')?.classList.add('show');
 }
 
@@ -2028,9 +1929,11 @@ function setupPWA() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    if (!localStorage.getItem('chauat_merchant_pwa_dismissed')) {
-      $('pwa-install-banner')?.classList.remove('hidden');
-    }
+    if (!localStorage}
+
+.getItem('chauat_merchant_pwa_dismiss/*ed')) {
+      $('pwa-install ═-banner')?.classList.remove('hidden');
+════    }
   });
 }
 
@@ -2044,17 +1947,13 @@ function installPWA() {
       }
       deferredPrompt = null;
     });
-  } else {
-    showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก', 'info');
-  }
+  } else { showToast('เปิดเมนู → เพิ่มไปที่หน้าจอหลัก', 'info'); }
 }
 
 function dismissPWA() {
   $('pwa-install-banner')?.classList.add('hidden');
   localStorage.setItem('chauat_merchant_pwa_dismissed', '1');
-}
-
-/* ═══════════════════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════
    29. INIT
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -2072,9 +1971,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { once: false });
 });
 
-window.addEventListener('beforeunload', () => {
-  stopOrderLoop();
-});
+window.addEventListener('beforeunload', () => { stopOrderLoop(); });
 
 /* ═══════════════════════════════════════════════════════════════════
    30. GLOBAL EXPOSE
@@ -2131,6 +2028,11 @@ window.pickSoundVolume = pickSoundVolume;
 window.testSound = testSound;
 window.saveSoundSettings = saveSoundSettings;
 
+/* ⭐ v3.7.0: Expose new functions */
+window.openShopProfile = openShopProfile;
+window.uploadShopAvatar = uploadShopAvatar;
+window.saveShopAvatar = saveShopAvatar;
+
 /* Service Worker */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -2146,7 +2048,6 @@ if ('serviceWorker' in navigator) {
 /* ═══════════════════════════════════════════════════════════════════
    ⭐ v3.6.0: CROP IMAGE + CATEGORY MANAGER
    ═══════════════════════════════════════════════════════════════════ */
-
 let cropperInstance = null;
 let cropTargetCallback = null;
 
@@ -2181,10 +2082,7 @@ function renderCategoryDropdown(selectedId) {
   const sel = $('mf-category');
   if (!sel) return;
   const cats = getMenuCategories().filter(c => !c.hidden);
-  if (!cats.length) {
-    sel.innerHTML = '<option value="other">📦 อื่นๆ</option>';
-    return;
-  }
+  if (!cats.length) { sel.innerHTML = '<option value="other">📦 อื่นๆ</option>'; return; }
   sel.innerHTML = cats.map(c =>
     `<option value="${esc(c.id)}" ${c.id === selectedId ? 'selected' : ''}>${c.icon} ${esc(c.name)}</option>`
   ).join('');
@@ -2264,9 +2162,7 @@ function saveCategoryItem() {
   if (editingCategoryIndex === -1) {
     const newCat = {
       id: 'cat_' + Date.now(),
-      name: name,
-      icon: editingCategoryIcon,
-      hidden: false,
+      name: name, icon: editingCategoryIcon, hidden: false,
       order: editingCategories.length + 1
     };
     editingCategories.push(newCat);
@@ -2312,11 +2208,8 @@ async function saveCategoryChanges() {
       const current = $('mf-category')?.value;
       renderCategoryDropdown(current);
     }
-  } catch (err) {
-    showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกหมวดหมู่'; }
-  }
+  } catch (err) { showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกหมวดหมู่'; } }
 }
 
 /* ═══ Crop Image ═══ */
@@ -2334,25 +2227,14 @@ function openCropModal(imageSrc, onConfirm) {
     setTimeout(() => {
       try {
         cropperInstance = new Cropper(img, {
-          aspectRatio: 1,
-          viewMode: 1,
-          dragMode: 'move',
-          autoCropArea: 1,
-          background: false,
-          guides: false,
-          center: true,
-          highlight: false,
-          cropBoxMovable: true,
-          cropBoxResizable: true,
-          toggleDragModeOnDblclick: false,
-          responsive: true,
-          restore: false,
-          checkOrientation: false,
-          zoomOnTouch: true,
-          zoomOnWheel: true,
-          wheelZoomRatio: 0.1,
-          minContainerWidth: 200,
-          minContainerHeight: 200
+          aspectRatio: 1, viewMode: 1, dragMode: 'move',
+          autoCropArea: 1, background: false, guides: false,
+          center: true, highlight: false,
+          cropBoxMovable: true, cropBoxResizable: true,
+          toggleDragModeOnDblclick: false, responsive: true,
+          restore: false, checkOrientation: false,
+          zoomOnTouch: true, zoomOnWheel: true, wheelZoomRatio: 0.1,
+          minContainerWidth: 200, minContainerHeight: 200
         });
       } catch (e) {
         console.error('Cropper init error:', e);
@@ -2380,10 +2262,8 @@ async function confirmCrop() {
   if (!cropperInstance) return showToast('ยังไม่มีรูป', 'warning');
   try {
     const canvas = cropperInstance.getCroppedCanvas({
-      width: 800,
-      height: 800,
-      imageSmoothingEnabled: true,
-      imageSmoothingQuality: 'high'
+      width: 800, height: 800,
+      imageSmoothingEnabled: true, imageSmoothingQuality: 'high'
     });
     if (!canvas) return showToast('crop ไม่สำเร็จ', 'error');
     canvas.toBlob((blob) => {
@@ -2395,9 +2275,7 @@ async function confirmCrop() {
       closeCropModal();
       showToast('✅ ปรับขนาดรูปแล้ว');
     }, 'image/jpeg', 0.85);
-  } catch (err) {
-    showToast('ไม่สำเร็จ: ' + err.message, 'error');
-  }
+  } catch (err) { showToast('ไม่สำเร็จ: ' + err.message, 'error'); }
 }
 
 /* ═══ Hook: previewMenuImg → Crop ═══ */
@@ -2445,21 +2323,14 @@ async function ensureMenuCategories() {
       menuCategoriesUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     merchantProfile.menuCategories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-  } catch (e) {
-    console.warn('Cannot init menuCategories:', e.code);
-  }
+  } catch (e) { console.warn('Cannot init menuCategories:', e.code); }
 }
 
 const _origInitApp = window.initApp;
-window.initApp = function() {
+window.init2App = function() {
   _origInitApp();
   setTimeout(ensureMenuCategories, 2000);
 };
-
-/* ⭐ v3.7.0: Expose new functions */
-window.openShopProfile = openShopProfile;
-window.uploadShopAvatar = uploadShopAvatar;
-window.saveShopAvatar = saveShopAvatar;
 
 window.openCategoryManager = openCategoryManager;
 window.renderCategoryList = renderCategoryList;
@@ -2475,4 +2346,4 @@ window.resetCrop = resetCrop;
 window.closeCropModal = closeCropModal;
 window.confirmCrop = confirmCrop;
 
-console.log('%c⭐ v3.7.0: Crop + Category Manager + Shop Profile loaded', 'color:#00A651;font-weight:900;font-size:12px');
+console.log('%c⭐ v3.7.0: Crop + Category Manager + Shop Profile + Contact Buttons loaded', 'color:#00A651;font-weight:900;font-size:12px');
