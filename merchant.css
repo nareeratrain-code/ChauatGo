@@ -1,9 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🏪 CHAUAT GO MERCHANT — v3.5.1
+   🏪 CHAUAT GO MERCHANT — v3.7.0
    Design System • Modern UI • Dark/Light Mode
-   + Sound Unlock Banner + Loop Animation
-   + Menu Status + Promotion
-   + Sound Settings (3 tones × 3 volumes)
+   + Shop Profile + Avatar ⭐ v3.7.0
    ═══════════════════════════════════════════════════════════════════ */
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -181,9 +179,7 @@ body {
   border: none; cursor: pointer; font-family: inherit;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   LOGIN SCREEN
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ LOGIN SCREEN ═══ */
 #login-screen {
   display: flex; align-items: center; justify-content: center;
   min-height: 100vh; padding: 20px;
@@ -258,9 +254,7 @@ body {
 .login-error { text-align: center; color: var(--red); font-size: 12px; font-weight: 700; margin-top: 12px; min-height: 18px; }
 .login-hint { text-align: center; font-size: 11px; color: var(--text-light); margin-top: 16px; font-weight: 600; }
 
-/* ═══════════════════════════════════════════════════════════════
-   MAIN APP
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ MAIN APP ═══ */
 #app { display: none; min-height: 100vh; padding-bottom: 20px; }
 
 /* ═══ HEADER ═══ */
@@ -451,6 +445,10 @@ body {
 .btn-reject { background: var(--surface-2); color: var(--text); }
 .btn-danger { background: linear-gradient(135deg, #E53935, #C62828); color: #fff; box-shadow: 0 4px 12px rgba(229,57,53,.3); }
 .btn-gray { background: var(--surface-2); color: var(--text); }
+
+/* ⭐ v3.7.0: ปุ่มโทร/แชท */
+.btn-blue { background: linear-gradient(135deg, #2196F3, #1976D2); color: #fff; box-shadow: 0 4px 12px rgba(33,150,243,.3); }
+a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: center; }
 
 /* Cash / Transfer badge */
 .cash-badge {
@@ -656,7 +654,7 @@ body {
 .slip-progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
 .slip-progress-bar { height: 100%; width: 0%; background: var(--green); transition: width .3s; }
 
-/* ═══ SHEET (bottom sheet) ═══ */
+/* ═══ SHEET ═══ */
 .sheet-overlay {
   position: fixed; inset: 0; background: var(--overlay-bg);
   z-index: 9500; display: none; justify-content: center; align-items: flex-end;
@@ -896,9 +894,7 @@ body {
   .new-order-card h2 { font-size: 20px; }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.4.9: SOUND UNLOCK BANNER
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══ SOUND UNLOCK BANNER ═══ */
 .sound-unlock-banner {
   display: flex; align-items: center; gap: 12px;
   background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
@@ -942,10 +938,7 @@ body {
   .sound-unlock-btn { width: 100%; }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   ⭐ v3.5.0: MENU STATUS + PROMOTION
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══ MENU STATUS + PROMOTION ═══ */
 .menu-section-box {
   background: var(--surface-2);
   border-radius: 14px;
@@ -963,7 +956,6 @@ body {
   gap: 6px;
 }
 
-/* Status Picker */
 .status-picker {
   display: grid;
   grid-template-columns: 1fr;
@@ -1018,7 +1010,6 @@ body {
 [data-theme="dark"] .status-option.status-out.active { background: #3F2F1F; color: #FFB74D; }
 [data-theme="dark"] .status-option.status-hidden.active { background: #2D333B; color: #9CA3AF; }
 
-/* Promotion */
 .promo-section {
   background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
   border-color: var(--orange);
@@ -1158,7 +1149,6 @@ body {
   font-weight: 900;
 }
 
-/* Promo Badge */
 .promo-badge {
   display: inline-flex;
   align-items: center;
@@ -1173,7 +1163,6 @@ body {
   white-space: nowrap;
 }
 
-/* Status Badge */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1200,7 +1189,6 @@ body {
 [data-theme="dark"] .status-badge.status-out { background: #3F2F1F; color: #FFB74D; }
 [data-theme="dark"] .status-badge.status-hidden { background: #2D333B; color: #9CA3AF; }
 
-/* Price Display */
 .menu-price-display {
   display: flex;
   align-items: baseline;
@@ -1242,7 +1230,6 @@ body {
   gap: 4px;
   margin-top: 6px;
 }
-
 /* ═══════════════════════════════════════════════════════════════
    ⭐ v3.5.1: SOUND SETTINGS
    ═══════════════════════════════════════════════════════════════ */
@@ -1401,7 +1388,6 @@ body {
   margin-bottom: 8px !important;
 }
 
-/* Responsive */
 @media (max-width: 360px) {
   .sound-volume-option {
     padding: 10px 4px;
@@ -1413,19 +1399,15 @@ body {
   .sound-tone-icon { width: 40px; height: 40px; font-size: 22px; }
   .sound-tone-name { font-size: 13px; }
   .sound-tone-desc { font-size: 10px; }
-}
-
-/* Responsive — Menu form */
-@media (max-width: 360px) {
   .promo-type-row { grid-template-columns: 1fr; }
   .status-option { padding: 10px 12px; font-size: 12px; }
   .status-option .status-emoji { font-size: 20px; }
   .promo-value-row input { font-size: 14px; }
 }
+
 /* ═══════════════════════════════════════════════════════════════
    ⭐ v3.6.0: CROP IMAGE MODAL
    ═══════════════════════════════════════════════════════════════ */
-
 .crop-modal {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.92);
@@ -1570,7 +1552,6 @@ body {
 /* ═══════════════════════════════════════════════════════════════
    ⭐ v3.6.0: CATEGORY MANAGER
    ═══════════════════════════════════════════════════════════════ */
-
 .cat-manager-hint {
   background: var(--brand-light);
   border-left: 4px solid var(--brand);
@@ -1706,7 +1687,7 @@ body {
   color: #22C55E;
 }
 
-/* ═══ Icon Picker ═══ */
+/* Icon Picker */
 .cat-icon-picker {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -1741,7 +1722,7 @@ body {
   background: #1F3F1F;
 }
 
-/* ═══ Category Select + Manage Button ═══ */
+/* Category Select + Manage Button */
 .category-select-wrap {
   display: flex;
   gap: 8px;
@@ -1771,7 +1752,6 @@ body {
   border-color: var(--brand);
 }
 
-/* ═══ Responsive ═══ */
 @media (max-width: 360px) {
   .cat-icon-picker {
     grid-template-columns: repeat(6, 1fr);
@@ -1780,8 +1760,9 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
 /* ═══════════════════════════════════════════════════════════════
-   v3.7.0 — SHOP PROFILE + AVATAR
+   ⭐ v3.7.0 — SHOP PROFILE + AVATAR
    ═══════════════════════════════════════════════════════════════ */
 
 .shop-avatar-section {
@@ -1913,4 +1894,26 @@ body {
   font-weight: 900;
   text-align: right;
   word-break: break-word;
+}
+
+/* ═══ Responsive tweaks for Shop Profile ═══ */
+@media (max-width: 360px) {
+  .shop-avatar-img {
+    width: 100px;
+    height: 100px;
+  }
+  .shop-avatar-edit-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  .shop-avatar-label {
+    font-size: 12px;
+  }
+  .shop-info-name-big {
+    font-size: 15px;
+  }
+  .shop-info-row {
+    font-size: 12px;
+  }
 }
