@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.7.1
+   🛵 CHAUAT GO RIDER — v3.7.2
    Full-featured Production JavaScript
    ✅ Fix chat merchantId (Phase A)
    ✅ รองรับ cooking / ready (Flow A)
+   ✅ Fix: rider signup race condition (isSigningUp flag) ⭐ v3.7.2
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -23,7 +24,7 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-console.log('%c🛵 Chauat Go Rider v3.7.1', 'color:#FF6B35;font-weight:900;font-size:14px');
+console.log('%c🛵 Chauat Go Rider v3.7.2', 'color:#FF6B35;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -48,6 +49,9 @@ let currentHistoryFilter = 'all';
 let cameraFile = null;
 let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
+
+/* ⭐ v3.7.2: ป้องกัน race condition ตอนสมัคร */
+let isSigningUp = false;
 
 /* ⭐ v3.7.0: Status */
 const RIDER_VISIBLE_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
@@ -330,6 +334,9 @@ async function handleSignup(e) {
 
   btn.disabled = true;
   btn.textContent = '⏳ กำลังสมัคร...';
+
+  /* ⭐ v3.7.2: block onAuthStateChanged ระหว่างสมัคร */
+  isSigningUp = true;
   let createdUser = null;
 
   try {
@@ -352,11 +359,27 @@ async function handleSignup(e) {
     });
 
     showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
+
+    /* sign out หลังสมัครสำเร็จ — ให้ user login ใหม่ */
+    setTimeout(async () => {
+      try { await auth.signOut(); } catch (e) {}
+      const loginEmail = $('login-email');
+      if (loginEmail) loginEmail.value = email;
+      switchAuthTab('login');
+      btn.disabled = false;
+      btn.textContent = '✅ สมัครเป็นไรเดอร์';
+      showToast('📧 เข้าสู่ระบบด้วยอีเมลที่สมัคร', 'info');
+    }, 1800);
+
   } catch (err) {
+    console.error('❌ Signup error:', err.code, err.message);
     if (createdUser) { try { await createdUser.delete(); } catch (e) {} }
-    showToast('สมัครไม่สำเร็จ: ' + err.message, 'error');
+    showToast('สมัครไม่สำเร็จ: ' + (err.code || err.message), 'error');
     btn.disabled = false;
     btn.textContent = '✅ สมัครเป็นไรเดอร์';
+  } finally {
+    /* ⭐ v3.7.2: ปลดล็อกเสมอ */
+    isSigningUp = false;
   }
 }
 
@@ -386,9 +409,12 @@ async function handleLogout() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   11. AUTH STATE
+   11. AUTH STATE — ⭐ v3.7.2: skip ถ้ากำลังสมัคร
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
+  /* ⭐ v3.7.2: ข้ามระหว่างสมัคร — ป้องกัน race condition */
+  if (isSigningUp) return;
+
   if (myProfileUnsub) myProfileUnsub();
   if (myJobsUnsub) myJobsUnsub();
   if (myHistoryUnsub) myHistoryUnsub();
@@ -595,7 +621,7 @@ function updateHeroStats() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   15. RENDER JOBS — Job Card ใหม่ (Grab-style)
+   15. RENDER JOBS
    ═══════════════════════════════════════════════════════════════════ */
 function renderJobs() {
   const myId = currentUser?.uid;
@@ -1104,6 +1130,7 @@ function closeModal() {
   const mc = $('modalContent');
   if (mc) mc.innerHTML = '';
 }
+
 /* ═══════════════════════════════════════════════════════════════════
    22. PROFILE / FINANCE
    ═══════════════════════════════════════════════════════════════════ */
@@ -1204,7 +1231,7 @@ function showTrustScore() {
 }
 
 function showHistory() {
-  const filtered = currentHistoryFilter === 'all' ? allHistory : allHistory;
+  const filtered = allHistory;
   const mc = $('modalContent');
   if (!mc) return;
   mc.innerHTML = `
@@ -1230,7 +1257,7 @@ function showHistory() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   23. CHAT — ⭐ v3.7.1: Fix merchantId
+   23. CHAT
    ═══════════════════════════════════════════════════════════════════ */
 async function openChatWithCustomer(orderId) {
   const job = allJobs.find(j => j.id === orderId) || allHistory.find(j => j.id === orderId);
@@ -1240,7 +1267,6 @@ async function openChatWithCustomer(orderId) {
   activeChatPartnerPhone = job.userPhone || null;
   activeChatPartnerName = job.userName || 'ลูกค้า';
 
-  /* ⭐ v3.7.1: สร้าง chat doc พร้อม merchantId + update ถ้าขาด */
   try {
     const chatRef = db.collection('chats').doc(orderId);
     const snap = await chatRef.get();
@@ -1259,7 +1285,6 @@ async function openChatWithCustomer(orderId) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     } else {
-      /* ⭐ v3.7.1: อัปเดต field ที่ขาดหาย (chat เก่า) */
       const data = snap.data();
       const updates = {};
       if (!data.merchantId && job.merchantId) updates.merchantId = job.merchantId;
@@ -1289,7 +1314,6 @@ async function openChatWithCustomer(orderId) {
     }, err => { console.warn('Chat sub:', err.message); });
 }
 
-/* ⭐ v3.7.1: alias — รองรับ openChatRoom เดิม */
 async function openChatRoom(orderId, name, sub) {
   const job = allJobs.find(j => j.id === orderId) || allHistory.find(j => j.id === orderId);
   if (!job) return showToast('ไม่พบออเดอร์', 'error');
@@ -1414,7 +1438,6 @@ async function sendChatImage(file) {
   showToast('⏳ กำลังอัปโหลด...', 'info');
   try {
     const compressed = await compressImage(file, 800, 0.75);
-    /* ⭐ v3.7.1: path ตรง Storage Rules */
     const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed);
@@ -1445,7 +1468,7 @@ function autoResize(el) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   24. CAMERA (ถ่ายรูปอาหาร)
+   24. CAMERA
    ═══════════════════════════════════════════════════════════════════ */
 function openCamera() {
   $('cameraModal')?.classList.add('show');
@@ -1619,5 +1642,5 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🛵 Chauat Go Rider v3.7.1 — Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
-console.log('%c✅ Fix chat merchantId + Job Card (Grab style)', 'color:#00A651;font-weight:800;font-size:12px');
+console.log('%c🛵 Chauat Go Rider v3.7.2 — Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
+console.log('%c✅ Fix: signup race condition + chat merchantId', 'color:#00A651;font-weight:800;font-size:12px');
