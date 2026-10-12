@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.6.0</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.7.0</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chauat Merchant">
@@ -15,7 +15,7 @@
 <!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.6.0-20241014-001';
+  var VERSION = 'v3.7.0-20251012-002';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -418,7 +418,6 @@
       </div>
     </div>
 
-    <!-- ⭐ v3.6.0: Category + Manage Button -->
     <div class="form-field">
       <label>📂 หมวดหมู่</label>
       <div class="category-select-wrap">
@@ -436,7 +435,6 @@
       <textarea id="mf-desc" rows="2" maxlength="200" style="resize:none"></textarea>
     </div>
 
-    <!-- ⭐ v3.5.0: สถานะเมนู -->
     <div class="menu-section-box">
       <div class="menu-section-title">📊 สถานะเมนู</div>
       <div class="status-picker">
@@ -456,7 +454,6 @@
       <input type="hidden" id="mf-status" value="available">
     </div>
 
-    <!-- ⭐ v3.5.0: โปรโมชั่น -->
     <div class="menu-section-box promo-section">
       <div class="menu-section-title">🔥 โปรโมชั่น (ไม่บังคับ)</div>
 
@@ -529,7 +526,6 @@
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('history',document.querySelector('[data-tab=history]'))">📜 ประวัติออเดอร์</button>
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');switchTab('gp',document.querySelector('[data-tab=gp]'))">💰 สรุป GP</button>
 
-    <!-- ⭐ v3.6.0: จัดการหมวดหมู่ -->
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');openCategoryManager()">
       <span style="display:flex;align-items:center;gap:8px;width:100%">
         <span style="font-size:20px">📂</span>
@@ -546,12 +542,57 @@
       </span>
     </button>
 
-    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');showShopInfo()">🏪 ข้อมูลร้าน</button>
+    <!-- ⭐ v3.7.0: ปุ่มข้อมูลร้านใหม่ -->
+    <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');openShopProfile()">
+      <span style="display:flex;align-items:center;gap:8px;width:100%">
+        <span style="font-size:20px">🏪</span>
+        <span style="flex:1;text-align:left">ข้อมูลร้าน + รูปโปรไฟล์</span>
+        <span style="font-size:16px;opacity:.5">›</span>
+      </span>
+    </button>
+
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');installPWA()">📱 ติดตั้งแอป</button>
     <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
 
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-    <div class="sheet-version">Chauat Merchant v3.6.0</div>
+    <div class="sheet-version">Chauat Merchant v3.7.0</div>
+  </div>
+</div>
+
+<!-- ⭐ v3.7.0: SHOP PROFILE SHEET (ตั้งค่าโปรไฟล์ร้าน) ═══ -->
+<div class="sheet-overlay" id="shop-profile-sheet" onclick="if(event.target===this)closeSheet('shop-profile-sheet')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>🏪 ข้อมูลร้าน</h2>
+
+    <!-- รูปโปรไฟล์ -->
+    <div class="shop-avatar-section">
+      <div class="shop-avatar-wrap">
+        <img id="shop-avatar-preview" 
+             src="icons/icon-192.png" 
+             class="shop-avatar-img"
+             onerror="this.src='icons/icon-192.png'">
+        <button type="button" class="shop-avatar-edit-btn ripple" 
+                onclick="document.getElementById('shop-avatar-input').click()">
+          📷
+        </button>
+      </div>
+      <div class="shop-avatar-label">รูปโปรไฟล์ร้าน</div>
+      <div class="shop-avatar-hint">แสดงใน Nearby + ร้านอาหาร</div>
+      <input type="file" id="shop-avatar-input" accept="image/*" 
+             style="display:none" onchange="uploadShopAvatar(event)">
+      <button type="button" id="shop-avatar-save-btn" 
+              class="shop-avatar-save-btn ripple" 
+              onclick="saveShopAvatar()" 
+              style="display:none">
+        💾 บันทึกรูปโปรไฟล์
+      </button>
+    </div>
+
+    <!-- ข้อมูลร้าน (read-only) -->
+    <div class="shop-info-block" id="shop-profile-info"></div>
+
+    <button class="sheet-close ripple" onclick="closeSheet('shop-profile-sheet')">ปิด</button>
   </div>
 </div>
 
@@ -565,9 +606,7 @@
       💡 เพิ่ม / แก้ไข / ซ่อน / ลบ หมวดหมู่ได้ตามใจ
     </div>
 
-    <div class="cat-list" id="cat-list">
-      <!-- Dynamic -->
-    </div>
+    <div class="cat-list" id="cat-list"></div>
 
     <button type="button" class="add-cat-btn ripple" onclick="openAddCategoryForm()">
       ➕ เพิ่มหมวดใหม่
@@ -593,9 +632,7 @@
 
     <div class="form-field">
       <label>🎨 ไอคอน (แตะเพื่อเลือก)</label>
-      <div class="cat-icon-picker" id="cat-icon-picker">
-        <!-- Dynamic icons -->
-      </div>
+      <div class="cat-icon-picker" id="cat-icon-picker"></div>
     </div>
 
     <button type="button" class="btn-primary ripple" id="btn-save-cat-item" onclick="saveCategoryItem()">
