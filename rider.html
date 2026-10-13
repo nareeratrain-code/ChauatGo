@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Rider — v3.4.7.1</title>
+<title>Chauat Go Rider — v3.9.1</title>
 <meta name="theme-color" content="#FF6B35">
 <meta name="description" content="แอปไรเดอร์ Chauat Go — อ.ชะอวด">
 <meta name="robots" content="noindex,nofollow">
@@ -13,10 +13,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
-<!-- ═══ AUTO CACHE-BUSTING ═══ -->
 <script>
 (function() {
-  var VERSION = 'v3.4.7.1-20241009-001';
+  var VERSION = 'v3.9.1-20251013-001';
   var saved = localStorage.getItem('chauat_ver_rider');
   var lastReload = localStorage.getItem('chauat_last_reload_rider');
   var now = Date.now();
@@ -36,7 +35,6 @@
 })();
 </script>
 
-<!-- ═══ THEME — โหลดก่อนทุกอย่าง ═══ -->
 <script>
 (function() {
   var theme = localStorage.getItem('chauat_rider_theme') || 'light';
@@ -56,35 +54,20 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════════════════════════
-     SPLASH
-     ═══════════════════════════════════════════════════════════ -->
 <div id="splash-screen">
   <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go Rider" onerror="this.style.background='linear-gradient(135deg,#FF6B35,#E55A2B)';this.style.display='flex'">
   <div class="splash-title">Chauat Go Rider</div>
   <div class="splash-sub">ระบบจัดการงานสำหรับไรเดอร์</div>
   <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
-  <div class="splash-footer">© 2024 Chauat Go</div>
+  <div class="splash-footer">© 2025 Chauat Go</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     THEME FAB
-     ═══════════════════════════════════════════════════════════ -->
 <button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
-<!-- ═══════════════════════════════════════════════════════════
-     OFFLINE BANNER
-     ═══════════════════════════════════════════════════════════ -->
 <div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     TOAST
-     ═══════════════════════════════════════════════════════════ -->
 <div class="toast" id="toast"></div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     PWA BANNER
-     ═══════════════════════════════════════════════════════════ -->
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div style="font-size:28px">📱</div>
   <div style="flex:1">
@@ -95,9 +78,7 @@
   <button class="pwa-btn-close" onclick="dismissPWA()">✕</button>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     LOGIN SCREEN
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ LOGIN SCREEN ═══ -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-icon">
@@ -107,13 +88,11 @@
     <h1>Chauat Go Rider</h1>
     <p class="login-subtitle" id="login-subtitle">สำหรับไรเดอร์เท่านั้น</p>
 
-    <!-- Tabs -->
     <div class="auth-tabs">
       <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
       <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">สมัครเป็นไรเดอร์</button>
     </div>
 
-    <!-- Login Form -->
     <form id="form-login" onsubmit="handleLogin(event)">
       <div class="form-field">
         <label>📧 อีเมล</label>
@@ -127,7 +106,6 @@
       <button type="button" class="btn-secondary ripple" onclick="handleForgotPassword()">🔑 ลืมรหัสผ่าน</button>
     </form>
 
-    <!-- Signup Form -->
     <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
       <div class="form-field">
         <label>👤 ชื่อ-นามสกุล *</label>
@@ -181,12 +159,9 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MAIN APP
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ MAIN APP ═══ -->
 <div id="app" style="display:none">
 
-  <!-- HEADER -->
   <header class="app-header">
     <div class="header-info">
       <div class="name" id="rider-name">—</div>
@@ -200,16 +175,13 @@
     <button class="menu-btn ripple" onclick="openSheet()">☰</button>
   </header>
 
-  <!-- PENDING BANNER -->
   <div class="pending-banner" id="pending-banner">
     ⏳ บัญชีของคุณรอการอนุมัติจากแอดมิน<br>
     <span style="font-size:11px;opacity:.8">จะรับงานได้เมื่ออนุมัติแล้ว</span>
   </div>
 
-  <!-- MAIN CONTAINER -->
   <div class="container">
 
-    <!-- HERO CARD -->
     <div class="hero-card">
       <div class="hero-label">💰 รายได้วันนี้</div>
       <div class="hero-amount" id="hero-income">฿0.00</div>
@@ -231,7 +203,6 @@
       </div>
     </div>
 
-    <!-- STATS MINI -->
     <div class="stats-mini">
       <div class="stat-mini">
         <div class="n" id="stat-done">0</div>
@@ -247,7 +218,6 @@
       </div>
     </div>
 
-    <!-- งานที่กำลังทำ -->
     <div id="active-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title">🛵 งานที่กำลังทำ</div>
@@ -257,7 +227,6 @@
       <div id="active-jobs-list"></div>
     </div>
 
-    <!-- งานใหม่ -->
     <div id="new-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title">🔔 งานใหม่</div>
@@ -267,7 +236,6 @@
       <div id="new-jobs-list"></div>
     </div>
 
-    <!-- งานเสร็จวันนี้ -->
     <div id="done-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title">✅ เสร็จวันนี้</div>
@@ -277,7 +245,6 @@
       <div id="done-jobs-list"></div>
     </div>
 
-    <!-- Empty State -->
     <div id="empty-state" class="empty-state">
       <div class="icon">🎯</div>
       <h3>พร้อมรับงาน!</h3>
@@ -287,102 +254,71 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     SHEET MENU
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ SHEET MENU ═══ -->
 <div class="sheet-overlay" id="sheetOverlay" onclick="if(event.target===this)closeSheet()">
   <div class="sheet">
     <h2 class="sheet-title">☰ เมนูไรเดอร์</h2>
 
     <div class="sheet-item" onclick="closeSheet();showProfile()">
       <div class="ico">👤</div>
-      <div class="content">
-        <div class="lbl">ข้อมูลส่วนตัว</div>
-        <div class="sub" id="sheet-rider-email">-</div>
-      </div>
+      <div class="content"><div class="lbl">ข้อมูลส่วนตัว</div><div class="sub" id="sheet-rider-email">-</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();showFinance()">
       <div class="ico">💰</div>
-      <div class="content">
-        <div class="lbl">รายได้ & GP</div>
-        <div class="sub" id="sheet-finance-sub">สรุปยอดโอนร้าน + chauatgo</div>
-      </div>
+      <div class="content"><div class="lbl">รายได้ & GP</div><div class="sub">สรุปยอดโอนร้าน + chauatgo</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();showTransferShop()">
       <div class="ico">🏪</div>
-      <div class="content">
-        <div class="lbl">โอนให้ร้านค้า</div>
-        <div class="sub" id="sheet-shop-sub">ดูยอดค้างโอน</div>
-      </div>
+      <div class="content"><div class="lbl">โอนให้ร้านค้า</div><div class="sub">ดูยอดค้างโอน</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();showTransferApp()">
       <div class="ico">📤</div>
-      <div class="content">
-        <div class="lbl">โอนให้ chauatgo (20%)</div>
-        <div class="sub" id="sheet-app-sub">ครบกำหนด 3 ทุ่ม</div>
-      </div>
+      <div class="content"><div class="lbl">โอนให้ chauatgo (20%)</div><div class="sub">ครบกำหนด 3 ทุ่ม</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();showGPIncome()">
       <div class="ico">💎</div>
-      <div class="content">
-        <div class="lbl">GP 2% รอรับจาก chauatgo</div>
-        <div class="sub" id="sheet-gp-sub">ทุก 15 วัน</div>
-      </div>
+      <div class="content"><div class="lbl">GP 2% รอรับจาก chauatgo</div><div class="sub">ทุก 15 วัน</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();showHistory()">
       <div class="ico">📋</div>
-      <div class="content">
-        <div class="lbl">ประวัติงาน</div>
-        <div class="sub">ดูงานที่ผ่านมาทั้งหมด</div>
-      </div>
+      <div class="content"><div class="lbl">ประวัติงาน</div><div class="sub">ดูงานที่ผ่านมาทั้งหมด</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();showTrustScore()">
       <div class="ico">🏆</div>
-      <div class="content">
-        <div class="lbl">Trust Score</div>
-        <div class="sub" id="sheet-trust-sub">⭐ 100 / 100</div>
-      </div>
+      <div class="content"><div class="lbl">Trust Score</div><div class="sub" id="sheet-trust-sub">⭐ 100 / 100</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item" onclick="closeSheet();requestGPS()">
       <div class="ico">📍</div>
-      <div class="content">
-        <div class="lbl">อัปเดตตำแหน่ง</div>
-        <div class="sub">ตรวจสอบ GPS ปัจจุบัน</div>
-      </div>
+      <div class="content"><div class="lbl">อัปเดตตำแหน่ง</div><div class="sub">ตรวจสอบ GPS ปัจจุบัน</div></div>
       <div class="arrow">›</div>
     </div>
 
     <div class="sheet-item danger" onclick="handleLogout()">
       <div class="ico danger">🚪</div>
-      <div class="content">
-        <div class="lbl danger">ออกจากระบบ</div>
-        <div class="sub">กลับไปหน้า Login</div>
-      </div>
+      <div class="content"><div class="lbl danger">ออกจากระบบ</div><div class="sub">กลับไปหน้า Login</div></div>
       <div class="arrow danger">›</div>
     </div>
 
     <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
-    <div class="sheet-version">Chauat Go Rider v3.4.7.1 • © 2024</div>
+    <div class="sheet-version">Chauat Go Rider v3.9.1 • © 2025</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     POPUP งานใหม่
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ NEW JOB POPUP ═══ -->
 <div class="new-job-popup" id="newJobPopup">
   <div class="new-job-card">
     <div class="popup-icon">🔔</div>
@@ -396,16 +332,12 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MODAL ทั่วไป
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ MODAL ═══ -->
 <div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
   <div class="modal-content" id="modalContent"></div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     CHAT
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ CHAT ═══ -->
 <div class="chat-container" id="chatContainer">
   <div class="chat-header">
     <button class="back-btn ripple" onclick="closeChat()">←</button>
@@ -424,9 +356,7 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     CAMERA MODAL (ถ่ายรูปอาหาร)
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ CAMERA MODAL ═══ -->
 <div class="camera-modal" id="cameraModal">
   <div class="camera-header">
     <button class="camera-close ripple" onclick="closeCamera()">✕</button>
@@ -441,25 +371,18 @@
     </div>
   </div>
   <div class="camera-actions">
-    <button class="camera-btn-primary ripple" onclick="document.getElementById('cameraFileInput').click()">
-      📷 เปิดกล้อง / อัปโหลด
-    </button>
+    <button class="camera-btn-primary ripple" onclick="document.getElementById('cameraFileInput').click()">📷 เปิดกล้อง / อัปโหลด</button>
     <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display:none" onchange="previewFoodImage(this.files[0])">
-    <button class="camera-btn-send ripple" id="cameraSendBtn" style="display:none" onclick="sendFoodImage()">
-      📤 ส่งให้ลูกค้า
-    </button>
+    <button class="camera-btn-send ripple" id="cameraSendBtn" style="display:none" onclick="sendFoodImage()">📤 ส่งให้ลูกค้า</button>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FIREBASE SDK
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ FIREBASE SDK ═══ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
 <script src="rider.js"></script>
 
 </body>
