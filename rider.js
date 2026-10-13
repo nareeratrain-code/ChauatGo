@@ -1,15 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════
-   🛵 CHAUAT GO RIDER — v3.9.0
+   🛵 CHAUAT GO RIDER — v3.9.1
    Full-featured Production JavaScript
    
-   ✅ Flow ใหม่: searching → accepted → picked_up → customer_paid → on_the_way → done
-   ✅ ไรเดอร์รับงานที่ status "searching"
-   ✅ ถ่ายรูปอาหารบังคับ (picked_up)
-   ✅ ถ่ายสลิปที่จ่ายร้านบังคับ
-   ✅ รอลูกค้าโอน (customer_paid) → เริ่มส่ง
-   ✅ Timeout 5 นาที → โทรตาม
-   ✅ Timeout 15 นาที → ยกเลิกได้
-   ✅ Chat + GPS + Sound
+   ✅ v3.9.1: รองรับ status "ready" + "searching"
+   ✅ v3.9.1: ถ่ายรูปอาหาร + สลิปบังคับ
+   ✅ v3.9.1: รอ customer_paid ก่อนเริ่มส่ง
+   ✅ v3.9.1: Timeout 5/15 นาที
+   ✅ v3.9.1: Chat + GPS + Sound
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -30,7 +27,7 @@ const db = firebase.firestore();
 const storage = firebase.storage();
 db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
 
-console.log('%c🛵 Chauat Go Rider v3.9.0', 'color:#FF6B35;font-weight:900;font-size:14px');
+console.log('%c🛵 Chauat Go Rider v3.9.1', 'color:#FF6B35;font-weight:900;font-size:14px');
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
@@ -57,15 +54,15 @@ let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
 let isSigningUp = false;
 
-/* ⭐ v3.9.0: ไรเดอร์เห็นเฉพาะ "searching" */
-const RIDER_VISIBLE_STATUSES = ['searching'];
+/* ⭐ v3.9.1: ไรเดอร์เห็นทั้ง searching + ready */
+const RIDER_VISIBLE_STATUSES = ['searching', 'ready'];
 const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
 
-/* ⭐ v3.9.0: Timers */
+/* ⭐ v3.9.1: Timers */
 let paymentTimeout5 = null;
 let paymentTimeout15 = null;
 
-/* ⭐ v3.9.0: Modal upload state */
+/* ⭐ v3.9.1: Modal upload state */
 let pickupFoodBlob = null;
 let pickupSlipBlob = null;
 let pickupFoodUrl = null;
@@ -511,12 +508,11 @@ function subscribeProfile() {
   });
 }
 
-/* ⭐ v3.9.0: Query status "searching" + active */
+/* ⭐ v3.9.1: subscribe searching + ready */
 function subscribeJobs() {
   if (myJobsUnsub) myJobsUnsub();
   myJobsUnsub = db.collection('orders')
-    .where('status', 'in', ['searching', 'accepted', 'picked_up', 'customer_paid', 'on_the_way'])
-    .orderBy('createdAt', 'desc')
+    .where('status', 'in', ['searching', 'ready', 'accepted', 'picked_up', 'customer_paid', 'on_the_way'])
     .limit(50)
     .onSnapshot(snap => {
       const prevIds = seenJobIds;
@@ -525,10 +521,17 @@ function subscribeJobs() {
         return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
       });
 
-      /* ⭐ v3.9.0: New jobs = status "searching" */
+      /* ⭐ v3.9.1: Sort client-side */
+      allJobs.sort((a, b) => {
+        const ta = a.createdAt ? a.createdAt.getTime() : 0;
+        const tb = b.createdAt ? b.createdAt.getTime() : 0;
+        return tb - ta;
+      });
+
+      /* ⭐ v3.9.1: new jobs = searching + ready */
       const newJobs = allJobs.filter(j =>
         !prevIds.has(j.id) &&
-        j.status === 'searching' &&
+        RIDER_VISIBLE_STATUSES.includes(j.status) &&
         !j.riderId &&
         riderProfile?.verified === true &&
         isOnline
@@ -543,6 +546,7 @@ function subscribeJobs() {
       renderJobs();
       updateHeroStats();
       scheduleGPSIfActive();
+      autoStartPaymentWatch();
     });
 }
 
@@ -551,7 +555,6 @@ function subscribeHistory() {
   myHistoryUnsub = db.collection('orders')
     .where('riderId', '==', currentUser.uid)
     .where('status', '==', 'done')
-    .orderBy('doneAt', 'desc')
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
@@ -639,19 +642,20 @@ function updateHeroStats() {
   if (totalEl) totalEl.textContent = riderProfile?.totalJobs || allHistory.length;
 }
 /* ═══════════════════════════════════════════════════════════════════
-   15. RENDER JOBS — ⭐ v3.9.0
+   15. RENDER JOBS
+   ⭐ v3.9.1: เห็นทั้ง searching + ready
    ═══════════════════════════════════════════════════════════════════ */
 function renderJobs() {
   const myId = currentUser?.uid;
 
-  /* ⭐ v3.9.0: new jobs = status "searching" */
+  /* New jobs = searching + ready */
   const newJobs = allJobs.filter(j =>
-    j.status === 'searching' &&
+    RIDER_VISIBLE_STATUSES.includes(j.status) &&
     !j.riderId &&
     riderProfile?.verified && isOnline
   );
 
-  /* ⭐ v3.9.0: active = accepted, picked_up, customer_paid, on_the_way */
+  /* Active = accepted, picked_up, customer_paid, on_the_way */
   const activeJobs = allJobs.filter(j =>
     j.riderId === myId &&
     RIDER_ACTIVE_STATUSES.includes(j.status)
@@ -687,13 +691,13 @@ function renderJobCard(j, type) {
   const fin = calcOrderFinance(j);
 
   const statusInfo = {
-    searching: { label: '🔔 ใหม่', color: 'var(--orange)', bg: '#FFF3E0' },
+    searching: { label: '🔔 ใหม่ • รอร้านรับ', color: 'var(--orange)', bg: '#FFF3E0' },
     pending: { label: '🔔 รอร้านรับ', color: 'var(--orange)', bg: '#FFF3E0' },
     cooking: { label: '🍳 ร้านกำลังทำ', color: '#E65100', bg: '#FFF3E0' },
-    ready: { label: '✅ พร้อมส่ง', color: 'var(--green)', bg: '#E8F5E9' },
+    ready: { label: '✅ พร้อมส่ง • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
     accepted: { label: '🛵 รับแล้ว • ไปที่ร้าน', color: 'var(--blue)', bg: '#E3F2FD' },
-    picked_up: { label: '📦 รับของแล้ว • รอลูกค้าโอน', color: '#E65100', bg: '#FFF3E0' },
-    customer_paid: { label: '💳 ลูกค้าโอนแล้ว', color: 'var(--green)', bg: '#E8F5E9' },
+    picked_up: { label: '📦 รอลูกค้าโอนเงิน', color: '#E65100', bg: '#FFF3E0' },
+    customer_paid: { label: '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
     done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' }
   }[j.status] || { label: j.status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
@@ -713,20 +717,19 @@ function renderJobCard(j, type) {
 
   const chatBtn = `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
 
-  /* ⭐ v3.9.0: แสดง Code */
+  /* Code */
   const codeHtml = j.code
     ? `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(j.code)}</div>`
     : '';
 
   let primaryAction = '';
-  if (isNew && j.status === 'searching') {
+  if (isNew && (j.status === 'searching' || j.status === 'ready')) {
     primaryAction = `<button class="jc-primary-btn jc-accept" data-accept="${esc(j.id)}">✅ รับงาน</button>
       <button class="jc-secondary-btn" data-skip="${esc(j.id)}">⏭️</button>`;
   } else if (j.status === 'accepted') {
     primaryAction = `<button class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}">📍 ถึงร้าน</button>
       <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
   } else if (j.status === 'picked_up') {
-    /* ⭐ v3.9.0: รอลูกค้าโอน */
     const isPaid = !!j.customerPaidAt;
     if (isPaid) {
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
@@ -791,17 +794,17 @@ function renderJobCard(j, type) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   16. JOB ACTIONS — ⭐ v3.9.0
+   16. JOB ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ⭐ v3.9.0: รับงานที่ status "searching" */
+/* ⭐ v3.9.1: รับงานได้ทั้ง searching + ready */
 async function acceptJob(jobId) {
   try {
     const snap = await db.collection('orders').doc(jobId).get();
     if (!snap.exists) return showToast('ไม่พบงานนี้', 'error');
     const job = snap.data();
 
-    if (job.status !== 'searching') {
+    if (!RIDER_VISIBLE_STATUSES.includes(job.status)) {
       return showToast('⚠️ งานนี้ถูกรับไปแล้วหรือไม่พร้อม', 'warning');
     }
 
@@ -822,14 +825,14 @@ async function acceptJob(jobId) {
   }
 }
 
-/* ⭐ v3.9.0: ถึงร้าน → เปิด Modal ถ่ายรูป + สลิป */
+/* ⭐ v3.9.1: ถึงร้าน → Modal ถ่ายรูป */
 async function arrivedAtShop(jobId) {
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return showToast('ไม่พบงาน', 'error');
   openPickupModal(jobId, job);
 }
 
-/* ⭐ v3.9.0: Modal รับอาหาร — ถ่ายรูปอาหาร + สลิปที่จ่ายร้าน */
+/* ⭐ v3.9.1: Modal รับอาหาร — ถ่ายรูปอาหาร + สลิป */
 function openPickupModal(jobId, job) {
   pickupOrderId = jobId;
   pickupFoodBlob = null;
@@ -861,46 +864,46 @@ function openPickupModal(jobId, job) {
     </div>
 
     <!-- รูปอาหาร -->
-    <div class="pickup-upload-section">
+    <div style="margin-bottom:14px">
       <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">
         📸 รูปอาหาร <span style="color:#E53935">*บังคับ</span>
       </label>
-      <div class="pickup-upload-box" id="pickup-food-box" onclick="document.getElementById('pickup-food-input').click()">
-        <div class="pickup-upload-placeholder" id="pickup-food-placeholder">
+      <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--surface-2);overflow:hidden;position:relative" onclick="document.getElementById('pickup-food-input').click()">
+        <div id="pickup-food-placeholder" style="text-align:center">
           <div style="font-size:36px">🍽️</div>
-          <div style="font-size:12px;font-weight:700;margin-top:6px">แตะเพื่อถ่ายรูปอาหาร</div>
+          <div style="font-size:12px;font-weight:700;margin-top:6px;color:var(--text-muted)">แตะเพื่อถ่ายรูปอาหาร</div>
         </div>
-        <img id="pickup-food-preview" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px">
+        <img id="pickup-food-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <input type="file" id="pickup-food-input" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
     </div>
 
     <!-- สลิปโอนร้าน -->
-    <div class="pickup-upload-section" style="margin-top:14px">
+    <div style="margin-bottom:14px">
       <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">
         🧾 สลิปที่จ่ายร้าน <span style="color:#E53935">*บังคับ</span>
       </label>
-      <div class="pickup-upload-box" id="pickup-slip-box" onclick="document.getElementById('pickup-slip-input').click()">
-        <div class="pickup-upload-placeholder" id="pickup-slip-placeholder">
+      <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--surface-2);overflow:hidden;position:relative" onclick="document.getElementById('pickup-slip-input').click()">
+        <div id="pickup-slip-placeholder" style="text-align:center">
           <div style="font-size:36px">🧾</div>
-          <div style="font-size:12px;font-weight:700;margin-top:6px">แตะเพื่อแนบสลิป</div>
+          <div style="font-size:12px;font-weight:700;margin-top:6px;color:var(--text-muted)">แตะเพื่อแนบสลิป</div>
         </div>
-        <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px">
+        <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <input type="file" id="pickup-slip-input" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
     </div>
 
     <!-- ปุ่ม -->
-    <div class="job-actions two" style="margin-top:16px">
-      <button class="action-btn-big btn-gray-big ripple" onclick="closeModal()">ยกเลิก</button>
-      <button class="action-btn-big btn-green-big ripple" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งให้ลูกค้า</button>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="action-btn-big btn-gray-big ripple" style="flex:1" onclick="closeModal()">ยกเลิก</button>
+      <button class="action-btn-big btn-green-big ripple" style="flex:1" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งให้ลูกค้า</button>
     </div>
   `;
 
   $('modalOverlay').classList.add('show');
 }
 
-/* ⭐ v3.9.0: จัดการรูปที่ถ่าย */
+/* ⭐ v3.9.1: จัดการรูปที่ถ่าย */
 async function handlePickupImage(event, type) {
   const file = event.target.files[0];
   if (!file) return;
@@ -942,14 +945,10 @@ async function handlePickupImage(event, type) {
 function updatePickupConfirmBtn() {
   const btn = $('pickup-confirm-btn');
   if (!btn) return;
-  if (pickupFoodBlob && pickupSlipBlob) {
-    btn.disabled = false;
-  } else {
-    btn.disabled = true;
-  }
+  btn.disabled = !(pickupFoodBlob && pickupSlipBlob);
 }
 
-/* ⭐ v3.9.0: ยืนยันรับอาหาร → อัปโหลด + picked_up */
+/* ⭐ v3.9.1: ยืนยันรับอาหาร → picked_up */
 async function confirmPickup() {
   if (!pickupFoodBlob || !pickupSlipBlob) {
     return showToast('⚠️ กรุณาถ่ายรูปอาหาร + สลิป', 'warning');
@@ -998,11 +997,10 @@ async function confirmPickup() {
   }
 }
 
-/* ⭐ v3.9.0: Timer 5 นาที → โทรตาม, 15 นาที → ยกเลิกได้ */
+/* ⭐ v3.9.1: Timer 5 นาที → โทรตาม, 15 นาที → ยกเลิกได้ */
 function startPaymentTimers(jobId) {
   clearPaymentTimers();
 
-  /* 5 นาที → แจ้งเตือน */
   paymentTimeout5 = setTimeout(async () => {
     const job = allJobs.find(j => j.id === jobId);
     if (!job || job.customerPaidAt) return;
@@ -1010,7 +1008,6 @@ function startPaymentTimers(jobId) {
     showToast('⚠️ ลูกค้ายังไม่โอน — กรุณาโทรตาม', 'warning');
     playTone([660, 660, 880], 0.2, 0.3, 0.6);
 
-    /* เปิดหน้า detail ให้กดโทร */
     if (job.userPhone) {
       if (confirm('⚠️ ลูกค้ายังไม่โอนเงิน (5 นาที)\n\nโทรหาลูกค้าตอนนี้?')) {
         window.location.href = 'tel:' + job.userPhone;
@@ -1018,7 +1015,6 @@ function startPaymentTimers(jobId) {
     }
   }, PAYMENT_TIMEOUT_5MIN);
 
-  /* 15 นาที → ให้ยกเลิกได้ */
   paymentTimeout15 = setTimeout(() => {
     const job = allJobs.find(j => j.id === jobId);
     if (!job || job.customerPaidAt) return;
@@ -1034,7 +1030,6 @@ function clearPaymentTimers() {
   if (paymentTimeout15) { clearTimeout(paymentTimeout15); paymentTimeout15 = null; }
 }
 
-/* ⭐ v3.9.0: ยกเลิกหลัง timeout */
 async function cancelJobAfterTimeout(jobId) {
   try {
     await db.collection('orders').doc(jobId).update({
@@ -1044,7 +1039,6 @@ async function cancelJobAfterTimeout(jobId) {
       cancelReason: 'ลูกค้าไม่โอนเงินภายใน 15 นาที'
     });
 
-    /* แจ้งใน chat */
     try {
       const chatRef = db.collection('chats').doc(jobId);
       const chatSnap = await chatRef.get();
@@ -1068,7 +1062,7 @@ async function cancelJobAfterTimeout(jobId) {
   }
 }
 
-/* ⭐ v3.9.0: เริ่มส่ง — ต้องมี customerPaidAt */
+/* ⭐ v3.9.1: เริ่มส่ง — ต้องมี customerPaidAt */
 async function startDelivery(jobId) {
   try {
     const snap = await db.collection('orders').doc(jobId).get();
@@ -1097,25 +1091,65 @@ async function deliverJob(jobId) {
   openDeliverModal(job, fin);
 }
 
-/* ⭐ v3.9.0: Subscribe order active เพื่อ detect customerPaidAt */
+/* ⭐ v3.9.1: Subscribe order active เพื่อ detect customerPaidAt */
 function startWatchingPayment(jobId) {
-  if (window._paymentWatch && window._paymentWatch[jobId]) return;
   window._paymentWatch = window._paymentWatch || {};
+  window._paymentNotified = window._paymentNotified || {};
+  if (window._paymentWatch[jobId]) return;
 
   window._paymentWatch[jobId] = db.collection('orders').doc(jobId)
     .onSnapshot(snap => {
       if (!snap.exists) return;
       const data = snap.data();
-      if (data.customerPaidAt && !window._paymentNotified) {
-        window._paymentNotified = window._paymentNotified || {};
-        if (!window._paymentNotified[jobId]) {
-          window._paymentNotified[jobId] = true;
-          soundPaymentReceived();
-          showToast('💳 ลูกค้าโอนเงินแล้ว — เริ่มส่งได้');
-          renderJobs();
-        }
+      if (data.customerPaidAt && !window._paymentNotified[jobId]) {
+        window._paymentNotified[jobId] = true;
+        soundPaymentReceived();
+        showToast('💳 ลูกค้าโอนเงินแล้ว — เริ่มส่งได้');
+        renderJobs();
       }
     });
+}
+
+/* ⭐ v3.9.1: Auto-start payment watch เมื่อมี picked_up */
+function autoStartPaymentWatch() {
+  const pickedUpJobs = allJobs.filter(j =>
+    j.riderId === currentUser?.uid &&
+    j.status === 'picked_up' &&
+    !j.customerPaidAt
+  );
+
+  pickedUpJobs.forEach(job => {
+    if (job.pickedUpAt && !window._paymentTimersStarted?.[job.id]) {
+      window._paymentTimersStarted = window._paymentTimersStarted || {};
+      window._paymentTimersStarted[job.id] = true;
+
+      const pickedAt = toDate(job.pickedUpAt)?.getTime() || Date.now();
+      const elapsed = Date.now() - pickedAt;
+      const remaining5 = Math.max(0, PAYMENT_TIMEOUT_5MIN - elapsed);
+      const remaining15 = Math.max(0, PAYMENT_TIMEOUT_15MIN - elapsed);
+
+      if (remaining5 > 0) {
+        paymentTimeout5 = setTimeout(async () => {
+          const j = allJobs.find(x => x.id === job.id);
+          if (!j || j.customerPaidAt) return;
+          showToast('⚠️ ลูกค้ายังไม่โอน — กรุณาโทรตาม', 'warning');
+          playTone([660, 660, 880], 0.2, 0.3, 0.6);
+        }, remaining5);
+      }
+
+      if (remaining15 > 0) {
+        paymentTimeout15 = setTimeout(() => {
+          const j = allJobs.find(x => x.id === job.id);
+          if (!j || j.customerPaidAt) return;
+          if (confirm('⚠️ ลูกค้ายังไม่โอน (15 นาที)\n\nยกเลิกงานนี้?')) {
+            cancelJobAfterTimeout(job.id);
+          }
+        }, remaining15);
+      }
+    }
+
+    startWatchingPayment(job.id);
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1153,9 +1187,9 @@ function openDeliverModal(job, fin) {
       </div>
     </div>
 
-    <div class="job-actions two" style="margin-top:16px">
-      <button class="action-btn-big btn-gray-big ripple" onclick="closeModal()">ยกเลิก</button>
-      <button class="action-btn-big btn-green-big ripple" onclick="confirmDeliver('${esc(job.id)}')">✅ ยืนยันส่งสำเร็จ</button>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="action-btn-big btn-gray-big ripple" style="flex:1" onclick="closeModal()">ยกเลิก</button>
+      <button class="action-btn-big btn-green-big ripple" style="flex:1" onclick="confirmDeliver('${esc(job.id)}')">✅ ยืนยันส่งสำเร็จ</button>
     </div>
   `;
 
@@ -1202,7 +1236,6 @@ function showJobDetail(jobId) {
   const mc = $('modalContent');
   if (!mc) return;
 
-  /* ⭐ v3.9.0: แสดง code + รูปอาหาร */
   const codeHtml = job.code
     ? `<div style="background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
         <div style="font-size:11px;opacity:.9;font-weight:800">🧾 Order Code</div>
@@ -1255,9 +1288,9 @@ function showJobDetail(jobId) {
         <span>คุณได้รับ (80%)</span><span style="font-weight:900">฿${fmt(fin.totalRider)}</span>
       </div>
     </div>
-    <div class="job-actions two" style="margin-bottom:10px">
-      ${job.userPhone ? `<a href="tel:${esc(job.userPhone)}" class="action-btn-big btn-blue-big ripple" style="text-decoration:none;color:#fff">📞 โทรหา</a>` : ''}
-      ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff">📍 นำทาง</a>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      ${job.userPhone ? `<a href="tel:${esc(job.userPhone)}" class="action-btn-big btn-blue-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📞 โทรหา</a>` : ''}
+      ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📍 นำทาง</a>` : ''}
     </div>
     ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
@@ -1385,7 +1418,6 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
   );
 
   for (const job of myActive) {
-    /* ใกล้ร้าน */
     if (job.status === 'accepted' && job.shopPlaceLat && job.shopPlaceLng
       && !arrivedShopNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.shopPlaceLat, job.shopPlaceLng) * 1000;
@@ -1396,7 +1428,6 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
       }
     }
 
-    /* ใกล้ลูกค้า */
     if (job.status === 'on_the_way' && job.lat && job.lng
       && !nearNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.lat, job.lng) * 1000;
@@ -1422,55 +1453,7 @@ function requestGPS() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   21. AUTO TIMERS + WATCH PAYMENT
-   ⭐ v3.9.0: เมื่อมี job picked_up → เริ่ม watch
-   ═══════════════════════════════════════════════════════════════════ */
-function autoStartPaymentWatch() {
-  const pickedUpJobs = allJobs.filter(j =>
-    j.riderId === currentUser?.uid &&
-    j.status === 'picked_up' &&
-    !j.customerPaidAt
-  );
-
-  pickedUpJobs.forEach(job => {
-    /* เริ่ม timers ถ้ายังไม่เริ่ม */
-    if (job.pickedUpAt && !window._paymentTimersStarted?.[job.id]) {
-      window._paymentTimersStarted = window._paymentTimersStarted || {};
-      window._paymentTimersStarted[job.id] = true;
-
-      /* คำนวณเวลาที่ผ่านไปแล้ว */
-      const pickedAt = toDate(job.pickedUpAt)?.getTime() || Date.now();
-      const elapsed = Date.now() - pickedAt;
-      const remaining5 = Math.max(0, PAYMENT_TIMEOUT_5MIN - elapsed);
-      const remaining15 = Math.max(0, PAYMENT_TIMEOUT_15MIN - elapsed);
-
-      if (remaining5 > 0) {
-        paymentTimeout5 = setTimeout(async () => {
-          const j = allJobs.find(x => x.id === job.id);
-          if (!j || j.customerPaidAt) return;
-          showToast('⚠️ ลูกค้ายังไม่โอน — กรุณาโทรตาม', 'warning');
-          playTone([660, 660, 880], 0.2, 0.3, 0.6);
-        }, remaining5);
-      }
-
-      if (remaining15 > 0) {
-        paymentTimeout15 = setTimeout(() => {
-          const j = allJobs.find(x => x.id === job.id);
-          if (!j || j.customerPaidAt) return;
-          if (confirm('⚠️ ลูกค้ายังไม่โอน (15 นาที)\n\nยกเลิกงานนี้?')) {
-            cancelJobAfterTimeout(job.id);
-          }
-        }, remaining15);
-      }
-    }
-
-    /* Subscribe เพื่อ detect customerPaidAt */
-    startWatchingPayment(job.id);
-  });
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   22. SHEET / MODAL
+   21. SHEET / MODAL
    ═══════════════════════════════════════════════════════════════════ */
 function openSheet() { $('sheetOverlay')?.classList.add('show'); }
 function closeSheet() { $('sheetOverlay')?.classList.remove('show'); }
@@ -1478,14 +1461,13 @@ function closeModal() {
   $('modalOverlay')?.classList.remove('show');
   const mc = $('modalContent');
   if (mc) mc.innerHTML = '';
-  /* reset pickup state */
   pickupFoodBlob = null;
   pickupSlipBlob = null;
   pickupOrderId = null;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   23. PROFILE / FINANCE
+   22. PROFILE / FINANCE
    ═══════════════════════════════════════════════════════════════════ */
 function showProfile() {
   const mc = $('modalContent');
@@ -1608,8 +1590,9 @@ function showHistory() {
   `;
   $('modalOverlay').classList.add('show');
 }
+
 /* ═══════════════════════════════════════════════════════════════════
-   24. CHAT
+   23. CHAT
    ═══════════════════════════════════════════════════════════════════ */
 async function openChatWithCustomer(orderId) {
   const job = allJobs.find(j => j.id === orderId) || allHistory.find(j => j.id === orderId);
@@ -1813,56 +1796,7 @@ function autoResize(el) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   25. CAMERA
-   ═══════════════════════════════════════════════════════════════════ */
-function openCamera() {
-  $('cameraModal')?.classList.add('show');
-  cameraFile = null;
-  const preview = $('cameraPreview');
-  if (preview) preview.style.display = 'none';
-  const placeholder = $('cameraPlaceholder');
-  if (placeholder) placeholder.style.display = 'block';
-  const sendBtn = $('cameraSendBtn');
-  if (sendBtn) sendBtn.style.display = 'none';
-}
-
-function closeCamera() {
-  $('cameraModal')?.classList.remove('show');
-  cameraFile = null;
-}
-
-function previewFoodImage(file) {
-  if (!file) return;
-  cameraFile = file;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const preview = $('cameraPreview');
-    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
-    const placeholder = $('cameraPlaceholder');
-    if (placeholder) placeholder.style.display = 'none';
-    const sendBtn = $('cameraSendBtn');
-    if (sendBtn) sendBtn.style.display = 'block';
-  };
-  reader.readAsDataURL(file);
-}
-
-async function sendFoodImage() {
-  if (!cameraFile || !activeChatId) {
-    showToast('ไม่มีรูป', 'warning');
-    return;
-  }
-  try {
-    await sendChatImage(cameraFile);
-    closeCamera();
-    closeChat();
-    showToast('✅ ส่งรูปอาหารให้ลูกค้าแล้ว');
-  } catch (err) {
-    showToast('ส่งไม่สำเร็จ', 'error');
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   26. NETWORK & PWA
+   24. NETWORK & PWA
    ═══════════════════════════════════════════════════════════════════ */
 function setupNetwork() {
   window.addEventListener('online', () => {
@@ -1907,8 +1841,7 @@ function dismissPWA() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   27. EVENT DELEGATION
-   ⭐ v3.9.0: เพิ่ม data-start-deliver
+   25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
@@ -1931,16 +1864,7 @@ document.addEventListener('click', (e) => {
 }, { passive: true });
 
 /* ═══════════════════════════════════════════════════════════════════
-   28. AUTO-RUN — เมื่อ allJobs เปลี่ยน
-   ⭐ v3.9.0: ตรวจ picked_up → เริ่ม watch
-   ═══════════════════════════════════════════════════════════════════ */
-function onJobsUpdated() {
-  autoStartPaymentWatch();
-  scheduleGPSIfActive();
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   29. INIT
+   26. INIT
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
@@ -1953,7 +1877,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════════
-   30. EXPOSE GLOBALS
+   27. EXPOSE GLOBALS
    ═══════════════════════════════════════════════════════════════════ */
 window.toggleTheme = toggleTheme;
 window.switchAuthTab = switchAuthTab;
@@ -1985,17 +1909,13 @@ window.autoResize = autoResize;
 window.requestGPS = requestGPS;
 window.installPWA = installPWA;
 window.dismissPWA = dismissPWA;
-window.openCamera = openCamera;
-window.closeCamera = closeCamera;
-window.previewFoodImage = previewFoodImage;
-window.sendFoodImage = sendFoodImage;
 
-/* ⭐ v3.9.0: Pickup modal */
+/* Pickup modal */
 window.handlePickupImage = handlePickupImage;
 window.confirmPickup = confirmPickup;
 window.updatePickupConfirmBtn = updatePickupConfirmBtn;
 
-/* ⭐ v3.9.0: Payment */
+/* Payment */
 window.startDelivery = startDelivery;
 window.confirmDeliver = confirmDeliver;
 
@@ -2014,6 +1934,6 @@ if ('serviceWorker' in navigator) {
 /* ═══════════════════════════════════════════════════════════════════
    DONE!
    ═══════════════════════════════════════════════════════════════════ */
-console.log('%c🛵 Chauat Go Rider v3.9.0 — Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
-console.log('%c✅ Flow: searching → accepted → picked_up → customer_paid → on_the_way → done', 'color:#00A651;font-weight:800;font-size:12px');
-console.log('%c✅ ถ่ายรูปอาหาร + สลิป • รอลูกค้าโอน • Timeout 5/15 นาที', 'color:#2196F3;font-weight:700;font-size:11px');
+console.log('%c🛵 Chauat Go Rider v3.9.1 — Ready!', 'color:#FF6B35;font-weight:900;font-size:14px');
+console.log('%c✅ v3.9.1: รองรับ searching + ready', 'color:#00A651;font-weight:800;font-size:12px');
+console.log('%c✅ ถ่ายรูปอาหาร + สลิป • รอ customer_paid • Timeout 5/15 นาที', 'color:#2196F3;font-weight:700;font-size:11px');
