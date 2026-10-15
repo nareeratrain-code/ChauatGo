@@ -55,6 +55,16 @@ let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
 let isSigningUp = false;
 let authEpoch = 0;
+let activeChatCallRole = 'customer';
+
+if (window.ChauatCall) {
+  ChauatCall.boot({
+    role: 'rider',
+    getDb: function () { return db; },
+    getUid: function () { return currentUser ? currentUser.uid : ''; },
+    onChange: function () { if (currentUser) renderJobs(); }
+  });
+}
 
 /* อาหาร: รับได้หลังร้านรับ (cooking/ready) เท่านั้น
    เรียกรถ/ส่งด่วน/ฝากซื้อ: ไม่มีร้าน รับจาก searching ได้ */
@@ -691,6 +701,7 @@ async function handleLogout() {
   foodReadySeen = null;
   nearNotifiedOrderIds.clear();
   arrivedShopNotifiedOrderIds.clear();
+  if (window.ChauatCall) ChauatCall.reset();
   await auth.signOut();
 }
 
@@ -833,6 +844,7 @@ function subscribeJobs() {
 
       noteFoodReady(allJobs);
       seenJobIds = new Set(allJobs.map(j => j.id));
+      if (window.ChauatCall) ChauatCall.watch(allJobs);
       renderJobs();
       updateHeroStats();
       scheduleGPSIfActive();
@@ -1000,11 +1012,8 @@ function renderJobCard(j, type) {
     : (j.type === 'shopping') ? '🛒'
     : '🍽️';
 
-  const phoneBtn = j.userPhone
-    ? `<a href="tel:${esc(j.userPhone)}" class="jc-icon-btn" onclick="event.stopPropagation()" title="โทร">📞</a>`
-    : '';
-
   const chatBtn = `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
+  const callRow = (!isNew && j.riderId === currentUser?.uid && window.ChauatCall) ? ChauatCall.buttons(j.id) : '';
 
   const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`;
 
@@ -1059,7 +1068,6 @@ function renderJobCard(j, type) {
           <div class="jc-sub">👤 ${esc(j.userName || 'ลูกค้า')}</div>
         </div>
         <div class="jc-header-actions">
-          ${phoneBtn}
           ${chatBtn}
         </div>
       </div>
@@ -1087,6 +1095,7 @@ function renderJobCard(j, type) {
         <div class="jc-finance-amount">฿${fmt(fin.totalRider)}</div>
       </div>
 
+      ${callRow}
       <div class="jc-actions">
         ${primaryAction}
       </div>
@@ -1361,13 +1370,11 @@ function startPaymentTimers(jobId) {
     const job = allJobs.find(j => j.id === jobId);
     if (!job || job.customerPaidAt) return;
 
-    showToast('⚠️ ลูกค้ายังไม่โอน — กรุณาโทรตาม', 'warning');
+    showToast('⚠️ ลูกค้ายังไม่โอน — โทรตามในแอปได้', 'warning');
     playTone([660, 660, 880], 0.2, 0.3, 0.6);
 
-    if (job.userPhone) {
-      if (confirm('⚠️ ลูกค้ายังไม่โอนเงิน (5 นาที)\n\nโทรหาลูกค้าตอนนี้?')) {
-        window.location.href = 'tel:' + job.userPhone;
-      }
+    if (job.userId && window.ChauatCall && confirm('⚠️ ลูกค้ายังไม่โอนเงิน (5 นาที)\n\nโทรหาลูกค้าในแอปตอนนี้?')) {
+      ChauatCall.start(job.id, 'customer');
     }
   }, PAYMENT_TIMEOUT_5MIN);
 
@@ -1641,7 +1648,6 @@ function showJobDetail(jobId) {
       <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(job.title || 'งาน')}</div>
       <div style="font-size:13px;font-weight:700;color:var(--text-muted);line-height:1.9">
         <div>👤 ลูกค้า: <b>${esc(job.userName || '—')}</b></div>
-        <div>📞 เบอร์: <b>${esc(job.userPhone || '—')}</b></div>
         <div>📍 ${esc(job.address || job.destination || '—')}</div>
         <div>🏪 ${esc(job.merchantName || '—')}</div>
         <div>🕐 ${fmtDateTime(job.createdAt)}</div>
@@ -1660,8 +1666,8 @@ function showJobDetail(jobId) {
         <span>คุณได้รับ (80% ของค่าส่ง)</span><span style="font-weight:900">฿${fmt(fin.totalRider)}</span>
       </div>
     </div>
+    ${job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      ${job.userPhone ? `<a href="tel:${esc(job.userPhone)}" class="action-btn-big btn-blue-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📞 โทรหา</a>` : ''}
       ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📍 นำทาง</a>` : ''}
     </div>
     ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
@@ -1736,7 +1742,6 @@ function showNewJobPopup(job) {
     nd.innerHTML = `
       <div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:8px">🧾 ${esc(orderLabel(job))}</div>
       <div>👤 <strong>${esc(job.userName || 'ลูกค้า')}</strong></div>
-      <div>📞 <strong>${esc(job.userPhone || '—')}</strong></div>
       <div>📍 ${esc(job.address || job.destination || '—')}</div>
       ${job.prepMinutes ? `<div>⏱️ ร้านใช้เวลาทำประมาณ ${Number(job.prepMinutes)} นาที</div>` : ''}
       ${(job.foodReady || job.readyAt || job.status === 'ready') ? `<div style="color:var(--green);font-weight:900">✅ อาหารพร้อมแล้ว</div>` : ''}
@@ -2040,7 +2045,7 @@ async function openChatWithCustomer(orderId) {
   if (!job) return showToast('ไม่พบออเดอร์', 'error');
 
   activeChatId = orderId;
-  activeChatPartnerPhone = job.userPhone || null;
+  activeChatCallRole = 'customer';
   activeChatPartnerName = job.userName || 'ลูกค้า';
 
   try {
@@ -2095,7 +2100,7 @@ async function openChatRoom(orderId, name, sub) {
   if (!job) return showToast('ไม่พบออเดอร์', 'error');
 
   activeChatId = orderId;
-  activeChatPartnerPhone = job.userPhone || null;
+  activeChatCallRole = 'customer';
   activeChatPartnerName = name || job.userName || 'ลูกค้า';
 
   try {
@@ -2140,8 +2145,8 @@ function closeChat() {
 }
 
 function callChatPartner() {
-  if (activeChatPartnerPhone) window.location.href = 'tel:' + activeChatPartnerPhone;
-  else showToast('ไม่มีเบอร์โทร', 'warning');
+  if (window.ChauatCall && activeChatId) ChauatCall.start(activeChatId, activeChatCallRole || 'customer');
+  else showToast('โทรไม่ได้ตอนนี้', 'warning');
 }
 
 function renderChatMessages(msgs) {
