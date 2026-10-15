@@ -49,6 +49,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="brand-ui.css">
+<script src="brand-ui.js" defer></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -129,7 +131,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .theme-fab { position: fixed; bottom: 150px; right: 14px; width: 44px; height: 44px; border-radius: 50%; background: var(--surface); border: none; box-shadow: var(--shadow-lg); cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; z-index: 4000; }
 .theme-fab.hidden { display: none !important; }
 
-.search-results { display: none; position: fixed; top: 130px; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--surface); max-height: 60vh; overflow-y: auto; border-radius: 20px; box-shadow: 0 12px 32px rgba(0,0,0,.18); z-index: 5000; padding: 10px; }
+.search-results { display: none; position: fixed; top: 150px; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--surface); max-height: 60vh; overflow-y: auto; border-radius: 20px; box-shadow: 0 12px 32px rgba(0,0,0,.18); z-index: 5000; padding: 10px; }
 .search-results.show { display: block !important; }
 .search-item { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 6px; cursor: pointer; background: var(--surface-2); border-radius: 14px; }
 .search-item-icon { width: 50px; height: 50px; border-radius: 14px; background: var(--surface); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: 22px; }
@@ -492,10 +494,12 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 </head>
 <body>
 
-<div id="splash-screen">
-  <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go" onerror="this.style.background='linear-gradient(135deg,#76B82A,#5A8E1F)'">
-  <div class="splash-title">Chauat Go</div>
-  <div class="splash-sub">สั่งครบ จบที่เดียว • ชะอวด</div>
+<div id="splash-screen" class="cg-galaxy">
+  <canvas class="cg-stars" aria-hidden="true"></canvas>
+  <div class="cg-brand cg-brand-splash">
+    <div class="cg-brand-name">ChauatGo</div>
+    <div class="cg-brand-tag">สั่งครบ จบที่เดียว</div>
+  </div>
   <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
   <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
@@ -753,7 +757,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 </div>
 
 <div class="header" id="main-header">
-  <img src="images/logo-banner.png" style="height:36px;display:block;margin:0 auto 12px" onerror="this.style.display='none'">
+  <div class="cg-brand">
+    <div class="cg-brand-name">ChauatGo</div>
+    <div class="cg-brand-tag">สั่งครบ จบที่เดียว</div>
+  </div>
   <div class="header-top">
     <div class="search-bar">
       <span style="font-size:18px;opacity:.6">🔍</span>
@@ -805,9 +812,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
   <div id="home-content">
     <div class="brand-hero">
-      <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.src='images/app-icon.png'">
       <div>
-        <div class="t">Chauat Go สั่งครบ จบที่เดียว</div>
+        <div class="t">สั่งอาหาร เรียกรถ ส่งของ</div>
         <div class="s">อาหาร • เดินทาง • ส่งด่วน • ร้านค้า ในชะอวด</div>
       </div>
     </div>

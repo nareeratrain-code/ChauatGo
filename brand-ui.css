@@ -1,0 +1,147 @@
+/* Shared ChauatGo wordmark and galaxy loading screen.
+   Loaded after each page's own CSS. Auth markup and ids stay the same. */
+
+.cg-brand {
+  flex: 1 0 100%;
+  min-width: 0;
+  text-align: center;
+  padding: 0 4px 8px;
+  line-height: 1.05;
+}
+.cg-brand-name {
+  display: inline-block;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: .4px;
+  background: linear-gradient(100deg, #ffffff 0%, #e7ffb0 22%, #ffffff 46%, #c9f4ff 68%, #ffffff 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: cgShimmer 4.8s ease-in-out infinite, cgFloat 3.8s ease-in-out infinite;
+}
+.cg-brand-tag {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  color: rgba(255, 255, 255, .9);
+}
+.cg-brand-inline {
+  flex: 1 1 auto;
+  text-align: left;
+  padding: 0;
+}
+.cg-brand-inline .cg-brand-name { font-size: 22px; }
+.cg-brand-splash .cg-brand-name { font-size: 34px; }
+.cg-brand-splash .cg-brand-tag { font-size: 14px; margin-top: 6px; }
+
+@keyframes cgShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes cgFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.app-header,
+.header,
+header {
+  flex-wrap: wrap;
+}
+
+.cg-login-stack {
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.cg-login-stack .box,
+.cg-login-stack .login-card {
+  width: 100%;
+  margin: 0;
+}
+
+/* Galaxy waiting / splash. Keeps #splash-screen.hidden fade from each page. */
+.cg-galaxy {
+  background:
+    radial-gradient(ellipse at 18% 16%, rgba(124, 92, 255, .55), transparent 46%),
+    radial-gradient(ellipse at 82% 72%, rgba(255, 90, 160, .28), transparent 42%),
+    radial-gradient(ellipse at 48% 108%, rgba(40, 110, 220, .4), transparent 48%),
+    linear-gradient(180deg, #050814 0%, #0c1433 42%, #16082a 100%) !important;
+}
+#splash-screen.cg-galaxy::before,
+#login-screen.cg-galaxy::before,
+#login.cg-galaxy::before {
+  content: none;
+}
+.cg-galaxy > .cg-stars {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.cg-galaxy .cg-brand,
+.cg-galaxy .splash-loader,
+.cg-galaxy .login-card,
+.cg-galaxy .cg-login-stack,
+.cg-galaxy .box {
+  position: relative;
+  z-index: 1;
+}
+.cg-galaxy .splash-footer {
+  z-index: 1;
+}
+.cg-brand-tag .vbadge {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  background: rgba(255, 255, 255, .25);
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.cg-galaxy .splash-loader {
+  background: rgba(255, 255, 255, .16);
+}
+.cg-galaxy .splash-loader-bar {
+  background: linear-gradient(90deg, #8ecbff, #ffffff, #e2c2ff);
+  background-size: 200% 100%;
+}
+.cg-galaxy .splash-footer,
+.cg-galaxy .splash-title,
+.cg-galaxy .splash-sub {
+  color: rgba(255, 255, 255, .82);
+}
+
+#login.cg-galaxy {
+  transition: opacity .5s ease, visibility .5s ease;
+}
+#login.cg-galaxy.hidden {
+  display: flex !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-brand-name {
+    animation: none;
+    background-position: 40% 50%;
+  }
+  .cg-galaxy .splash-loader-bar {
+    animation: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .cg-brand-name { font-size: 24px; }
+  .cg-brand-splash .cg-brand-name { font-size: 30px; }
+  .cg-brand-inline .cg-brand-name { font-size: 20px; }
+}

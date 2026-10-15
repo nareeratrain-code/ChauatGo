@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.5';
+const CACHE_NAME = 'chauat-app-v3.9.6';
 
 // Shell for customer, merchant, admin, rider, and boss.
 // Do not list files that are not deployed. cache.addAll rejects the whole
@@ -18,6 +18,8 @@ const ASSETS = [
   '/rider.css',
   '/rider.js',
   '/boss.html',
+  '/brand-ui.css',
+  '/brand-ui.js',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png'

@@ -49,6 +49,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.1/dist/cropper.min.css">
+<link rel="stylesheet" href="brand-ui.css">
+<script src="brand-ui.js" defer></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════════════════
@@ -604,10 +606,12 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 <body>
 
 <!-- SPLASH -->
-<div id="splash-screen">
-  <div class="splash-logo">🏪</div>
-  <div class="splash-title">Chauat Go Merchant</div>
-  <div class="splash-sub">ระบบจัดการร้านค้า</div>
+<div id="splash-screen" class="cg-galaxy">
+  <canvas class="cg-stars" aria-hidden="true"></canvas>
+  <div class="cg-brand cg-brand-splash">
+    <div class="cg-brand-name">ChauatGo</div>
+    <div class="cg-brand-tag">จัดการร้านค้า</div>
+  </div>
   <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
   <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
@@ -627,7 +631,8 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 </div>
 
 <!-- LOGIN SCREEN -->
-<div id="login-screen">
+<div id="login-screen" class="cg-galaxy">
+  <canvas class="cg-stars" aria-hidden="true"></canvas>
   <div class="login-card">
     <div class="login-icon">🏪</div>
     <h1>Chauat Go Merchant</h1>
@@ -687,6 +692,10 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 <!-- MAIN APP -->
 <div id="app" style="display:none">
   <header class="app-header">
+    <div class="cg-brand">
+      <div class="cg-brand-name">ChauatGo</div>
+      <div class="cg-brand-tag">จัดการร้านค้า</div>
+    </div>
     <div class="header-info">
       <div class="name" id="shop-name">—</div>
       <div class="status" id="shop-status">⚫ ปิดร้าน</div>
