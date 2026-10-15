@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Rider — v3.9.1</title>
+<title>Chauat Go Rider — v3.9.16</title>
 <meta name="theme-color" content="#FF6B35">
 <meta name="description" content="แอปไรเดอร์ Chauat Go — อ.ชะอวด">
 <meta name="robots" content="noindex,nofollow">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.1-20251013-001';
+  var VERSION = 'v3.9.16-20261015-004';
   var saved = localStorage.getItem('chauat_ver_rider');
   var lastReload = localStorage.getItem('chauat_last_reload_rider');
   var now = Date.now();
@@ -75,6 +75,7 @@
 <div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
 
 <div class="toast" id="toast"></div>
+<button type="button" class="sound-unlock-banner" id="sound-unlock-banner" onclick="unlockRiderAudio()">แตะเพื่อเปิดเสียงแจ้งเตือน</button>
 
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div style="font-size:28px">📱</div>
@@ -285,6 +286,26 @@
   <div class="sheet">
     <h2 class="sheet-title">☰ เมนูไรเดอร์</h2>
 
+    <div class="sound-settings" id="sound-settings">
+      <div class="sound-settings-title">🔔 เสียงแจ้งเตือนงานใหม่</div>
+      <label class="sound-toggle">
+        <input type="checkbox" id="sound-enabled" checked onchange="onSoundEnabledChange(this.checked)">
+        <span>เปิดเสียง</span>
+      </label>
+      <div class="sound-tones" role="group" aria-label="เลือกเสียง">
+        <button type="button" class="sound-tone on" data-sound-tone="bell" onclick="chooseAlertTone('bell')">กระดิ่ง</button>
+        <button type="button" class="sound-tone" data-sound-tone="chime" onclick="chooseAlertTone('chime')">เสียงติ๊ง</button>
+        <button type="button" class="sound-tone" data-sound-tone="urgent" onclick="chooseAlertTone('urgent')">เร่งด่วน</button>
+        <button type="button" class="sound-tone" data-sound-tone="knock" onclick="chooseAlertTone('knock')">เคาะประตู</button>
+      </div>
+      <label class="sound-volume">
+        <span>ความดัง <b id="sound-volume-label">80%</b></span>
+        <input type="range" id="sound-volume" min="0" max="100" value="80" oninput="onSoundVolumeInput(this.value)">
+      </label>
+      <button type="button" class="sound-test ripple" onclick="testRiderSound()">ทดสอบเสียง</button>
+      <p class="sound-note">ถ้าปุ่มปิดเสียงของ iPhone เปิดอยู่ หรือหน้านี้ไม่ได้อยู่บนจอ จะไม่มีเสียง</p>
+    </div>
+
     <div class="sheet-item" onclick="closeSheet();showProfile()">
       <div class="ico">👤</div>
       <div class="content"><div class="lbl">ข้อมูลส่วนตัว</div><div class="sub" id="sheet-rider-email">-</div></div>
@@ -340,7 +361,7 @@
     </div>
 
     <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
-    <div class="sheet-version">Chauat Go Rider v3.9.1 • © 2025</div>
+    <div class="sheet-version">Chauat Go Rider v3.9.16 • © 2025</div>
   </div>
 </div>
 
