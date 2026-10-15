@@ -4,10 +4,24 @@
 .cg-brand {
   flex: 1 0 100%;
   min-width: 0;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: left;
   padding: 0 4px 8px;
   line-height: 1.05;
 }
+.cg-logo {
+  height: 40px;
+  width: auto;
+  max-width: 46vw;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 10px;
+  animation: cgBob 3.2s ease-in-out infinite;
+}
+.cg-brand-copy { min-width: 0; }
 .cg-brand-name {
   display: inline-block;
   font-size: 26px;
@@ -29,10 +43,21 @@
 }
 .cg-brand-inline {
   flex: 1 1 auto;
+  justify-content: flex-start;
   text-align: left;
   padding: 0;
 }
 .cg-brand-inline .cg-brand-name { font-size: 22px; }
+.cg-brand-splash {
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+}
+.cg-brand-splash .cg-logo {
+  height: 72px;
+  max-width: 78vw;
+  border-radius: 14px;
+}
 .cg-brand-splash .cg-brand-name { font-size: 34px; }
 .cg-brand-splash .cg-brand-tag { font-size: 14px; margin-top: 6px; }
 
@@ -43,6 +68,10 @@
 @keyframes cgFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-2px); }
+}
+@keyframes cgBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 .app-header,
@@ -131,10 +160,11 @@ header {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cg-brand-name {
+  .cg-brand-name,
+  .cg-logo {
     animation: none;
-    background-position: 40% 50%;
   }
+  .cg-brand-name { background-position: 40% 50%; }
   .cg-galaxy .splash-loader-bar {
     animation: none;
   }
