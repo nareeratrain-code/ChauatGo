@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Rider — v3.9.16</title>
+<title>Chauat Go Rider — v3.9.17</title>
 <meta name="theme-color" content="#FF6B35">
 <meta name="description" content="แอปไรเดอร์ Chauat Go — อ.ชะอวด">
 <meta name="robots" content="noindex,nofollow">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.16-20261015-004';
+  var VERSION = 'v3.9.17-20261015-006';
   var saved = localStorage.getItem('chauat_ver_rider');
   var lastReload = localStorage.getItem('chauat_last_reload_rider');
   var now = Date.now();
@@ -53,6 +53,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="rider.css">
 <link rel="stylesheet" href="brand-ui.css">
+<link rel="stylesheet" href="voice-call.css">
 <script src="brand-ui.js" defer></script>
 </head>
 <body>
@@ -361,7 +362,7 @@
     </div>
 
     <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
-    <div class="sheet-version">Chauat Go Rider v3.9.16 • © 2025</div>
+    <div class="sheet-version">Chauat Go Rider v3.9.17 • © 2025</div>
   </div>
 </div>
 
@@ -431,6 +432,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="map-tiles.js"></script>
+<script src="voice-call.js"></script>
 <script src="rider.js"></script>
 
 </body>

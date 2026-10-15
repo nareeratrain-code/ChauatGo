@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.16';
+const CACHE_NAME = 'chauat-app-v3.9.17';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -23,6 +23,8 @@ const ASSETS = [
   '/boss.html',
   '/brand-ui.css',
   '/brand-ui.js',
+  '/voice-call.css',
+  '/voice-call.js',
   '/map-tiles.js',
   '/data/chauat-places.json',
   '/images/logo-512.png',

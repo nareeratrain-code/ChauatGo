@@ -51,6 +51,16 @@ let deferredPrompt = null;
 let isShopOpen = false;
 let isSigningUp = false;
 let authEpoch = 0;
+let activeChatCallRole = 'customer';
+
+if (window.ChauatCall) {
+  ChauatCall.boot({
+    role: 'merchant',
+    getDb: function () { return db; },
+    getUid: function () { return currentUser ? currentUser.uid : ''; },
+    onChange: function () { if (currentUser) renderOrders(); }
+  });
+}
 
 let isAudioUnlocked = false;
 let orderLoopTimer = null;
@@ -543,6 +553,7 @@ async function handleMerchantLogout() {
   seenOrderIds.clear();
   allOrders = [];
   isFirstOrdersLoad = true;
+  if (window.ChauatCall) ChauatCall.reset();
   await auth.signOut();
 }
 
@@ -724,6 +735,7 @@ function subscribeOrders() {
 
       seenOrderIds = new Set(allOrders.map(o => o.id));
       isFirstOrdersLoad = false;
+      if (window.ChauatCall) ChauatCall.watch(allOrders);
 
       renderOrders();
       updateHeroStats();
@@ -926,38 +938,20 @@ function renderOrderCard(o) {
     </div>`;
   }
 
-  /* ปุ่มโทร + แชท */
-  let contactActions = '';
-  const hasCustomer = !!o.userPhone;
-  const hasRider = !!o.riderPhone;
-
-  if (hasCustomer && hasRider) {
-    contactActions = `<div class="order-actions two" style="margin-top:8px">
-      <a href="tel:${esc(o.userPhone)}" class="order-btn btn-blue ripple" style="text-decoration:none">📞 โทรลูกค้า</a>
+  /* โทรในแอป + แชท — ไม่แสดงเบอร์อีกฝ่าย */
+  const orderOpen = !['done', 'delivered', 'cancelled'].includes(o.status);
+  const callRow = orderOpen && window.ChauatCall ? ChauatCall.buttons(o.id) : '';
+  let contactActions = orderOpen ? `<div class="order-actions two" style="margin-top:8px">
       <button class="order-btn btn-blue ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
-    </div>
-    <div class="order-actions two" style="margin-top:6px">
-      <a href="tel:${esc(o.riderPhone)}" class="order-btn btn-ready ripple" style="text-decoration:none">📞 โทรไรเดอร์</a>
-      <button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>
-    </div>`;
-  } else if (hasCustomer) {
-    contactActions = `<div class="order-actions two" style="margin-top:8px">
-      <a href="tel:${esc(o.userPhone)}" class="order-btn btn-blue ripple" style="text-decoration:none">📞 โทรลูกค้า</a>
-      <button class="order-btn btn-blue ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
-    </div>`;
-  } else if (hasRider) {
-    contactActions = `<div class="order-actions two" style="margin-top:8px">
-      <a href="tel:${esc(o.riderPhone)}" class="order-btn btn-ready ripple" style="text-decoration:none">📞 โทรไรเดอร์</a>
-      <button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>
-    </div>`;
-  }
+      ${o.riderId ? `<button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>` : ''}
+    </div>${callRow}` : '';
 
   const badge = isCash
     ? '<span class="cash-badge">💵 เงินสด</span>'
     : '<span class="transfer-badge">💳 โอน</span>';
 
   const riderInfo = o.riderName
-    ? `<div class="order-meta" style="color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • '+esc(o.riderPhone) : ''}</div>`
+    ? `<div class="order-meta" style="color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}</div>`
     : '';
 
   return `<div class="order-card status-${o.status}">
@@ -1189,7 +1183,6 @@ function viewOrderDetail(orderId) {
       ${codeHtml}
       <div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:14px">
         <div style="font-size:15px;font-weight:900">${esc(o.userName || 'ลูกค้า')}</div>
-        <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📞 ${esc(o.userPhone || '—')}</div>
         <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📍 ${esc(o.address || '—')}</div>
         ${o.note ? `<div style="font-size:12px;color:#E65100;font-weight:700;margin-top:6px;padding:8px;background:#FFF3E0;border-radius:8px">📝 ${esc(o.note)}</div>` : ''}
       </div>
@@ -1216,14 +1209,11 @@ function viewOrderDetail(orderId) {
   }
 
   const actionsHtml = `
+    ${window.ChauatCall ? ChauatCall.buttons(o.id) : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      ${o.userPhone?`<a href="tel:${esc(o.userPhone)}" class="order-btn btn-accept ripple" style="text-decoration:none">📞 โทรลูกค้า</a>`:''}
       <button class="order-btn btn-cook ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
+      ${o.riderId ? `<button class="order-btn btn-gray ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>` : ''}
     </div>
-    ${o.riderPhone?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <a href="tel:${esc(o.riderPhone)}" class="order-btn btn-ready ripple" style="text-decoration:none">📞 โทรไรเดอร์</a>
-      <button class="order-btn btn-gray ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>
-    </div>`:''}
   `;
   const $actions = $('order-detail-actions');
   if ($actions) $actions.innerHTML = actionsHtml;
@@ -1244,7 +1234,6 @@ function showNewOrderPopup(order) {
     detail.innerHTML = `
       <div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:10px">🧾 ${esc(orderLabel(order))}</div>
       <div>👤 <b>${esc(order.userName || 'ลูกค้า')}</b></div>
-      <div>📞 <b>${esc(order.userPhone || '—')}</b></div>
       <div>📍 ${esc((order.address || '').slice(0, 50))}</div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
         💰 <b style="font-size:18px;color:var(--green)">฿${fmt(foodTotal)}</b>
@@ -2220,7 +2209,7 @@ async function openChatWithCustomer(orderId) {
   const o = allOrders.find(x => x.id === orderId);
   if (!o) return showToast('ไม่พบออเดอร์', 'error');
   activeChatId = orderId;
-  activeChatPartnerPhone = o.userPhone || null;
+  activeChatCallRole = 'customer';
   activeChatPartnerName = o.userName || 'ลูกค้า';
   await openChatRoom(orderId, activeChatPartnerName, '🧾 ' + orderLabel(o) + ' • ' + (o.title || 'ออเดอร์'));
   closeSheet('order-detail-sheet');
@@ -2231,7 +2220,7 @@ async function openChatWithRider(orderId) {
   if (!o) return showToast('ไม่พบออเดอร์', 'error');
   if (!o.riderId) return showToast('ยังไม่มีไรเดอร์รับงาน', 'warning');
   activeChatId = orderId;
-  activeChatPartnerPhone = o.riderPhone || null;
+  activeChatCallRole = 'rider';
   activeChatPartnerName = o.riderName || 'ไรเดอร์';
   await openChatRoom(orderId, activeChatPartnerName, '🧾 ' + orderLabel(o) + ' • ' + (o.title || 'ออเดอร์'));
   closeSheet('order-detail-sheet');
@@ -2279,8 +2268,8 @@ function closeChat() {
 }
 
 function callChatPartner() {
-  if (activeChatPartnerPhone) window.location.href = 'tel:' + activeChatPartnerPhone;
-  else showToast('ไม่มีเบอร์โทร', 'warning');
+  if (window.ChauatCall && activeChatId) ChauatCall.start(activeChatId, activeChatCallRole || 'customer');
+  else showToast('โทรไม่ได้ตอนนี้', 'warning');
 }
 
 function renderChatMessages(msgs) {

@@ -13,6 +13,9 @@ rules_version = '2';
 //   * placeOverrides: anyone can read; only isAdmin() can write.
 //     OSM corrections: hidden / name / lat / lng.
 //     Admin-added places: type 'added' plus name, category, tambon, lat, lng.
+//   * orders/{orderId}/calls: only that order's customer, rider, or shop
+//     (or admin) may read signaling. A participant may create a call as
+//     themselves and write offer, answer, and ICE for that call.
 // Every other collection keeps the v3.8.4 access shape.
 
 service cloud.firestore {
@@ -198,6 +201,92 @@ service cloud.firestore {
       return data.get('userId', '') == myUid()
         || data.get('riderId', '') == myUid()
         || data.get('merchantId', '') == myUid();
+    }
+
+    function orderPath(orderId) {
+      return /databases/$(database)/documents/orders/$(orderId);
+    }
+
+    function callPath(orderId, callId) {
+      return /databases/$(database)/documents/orders/$(orderId)/calls/$(callId);
+    }
+
+    // Customer, assigned rider, or the shop on this order. Admin may read.
+    function isCallParty(orderId) {
+      let data = get(orderPath(orderId)).data;
+      return isAdmin() || (
+        isAuth()
+        && exists(orderPath(orderId))
+        && (
+          data.get('userId', '') == myUid()
+          || (data.get('riderId', '') != '' && data.get('riderId', '') == myUid())
+          || (data.get('merchantId', '') != '' && data.get('merchantId', '') == myUid())
+        )
+      );
+    }
+
+    function uidHasCallRole(data, user, party) {
+      return (party == 'customer' && data.get('userId', '') == user)
+        || (party == 'rider' && data.get('riderId', '') != '' && data.get('riderId', '') == user)
+        || (party == 'merchant' && data.get('merchantId', '') != '' && data.get('merchantId', '') == user);
+    }
+
+    function callCreateOk(orderId) {
+      let data = get(orderPath(orderId)).data;
+      let caller = request.resource.data.callerUid;
+      let callee = request.resource.data.calleeUid;
+      let callerRole = request.resource.data.callerRole;
+      let calleeRole = request.resource.data.calleeRole;
+      return isAuth()
+        && exists(orderPath(orderId))
+        && caller == myUid()
+        && caller != callee
+        && callerRole in ['customer', 'rider', 'merchant']
+        && calleeRole in ['customer', 'rider', 'merchant']
+        && callerRole != calleeRole
+        && uidHasCallRole(data, caller, callerRole)
+        && uidHasCallRole(data, callee, calleeRole)
+        && request.resource.data.orderId == orderId
+        && request.resource.data.status == 'ringing'
+        && request.resource.data.createdAt is timestamp
+        && isValidString(request.resource.data.callerName, 1, 80)
+        && isValidString(request.resource.data.calleeName, 1, 80)
+        && request.resource.data.keys().hasOnly([
+          'orderId', 'callerUid', 'callerRole', 'calleeUid', 'calleeRole',
+          'callerName', 'calleeName', 'status', 'createdAt'
+        ]);
+    }
+
+    function callIdentityFrozen() {
+      return unchanged('orderId')
+        && unchanged('callerUid')
+        && unchanged('callerRole')
+        && unchanged('calleeUid')
+        && unchanged('calleeRole')
+        && unchanged('callerName')
+        && unchanged('calleeName')
+        && unchanged('createdAt');
+    }
+
+    function callStatusOk() {
+      let prev = resource.data.status;
+      let next = request.resource.data.status;
+      let caller = resource.data.callerUid == myUid();
+      let callee = resource.data.calleeUid == myUid();
+      return (prev == 'ringing' && next == 'active' && callee && request.resource.data.answeredAt is timestamp)
+        || (prev == 'ringing' && next == 'declined' && callee)
+        || (prev == 'ringing' && next == 'missed' && (caller || callee))
+        || (prev == 'ringing' && next == 'cancelled' && caller)
+        || (prev == 'active' && next == 'ended' && (caller || callee));
+    }
+
+    function isCallMember(orderId, callId) {
+      return isAuth()
+        && exists(callPath(orderId, callId))
+        && (
+          get(callPath(orderId, callId)).data.get('callerUid', '') == myUid()
+          || get(callPath(orderId, callId)).data.get('calleeUid', '') == myUid()
+        );
     }
 
     match /admins/{adminId} {
@@ -432,6 +521,54 @@ service cloud.firestore {
       );
 
       allow delete: if isAdmin();
+
+      // Voice-call signaling. Publish this file or these calls stay permission-denied.
+      match /calls/{callId} {
+        allow read: if isCallParty(orderId);
+        allow create: if callCreateOk(orderId);
+        allow update: if isCallParty(orderId)
+          && callIdentityFrozen()
+          && callStatusOk()
+          && onlyChanged(['status', 'answeredAt', 'endedBy'])
+          && (
+            !('endedBy' in request.resource.data.diff(resource.data).affectedKeys())
+            || request.resource.data.endedBy == myUid()
+          );
+        allow delete: if isAdmin();
+
+        match /offer/{signalId} {
+          allow read: if isCallParty(orderId);
+          allow create: if isCallMember(orderId, callId)
+            && get(callPath(orderId, callId)).data.callerUid == myUid()
+            && request.resource.data.keys().hasOnly(['type', 'sdp'])
+            && request.resource.data.type == 'offer'
+            && isValidString(request.resource.data.sdp, 20, 20000);
+          allow update, delete: if false;
+        }
+
+        match /answer/{signalId} {
+          allow read: if isCallParty(orderId);
+          allow create: if isCallMember(orderId, callId)
+            && get(callPath(orderId, callId)).data.calleeUid == myUid()
+            && request.resource.data.keys().hasOnly(['type', 'sdp'])
+            && request.resource.data.type == 'answer'
+            && isValidString(request.resource.data.sdp, 20, 20000);
+          allow update, delete: if false;
+        }
+
+        match /ice/{signalId} {
+          allow read: if isCallParty(orderId);
+          allow create: if isCallMember(orderId, callId)
+            && request.resource.data.fromUid == myUid()
+            && request.resource.data.keys().hasOnly(['fromUid', 'candidate', 'sdpMid', 'sdpMLineIndex'])
+            && isValidString(request.resource.data.candidate, 2, 2000)
+            && isValidString(request.resource.data.sdpMid, 1, 20)
+            && request.resource.data.sdpMLineIndex is int
+            && request.resource.data.sdpMLineIndex >= 0
+            && request.resource.data.sdpMLineIndex <= 50;
+          allow update, delete: if false;
+        }
+      }
     }
 
     match /ratings/{ratingId} {

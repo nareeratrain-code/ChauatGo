@@ -1,0 +1,100 @@
+/* In-app voice call. Sits above sheets, chat, and the new-job popup. */
+.chauat-call-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(8, 18, 14, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 18px;
+}
+.chauat-call-root[hidden] { display: none !important; }
+.chauat-call-card {
+  width: min(420px, 100%);
+  background: #fff;
+  color: #1a1a1a;
+  border-radius: 28px;
+  padding: 28px 22px 22px;
+  text-align: center;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+.chauat-call-kicker {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #E65100;
+}
+.chauat-call-name {
+  font-size: 28px;
+  font-weight: 900;
+  margin-top: 8px;
+  line-height: 1.2;
+}
+.chauat-call-sub {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667;
+  margin-top: 4px;
+}
+.chauat-call-timer {
+  font-size: 20px;
+  font-weight: 900;
+  margin: 18px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.chauat-call-note {
+  font-size: 12px;
+  font-weight: 700;
+  color: #667;
+  line-height: 1.45;
+  margin: 0 0 16px;
+}
+.chauat-call-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.chauat-call-actions button {
+  border: 0;
+  border-radius: 999px;
+  min-width: 112px;
+  padding: 14px 16px;
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+}
+.chauat-call-accept { background: #00A651; }
+.chauat-call-decline, .chauat-call-hangup { background: #E53935; }
+.chauat-call-mute { background: #455A64; }
+.chauat-call-banner {
+  margin-top: 14px;
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px;
+  background: #FFF3E0;
+  color: #E65100;
+  font-weight: 900;
+  cursor: pointer;
+}
+.chauat-call-banner[hidden] { display: none !important; }
+.chauat-call-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chauat-call-btn, .chauat-call-missed {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+  cursor: pointer;
+}
+.chauat-call-btn { background: #1976D2; }
+.chauat-call-missed { background: #C62828; }

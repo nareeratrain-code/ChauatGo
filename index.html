@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.15-20261015-003';
+  var VERSION = 'v3.9.17-20261015-006';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -51,6 +51,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="brand-ui.css">
+<link rel="stylesheet" href="voice-call.css">
 <script src="brand-ui.js" defer></script>
 
 <style>
@@ -674,6 +675,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="chat-header-name" id="chat-title">แชท</div>
       <div class="chat-header-sub" id="chat-subtitle">—</div>
     </div>
+    <button type="button" class="chat-back-btn press-scale" onclick="callFromCustomerChat()" title="โทร">📞</button>
     <div class="chat-online-dot"></div>
   </div>
   <div class="chat-messages" id="chat-messages">
@@ -707,6 +709,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="track-timeline" id="track-timeline"></div>
       <div class="track-actions">
         <button class="btn-full btn-blue press-scale" onclick="callRiderFromTracking()">📞 โทรหาไรเดอร์</button>
+        <button class="btn-full btn-blue press-scale" id="track-call-shop" style="display:none" onclick="callShopFromTracking()">📞 โทรหาร้าน</button>
         <button class="btn-full btn-green press-scale" onclick="chatRiderFromTracking()">💬 แชทกับไรเดอร์</button>
       </div>
     </div>
@@ -1034,6 +1037,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="locations-data.js"></script>
+<script src="voice-call.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    CHAUAT GO v3.9.0 — Main JavaScript Part 1
@@ -1059,6 +1063,14 @@ try {
   auth = firebase.auth(firebaseApp);
   db = firebase.firestore(firebaseApp);
   storage = firebase.storage(firebaseApp);
+  if (window.ChauatCall) {
+    ChauatCall.boot({
+      role: 'customer',
+      getDb: function () { return db; },
+      getUid: function () { return currentUser ? currentUser.uid : ''; },
+      onChange: function () { paintUserOrders(window._cachedOrders || []); }
+    });
+  }
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
   try { if (firebase.messaging) firebase.messaging(firebaseApp); }
   catch (msgErr) { console.warn('FCM พร้อมแล้วแต่ยังส่งพุชไม่ได้จนกว่าจะใส่ Web Push key (VAPID) ใน Firebase Console', msgErr); }
@@ -1375,6 +1387,7 @@ function initAuth(){
       if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = getAvatarEmoji(avName);
       subscribeUserOrders();
     } else {
+      if (window.ChauatCall) ChauatCall.reset();
       userProfile = null; window.userProfile = null;
       if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = '🧑';
       if (orderListUnsub) { orderListUnsub(); orderListUnsub = null; }
@@ -1428,6 +1441,7 @@ window.handleSignup = async function(){
 
 window.handleLogout = async function(){
   if(!confirm('ออกจากระบบ?')) return;
+  if (window.ChauatCall) ChauatCall.reset();
   if(unsubOrders){unsubOrders();unsubOrders=null;}
   if(chatListUnsub){chatListUnsub();chatListUnsub=null;}
   if(chatUnsub){chatUnsub();chatUnsub=null;}
@@ -2167,6 +2181,17 @@ window.switchTab = function(tab, el){
 };
 
 /* ═══ USER ORDERS — ⭐ v3.9.0: status ใหม่ ═══ */
+function paintUserOrders(all){
+  window._cachedOrders = all || [];
+  if (window.ChauatCall) ChauatCall.watch(window._cachedOrders);
+  var active = window._cachedOrders.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)===-1;});
+  var done = window._cachedOrders.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)!==-1;});
+  if($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
+  if($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
+  if($('empty-orders')) $('empty-orders').style.display = window._cachedOrders.length===0?'block':'none';
+  monitorRiderProximity(active);
+}
+
 function subscribeUserOrders(){
   if(!currentUser || !db) return;
   if(unsubOrders) unsubOrders();
@@ -2175,13 +2200,7 @@ function subscribeUserOrders(){
     .onSnapshot(function(snap){
       var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
       all.sort(function(a,b){return (b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
-      window._cachedOrders = all;
-      var active = all.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)===-1;});
-      var done = all.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)!==-1;});
-      if($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
-      if($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
-      if($('empty-orders')) $('empty-orders').style.display = all.length===0?'block':'none';
-      monitorRiderProximity(active);
+      paintUserOrders(all);
     });
 }
 
@@ -2252,7 +2271,8 @@ function renderOrderCard(o){
       '</div>' +
       (canTrack?'<button class="order-track-cta" onclick="openTrackingPage(\''+esc(o.id)+'\')">📍 ติดตาม</button>':'') +
     '</div>' +
-    (o.riderName?'<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:8px">🛵 ไรเดอร์: <b>'+esc(o.riderName)+'</b>'+(o.riderPhone?' • '+esc(o.riderPhone):'')+'</div>':'') +
+    (o.riderName?'<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:8px">🛵 ไรเดอร์: <b>'+esc(o.riderName)+'</b></div>':'') +
+    (window.ChauatCall ? ChauatCall.buttons(o.id) : '') +
     (o.foodImage?'<div style="margin:8px 0"><img src="'+esc(o.foodImage)+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px" onclick="openLightbox(\''+esc(o.foodImage)+'\')"><div style="font-size:11px;color:var(--green);font-weight:900;margin-top:4px;text-align:center">📸 อาหารของคุณ</div></div>':'') +
     (o.itemsText?'<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;white-space:pre-wrap">🛒 '+esc(o.itemsText.slice(0,120))+'</div>':'') +
     discountHtml +
@@ -2366,6 +2386,13 @@ window.openTrackingPage = function(orderId){
     if (!snap.exists) return;
     var o = Object.assign({id:snap.id}, snap.data());
     currentTrackingOrder = o;
+    var cached = window._cachedOrders || [];
+    var seen = false;
+    for (var i = 0; i < cached.length; i++) {
+      if (cached[i].id === o.id) { cached[i] = o; seen = true; break; }
+    }
+    if (!seen) cached.unshift(o);
+    paintUserOrders(cached);
     renderTrackingInfo(o);
     renderTrackingMarkers(o);
     watchTrackingRider(o);
@@ -2393,6 +2420,8 @@ function watchTrackingRider(o){
 }
 
 function renderTrackingInfo(o){
+  var shopBtn = $('track-call-shop');
+  if (shopBtn) shopBtn.style.display = (o && o.merchantId) ? '' : 'none';
   var statusMap = {
     searching:{icon:'⏳',title:'กำลังหาไรเดอร์',sub:'รอไรเดอร์รับงาน'},
     pending:{icon:'🔔',title:'รอร้านรับออเดอร์',sub:'ร้านกำลังยืนยัน'},
@@ -2528,8 +2557,16 @@ function updateRiderMarkerOnTracking(lat, lng, o){
 }
 
 window.callRiderFromTracking = function(){
-  if (currentTrackingOrder && currentTrackingOrder.riderPhone) window.location.href = 'tel:' + currentTrackingOrder.riderPhone;
-  else showToast('ไม่มีเบอร์ไรเดอร์','warning');
+  if (!currentTrackingOrder || !currentTrackingOrder.riderId) return showToast('ยังไม่มีไรเดอร์','warning');
+  if (window.ChauatCall) ChauatCall.start(currentTrackingOrder.id, 'rider');
+};
+window.callShopFromTracking = function(){
+  if (!currentTrackingOrder || !currentTrackingOrder.merchantId) return showToast('ไม่มีร้านในออเดอร์นี้','warning');
+  if (window.ChauatCall) ChauatCall.start(currentTrackingOrder.id, 'merchant');
+};
+window.callFromCustomerChat = function(){
+  if (!activeChatId || !window.ChauatCall) return showToast('โทรไม่ได้ตอนนี้','warning');
+  ChauatCall.start(activeChatId, 'rider');
 };
 
 window.chatRiderFromTracking = function(){
@@ -2618,7 +2655,6 @@ window.showOrderBill = async function(orderId) {
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px">' +
         '<div style="font-size:11px;color:var(--text-muted);font-weight:800;margin-bottom:6px">👤 ลูกค้า</div>' +
         '<div style="font-size:13px;font-weight:900">' + esc(o.userName || '—') + '</div>' +
-        (o.userPhone ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">📞 ' + esc(o.userPhone) + '</div>' : '') +
         (o.address ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">📍 ' + esc(o.address) + '</div>' : '') +
       '</div>' +
       (o.merchantName ?
