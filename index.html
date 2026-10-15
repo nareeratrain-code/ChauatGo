@@ -3558,6 +3558,18 @@ window.confirmCustomerPaid = window.confirmCustomerPaid;
 
 /* Service Worker */
 if ('serviceWorker' in navigator) {
+  var hadSwController = !!navigator.serviceWorker.controller;
+  try {
+    if (sessionStorage.getItem('chauat_sw_reload') === '1') sessionStorage.removeItem('chauat_sw_reload');
+  } catch (e) {}
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!hadSwController) return;
+    try {
+      if (sessionStorage.getItem('chauat_sw_reload') === '1') return;
+      sessionStorage.setItem('chauat_sw_reload', '1');
+    } catch (e) {}
+    location.reload();
+  });
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'})
       .then(function(reg){ reg.update(); setInterval(function(){ reg.update(); }, 60000); })

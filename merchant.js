@@ -2494,6 +2494,18 @@ window.confirmCrop = confirmCrop;
 
 /* Service Worker */
 if ('serviceWorker' in navigator) {
+  const hadSwController = !!navigator.serviceWorker.controller;
+  try {
+    if (sessionStorage.getItem('chauat_sw_reload') === '1') sessionStorage.removeItem('chauat_sw_reload');
+  } catch (e) {}
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadSwController) return;
+    try {
+      if (sessionStorage.getItem('chauat_sw_reload') === '1') return;
+      sessionStorage.setItem('chauat_sw_reload', '1');
+    } catch (e) {}
+    location.reload();
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
       .then(reg => {
