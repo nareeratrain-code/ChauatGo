@@ -163,6 +163,13 @@ function generateDeliveryCode() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+function orderLabel(o) {
+  const code = String((o && o.code) || '').trim();
+  if (code) return code;
+  const id = String((o && o.id) || '');
+  return id.slice(-6).toUpperCase();
+}
+
 function calcFinalPrice(menu) {
   if (!menu || !menu.price) return 0;
   if (!menu.promotion || !menu.promotion.active) return Number(menu.price);
@@ -953,16 +960,11 @@ function renderOrderCard(o) {
     ? `<div class="order-meta" style="color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • '+esc(o.riderPhone) : ''}</div>`
     : '';
 
-  const codeHtml = o.code
-    ? `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(o.code)}</div>`
-    : '';
-
   return `<div class="order-card status-${o.status}">
     <div class="order-top">
       <div class="order-emoji">🍽️</div>
       <div class="order-info">
-        <div class="order-id">#${esc(o.id.slice(-8))}</div>
-        ${codeHtml}
+        <div class="order-id">🧾 ${esc(orderLabel(o))}</div>
         <div class="order-title">${esc(o.userName || 'ลูกค้า')}</div>
         <div class="order-meta">🕐 ${timeAgo(o.createdAt)} • ${statusLabel}</div>
         ${o.prepMinutes ? `<div class="order-meta">⏱️ เวลาทำประมาณ ${Number(o.prepMinutes)} นาที</div>` : ''}
@@ -1059,7 +1061,7 @@ async function acceptOrder(orderId, prepMinutes) {
         updates.deliveryCode = generateDeliveryCode();
         updates.codeCreatedAt = firebase.firestore.FieldValue.serverTimestamp();
       }
-      codeShown = updates.code || order.code || orderId.slice(-8);
+      codeShown = updates.code || order.code || orderLabel({ id: orderId });
       tx.update(ref, updates);
     });
     stopOrderLoop();
@@ -1176,20 +1178,17 @@ function viewOrderDetail(orderId) {
     </div>`
   ).join('') || `<div>${esc(o.itemsText || '—')}</div>`;
 
-  const codeHtml = o.code
-    ? `<div style="background:linear-gradient(135deg,#76B82A,#5A8E1F);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
-        <div style="font-size:11px;opacity:.9;font-weight:800">🧾 Order Code</div>
-        <div style="font-size:24px;font-weight:900;letter-spacing:3px;margin-top:4px">${esc(o.code)}</div>
-      </div>`
-    : '';
+  const codeHtml = `<div style="background:linear-gradient(135deg,#76B82A,#5A8E1F);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
+        <div style="font-size:11px;opacity:.9;font-weight:800">🧾 Order</div>
+        <div style="font-size:24px;font-weight:900;letter-spacing:3px;margin-top:4px">${esc(orderLabel(o))}</div>
+      </div>`;
 
   const $content = $('order-detail-content');
   if ($content) {
     $content.innerHTML = `
       ${codeHtml}
       <div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:14px">
-        <div style="font-size:11px;color:var(--text-muted);font-weight:800">#${esc(o.id.slice(-8))}</div>
-        <div style="font-size:15px;font-weight:900;margin-top:4px">${esc(o.userName || 'ลูกค้า')}</div>
+        <div style="font-size:15px;font-weight:900">${esc(o.userName || 'ลูกค้า')}</div>
         <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📞 ${esc(o.userPhone || '—')}</div>
         <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📍 ${esc(o.address || '—')}</div>
         ${o.note ? `<div style="font-size:12px;color:#E65100;font-weight:700;margin-top:6px;padding:8px;background:#FFF3E0;border-radius:8px">📝 ${esc(o.note)}</div>` : ''}
@@ -1243,7 +1242,7 @@ function showNewOrderPopup(order) {
   const detail = $('new-order-detail');
   if (detail) {
     detail.innerHTML = `
-      ${order.code ? `<div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:10px">🧾 ${esc(order.code)}</div>` : ''}
+      <div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:10px">🧾 ${esc(orderLabel(order))}</div>
       <div>👤 <b>${esc(order.userName || 'ลูกค้า')}</b></div>
       <div>📞 <b>${esc(order.userPhone || '—')}</b></div>
       <div>📍 ${esc((order.address || '').slice(0, 50))}</div>
@@ -1259,7 +1258,7 @@ function showNewOrderPopup(order) {
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('🔔 ออเดอร์ใหม่!', {
-        body: `${order.userName || 'ลูกค้า'} — ฿${fmt(foodTotal)}`,
+        body: `${orderLabel(order)} • ${order.userName || 'ลูกค้า'} — ฿${fmt(foodTotal)}`,
         icon: '/icons/icon-512.png',
         tag: 'new-order-' + order.id
       });
@@ -1658,7 +1657,7 @@ function renderHistory() {
     const foodTotal = calcOrderFoodTotal(o);
     return `<div class="history-item" onclick="viewOrderDetail('${esc(o.id)}')">
       <div class="history-info">
-        <div class="history-title">${o.code ? '🧾 ' + esc(o.code) + ' • ' : ''}#${esc(o.id.slice(-8))}</div>
+        <div class="history-title">🧾 ${esc(orderLabel(o))}</div>
         <div class="history-meta">${esc(o.userName || 'ลูกค้า')} • 🕐 ${fmtDateTime(o.doneAt || o.createdAt)}</div>
       </div>
       <div class="history-amount">฿${fmt(foodTotal)}</div>
@@ -2223,7 +2222,7 @@ async function openChatWithCustomer(orderId) {
   activeChatId = orderId;
   activeChatPartnerPhone = o.userPhone || null;
   activeChatPartnerName = o.userName || 'ลูกค้า';
-  await openChatRoom(orderId, activeChatPartnerName, o.title || 'ออเดอร์');
+  await openChatRoom(orderId, activeChatPartnerName, '🧾 ' + orderLabel(o) + ' • ' + (o.title || 'ออเดอร์'));
   closeSheet('order-detail-sheet');
 }
 
@@ -2234,7 +2233,7 @@ async function openChatWithRider(orderId) {
   activeChatId = orderId;
   activeChatPartnerPhone = o.riderPhone || null;
   activeChatPartnerName = o.riderName || 'ไรเดอร์';
-  await openChatRoom(orderId, activeChatPartnerName, o.title || 'ออเดอร์');
+  await openChatRoom(orderId, activeChatPartnerName, '🧾 ' + orderLabel(o) + ' • ' + (o.title || 'ออเดอร์'));
   closeSheet('order-detail-sheet');
 }
 

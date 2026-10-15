@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.4';
+const CACHE_NAME = 'chauat-app-v3.9.5';
 
 // Shell for customer, merchant, admin, rider, and boss.
 // Do not list files that are not deployed. cache.addAll rejects the whole

@@ -301,6 +301,13 @@ function orderIsCash(order) {
   return !!(order && order.paymentMode === 'cash');
 }
 
+function orderLabel(o) {
+  const code = String((o && o.code) || '').trim();
+  if (code) return code;
+  const id = String((o && o.id) || '');
+  return id.slice(-6).toUpperCase();
+}
+
 function calcOrderFinance(order) {
   const fare = Number(order.fare || 0);
   const isCash = orderIsCash(order);
@@ -760,10 +767,7 @@ function renderJobCard(j, type) {
 
   const chatBtn = `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
 
-  /* Code */
-  const codeHtml = j.code
-    ? `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(j.code)}</div>`
-    : '';
+  const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`;
 
   const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
   if (j.status === 'accepted' && foodIsReady) {
@@ -913,13 +917,13 @@ function noteFoodReady(jobs) {
 }
 
 function alertFoodReady(job) {
-  const who = job.merchantName || job.code || 'ร้าน';
-  showToast('อาหารพร้อมแล้ว — ไปรับที่ร้านได้', 'success', 6000);
+  const who = job.merchantName || 'ร้าน';
+  showToast('อาหารพร้อมแล้ว — ' + orderLabel(job), 'success', 6000);
   soundNewJob();
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('✅ อาหารพร้อมแล้ว', {
-        body: who + (job.code ? ' • ' + job.code : ''),
+        body: who + ' • ' + orderLabel(job),
         icon: '/icons/icon-512.png',
         tag: 'food-ready-' + job.id
       });
@@ -962,7 +966,7 @@ function openPickupModal(jobId, job) {
     <!-- ข้อมูลร้าน -->
     <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:16px">
       <div style="font-size:14px;font-weight:900">🏪 ${esc(job.merchantName || 'ร้านค้า')}</div>
-      ${job.code ? `<div style="font-size:11px;color:var(--brand);font-weight:900;margin-top:4px">🧾 ${esc(job.code)}</div>` : ''}
+      <div style="font-size:11px;color:var(--brand);font-weight:900;margin-top:4px">🧾 ${esc(orderLabel(job))}</div>
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:8px 0 0;margin-top:8px;border-top:1px dashed var(--border)">
         <span>💰 ยอดที่ต้องโอนร้าน</span>
         <span style="font-weight:900;color:var(--green)">฿${fmt(fin.foodAmount)}</span>
@@ -1354,12 +1358,10 @@ function showJobDetail(jobId) {
   const mc = $('modalContent');
   if (!mc) return;
 
-  const codeHtml = job.code
-    ? `<div style="background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
-        <div style="font-size:11px;opacity:.9;font-weight:800">🧾 Order Code</div>
-        <div style="font-size:24px;font-weight:900;letter-spacing:3px;margin-top:4px">${esc(job.code)}</div>
-      </div>`
-    : '';
+  const codeHtml = `<div style="background:linear-gradient(135deg,#FF6B35,#E55A2B);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
+        <div style="font-size:11px;opacity:.9;font-weight:800">🧾 Order</div>
+        <div style="font-size:24px;font-weight:900;letter-spacing:3px;margin-top:4px">${esc(orderLabel(job))}</div>
+      </div>`;
 
   const foodImgHtml = job.foodImage
     ? `<div style="margin-bottom:14px">
@@ -1433,7 +1435,7 @@ function showNewJobPopup(job) {
   const nd = $('new-job-detail');
   if (nd) {
     nd.innerHTML = `
-      ${job.code ? `<div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:8px">🧾 ${esc(job.code)}</div>` : ''}
+      <div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:8px">🧾 ${esc(orderLabel(job))}</div>
       <div>👤 <strong>${esc(job.userName || 'ลูกค้า')}</strong></div>
       <div>📞 <strong>${esc(job.userPhone || '—')}</strong></div>
       <div>📍 ${esc(job.address || job.destination || '—')}</div>
@@ -1453,7 +1455,7 @@ function showNewJobPopup(job) {
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('🔔 งานใหม่!', {
-        body: `${job.userName || 'ลูกค้า'} - ฿${fmt(fin.fare)}`,
+        body: `${orderLabel(job)} • ${job.userName || 'ลูกค้า'} - ฿${fmt(fin.fare)}`,
         icon: '/icons/icon-512.png',
         tag: 'new-job-' + job.id
       });
@@ -1709,7 +1711,7 @@ function showHistory() {
       filtered.slice(0, 50).map(j => `
         <div style="padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" data-detail="${esc(j.id)}">
           <div style="display:flex;justify-content:space-between;font-weight:900;font-size:13px">
-            <span>${j.code ? '🧾 ' + esc(j.code) : esc(j.title || 'งาน')}</span>
+            <span>🧾 ${esc(orderLabel(j))}${j.title ? ' • ' + esc(j.title) : ''}</span>
             <span style="color:var(--green)">฿${fmt(j.riderIncome || 0)}</span>
           </div>
           <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:4px">
@@ -1769,7 +1771,7 @@ async function openChatWithCustomer(orderId) {
   }
 
   const cn = $('chatName'); if (cn) cn.textContent = activeChatPartnerName;
-  const cs = $('chatSub'); if (cs) cs.textContent = job.code ? '🧾 ' + job.code : (job.title || 'ออเดอร์');
+  const cs = $('chatSub'); if (cs) cs.textContent = '🧾 ' + orderLabel(job) + (job.title ? ' • ' + job.title : '');
   $('chatContainer')?.classList.add('show');
   closeModal();
 
@@ -1813,7 +1815,7 @@ async function openChatRoom(orderId, name, sub) {
   }
 
   const cn = $('chatName'); if (cn) cn.textContent = activeChatPartnerName;
-  const cs = $('chatSub'); if (cs) cs.textContent = sub || job.title || 'ออเดอร์';
+  const cs = $('chatSub'); if (cs) cs.textContent = '🧾 ' + orderLabel(job) + (sub ? ' • ' + sub : (job.title ? ' • ' + job.title : ''));
   $('chatContainer')?.classList.add('show');
 
   if (activeChatUnsub) activeChatUnsub();

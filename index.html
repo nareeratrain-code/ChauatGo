@@ -1084,6 +1084,13 @@ function generateOrderCode() {
 function generateDeliveryCode() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
+/* Visible order number. Never show the full Firestore id. */
+function orderLabel(o) {
+  var code = String((o && o.code) || '').trim();
+  if (code) return code;
+  var id = String((o && o.id) || '');
+  return id.slice(-6).toUpperCase();
+}
 
 function calcFinalPrice(menu) {
   if (!menu || !menu.price) return 0;
@@ -1963,7 +1970,8 @@ function showNearAlertByLevel(order, level, distMeters) {
 
   if ($icon) $icon.textContent = config.icon;
   if ($title) $title.textContent = config.title;
-  if ($sub) $sub.textContent = config.sub;
+  var nearLabel = orderLabel(order);
+  if ($sub) $sub.textContent = nearLabel + ' • ' + config.sub;
   if ($card) $card.style.borderTop = '6px solid ' + config.color;
 
   var pop = $('nearAlertPopup');
@@ -1983,7 +1991,7 @@ function showNearAlertByLevel(order, level, distMeters) {
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification(config.icon + ' ' + config.title, {
-        body: config.sub,
+        body: nearLabel + ' • ' + config.sub,
         icon: '/icons/icon-512.png',
         tag: 'near-' + order.id + '-' + level,
         requireInteraction: level === 'ARRIVED'
@@ -2066,10 +2074,7 @@ function renderOrderCard(o){
   if (o.discountTotal && o.discountTotal > 0) {
     discountHtml = '<div style="font-size:11px;color:var(--promo-red);font-weight:900;margin-bottom:8px">🔥 ส่วนลด ฿' + fmt(o.discountTotal) + '</div>';
   }
-  /* ⭐ v3.9.0: แสดง Order Code */
-  var codeHtml = o.code
-    ? '<div style="font-size:11px;font-weight:900;color:var(--brand);margin-top:4px">🧾 ' + esc(o.code) + '</div>'
-    : '';
+  var codeHtml = '<div style="font-size:11px;font-weight:900;color:var(--brand);margin-top:4px">🧾 ' + esc(orderLabel(o)) + '</div>';
 
   var progressStep = {
     'searching':0,'pending':0,'cooking':1,'ready':2,
@@ -2259,7 +2264,7 @@ function renderTrackingInfo(o){
   var $icon = $('track-status-icon'); if ($icon) $icon.textContent = s.icon;
   var $title = $('track-status-title'); if ($title) $title.textContent = s.title;
   var $sub = $('track-status-sub');
-  if ($sub) $sub.textContent = s.sub + (o.riderName ? ' • '+o.riderName : '');
+  if ($sub) $sub.textContent = orderLabel(o) + ' • ' + s.sub + (o.riderName ? ' • '+o.riderName : '');
 
   if (o.lat && o.lng && lastTrackedPositions.rider) {
     var dist = haversine(lastTrackedPositions.rider.lat, lastTrackedPositions.rider.lng, o.lat, o.lng);
@@ -2407,7 +2412,7 @@ window.showOrderBill = async function(orderId) {
       '</div>' +
       '<div style="background:var(--header-grad);color:#fff;border-radius:14px;padding:16px;margin-bottom:14px;text-align:center">' +
         '<div style="font-size:11px;opacity:.9;font-weight:700">Order</div>' +
-        '<div style="font-size:32px;font-weight:900;letter-spacing:3px;margin-top:4px">' + esc(o.code || o.id.slice(-8)) + '</div>' +
+        '<div style="font-size:32px;font-weight:900;letter-spacing:3px;margin-top:4px">' + esc(orderLabel(o)) + '</div>' +
         '<div style="font-size:11px;opacity:.9;font-weight:700;margin-top:6px">' + dateStr + '</div>' +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;font-size:14px;font-weight:900">' +
@@ -2457,7 +2462,7 @@ window.copyOrderInfo = function(orderId) {
   }
   var text = '🧾 CHAUAT GO ORDER\n';
   if (o) {
-    text += 'Order: ' + (o.code || o.id.slice(-8)) + '\n';
+    text += 'Order: ' + orderLabel(o) + '\n';
     text += 'ลูกค้า: ' + (o.userName || '') + '\n';
     text += 'ร้าน: ' + (o.merchantName || '') + '\n';
     text += 'ยอด: ฿' + fmt(o.total || 0) + '\n';
@@ -2485,7 +2490,7 @@ window.openRatingModal = function(orderId) {
     ratingOrder = o; ratingMerchant = 0; ratingRider = 0;
     var showMerchant = !!(o.merchantId);
     if ($('rating-merchant-block')) $('rating-merchant-block').style.display = showMerchant ? 'block' : 'none';
-    if ($('rating-subtitle')) $('rating-subtitle').textContent = o.title || 'ออเดอร์';
+    if ($('rating-subtitle')) $('rating-subtitle').textContent = orderLabel(o) + ' • ' + (o.title || 'ออเดอร์');
     renderStars('rating-merchant-stars', 'merchant');
     renderStars('rating-rider-stars', 'rider');
     if ($('rating-comment')) $('rating-comment').value = '';
@@ -2583,7 +2588,7 @@ window.openChatPage = async function(orderId) {
     var isUser = o.userId === currentUser.uid;
     var otherName = isUser ? (o.riderName || 'ไรเดอร์') : (o.userName || 'ลูกค้า');
     if ($('chat-title')) $('chat-title').textContent = otherName;
-    if ($('chat-subtitle')) $('chat-subtitle').textContent = o.title || 'ออเดอร์';
+    if ($('chat-subtitle')) $('chat-subtitle').textContent = orderLabel(o) + ' • ' + (o.title || 'ออเดอร์');
     var page = $('chat-page');
     if (page) page.classList.add('show');
     subscribeChatMessages(orderId);
@@ -2741,7 +2746,7 @@ function subscribeChatList() {
           '<div class="chat-list-avatar">🛵</div>' +
           '<div class="chat-list-body">' +
             '<div class="chat-list-name">' + esc(o.riderName || 'ไรเดอร์') + '</div>' +
-            '<div class="chat-list-last">' + esc(o.title || 'ออเดอร์') + ' • ' + esc(statusMap[o.status] || o.status || '') + '</div>' +
+            '<div class="chat-list-last">🧾 ' + esc(orderLabel(o)) + ' • ' + esc(o.title || 'ออเดอร์') + ' • ' + esc(statusMap[o.status] || o.status || '') + '</div>' +
           '</div>' +
           '<div style="font-size:18px;color:var(--text-light)">›</div>' +
         '</div>';
