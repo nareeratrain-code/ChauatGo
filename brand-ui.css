@@ -12,13 +12,19 @@
   padding: 0 4px 8px;
   line-height: 1.05;
 }
-.cg-logo {
-  height: 40px;
-  width: auto;
-  max-width: 46vw;
-  object-fit: contain;
+.cg-brand picture {
+  display: block;
   flex-shrink: 0;
-  border-radius: 10px;
+  line-height: 0;
+}
+.cg-logo {
+  height: 44px;
+  width: 44px;
+  max-width: none;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
+  border-radius: 12px;
   animation: cgBob 3.2s ease-in-out infinite;
 }
 .cg-brand-copy { min-width: 0; }
@@ -54,9 +60,11 @@
   text-align: center;
 }
 .cg-brand-splash .cg-logo {
-  height: 72px;
-  max-width: 78vw;
-  border-radius: 14px;
+  height: 120px;
+  width: 120px;
+  max-width: none;
+  border-radius: 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .35);
 }
 .cg-brand-splash .cg-brand-name { font-size: 34px; }
 .cg-brand-splash .cg-brand-tag { font-size: 14px; margin-top: 6px; }
