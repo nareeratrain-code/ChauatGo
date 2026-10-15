@@ -297,9 +297,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
 /* ═══════════════════════════════════════════════════════════════════
    9. FINANCE
    ═══════════════════════════════════════════════════════════════════ */
+function orderIsCash(order) {
+  return !!(order && order.paymentMode === 'cash');
+}
+
 function calcOrderFinance(order) {
   const fare = Number(order.fare || 0);
-  const isCash = order.paymentMode === 'cash';
+  const isCash = orderIsCash(order);
   const tip = order.cashTip != null ? Number(order.cashTip) || 0 : (isCash ? CASH_TIP : 0);
   const riderShare = Math.round(fare * RIDER_SHARE * 100) / 100;
   const platformShare = Math.round(fare * PLATFORM_SHARE * 100) / 100;
@@ -735,7 +739,7 @@ function renderJobCard(j, type) {
     cooking: { label: '🍳 ร้านกำลังทำ • รับได้เลย', color: '#E65100', bg: '#FFF3E0' },
     ready: { label: '✅ อาหารพร้อม • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
     accepted: { label: '🛵 รับแล้ว • ร้านกำลังทำ', color: 'var(--blue)', bg: '#E3F2FD' },
-    picked_up: { label: '📦 รอลูกค้าโอนเงิน', color: '#E65100', bg: '#FFF3E0' },
+    picked_up: { label: orderIsCash(j) ? '💵 รับของแล้ว • เก็บเงินสดตอนส่ง' : '📦 รอลูกค้าโอนเงิน', color: '#E65100', bg: '#FFF3E0' },
     customer_paid: { label: '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
     done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' }
@@ -782,8 +786,8 @@ function renderJobCard(j, type) {
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     }
   } else if (j.status === 'picked_up') {
-    const isPaid = !!j.customerPaidAt;
-    if (isPaid) {
+    const canStart = orderIsCash(j) || !!j.customerPaidAt;
+    if (canStart) {
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
@@ -1090,12 +1094,15 @@ async function confirmPickup() {
       riderPaidShopAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    showToast('✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน');
+    const pickedJob = allJobs.find(j => j.id === jobId);
+    const cashPickup = orderIsCash(pickedJob);
+    showToast(cashPickup
+      ? '✅ รับของแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง'
+      : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน');
     closeModal();
     arrivedShopNotifiedOrderIds.add(jobId);
 
-    /* เริ่ม timer รอ 5 นาที */
-    startPaymentTimers(jobId);
+    if (!cashPickup) startPaymentTimers(jobId);
   } catch (err) {
     console.error('confirmPickup error:', err);
     showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
@@ -1168,14 +1175,14 @@ async function cancelJobAfterTimeout(jobId) {
   }
 }
 
-/* ⭐ v3.9.1: เริ่มส่ง — ต้องมี customerPaidAt */
+/* เริ่มส่ง — โอนต้องมี customerPaidAt, เงินสดเริ่มได้ทันทีหลังรับของ */
 async function startDelivery(jobId) {
   try {
     const snap = await db.collection('orders').doc(jobId).get();
     if (!snap.exists) return showToast('ไม่พบงาน', 'error');
     const job = snap.data();
 
-    if (!job.customerPaidAt) {
+    if (!orderIsCash(job) && !job.customerPaidAt) {
       return showToast('⚠️ ลูกค้ายังไม่โอนเงิน', 'warning');
     }
 
@@ -1221,7 +1228,8 @@ function autoStartPaymentWatch() {
   const pickedUpJobs = allJobs.filter(j =>
     j.riderId === currentUser?.uid &&
     j.status === 'picked_up' &&
-    !j.customerPaidAt
+    !j.customerPaidAt &&
+    !orderIsCash(j)
   );
 
   pickedUpJobs.forEach(job => {
@@ -1291,6 +1299,10 @@ function openDeliverModal(job, fin) {
         <span>ต้องโอนเข้าระบบ (20% ของค่าส่ง)</span>
         <span style="font-weight:900">฿${fmt(fin.platformShare)}</span>
       </div>
+      ${fin.isCash ? `<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:900;padding:8px 0 0;margin-top:6px;border-top:1px dashed var(--border);color:#E65100">
+        <span>💵 เก็บเงินสดจากลูกค้า</span>
+        <span>฿${fmt(job.total || fin.totalCustomerPay)}</span>
+      </div>` : ''}
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px">
@@ -1363,11 +1375,13 @@ function showJobDetail(jobId) {
       </div>`
     : '';
 
-  const payStatusHtml = job.customerPaidAt
-    ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">✅ ลูกค้าโอนเงินแล้ว — เริ่มส่งได้</div>`
-    : (job.status === 'picked_up'
-      ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
-      : '');
+  const payStatusHtml = orderIsCash(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
+    ? `<div style="background:#FFF3E0;border-left:4px solid #E65100;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">💵 ชำระเงินสดกับไรเดอร์ — เก็บเงินตอนส่ง</div>`
+    : (job.customerPaidAt
+      ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">✅ ลูกค้าโอนเงินแล้ว — เริ่มส่งได้</div>`
+      : (job.status === 'picked_up'
+        ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
+        : ''));
 
   mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 รายละเอียดงาน</h2>

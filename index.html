@@ -2082,9 +2082,11 @@ function renderOrderCard(o){
     if (i < 7) progressDots += '<span class="line ' + (i < progressStep ? 'done' : '') + '"></span>';
   }
 
-  /* ⭐ v3.9.0: ปุ่มโอนเงิน (ลูกค้า) เมื่อไรเดอร์ถ่ายรูปแล้ว */
+  /* โอน: ปุ่มยืนยันโอนเมื่อไรเดอร์รับของแล้ว — เงินสดไม่ต้องโอน */
   var payBtnHtml = '';
-  if (o.status === 'picked_up' && !o.customerPaidAt) {
+  if (isCash && (o.status === 'picked_up' || o.status === 'on_the_way')) {
+    payBtnHtml = '<div style="width:100%;margin-top:8px;background:#FFF3E0;color:#E65100;border-radius:12px;padding:12px;font-size:13px;font-weight:900;text-align:center">💵 ชำระเงินสดกับไรเดอร์</div>';
+  } else if (o.status === 'picked_up' && !o.customerPaidAt) {
     payBtnHtml = '<button class="rate-btn" style="background:linear-gradient(135deg,#E53935,#C62828);margin:0;width:100%;padding:14px;font-size:14px" onclick="confirmCustomerPaid(\''+esc(o.id)+'\')">💳 โอนเงิน ฿'+fmt(o.total||0)+'</button>';
   }
 
@@ -2118,6 +2120,8 @@ function renderOrderCard(o){
 /* ⭐ v3.9.0: ลูกค้ากดยืนยันโอนเงินแล้ว */
 window.confirmCustomerPaid = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
+  var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
+  if (cached && cached.paymentMode === 'cash') return showToast('ออเดอร์เงินสด — ชำระเงินสดกับไรเดอร์', 'info');
   if (!confirm('ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
   try {
     await db.collection('orders').doc(orderId).update({
@@ -2243,7 +2247,11 @@ function renderTrackingInfo(o){
     cancelled:{icon:'❌',title:'ยกเลิก',sub:'ออเดอร์ถูกยกเลิก'}
   };
   var s = statusMap[o.status] || {icon:'📍',title:o.status,sub:''};
-  if ((o.foodReady || o.readyAt) && o.status === 'accepted') {
+  if (o.paymentMode === 'cash' && o.status === 'picked_up') {
+    s = { icon: '💵', title: 'ไรเดอร์รับของแล้ว', sub: 'ชำระเงินสดกับไรเดอร์' };
+  } else if (o.paymentMode === 'cash' && o.status === 'on_the_way') {
+    s = { icon: '🚀', title: 'กำลังส่ง', sub: 'ชำระเงินสดกับไรเดอร์' };
+  } else if ((o.foodReady || o.readyAt) && o.status === 'accepted') {
     s = { icon: '✅', title: 'อาหารพร้อมแล้ว', sub: 'ไรเดอร์กำลังไปรับที่ร้าน' };
   } else if (o.prepMinutes && !o.foodReady && !o.readyAt && (o.status === 'cooking' || o.status === 'accepted')) {
     s = { icon: s.icon, title: s.title, sub: 'ร้านใช้เวลาทำประมาณ ' + Number(o.prepMinutes) + ' นาที' };
@@ -2265,11 +2273,12 @@ function renderTrackingInfo(o){
     {label:'อาหารพร้อม',time:o.readyAt},
     {label:'ไรเดอร์รับงาน',time:o.acceptedAt},
     {label:'รับของจากร้าน',time:o.pickedUpAt},
-    {label:'ลูกค้าโอนเงิน',time:o.customerPaidAt},
+    {label:'ลูกค้าโอนเงิน',time:o.customerPaidAt, transferOnly:true},
     {label:'ออกเดินทาง',time:o.onTheWayAt},
     {label:'ส่งถึงลูกค้า',time:o.deliveredAt || o.doneAt}
   ];
   var html = '';
+  if (o.paymentMode === 'cash') timeline = timeline.filter(function(t){ return !t.transferOnly; });
   timeline.forEach(function(t, idx){
     var done = !!t.time;
     var active = !done && idx > 0 && timeline[idx-1].time;
