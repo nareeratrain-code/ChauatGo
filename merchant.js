@@ -840,7 +840,7 @@ function updateHeroStats() {
 
   const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
   el('stat-new', allOrders.filter(o => o.status === 'searching' && isToday(o.createdAt)).length);
-  el('stat-cooking', allOrders.filter(o => (o.status === 'cooking' || o.status === 'ready') && isToday(o.createdAt)).length);
+  el('stat-cooking', allOrders.filter(o => isShopKitchen(o) && isToday(o.createdAt)).length);
   el('stat-done', doneToday.length);
   el('stat-gp', '฿' + fmt(todayGp));
 }
@@ -858,7 +858,7 @@ function updateNavBadge() {
    ═══════════════════════════════════════════════════════════════════ */
 function renderOrders() {
   const pending = allOrders.filter(o => o.status === 'searching');
-  const cooking = allOrders.filter(o => o.status === 'cooking' || o.status === 'ready');
+  const cooking = allOrders.filter(isShopKitchen);
   const done = allOrders.filter(o => o.status === 'done' && isToday(o.createdAt));
 
   const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
@@ -901,13 +901,13 @@ function renderOrderCard(o) {
   let actions = '';
   if (o.status === 'searching' || o.status === 'pending') {
     actions = `<div class="order-actions two">
-      <button class="order-btn btn-accept ripple" onclick="acceptOrder('${esc(o.id)}')">✅ รับออเดอร์</button>
-      <button class="order-btn btn-reject ripple" onclick="cancelOrder('${esc(o.id)}')">❌ ยกเลิก</button>
+      <button type="button" class="order-btn btn-accept ripple" onclick="openPrepPicker('${esc(o.id)}')">✅ รับออเดอร์</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="cancelOrder('${esc(o.id)}')">❌ ยกเลิก</button>
     </div>`;
-  } else if (o.status === 'cooking') {
+  } else if (o.status === 'cooking' || (o.status === 'accepted' && !o.foodReady && !o.readyAt)) {
     actions = `<div class="order-actions two">
-      <button class="order-btn btn-ready ripple" onclick="readyOrder('${esc(o.id)}')">✅ พร้อมส่ง</button>
-      <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รายละเอียด</button>
+      <button type="button" class="order-btn btn-ready ripple" onclick="readyOrder('${esc(o.id)}')">✅ พร้อมส่ง</button>
+      <button type="button" class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รายละเอียด</button>
     </div>`;
   } else if (o.status === 'ready') {
     actions = `<div class="order-actions">
@@ -965,6 +965,8 @@ function renderOrderCard(o) {
         ${codeHtml}
         <div class="order-title">${esc(o.userName || 'ลูกค้า')}</div>
         <div class="order-meta">🕐 ${timeAgo(o.createdAt)} • ${statusLabel}</div>
+        ${o.prepMinutes ? `<div class="order-meta">⏱️ เวลาทำประมาณ ${Number(o.prepMinutes)} นาที</div>` : ''}
+        ${(o.foodReady || o.readyAt) ? `<div class="order-meta" style="color:var(--green)">✅ อาหารพร้อมแล้ว</div>` : ''}
         ${riderInfo}
         <div>${badge}</div>
       </div>
@@ -982,40 +984,115 @@ function renderOrderCard(o) {
 /* ═══════════════════════════════════════════════════════════════════
    16. ORDER ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
-async function acceptOrder(orderId) {
+const PREP_CHOICES = [10, 15, 20];
+const DEFAULT_PREP_MINUTES = 15;
+let prepPickOrderId = null;
+let prepPickMinutes = DEFAULT_PREP_MINUTES;
+
+function isShopKitchen(o) {
+  if (!o) return false;
+  if (o.status === 'cooking') return true;
+  if (o.status === 'ready' && !o.riderId) return true;
+  if (o.status === 'accepted' && !o.foodReady && !o.readyAt) return true;
+  return false;
+}
+
+function renderPrepChips() {
+  const el = $('prep-choices');
+  if (!el) return;
+  el.innerHTML = PREP_CHOICES.map(m =>
+    `<button type="button" class="prep-chip ${m === prepPickMinutes ? 'on' : ''}" onclick="setPrepMinutes(${m})">${m} นาที</button>`
+  ).join('');
+}
+
+function openPrepPicker(orderId) {
+  if (!orderId) return;
+  prepPickOrderId = orderId;
+  prepPickMinutes = DEFAULT_PREP_MINUTES;
+  renderPrepChips();
+  const btn = $('prep-confirm');
+  if (btn) { btn.disabled = false; btn.textContent = '✅ รับออเดอร์'; }
+  $('prep-modal')?.classList.add('show');
+}
+
+function setPrepMinutes(mins) {
+  const n = Number(mins);
+  prepPickMinutes = PREP_CHOICES.includes(n) ? n : DEFAULT_PREP_MINUTES;
+  renderPrepChips();
+}
+
+function closePrepModal() {
+  $('prep-modal')?.classList.remove('show');
+  prepPickOrderId = null;
+}
+
+async function confirmAcceptWithPrep() {
+  const id = prepPickOrderId;
+  const mins = prepPickMinutes;
+  if (!id) return;
+  const btn = $('prep-confirm');
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังรับ...'; }
+  const ok = await acceptOrder(id, mins);
+  if (btn) { btn.disabled = false; btn.textContent = '✅ รับออเดอร์'; }
+  if (!ok) return;
+  closePrepModal();
+  closeNewOrderPopup();
+}
+
+async function acceptOrder(orderId, prepMinutes) {
+  const minutes = PREP_CHOICES.includes(Number(prepMinutes)) ? Number(prepMinutes) : DEFAULT_PREP_MINUTES;
   try {
-    const snap = await db.collection('orders').doc(orderId).get();
-    if (!snap.exists) return showToast('ไม่พบออเดอร์', 'error');
-    const order = snap.data();
-
-    var updates = {
-      status: 'cooking',
-      cookingAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    /* ถ้ายังไม่มี code → สร้าง */
-    if (!order.code) {
-      updates.code = generateOrderCode();
-      updates.deliveryCode = generateDeliveryCode();
-      updates.codeCreatedAt = firebase.firestore.FieldValue.serverTimestamp();
-    }
-
-    await db.collection('orders').doc(orderId).update(updates);
+    const ref = db.collection('orders').doc(orderId);
+    let codeShown = '';
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('missing');
+      const order = snap.data();
+      if (order.status !== 'searching' && order.status !== 'pending') throw new Error('not-new');
+      const updates = {
+        status: 'cooking',
+        cookingAt: firebase.firestore.FieldValue.serverTimestamp(),
+        prepMinutes: minutes
+      };
+      if (!order.code) {
+        updates.code = generateOrderCode();
+        updates.deliveryCode = generateDeliveryCode();
+        updates.codeCreatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
+      codeShown = updates.code || order.code || orderId.slice(-8);
+      tx.update(ref, updates);
+    });
     stopOrderLoop();
-    showToast('🍳 เริ่มทำอาหาร • Order ' + (updates.code || order.code || orderId.slice(-8)));
+    showToast('🍳 เริ่มทำอาหาร ประมาณ ' + minutes + ' นาที • Order ' + codeShown);
+    return true;
   } catch (err) {
     console.error('acceptOrder error:', err);
-    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    const msg = err && err.message === 'not-new'
+      ? 'ออเดอร์นี้ถูกรับไปแล้ว'
+      : ('ไม่สำเร็จ: ' + ((err && (err.code || err.message)) || ''));
+    showToast(msg, 'error');
+    return false;
   }
 }
 
 async function readyOrder(orderId) {
   try {
-    await db.collection('orders').doc(orderId).update({
-      status: 'ready',
-      readyAt: firebase.firestore.FieldValue.serverTimestamp()
+    const ref = db.collection('orders').doc(orderId);
+    let toldRider = false;
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('missing');
+      const order = snap.data();
+      const riderHasIt = !!(order.riderId) && ['accepted', 'picked_up', 'customer_paid', 'on_the_way'].includes(order.status);
+      const updates = {
+        readyAt: firebase.firestore.FieldValue.serverTimestamp(),
+        foodReady: true
+      };
+      if (!riderHasIt) updates.status = 'ready';
+      toldRider = riderHasIt;
+      tx.update(ref, updates);
     });
-    showToast('✅ พร้อมส่ง');
+    showToast(toldRider ? '✅ พร้อมส่ง — แจ้งไรเดอร์แล้ว' : '✅ พร้อมส่ง');
   } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
@@ -1196,9 +1273,7 @@ function closeNewOrderPopup() {
 }
 
 function acceptFromPopup() {
-  stopOrderLoop();
-  if (newOrderPopupId) acceptOrder(newOrderPopupId);
-  closeNewOrderPopup();
+  if (newOrderPopupId) openPrepPicker(newOrderPopupId);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2357,6 +2432,10 @@ window.openSheet = openSheet;
 window.closeSheet = closeSheet;
 window.acceptOrder = acceptOrder;
 window.readyOrder = readyOrder;
+window.openPrepPicker = openPrepPicker;
+window.setPrepMinutes = setPrepMinutes;
+window.closePrepModal = closePrepModal;
+window.confirmAcceptWithPrep = confirmAcceptWithPrep;
 window.cancelOrder = cancelOrder;
 window.viewOrderDetail = viewOrderDetail;
 window.closeNewOrderPopup = closeNewOrderPopup;

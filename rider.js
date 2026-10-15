@@ -55,10 +55,10 @@ let arrivedShopNotifiedOrderIds = new Set();
 let isSigningUp = false;
 let authEpoch = 0;
 
-/* รับงานได้เฉพาะหลังร้านกดพร้อมส่ง (ready) — cooking แค่ดูสถานะ */
-const RIDER_CLAIM_STATUSES = ['ready'];
-const RIDER_PREVIEW_STATUSES = ['cooking'];
+/* รับงานได้ทันทีที่ร้านรับออเดอร์ (cooking) และตอนอาหารพร้อม (ready) — ห้ามก่อนร้านรับ */
+const RIDER_CLAIM_STATUSES = ['cooking', 'ready'];
 const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
+let foodReadySeen = null;
 
 /* ⭐ v3.9.1: Timers */
 let paymentTimeout5 = null;
@@ -184,14 +184,14 @@ function dismissSplash() {
 /* ═══════════════════════════════════════════════════════════════════
    7. TOAST & SOUND
    ═══════════════════════════════════════════════════════════════════ */
-function showToast(msg, type = 'success') {
+function showToast(msg, type = 'success', duration = 3000) {
   const t = $('toast');
   if (!t) return;
   const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
   t.textContent = (icons[type] || '') + ' ' + msg;
   t.className = 'toast show ' + type;
   clearTimeout(t._t);
-  t._t = setTimeout(() => { t.className = 'toast'; }, 3000);
+  t._t = setTimeout(() => { t.className = 'toast'; }, duration);
 }
 
 function getAudioCtx() {
@@ -420,6 +420,7 @@ async function handleLogout() {
   allJobs = [];
   allHistory = [];
   seenJobIds.clear();
+  foodReadySeen = null;
   nearNotifiedOrderIds.clear();
   arrivedShopNotifiedOrderIds.clear();
   await auth.signOut();
@@ -530,7 +531,7 @@ function subscribeProfile() {
   });
 }
 
-/* งานใหม่ = cooking (ดูอย่างเดียว) + ready (รับได้) */
+/* งานใหม่ = ร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready) */
 function subscribeJobs() {
   if (myJobsUnsub) myJobsUnsub();
   myJobsUnsub = db.collection('orders')
@@ -563,6 +564,7 @@ function subscribeJobs() {
         showNewJobPopup(newJobs[0]);
       }
 
+      noteFoodReady(allJobs);
       seenJobIds = new Set(allJobs.map(j => j.id));
       renderJobs();
       updateHeroStats();
@@ -671,15 +673,14 @@ function renderJobs() {
   const myId = currentUser?.uid;
 
   const newJobs = allJobs.filter(j =>
-    (RIDER_CLAIM_STATUSES.includes(j.status) || RIDER_PREVIEW_STATUSES.includes(j.status)) &&
+    RIDER_CLAIM_STATUSES.includes(j.status) &&
     !j.riderId &&
     riderProfile?.verified && isOnline
   );
 
-  /* Active = accepted, picked_up, customer_paid, on_the_way */
   const activeJobs = allJobs.filter(j =>
     j.riderId === myId &&
-    RIDER_ACTIVE_STATUSES.includes(j.status)
+    (RIDER_ACTIVE_STATUSES.includes(j.status) || j.status === 'ready')
   );
 
   const doneToday = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
@@ -711,12 +712,12 @@ function renderJobCard(j, type) {
   const isNew = type === 'new';
   const fin = calcOrderFinance(j);
 
-  const statusInfo = {
+  let statusInfo = {
     searching: { label: '🔔 ใหม่ • รอร้านรับ', color: 'var(--orange)', bg: '#FFF3E0' },
     pending: { label: '🔔 รอร้านรับ', color: 'var(--orange)', bg: '#FFF3E0' },
-    cooking: { label: '🍳 ร้านกำลังทำ', color: '#E65100', bg: '#FFF3E0' },
-    ready: { label: '✅ พร้อมส่ง • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
-    accepted: { label: '🛵 รับแล้ว • ไปที่ร้าน', color: 'var(--blue)', bg: '#E3F2FD' },
+    cooking: { label: '🍳 ร้านกำลังทำ • รับได้เลย', color: '#E65100', bg: '#FFF3E0' },
+    ready: { label: '✅ อาหารพร้อม • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
+    accepted: { label: '🛵 รับแล้ว • ร้านกำลังทำ', color: 'var(--blue)', bg: '#E3F2FD' },
     picked_up: { label: '📦 รอลูกค้าโอนเงิน', color: '#E65100', bg: '#FFF3E0' },
     customer_paid: { label: '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
@@ -743,13 +744,19 @@ function renderJobCard(j, type) {
     ? `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(j.code)}</div>`
     : '';
 
+  const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
+  if (j.status === 'accepted' && foodIsReady) {
+    statusInfo = { label: '✅ อาหารพร้อม • ไปรับที่ร้าน', color: 'var(--green)', bg: '#E8F5E9' };
+  }
+  const prepHtml = (!foodIsReady && j.prepMinutes)
+    ? `<div class="jc-row"><span class="jc-row-icon">⏱️</span><span class="jc-row-text">ร้านใช้เวลาทำประมาณ ${Number(j.prepMinutes)} นาที</span></div>`
+    : '';
+
   let primaryAction = '';
-  if (isNew && j.status === 'ready') {
+  if (isNew && (j.status === 'cooking' || j.status === 'ready')) {
     primaryAction = `<button type="button" class="jc-primary-btn jc-accept" data-accept="${esc(j.id)}">✅ รับงาน</button>
       <button type="button" class="jc-secondary-btn" data-skip="${esc(j.id)}">⏭️</button>`;
-  } else if (isNew && j.status === 'cooking') {
-    primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>🍳 รอร้านทำให้เสร็จ</button>`;
-  } else if (j.status === 'accepted') {
+  } else if (j.status === 'accepted' || (j.status === 'ready' && j.riderId)) {
     primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ถึงร้าน</button>
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
   } else if (j.status === 'picked_up') {
@@ -798,6 +805,7 @@ function renderJobCard(j, type) {
           <span class="jc-row-text">${timeAgo(j.createdAt)}</span>
           <span class="jc-status-chip" style="background:${statusInfo.bg};color:${statusInfo.color}">${statusInfo.label}</span>
         </div>
+        ${prepHtml}
       </div>
 
       <div class="jc-payment-row">${payBadge}</div>
@@ -820,34 +828,71 @@ function renderJobCard(j, type) {
    16. JOB ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
 
-/* รับได้เฉพาะสถานะ ready (ร้านกดพร้อมส่งแล้ว) */
+/* รับได้เมื่อร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready) — ไม่รับก่อนร้านรับ */
 async function acceptJob(jobId) {
   try {
-    const snap = await db.collection('orders').doc(jobId).get();
-    if (!snap.exists) return showToast('ไม่พบงานนี้', 'error');
-    const job = snap.data();
-
-    if (job.status === 'cooking' || job.status === 'searching' || job.status === 'pending') {
-      return showToast('รอร้านทำให้เสร็จก่อนรับงาน', 'warning');
-    }
-    if (!RIDER_CLAIM_STATUSES.includes(job.status)) {
-      return showToast('⚠️ งานนี้ถูกรับไปแล้วหรือไม่พร้อม', 'warning');
-    }
-
-    if (job.riderId) return showToast('มีคนรับงานนี้ไปแล้ว', 'warning');
-
-    await db.collection('orders').doc(jobId).update({
-      riderId: currentUser.uid,
-      riderName: riderProfile.name,
-      riderPhone: riderProfile.phone,
-      status: 'accepted',
-      acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+    const ref = db.collection('orders').doc(jobId);
+    let readyAlready = false;
+    let prepMinutes = 0;
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('missing');
+      const job = snap.data();
+      if (job.status === 'searching' || job.status === 'pending') throw new Error('shop');
+      if (!RIDER_CLAIM_STATUSES.includes(job.status) || job.riderId) throw new Error('taken');
+      readyAlready = !!(job.foodReady || job.readyAt || job.status === 'ready');
+      prepMinutes = Number(job.prepMinutes || 0);
+      tx.update(ref, {
+        riderId: currentUser.uid,
+        riderName: riderProfile.name,
+        riderPhone: riderProfile.phone,
+        status: 'accepted',
+        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
     });
-    showToast('✅ รับงานแล้ว — ไปที่ร้าน');
+    showToast(readyAlready
+      ? '✅ รับงานแล้ว — อาหารพร้อม ไปที่ร้าน'
+      : ('✅ รับงานแล้ว — ร้านกำลังทำ' + (prepMinutes ? ' ประมาณ ' + prepMinutes + ' นาที' : '')));
     closeNewJobPopup();
     scheduleGPSIfActive();
   } catch (err) {
+    const code = err && err.message;
+    if (code === 'shop') return showToast('รอร้านรับออเดอร์ก่อน', 'warning');
+    if (code === 'taken') return showToast('⚠️ งานนี้ถูกรับไปแล้วหรือไม่พร้อม', 'warning');
+    if (code === 'missing') return showToast('ไม่พบงานนี้', 'error');
     showToast('รับงานไม่สำเร็จ: ' + (err.code || err.message), 'error');
+  }
+}
+
+function noteFoodReady(jobs) {
+  const mine = {};
+  jobs.forEach(j => {
+    if (!currentUser || j.riderId !== currentUser.uid) return;
+    mine[j.id] = !!(j.foodReady || j.readyAt || j.status === 'ready');
+  });
+  if (foodReadySeen) {
+    Object.keys(mine).forEach(id => {
+      if (mine[id] && foodReadySeen[id] === false) {
+        const job = jobs.find(j => j.id === id);
+        if (job) alertFoodReady(job);
+      }
+    });
+  }
+  foodReadySeen = mine;
+}
+
+function alertFoodReady(job) {
+  const who = job.merchantName || job.code || 'ร้าน';
+  showToast('อาหารพร้อมแล้ว — ไปรับที่ร้านได้', 'success', 6000);
+  soundNewJob();
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification('✅ อาหารพร้อมแล้ว', {
+        body: who + (job.code ? ' • ' + job.code : ''),
+        icon: '/icons/icon-512.png',
+        tag: 'food-ready-' + job.id
+      });
+    } catch (e) {}
   }
 }
 
@@ -1302,6 +1347,8 @@ function showJobDetail(jobId) {
         <div>📍 ${esc(job.address || job.destination || '—')}</div>
         <div>🏪 ${esc(job.merchantName || '—')}</div>
         <div>🕐 ${fmtDateTime(job.createdAt)}</div>
+        ${job.prepMinutes ? `<div>⏱️ เวลาทำประมาณ ${Number(job.prepMinutes)} นาที</div>` : ''}
+        ${(job.foodReady || job.readyAt) ? `<div style="color:var(--green);font-weight:900">✅ อาหารพร้อมแล้ว</div>` : ''}
       </div>
     </div>
     ${job.note ? `<div style="background:var(--orange-light);border-left:4px solid var(--orange);padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:700">📌 ${esc(job.note)}</div>` : ''}
@@ -1342,6 +1389,8 @@ function showNewJobPopup(job) {
       <div>👤 <strong>${esc(job.userName || 'ลูกค้า')}</strong></div>
       <div>📞 <strong>${esc(job.userPhone || '—')}</strong></div>
       <div>📍 ${esc(job.address || job.destination || '—')}</div>
+      ${job.prepMinutes ? `<div>⏱️ ร้านใช้เวลาทำประมาณ ${Number(job.prepMinutes)} นาที</div>` : ''}
+      ${(job.foodReady || job.readyAt || job.status === 'ready') ? `<div style="color:var(--green);font-weight:900">✅ อาหารพร้อมแล้ว</div>` : ''}
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
         💰 ค่าบริการ: <strong style="color:var(--brand);font-size:18px">฿${fmt(fin.fare)}</strong>
       </div>

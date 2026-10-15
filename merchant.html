@@ -465,6 +465,9 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 .new-order-detail { background: var(--surface-2); border-radius: 14px; padding: 14px; text-align: left; font-size: 13px; font-weight: 700; line-height: 2; margin-bottom: 16px; color: var(--text); }
 .new-order-actions { display: flex; gap: 8px; }
 .new-order-actions > * { flex: 1; }
+.prep-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.prep-chip { flex: 1; padding: 12px 6px; border-radius: 12px; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; }
+.prep-chip.on { border-color: var(--brand); background: var(--brand-light); color: var(--brand-dark, #5A8E1F); }
 
 .chat-container { position: fixed; inset: 0; background: var(--bg); z-index: 9600; display: none; flex-direction: column; }
 .chat-container.show { display: flex; animation: fadeIn .2s; }
@@ -817,8 +820,21 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
     <div class="sub">มีลูกค้าสั่งอาหารจากร้านของคุณ</div>
     <div class="new-order-detail" id="new-order-detail"></div>
     <div class="new-order-actions">
-      <button class="order-btn btn-accept ripple" onclick="acceptFromPopup()">✅ รับออเดอร์</button>
-      <button class="order-btn btn-reject ripple" onclick="closeNewOrderPopup()">⏰ ดูภายหลัง</button>
+      <button type="button" class="order-btn btn-accept ripple" onclick="acceptFromPopup()">✅ รับออเดอร์</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="closeNewOrderPopup()">⏰ ดูภายหลัง</button>
+    </div>
+  </div>
+</div>
+
+<div class="new-order-popup" id="prep-modal" style="z-index:9900">
+  <div class="new-order-card">
+    <div class="bell">⏱️</div>
+    <h2>รับออเดอร์</h2>
+    <div class="sub">เลือกเวลาทำ — ไรเดอร์รับงานได้ทันทีหลังร้านรับ</div>
+    <div class="prep-row" id="prep-choices"></div>
+    <div class="new-order-actions">
+      <button type="button" class="order-btn btn-accept ripple" id="prep-confirm" onclick="confirmAcceptWithPrep()">✅ รับออเดอร์</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="closePrepModal()">ยกเลิก</button>
     </div>
   </div>
 </div>
