@@ -1051,7 +1051,9 @@ function dashboard() {
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
   const completedAll = store.orders.filter(o => o.status === 'done');
-  const activeOrders = store.orders.filter(o => ['searching','pending','accepted','picked_up','on_the_way'].includes(o.status));
+  const activeOrders = store.orders.filter(o =>
+    !!o.riderId && ['accepted','picked_up','customer_paid','on_the_way','ready'].includes(o.status)
+  );
 
   let todayRevenue = 0, todayOrders = 0, yesterdayRevenue = 0, pendingRevenue = 0;
   completedAll.forEach(o => {

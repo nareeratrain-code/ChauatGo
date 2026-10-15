@@ -1,0 +1,470 @@
+rules_version = '2';
+// ChauatGo — based on console rules v3.8.4 (project chauat-go-b9841).
+// Deltas from v3.8.4:
+//   * merchants: unauthenticated read only when verified == true (shop list query)
+//   * menus: public read (list query is merchantId only; cannot prove parent verified)
+//   * orders update [B]: parentheses fixed; food accept only from cooking/ready;
+//     ride/express/shopping (no kitchen) may still accept from searching/pending
+//   * orders update [E]: merchant may set foodReady + readyAt after rider accepted,
+//     without changing status; status becomes ready only while no rider is assigned
+//   * orders update [C]: picked_up only after food is ready when the order needs a kitchen
+//   * isAdmin also covers boss role active/super, users.role admin (not pending),
+//     and the three master emails — a pending admins doc cannot self-promote
+// Every other collection keeps the v3.8.4 access shape.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function myUid() {
+      return request.auth.uid;
+    }
+
+    function isMasterEmail() {
+      return isAuth()
+        && request.auth.token.get('email', '').lower() in [
+          'adminchauatgo@gmail.com',
+          'admin@chauatgo.com',
+          'chauatgo@gmail.com'
+        ];
+    }
+
+    function isBossActive() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/admins/$(myUid()))
+        && get(/databases/$(database)/documents/admins/$(myUid())).data.get('role', '') in ['active', 'super'];
+    }
+
+    function isAdminByRole() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(myUid()))
+        && get(/databases/$(database)/documents/users/$(myUid())).data.get('role', '') == 'admin'
+        && get(/databases/$(database)/documents/users/$(myUid())).data.get('isPending', false) != true;
+    }
+
+    // v3.8.4 named this exists(admins/{uid}). Pending signups must not inherit it.
+    function isAdmin() {
+      return isMasterEmail() || isBossActive() || isAdminByRole();
+    }
+
+    function isMerchant() {
+      return isAuth() && exists(/databases/$(database)/documents/merchants/$(myUid()));
+    }
+
+    function isRider() {
+      return isAuth() && exists(/databases/$(database)/documents/riders/$(myUid()));
+    }
+
+    function isRiderByRole() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(myUid()))
+        && get(/databases/$(database)/documents/users/$(myUid())).data.role == 'rider';
+    }
+
+    function isRiderActor() {
+      return isRider() || isRiderByRole();
+    }
+
+    function onlyChanged(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function unchanged(field) {
+      return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
+    function isValidString(value, minLen, maxLen) {
+      return value is string && value.size() >= minLen && value.size() <= maxLen;
+    }
+
+    function isValidNumber(value, minVal, maxVal) {
+      return value is number && value >= minVal && value <= maxVal;
+    }
+
+    function hasField(data, field) {
+      return field in data;
+    }
+
+    function noRider(data) {
+      return data.get('riderId', null) == null || data.get('riderId', '') == '';
+    }
+
+    function moneyFrozen() {
+      return unchanged('fare')
+        && unchanged('total')
+        && unchanged('foodTotal')
+        && unchanged('itemsTotal')
+        && unchanged('subtotal')
+        && unchanged('netTotal')
+        && unchanged('discountTotal')
+        && unchanged('cashTip')
+        && unchanged('items');
+    }
+
+    function identityFrozen() {
+      return unchanged('userId') && unchanged('merchantId') && unchanged('type');
+    }
+
+    function orderType() {
+      return resource.data.get('type', '');
+    }
+
+    // Food, or a legacy doc that has a shop and is not ride/express/shopping.
+    function needsKitchen() {
+      return orderType() == 'food'
+        || (
+          orderType() != 'ride'
+          && orderType() != 'express'
+          && orderType() != 'shopping'
+          && resource.data.get('merchantId', '') != ''
+        );
+    }
+
+    function foodIsReady() {
+      return resource.data.get('foodReady', false) == true
+        || (hasField(resource.data, 'readyAt') && resource.data.readyAt != null)
+        || resource.data.status == 'ready';
+    }
+
+    function isOrderMerchant() {
+      return isMerchant() && resource.data.get('merchantId', '') == myUid();
+    }
+
+    function isAssignedRider() {
+      return isRiderActor() && resource.data.get('riderId', '') == myUid();
+    }
+
+    function isOrderCustomer() {
+      return isAuth() && resource.data.get('userId', '') == myUid();
+    }
+
+    function chatPath(chatId) {
+      return /databases/$(database)/documents/chats/$(chatId);
+    }
+
+    function isChatMember(chatId) {
+      return isAuth() && (
+        isAdmin()
+        || (
+          exists(chatPath(chatId))
+          && (
+            get(chatPath(chatId)).data.get('userId', '') == myUid()
+            || get(chatPath(chatId)).data.get('riderId', '') == myUid()
+            || get(chatPath(chatId)).data.get('merchantId', '') == myUid()
+          )
+        )
+      );
+    }
+
+    function chatParticipantOn(data) {
+      return data.get('userId', '') == myUid()
+        || data.get('riderId', '') == myUid()
+        || data.get('merchantId', '') == myUid();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAdmin() || (isAuth() && myUid() == adminId);
+      allow create: if isAuth()
+        && myUid() == adminId
+        && request.resource.data.role == 'pending'
+        && isValidString(request.resource.data.get('email', ''), 3, 200);
+      allow update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (isAuth() && myUid() == userId);
+      allow create: if isAuth()
+        && myUid() == userId
+        && request.resource.data.role in ['user', 'merchant', 'rider', 'admin']
+        && (request.resource.data.role != 'admin' || request.resource.data.isPending == true);
+      allow update: if isAdmin()
+        || (
+          isAuth()
+          && myUid() == userId
+          && unchanged('role')
+          && unchanged('isPending')
+        );
+      allow delete: if isAdmin() || (isAuth() && myUid() == userId);
+    }
+
+    match /merchants/{merchantId} {
+      // Public list is where('verified','==',true). Do not also require isOpen:
+      // that query does not filter isOpen, so the list would be rejected.
+      allow read: if resource.data.get('verified', false) == true || isAuth();
+
+      allow create: if isAuth()
+        && myUid() == merchantId
+        && request.resource.data.verified == false
+        && request.resource.data.merchantId == myUid();
+
+      allow update: if isAdmin()
+        || (
+          isAuth()
+          && myUid() == merchantId
+          && unchanged('verified')
+          && unchanged('ratingAvg')
+          && unchanged('ratingCount')
+          && unchanged('gpPaid')
+          && unchanged('merchantId')
+        );
+
+      allow delete: if isAdmin() || (isAuth() && myUid() == merchantId);
+    }
+
+    match /riders/{riderId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && myUid() == riderId
+        && request.resource.data.verified == false
+        && request.resource.data.get('riderId', myUid()) == myUid();
+      allow update: if isAdmin()
+        || (
+          isAuth()
+          && myUid() == riderId
+          && unchanged('verified')
+          && unchanged('riderId')
+          && unchanged('trustScore')
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /menus/{menuId} {
+      // Logged-out shop page queries merchantId == id (and doc-id in).
+      // A get() of the parent merchant cannot be proven on that query.
+      allow read: if true;
+      allow create: if isMerchant()
+        && request.resource.data.merchantId == myUid()
+        && isValidNumber(request.resource.data.price, 0, 100000);
+      allow update: if isMerchant()
+        && resource.data.merchantId == myUid()
+        && request.resource.data.merchantId == myUid()
+        && isValidNumber(request.resource.data.price, 0, 100000);
+      allow delete: if isMerchant() && resource.data.merchantId == myUid();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuth();
+
+      allow create: if isAuth()
+        && request.resource.data.userId == myUid()
+        && request.resource.data.status in ['searching', 'pending']
+        && request.resource.data.type in ['food', 'ride', 'express', 'shopping']
+        && isValidNumber(request.resource.data.total, 0, 100000)
+        && noRider(request.resource.data)
+        && request.resource.data.get('foodReady', false) != true;
+
+      allow update: if moneyFrozen() && (
+        // [A] customer cancel while still waiting for the shop
+        (
+          isOrderCustomer()
+          && resource.data.status in ['searching', 'pending']
+          && request.resource.data.status == 'cancelled'
+          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        )
+        // [B] rider accept — fully parenthesized (v3.8.4 bound || tighter than &&)
+        || (
+          isRiderActor()
+          && noRider(resource.data)
+          && request.resource.data.riderId == myUid()
+          && request.resource.data.status == 'accepted'
+          && identityFrozen()
+          && onlyChanged(['riderId', 'riderName', 'riderPhone', 'status', 'acceptedAt'])
+          && (
+            (needsKitchen() && resource.data.status in ['cooking', 'ready'])
+            || (!needsKitchen() && resource.data.status in ['searching', 'pending', 'cooking', 'ready'])
+          )
+        )
+        // [C] rider pickup — kitchen orders only after the shop marked ready
+        || (
+          isAssignedRider()
+          && request.resource.data.status == 'picked_up'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && (
+            (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
+            || (resource.data.status == 'ready' && !noRider(resource.data))
+          )
+        )
+        || (
+          isAssignedRider()
+          && resource.data.status in ['picked_up', 'customer_paid']
+          && request.resource.data.status == 'on_the_way'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'onTheWayAt'])
+        )
+        || (
+          isAssignedRider()
+          && resource.data.status == 'picked_up'
+          && request.resource.data.status == 'customer_paid'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+        )
+        || (
+          isAssignedRider()
+          && resource.data.status == 'on_the_way'
+          && request.resource.data.status in ['delivered', 'done']
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'doneAt', 'deliveredAt', 'riderIncome', 'riderOwe', 'riderPaid'])
+          && isValidNumber(request.resource.data.get('riderIncome', 0), 0, 100000)
+          && isValidNumber(request.resource.data.get('riderOwe', 0), 0, 100000)
+        )
+        // [D] rider cancel
+        || (
+          isAssignedRider()
+          && resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.cancelledBy == 'rider'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        )
+        || (
+          isAssignedRider()
+          && unchanged('status')
+          && unchanged('riderId')
+          && identityFrozen()
+          && onlyChanged(['riderNearCustomerAt'])
+        )
+        // [E] merchant accept / cancel / mark ready (including after rider accepted)
+        || (
+          isOrderMerchant()
+          && resource.data.status in ['searching', 'pending']
+          && request.resource.data.status == 'cooking'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+          && (
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['prepMinutes'])
+            || request.resource.data.prepMinutes in [10, 15, 20]
+          )
+        )
+        || (
+          isOrderMerchant()
+          && resource.data.status in ['searching', 'pending', 'cooking']
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.cancelledBy == 'merchant'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        )
+        || (
+          isOrderMerchant()
+          && request.resource.data.foodReady == true
+          && identityFrozen()
+          && unchanged('riderId')
+          && resource.data.status in ['cooking', 'ready', 'accepted']
+          && onlyChanged(['foodReady', 'readyAt', 'status'])
+          && (
+            request.resource.data.status == resource.data.status
+            || (
+              noRider(resource.data)
+              && request.resource.data.status == 'ready'
+              && resource.data.status in ['cooking', 'ready']
+            )
+          )
+        )
+        // [F] customer confirms payment
+        || (
+          isOrderCustomer()
+          && resource.data.status == 'picked_up'
+          && request.resource.data.status == 'customer_paid'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+        )
+        // [G] customer rating flag
+        || (
+          isOrderCustomer()
+          && resource.data.status in ['done', 'delivered']
+          && request.resource.data.rated == true
+          && unchanged('status')
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['rated', 'ratedAt'])
+        )
+        // [H] admin / boss — cannot rewrite prices or totals
+        || (
+          isAdmin()
+          && identityFrozen()
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.userId == myUid()
+        && request.resource.data.orderId == ratingId
+        && isValidNumber(request.resource.data.get('riderRating', 0), 0, 5)
+        && isValidNumber(request.resource.data.get('merchantRating', 0), 0, 5);
+      allow update, delete: if isAdmin();
+    }
+
+    match /gps_riders/{riderId} {
+      allow read: if isAuth();
+      allow create, update: if isRiderActor() && myUid() == riderId
+        && request.resource.data.riderId == myUid();
+      allow delete: if isAdmin() || (isRiderActor() && myUid() == riderId);
+    }
+
+    match /rider_locations/{locId} {
+      allow read: if isAuth();
+      allow create, update: if isRiderActor() && myUid() == locId;
+      allow delete: if isAdmin() || (isRiderActor() && myUid() == locId);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAdmin() || (isAuth() && chatParticipantOn(resource.data));
+      allow create: if isAuth() && chatParticipantOn(request.resource.data);
+      allow update: if isAdmin()
+        || (
+          isAuth()
+          && chatParticipantOn(resource.data)
+          && request.resource.data.get('userId', '') == resource.data.get('userId', '')
+          && request.resource.data.get('riderId', '') == resource.data.get('riderId', '')
+          && request.resource.data.get('merchantId', '') == resource.data.get('merchantId', '')
+        );
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isChatMember(chatId);
+        allow create: if isChatMember(chatId) && (
+          request.resource.data.get('senderId', '') == myUid()
+          || (isAdmin() && request.resource.data.get('senderRole', '') == 'admin')
+        );
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /gp_transfers/{transferId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.merchantId == myUid());
+      allow create: if isMerchant()
+        && request.resource.data.merchantId == myUid()
+        && request.resource.data.status == 'pending'
+        && isValidNumber(request.resource.data.amount, 0, 1000000);
+      allow update, delete: if isAdmin();
+    }
+
+    match /rider_payouts/{payoutId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /places/{placeId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

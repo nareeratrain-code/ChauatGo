@@ -55,9 +55,28 @@ let arrivedShopNotifiedOrderIds = new Set();
 let isSigningUp = false;
 let authEpoch = 0;
 
-/* รับงานได้ทันทีที่ร้านรับออเดอร์ (cooking) และตอนอาหารพร้อม (ready) — ห้ามก่อนร้านรับ */
+/* อาหาร: รับได้หลังร้านรับ (cooking/ready) เท่านั้น
+   เรียกรถ/ส่งด่วน/ฝากซื้อ: ไม่มีร้าน รับจาก searching ได้ */
 const RIDER_CLAIM_STATUSES = ['cooking', 'ready'];
+const RIDER_OPEN_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
 const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
+
+function orderNeedsKitchen(j) {
+  if (!j) return false;
+  if (j.type === 'ride' || j.type === 'express' || j.type === 'shopping') return false;
+  if (j.type === 'food') return true;
+  return !!j.merchantId;
+}
+
+function orderFoodReady(j) {
+  return !!(j && (j.foodReady || j.readyAt || j.status === 'ready'));
+}
+
+function riderMayClaim(j) {
+  if (!j || j.riderId) return false;
+  if (orderNeedsKitchen(j)) return RIDER_CLAIM_STATUSES.includes(j.status);
+  return RIDER_OPEN_STATUSES.includes(j.status);
+}
 let foodReadySeen = null;
 
 /* ⭐ v3.9.1: Timers */
@@ -535,7 +554,7 @@ function subscribeProfile() {
 function subscribeJobs() {
   if (myJobsUnsub) myJobsUnsub();
   myJobsUnsub = db.collection('orders')
-    .where('status', 'in', ['cooking', 'ready', 'accepted', 'picked_up', 'customer_paid', 'on_the_way'])
+    .where('status', 'in', ['searching', 'pending', 'cooking', 'ready', 'accepted', 'picked_up', 'customer_paid', 'on_the_way'])
     .limit(50)
     .onSnapshot(snap => {
       const prevIds = seenJobIds;
@@ -553,8 +572,7 @@ function subscribeJobs() {
 
       const newJobs = allJobs.filter(j =>
         !prevIds.has(j.id) &&
-        RIDER_CLAIM_STATUSES.includes(j.status) &&
-        !j.riderId &&
+        riderMayClaim(j) &&
         riderProfile?.verified === true &&
         isOnline
       );
@@ -673,8 +691,7 @@ function renderJobs() {
   const myId = currentUser?.uid;
 
   const newJobs = allJobs.filter(j =>
-    RIDER_CLAIM_STATUSES.includes(j.status) &&
-    !j.riderId &&
+    riderMayClaim(j) &&
     riderProfile?.verified && isOnline
   );
 
@@ -753,12 +770,17 @@ function renderJobCard(j, type) {
     : '';
 
   let primaryAction = '';
-  if (isNew && (j.status === 'cooking' || j.status === 'ready')) {
+  if (isNew && riderMayClaim(j)) {
     primaryAction = `<button type="button" class="jc-primary-btn jc-accept" data-accept="${esc(j.id)}">✅ รับงาน</button>
       <button type="button" class="jc-secondary-btn" data-skip="${esc(j.id)}">⏭️</button>`;
   } else if (j.status === 'accepted' || (j.status === 'ready' && j.riderId)) {
-    primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ถึงร้าน</button>
+    if (orderNeedsKitchen(j) && !foodIsReady) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอร้านทำให้เสร็จ</button>
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ถึงร้าน</button>
+      <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    }
   } else if (j.status === 'picked_up') {
     const isPaid = !!j.customerPaidAt;
     if (isPaid) {
@@ -828,7 +850,7 @@ function renderJobCard(j, type) {
    16. JOB ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
 
-/* รับได้เมื่อร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready) — ไม่รับก่อนร้านรับ */
+/* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้ */
 async function acceptJob(jobId) {
   try {
     const ref = db.collection('orders').doc(jobId);
@@ -838,8 +860,13 @@ async function acceptJob(jobId) {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('missing');
       const job = snap.data();
-      if (job.status === 'searching' || job.status === 'pending') throw new Error('shop');
-      if (!RIDER_CLAIM_STATUSES.includes(job.status) || job.riderId) throw new Error('taken');
+      if (job.riderId) throw new Error('taken');
+      if (orderNeedsKitchen(job)) {
+        if (job.status === 'searching' || job.status === 'pending') throw new Error('shop');
+        if (!RIDER_CLAIM_STATUSES.includes(job.status)) throw new Error('taken');
+      } else if (!RIDER_OPEN_STATUSES.includes(job.status)) {
+        throw new Error('taken');
+      }
       readyAlready = !!(job.foodReady || job.readyAt || job.status === 'ready');
       prepMinutes = Number(job.prepMinutes || 0);
       tx.update(ref, {
@@ -901,6 +928,9 @@ async function arrivedAtShop(jobId) {
   if (pickupOrderId === jobId && $('modalOverlay')?.classList.contains('show')) return;
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return showToast('ไม่พบงาน', 'error');
+  if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
+    return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
+  }
   openPickupModal(jobId, job);
 }
 
@@ -1024,6 +1054,10 @@ function updatePickupConfirmBtn() {
 async function confirmPickup() {
   if (!pickupFoodBlob || !pickupSlipBlob) {
     return showToast('⚠️ กรุณาถ่ายรูปอาหาร + สลิป', 'warning');
+  }
+  const pickupJob = allJobs.find(j => j.id === pickupOrderId);
+  if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
+    return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
 
   const btn = $('pickup-confirm-btn');
@@ -1503,6 +1537,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
 
   for (const job of myActive) {
     if (job.status === 'accepted' && job.shopPlaceLat && job.shopPlaceLng
+      && (!orderNeedsKitchen(job) || orderFoodReady(job))
       && !arrivedShopNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.shopPlaceLat, job.shopPlaceLng) * 1000;
       if (dist <= ARRIVAL_RADIUS_M) {

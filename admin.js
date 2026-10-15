@@ -527,7 +527,7 @@ function render() {
 function dashboard() {
   const completed = store.orders.filter(o => ['done', 'delivered'].includes(o.status));
   const active = store.orders.filter(o =>
-    ['searching', 'pending', 'accepted', 'cooking', 'ready', 'picked_up', 'on_the_way'].includes(o.status)
+    !!o.riderId && ['accepted', 'picked_up', 'customer_paid', 'on_the_way', 'ready'].includes(o.status)
   );
 
   let todayGp = 0, todayOrders = 0, yesterdayGp = 0;
