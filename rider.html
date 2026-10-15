@@ -51,13 +51,20 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="rider.css">
+<link rel="stylesheet" href="brand-ui.css">
+<script src="brand-ui.js" defer></script>
 </head>
 <body>
 
-<div id="splash-screen">
-  <img src="icons/icon-512.png" class="splash-logo" alt="Chauat Go Rider" onerror="this.style.background='linear-gradient(135deg,#FF6B35,#E55A2B)';this.style.display='flex'">
-  <div class="splash-title">Chauat Go Rider</div>
-  <div class="splash-sub">ระบบจัดการงานสำหรับไรเดอร์</div>
+<div id="splash-screen" class="cg-galaxy">
+  <canvas class="cg-stars" aria-hidden="true"></canvas>
+  <div class="cg-brand cg-brand-splash">
+    <img class="cg-logo" src="images/logo-banner.png" alt="">
+    <div class="cg-brand-copy">
+      <div class="cg-brand-name">ChauatGo</div>
+      <div class="cg-brand-tag">รับงานส่งของ</div>
+    </div>
+  </div>
   <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
   <div class="splash-footer">© 2025 Chauat Go</div>
 </div>
@@ -79,7 +86,8 @@
 </div>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
-<div id="login-screen">
+<div id="login-screen" class="cg-galaxy">
+  <canvas class="cg-stars" aria-hidden="true"></canvas>
   <div class="login-card">
     <div class="login-icon">
       <img src="icons/icon-512.png" alt="Chauat Go" onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'fallback\'>🛵</div>'">
@@ -163,16 +171,25 @@
 <div id="app" style="display:none">
 
   <header class="app-header">
+    <div class="cg-brand">
+      <img class="cg-logo" src="images/logo-banner.png" alt="">
+      <div class="cg-brand-copy">
+        <div class="cg-brand-name">ChauatGo</div>
+        <div class="cg-brand-tag">รับงานส่งของ</div>
+      </div>
+    </div>
     <div class="header-info">
       <div class="name" id="rider-name">—</div>
-      <div class="status" id="rider-status">⚫ ออฟไลน์</div>
-      <div class="trust-badge" id="trust-badge" title="Trust Score">⭐ 100</div>
+      <div class="status" id="rider-status">ออฟไลน์</div>
+      <div class="trust-badge" id="trust-badge" title="Trust Score">100</div>
     </div>
-    <button class="online-toggle ripple" id="online-toggle-btn" onclick="toggleOnline()">
-      <span class="dot"></span>
+    <button class="online-toggle ripple" id="online-toggle-btn" onclick="toggleOnline()" aria-pressed="false">
+      <span class="dot" aria-hidden="true"></span>
       <span id="toggle-label">ออฟไลน์</span>
     </button>
-    <button class="menu-btn ripple" onclick="openSheet()">☰</button>
+    <button class="menu-btn ripple" onclick="openSheet()" aria-label="เมนู">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 6.5h16v1.8H4V6.5zm0 4.6h16v1.8H4v-1.8zm0 4.6h16V18H4v-1.8z"/></svg>
+    </button>
   </header>
 
   <div class="pending-banner" id="pending-banner">
@@ -183,21 +200,21 @@
   <div class="container">
 
     <div class="hero-card">
-      <div class="hero-label">💰 รายได้วันนี้</div>
+      <div class="hero-label"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11zm2.2 2.2h13.6V8H5.2v.7zM12 11.2a2.6 2.6 0 1 0 .01 5.2 2.6 2.6 0 0 0-.01-5.2z"/></svg>รายได้วันนี้</div>
       <div class="hero-amount" id="hero-income">฿0.00</div>
       <div class="hero-sub" id="hero-sub">จาก 0 งานเสร็จสิ้นวันนี้</div>
 
       <div class="hero-grid">
         <div class="hero-grid-cell">
-          <div class="lbl">💵 ค่าส่ง 80%</div>
+          <div class="lbl"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 7h16v2H4V7zm0 4h10v2H4v-2zm0 4h16v2H4v-2z"/></svg>ค่าส่ง 80%</div>
           <div class="val" id="hero-fee">฿0</div>
         </div>
         <div class="hero-grid-cell">
-          <div class="lbl">🎁 ทิปเงินสด</div>
+          <div class="lbl"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3l1.6 4.7H18.5l-3.9 2.9 1.5 4.7L12 12.6 7.9 15.3l1.5-4.7L5.5 7.7h4.9L12 3z"/></svg>ทิปเงินสด</div>
           <div class="val" id="hero-tip">฿0</div>
         </div>
         <div class="hero-grid-cell warn">
-          <div class="lbl">⚠️ ต้องโอน 3 ทุ่ม</div>
+          <div class="lbl"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.5 2.8 19h18.4L12 3.5zm0 5.2 5.2 8.8H6.8L12 8.7zm-.9 2.6h1.8v3.4h-1.8V11.3zm0 4.4h1.8V17h-1.8v-1.3z"/></svg>ต้องโอน 3 ทุ่ม</div>
           <div class="val" id="hero-owe">฿0.00</div>
         </div>
       </div>
@@ -206,21 +223,21 @@
     <div class="stats-mini">
       <div class="stat-mini">
         <div class="n" id="stat-done">0</div>
-        <div class="l">📦 เสร็จวันนี้</div>
+        <div class="l"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.2 16.6 4.8 12.2l1.4-1.4 3 3 8.6-8.6 1.4 1.4-10 10z"/></svg>เสร็จวันนี้</div>
       </div>
       <div class="stat-mini">
         <div class="n" id="stat-active">0</div>
-        <div class="l">🛵 กำลังทำ</div>
+        <div class="l"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 16.5a2.2 2.2 0 1 0 .01 4.4A2.2 2.2 0 0 0 6 16.5zm11.2 0a2.2 2.2 0 1 0 .01 4.4 2.2 2.2 0 0 0-.01-4.4zM4.2 6h2.1l1.4 6.2h9.2l1.6-5.2H8.1l-.4-1.6H4.2V6zm4.2 7.2 1.1 1.2h8.2v-1.2H8.4z"/></svg>กำลังทำ</div>
       </div>
       <div class="stat-mini">
         <div class="n" id="stat-total">0</div>
-        <div class="l">📊 สะสม</div>
+        <div class="l"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 19V10h2.2v9H5zm5.8 0V5h2.2v14h-2.2zM16.6 19v-6H19v6h-2.4z"/></svg>สะสม</div>
       </div>
     </div>
 
     <div id="active-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
-        <div class="title">🛵 งานที่กำลังทำ</div>
+        <div class="title"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 16.5a2.2 2.2 0 1 0 .01 4.4A2.2 2.2 0 0 0 6 16.5zm11.2 0a2.2 2.2 0 1 0 .01 4.4 2.2 2.2 0 0 0-.01-4.4zM4.2 6h2.1l1.4 6.2h9.2l1.6-5.2H8.1l-.4-1.6H4.2V6z"/></svg>งานที่กำลังทำ</div>
         <div class="line"></div>
         <div class="count" id="active-count">0</div>
       </div>
@@ -229,7 +246,7 @@
 
     <div id="new-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
-        <div class="title">🔔 งานใหม่</div>
+        <div class="title"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.2a5.2 5.2 0 0 0-5.2 5.2v2.4L5 13.6v1.6h14v-1.6l-1.8-2.8V8.4A5.2 5.2 0 0 0 12 3.2zM10.2 17.2a1.8 1.8 0 0 0 3.6 0h-3.6z"/></svg>งานใหม่</div>
         <div class="line"></div>
         <div class="count" id="new-count">0</div>
       </div>
@@ -238,7 +255,7 @@
 
     <div id="done-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
-        <div class="title">✅ เสร็จวันนี้</div>
+        <div class="title"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.2 16.6 4.8 12.2l1.4-1.4 3 3 8.6-8.6 1.4 1.4-10 10z"/></svg>เสร็จวันนี้</div>
         <div class="line"></div>
         <div class="count" id="done-count">0</div>
       </div>
@@ -246,9 +263,17 @@
     </div>
 
     <div id="empty-state" class="empty-state">
-      <div class="icon">🎯</div>
-      <h3>พร้อมรับงาน!</h3>
-      <p>เมื่อมีลูกค้าเรียกใช้บริการ<br>งานจะแสดงที่นี่แบบ Real-time</p>
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="46" height="46">
+          <circle cx="16" cy="46" r="6" fill="none" stroke="currentColor" stroke-width="3"/>
+          <circle cx="46" cy="46" r="6" fill="none" stroke="currentColor" stroke-width="3"/>
+          <path d="M20 46h8l4-12h12l4 8h4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M28 34h8l2 6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          <path d="M22 28h8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h3>พร้อมรับงาน</h3>
+      <p>เมื่อมีลูกค้าเรียกใช้บริการ<br>งานจะแสดงที่นี่แบบเรียลไทม์</p>
     </div>
 
   </div>

@@ -628,7 +628,7 @@ function updateHeader() {
   const emailEl = $('sheet-rider-email');
   if (emailEl) emailEl.textContent = riderProfile.email || '';
   const trustEl = $('trust-badge');
-  if (trustEl) trustEl.textContent = '⭐ ' + (riderProfile.trustScore || 100);
+  if (trustEl) trustEl.textContent = String(riderProfile.trustScore || 100);
   const trustSub = $('sheet-trust-sub');
   if (trustSub) trustSub.textContent = '⭐ ' + (riderProfile.trustScore || 100) + ' / 100';
   updateOnlineToggle();
@@ -651,10 +651,11 @@ function updateOnlineToggle() {
 
   btn.classList.toggle('online', isOnline);
   btn.disabled = riderProfile?.verified !== true;
+  btn.setAttribute('aria-pressed', isOnline ? 'true' : 'false');
   lbl.textContent = isOnline ? 'ออนไลน์' : 'ออฟไลน์';
   st.textContent = riderProfile?.verified !== true
-    ? '⏳ รอการอนุมัติ'
-    : (isOnline ? '🟢 พร้อมรับงาน' : '⚫ ออฟไลน์');
+    ? 'รอการอนุมัติ'
+    : (isOnline ? 'พร้อมรับงาน' : 'ออฟไลน์');
   renderJobs();
 }
 
