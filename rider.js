@@ -214,23 +214,122 @@ function showToast(msg, type = 'success', duration = 3000) {
   t._t = setTimeout(() => { t.className = 'toast'; }, duration);
 }
 
-function getAudioCtx() {
+const SOUND_PREFS_KEY = 'chauat_rider_alert_sound';
+const ALERT_TONES = {
+  bell: { label: 'กระดิ่ง', wave: 'triangle', peak: 0.22, steps: [[880, 0.16], [1175, 0.16], [1568, 0.24]] },
+  chime: { label: 'เสียงติ๊ง', wave: 'triangle', peak: 0.2, steps: [[523, 0.13], [659, 0.13], [784, 0.13], [1047, 0.22]] },
+  urgent: { label: 'เร่งด่วน', wave: 'square', peak: 0.1, steps: [[784, 0.1], [988, 0.1], [784, 0.1], [1175, 0.18]] },
+  knock: { label: 'เคาะประตู', wave: 'square', peak: 0.14, steps: [[196, 0.09], [0, 0.07], [164, 0.1], [0, 0.08], [247, 0.14]] }
+};
+let alertGain = null;
+let alertTimer = null;
+let alertUntil = 0;
+let alertJobId = null;
+let audioUnlocked = false;
+
+function loadSoundPrefs() {
+  let raw = {};
+  try { raw = JSON.parse(localStorage.getItem(SOUND_PREFS_KEY) || '{}') || {}; } catch (e) {}
+  const volume = Math.max(0, Math.min(100, Number(raw.volume)));
+  return {
+    on: raw.on !== false,
+    tone: ALERT_TONES[raw.tone] ? raw.tone : 'bell',
+    volume: Number.isFinite(volume) ? volume : 80
+  };
+}
+
+function saveSoundPrefs(prefs) {
+  const next = {
+    on: !!prefs.on,
+    tone: ALERT_TONES[prefs.tone] ? prefs.tone : 'bell',
+    volume: Math.max(0, Math.min(100, Number(prefs.volume) || 0))
+  };
+  localStorage.setItem(SOUND_PREFS_KEY, JSON.stringify(next));
+  applySoundGain();
+  syncSoundSettingsUI();
+  return next;
+}
+
+function ensureAudioGraph(fromGesture) {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
   if (!audioCtx) {
-    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    if (!fromGesture) return null;
+    try { audioCtx = new Ctx(); }
     catch (e) { return null; }
   }
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (!alertGain && audioCtx) {
+    alertGain = audioCtx.createGain();
+    alertGain.connect(audioCtx.destination);
+  }
+  applySoundGain();
   return audioCtx;
 }
 
+function applySoundGain() {
+  if (!audioCtx || !alertGain) return;
+  const prefs = loadSoundPrefs();
+  const level = Math.max(0, Math.min(1, prefs.volume / 100));
+  const now = audioCtx.currentTime || 0;
+  alertGain.gain.cancelScheduledValues(now);
+  alertGain.gain.setValueAtTime(level, now);
+}
+
+function showSoundBanner(show) {
+  const el = $('sound-unlock-banner');
+  if (!el) return;
+  el.classList.toggle('show', !!show);
+}
+
+function unlockRiderAudio() {
+  const ctx = ensureAudioGraph(true);
+  if (!ctx) {
+    showSoundBanner(true);
+    return Promise.resolve(false);
+  }
+  let resume = Promise.resolve();
+  if (ctx.state === 'suspended') {
+    try { resume = ctx.resume() || Promise.resolve(); }
+    catch (e) { resume = Promise.resolve(); }
+  }
+  try {
+    const buf = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(alertGain || ctx.destination);
+    src.start(0);
+  } catch (e) {}
+  return Promise.resolve(resume).then(() => {
+    audioUnlocked = ctx.state === 'running';
+    showSoundBanner(!audioUnlocked);
+    if (audioUnlocked && alertJobId && Date.now() < alertUntil && !alertTimer) {
+      const id = alertJobId;
+      const remain = alertUntil;
+      beginAlertLoop(id, remain);
+    }
+    return audioUnlocked;
+  }).catch(() => {
+    audioUnlocked = false;
+    showSoundBanner(true);
+    return false;
+  });
+}
+
+function bindAudioUnlock() {
+  const onGesture = () => { unlockRiderAudio(); };
+  document.addEventListener('pointerdown', onGesture, true);
+  document.addEventListener('touchend', onGesture, true);
+}
+
 function playTone(freqs, interval = 0.15, duration = 0.18, volume = 0.35) {
-  const ctx = getAudioCtx();
-  if (!ctx) return;
+  const ctx = ensureAudioGraph(false);
+  if (!ctx || ctx.state !== 'running' || !alertGain) return;
   freqs.forEach((f, i) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
+    osc.connect(gain);
+    gain.connect(alertGain);
+    osc.type = 'triangle';
     osc.frequency.setValueAtTime(f, ctx.currentTime + i * interval);
     const start = ctx.currentTime + i * interval;
     gain.gain.setValueAtTime(0.0001, start);
@@ -241,9 +340,147 @@ function playTone(freqs, interval = 0.15, duration = 0.18, volume = 0.35) {
   });
 }
 
+function vibrateJob() {
+  try {
+    if (navigator.vibrate) navigator.vibrate([180, 90, 180, 90, 280]);
+  } catch (e) {}
+}
+
+function playAlertBurst(toneId) {
+  const ctx = ensureAudioGraph(false);
+  if (!ctx || ctx.state !== 'running' || !alertGain) return false;
+  const prefs = loadSoundPrefs();
+  if (!prefs.on || prefs.volume <= 0) return false;
+  applySoundGain();
+  const tone = ALERT_TONES[toneId] || ALERT_TONES[prefs.tone] || ALERT_TONES.bell;
+  let t = ctx.currentTime + 0.02;
+  tone.steps.forEach(([freq, dur]) => {
+    if (freq > 0) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = tone.wave;
+      osc.frequency.setValueAtTime(freq, t);
+      osc.connect(gain);
+      gain.connect(alertGain);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(tone.peak, t + Math.min(0.03, dur * 0.4));
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
+    t += dur;
+  });
+  return true;
+}
+
+function beginAlertLoop(jobId, until) {
+  if (alertTimer) clearTimeout(alertTimer);
+  alertTimer = null;
+  alertJobId = jobId || null;
+  alertUntil = until;
+  const tick = () => {
+    alertTimer = null;
+    if (!alertJobId || Date.now() >= alertUntil) {
+      stopRepeatingAlert();
+      return;
+    }
+    const live = loadSoundPrefs();
+    if (!live.on || live.volume <= 0) {
+      stopRepeatingAlert();
+      return;
+    }
+    playAlertBurst(live.tone);
+    vibrateJob();
+    alertTimer = setTimeout(tick, 1500);
+  };
+  const prefs = loadSoundPrefs();
+  if (prefs.on && prefs.volume > 0) playAlertBurst(prefs.tone);
+  vibrateJob();
+  alertTimer = setTimeout(tick, 1500);
+}
+
+function startRepeatingAlert(jobId) {
+  if (alertTimer) clearTimeout(alertTimer);
+  alertTimer = null;
+  const until = Date.now() + 20000;
+  alertJobId = jobId || 'alert';
+  alertUntil = until;
+  const prefs = loadSoundPrefs();
+  const ctx = ensureAudioGraph(false);
+  const ready = !!(ctx && ctx.state === 'running' && audioUnlocked);
+  if (!prefs.on || prefs.volume <= 0) {
+    vibrateJob();
+    showSoundBanner(false);
+    return;
+  }
+  if (!ready) {
+    showSoundBanner(true);
+    vibrateJob();
+    return;
+  }
+  showSoundBanner(false);
+  beginAlertLoop(alertJobId, until);
+}
+
+function stopRepeatingAlert() {
+  if (alertTimer) clearTimeout(alertTimer);
+  alertTimer = null;
+  alertJobId = null;
+  alertUntil = 0;
+}
+
+function acknowledgeAlert(jobId) {
+  if (!alertJobId) return;
+  if (!jobId || alertJobId === jobId || alertJobId === 'alert') stopRepeatingAlert();
+}
+
 function soundNewJob() {
-  playTone([880, 1108, 1318, 1108], 0.18, 0.18, 0.4);
-  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
+  playAlertBurst(loadSoundPrefs().tone);
+  vibrateJob();
+}
+
+function testRiderSound() {
+  unlockRiderAudio().then((ok) => {
+    if (!ok) {
+      showToast('ยังเปิดเสียงไม่ได้ ลองแตะอีกครั้ง', 'warning');
+      return;
+    }
+    const prefs = loadSoundPrefs();
+    if (!prefs.on) showToast('เสียงแจ้งเตือนปิดอยู่', 'info');
+    if (!playAlertBurst(prefs.tone)) showToast('เปิดเสียงและเพิ่มความดังก่อน', 'warning');
+  });
+}
+
+function syncSoundSettingsUI() {
+  const prefs = loadSoundPrefs();
+  const on = $('sound-enabled');
+  const vol = $('sound-volume');
+  const volLabel = $('sound-volume-label');
+  if (on) on.checked = prefs.on;
+  if (vol) vol.value = String(prefs.volume);
+  if (volLabel) volLabel.textContent = prefs.volume + '%';
+  document.querySelectorAll('[data-sound-tone]').forEach((btn) => {
+    btn.classList.toggle('on', btn.getAttribute('data-sound-tone') === prefs.tone);
+  });
+}
+
+function onSoundEnabledChange(checked) {
+  const prefs = loadSoundPrefs();
+  prefs.on = !!checked;
+  saveSoundPrefs(prefs);
+}
+
+function onSoundVolumeInput(value) {
+  const prefs = loadSoundPrefs();
+  prefs.volume = Number(value);
+  saveSoundPrefs(prefs);
+}
+
+function chooseAlertTone(tone) {
+  const prefs = loadSoundPrefs();
+  prefs.tone = tone;
+  saveSoundPrefs(prefs);
+  unlockRiderAudio().then(() => playAlertBurst(tone));
 }
 
 function soundArrivedShop() {
@@ -590,8 +827,8 @@ function subscribeJobs() {
       );
 
       if (newJobs.length > 0 && prevIds.size > 0) {
-        soundNewJob();
         showNewJobPopup(newJobs[0]);
+        startRepeatingAlert(newJobs[0].id);
       }
 
       noteFoodReady(allJobs);
@@ -921,7 +1158,7 @@ function noteFoodReady(jobs) {
 function alertFoodReady(job) {
   const who = job.merchantName || 'ร้าน';
   showToast('อาหารพร้อมแล้ว — ' + orderLabel(job), 'success', 6000);
-  soundNewJob();
+  startRepeatingAlert(job.id);
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('✅ อาหารพร้อมแล้ว', {
@@ -1351,6 +1588,7 @@ async function confirmDeliver(jobId) {
    18. JOB DETAIL
    ═══════════════════════════════════════════════════════════════════ */
 function showJobDetail(jobId) {
+  acknowledgeAlert(jobId);
   const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
   if (!job) return;
   const fin = calcOrderFinance(job);
@@ -1526,6 +1764,7 @@ function showNewJobPopup(job) {
 
 function closeNewJobPopup() {
   $('newJobPopup').classList.remove('show');
+  if (newJobPopupId) acknowledgeAlert(newJobPopupId);
   newJobPopupId = null;
 }
 
@@ -1542,6 +1781,7 @@ function skipJob(jobId) {
    20. ONLINE / GPS
    ═══════════════════════════════════════════════════════════════════ */
 async function toggleOnline() {
+  unlockRiderAudio();
   if (!currentUser || riderProfile?.verified !== true) {
     return showToast('รอแอดมินอนุมัติก่อน', 'warning');
   }
@@ -1651,7 +1891,11 @@ function requestGPS() {
 /* ═══════════════════════════════════════════════════════════════════
    21. SHEET / MODAL
    ═══════════════════════════════════════════════════════════════════ */
-function openSheet() { $('sheetOverlay')?.classList.add('show'); }
+function openSheet() {
+  unlockRiderAudio();
+  syncSoundSettingsUI();
+  $('sheetOverlay')?.classList.add('show');
+}
 function closeSheet() { $('sheetOverlay')?.classList.remove('show'); }
 function closeModal() {
   destroyRiderJobMap();
@@ -2066,6 +2310,8 @@ document.addEventListener('click', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   runSplash();
+  bindAudioUnlock();
+  syncSoundSettingsUI();
 });
 
 window.addEventListener('beforeunload', () => {
@@ -2083,6 +2329,11 @@ window.handleSignup = handleSignup;
 window.handleForgotPassword = handleForgotPassword;
 window.handleLogout = handleLogout;
 window.toggleOnline = toggleOnline;
+window.unlockRiderAudio = unlockRiderAudio;
+window.testRiderSound = testRiderSound;
+window.chooseAlertTone = chooseAlertTone;
+window.onSoundEnabledChange = onSoundEnabledChange;
+window.onSoundVolumeInput = onSoundVolumeInput;
 window.arrivedAtShop = arrivedAtShop;
 window.openSheet = openSheet;
 window.closeSheet = closeSheet;
