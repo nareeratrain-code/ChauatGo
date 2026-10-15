@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.14</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.15</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.14-20261015-002';
+  var VERSION = 'v3.9.15-20261015-003';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -47,6 +47,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="brand-ui.css">
@@ -543,7 +544,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 <div id="splash-screen" class="cg-galaxy">
   <canvas class="cg-stars" aria-hidden="true"></canvas>
   <div class="cg-brand cg-brand-splash">
-    <img class="cg-logo" src="images/logo-banner.png" alt="">
+    <picture><source srcset="images/logo-512.webp" type="image/webp"><img class="cg-logo" src="images/logo-512.png" alt="ChauatGo"></picture>
     <div class="cg-brand-copy">
       <div class="cg-brand-name">ChauatGo</div>
       <div class="cg-brand-tag">สั่งครบ จบที่เดียว</div>
@@ -831,7 +832,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 <div class="header" id="main-header">
   <div class="cg-brand">
-    <img class="cg-logo" src="images/logo-banner.png" alt="">
+    <picture><source srcset="images/logo-512.webp" type="image/webp"><img class="cg-logo" src="images/logo-512.png" alt="ChauatGo"></picture>
     <div class="cg-brand-copy">
       <div class="cg-brand-name">ChauatGo</div>
       <div class="cg-brand-tag">สั่งครบ จบที่เดียว</div>
@@ -1019,7 +1020,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.14 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.15 • © 2024</div>
       </div>
     </div>
   </div>
@@ -4484,7 +4485,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.14 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.15 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
