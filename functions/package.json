@@ -1,0 +1,20 @@
+{
+  "name": "chauatgo-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test test/dispatch.test.js",
+    "test:emu": "cd .. && npx --yes firebase-tools emulators:exec --only firestore --project chauat-go-b9841 \"npm test --prefix functions\""
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.4.0",
+    "geofire-common": "^6.0.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4"
+  }
+}

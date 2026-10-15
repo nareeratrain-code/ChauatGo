@@ -1,0 +1,38 @@
+{
+  "id": "/rider.html",
+  "name": "Chauat Go Rider",
+  "short_name": "CG Rider",
+  "description": "แอปไรเดอร์ Chauat Go — อ.ชะอวด",
+  "start_url": "/rider.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FF6B35",
+  "theme_color": "#FF6B35",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -718,6 +718,13 @@ body {
   cursor: pointer;
 }
 .sound-unlock-banner.show { display: block; }
+#push-banner {
+  top: calc(68px + env(safe-area-inset-top));
+  white-space: normal;
+  line-height: 1.35;
+  font-size: 13px;
+  text-align: left;
+}
 
 .sound-settings {
   margin: 8px 0 12px;

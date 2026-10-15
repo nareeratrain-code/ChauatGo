@@ -16,6 +16,11 @@ rules_version = '2';
 //   * orders/{orderId}/calls: only that order's customer, rider, or shop
 //     (or admin) may read signaling. A participant may create a call as
 //     themselves and write offer, answer, and ICE for that call.
+//   * orders read: customer, shop, assigned rider, admin/boss, or a rider
+//     reading an unassigned searching/pending/cooking/ready order.
+//   * auto dispatch: riders cannot write dispatch fields or dispatchOffers.
+//     While config/dispatch.mode is auto, a rider may claim only the order
+//     currently offered to them. config/dispatch is admin-write, auth-read.
 // Every other collection keeps the v3.8.4 access shape.
 
 service cloud.firestore {
@@ -177,6 +182,34 @@ service cloud.firestore {
 
     function isOrderCustomer() {
       return isAuth() && resource.data.get('userId', '') == myUid();
+    }
+
+    function autoDispatchOn() {
+      return exists(/databases/$(database)/documents/config/dispatch)
+        && get(/databases/$(database)/documents/config/dispatch).data.get('mode', 'manual') == 'auto';
+    }
+
+    function riderMayTakeOpenJob() {
+      return !autoDispatchOn()
+        || resource.data.get('dispatchOfferRiderId', '') == myUid();
+    }
+
+    function canReadOrder() {
+      return isAdmin()
+        || (isAuth() && (
+          resource.data.get('userId', '') == myUid()
+          || resource.data.get('merchantId', '') == myUid()
+          || resource.data.get('riderId', '') == myUid()
+        ))
+        || (isRiderActor() && resource.data.status in ['searching', 'pending', 'cooking', 'ready']);
+    }
+
+    function noDispatchControl(data) {
+      return data.get('dispatchState', '') == ''
+        && data.get('dispatchOfferRiderId', '') == ''
+        && data.get('dispatchOfferId', '') == ''
+        && data.get('dispatchMode', '') == ''
+        && data.get('dispatchCounted', false) != true;
     }
 
     function chatPath(chatId) {
@@ -351,6 +384,10 @@ service cloud.firestore {
           && unchanged('verified')
           && unchanged('riderId')
           && unchanged('trustScore')
+          && unchanged('offersAccepted')
+          && unchanged('offersTotal')
+          && unchanged('activeJobCount')
+          && unchanged('idleSince')
         );
       allow delete: if isAdmin();
     }
@@ -370,7 +407,7 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow read: if isAuth();
+      allow read: if canReadOrder();
 
       allow create: if isAuth()
         && request.resource.data.userId == myUid()
@@ -378,6 +415,7 @@ service cloud.firestore {
         && request.resource.data.type in ['food', 'ride', 'express', 'shopping']
         && isValidNumber(request.resource.data.total, 0, 100000)
         && noRider(request.resource.data)
+        && noDispatchControl(request.resource.data)
         && request.resource.data.get('foodReady', false) != true;
 
       allow update: if moneyFrozen() && (
@@ -395,6 +433,7 @@ service cloud.firestore {
           && request.resource.data.riderId == myUid()
           && request.resource.data.status == 'accepted'
           && identityFrozen()
+          && riderMayTakeOpenJob()
           && onlyChanged(['riderId', 'riderName', 'riderPhone', 'status', 'acceptedAt'])
           && (
             (needsKitchen() && resource.data.status in ['cooking', 'ready'])
@@ -522,6 +561,13 @@ service cloud.firestore {
 
       allow delete: if isAdmin();
 
+      // Server-owned offers. Riders can read their own row. Nobody writes from the client.
+      match /dispatchOffers/{offerId} {
+        allow read: if isAuth() && resource.data.get('riderId', '') == myUid();
+        allow read: if isAdmin();
+        allow create, update, delete: if false;
+      }
+
       // Voice-call signaling. Publish this file or these calls stay permission-denied.
       match /calls/{callId} {
         allow read: if isCallParty(orderId);
@@ -641,6 +687,20 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAdmin() && placeOverrideOk();
       allow delete: if isAdmin();
+    }
+
+    match /config/dispatch {
+      allow read: if isAuth();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Collection-group listener: riders/{query riderId == me}. Direct field
+    // equality is what the query checker can prove. .get() is not.
+    match /{path=**}/dispatchOffers/{offerId} {
+      allow read: if isAuth() && resource.data.riderId == myUid();
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /{document=**} {
