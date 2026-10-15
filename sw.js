@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.11';
+const CACHE_NAME = 'chauat-app-v3.9.12';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -111,12 +111,18 @@ self.addEventListener('fetch', (event) => {
 
 function freshRequest(request, url) {
   if (!isAppCode(url, request)) return request;
-  return new Request(url.href, {
-    method: 'GET',
-    cache: 'no-store',
-    credentials: 'same-origin',
-    redirect: 'follow'
-  });
+  // HTML and JS must come from the network. cache:'reload' skips the HTTP
+  // cache. Rebuild from the URL so a navigation request can still be fetched.
+  try {
+    return new Request(url.href, {
+      method: 'GET',
+      cache: 'reload',
+      credentials: 'same-origin',
+      redirect: 'follow'
+    });
+  } catch (err) {
+    return request;
+  }
 }
 
 async function putCache(cache, url, response) {
@@ -197,15 +203,19 @@ async function cacheMapTile(request) {
 
 async function networkFirst(request, url) {
   const cache = await caches.open(CACHE_NAME);
+  let response = null;
   try {
-    const response = await fetch(freshRequest(request, url));
+    response = await fetch(freshRequest(request, url));
+  } catch (err) {
+    try { response = await fetch(request); } catch (err2) { response = null; }
+  }
+  if (response) {
     await putCache(cache, url, response);
     return response;
-  } catch (err) {
-    const cached = await matchCached(request, url);
-    if (cached) return cached;
-    return Response.error();
   }
+  const cached = await matchCached(request, url);
+  if (cached) return cached;
+  return Response.error();
 }
 
 self.addEventListener('message', (event) => {

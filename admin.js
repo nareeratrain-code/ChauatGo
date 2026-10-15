@@ -426,6 +426,9 @@ auth.onAuthStateChanged(async user => {
 
   $('login-screen').classList.add('hidden');
   $('app').classList.remove('hidden');
+  // The UI trusts user.email. Rules read the ID token. Refresh so the master
+  // email is on the token before any placeOverrides write.
+  try { await user.getIdToken(true); } catch (e) {}
   start();
 });
 
@@ -1413,6 +1416,24 @@ const OSM_CATS = {
 const PLACE_CAT_ORDER = ['o', 'r', 'm', 'k', 'v', 'w', 'e', 'l', 'i', 'f', 'c', 's', 't', 'h', 'g', 'b', 'p', 'y', 'x'];
 const PLACE_TAMBONS = ['ชะอวด', 'ท่าเสม็ด', 'ท่าประจะ', 'เคร็ง', 'วังอ่าง', 'บ้านตูล', 'ขอนหาด', 'เกาะขันธ์', 'ควนหนองหงษ์', 'เขาพระทอง', 'นางหลง'];
 const CHAUAT_PLACE_CENTER = { lat: 7.965, lng: 99.996 };
+
+function placeStamp() {
+  return firebase.firestore.Timestamp.now();
+}
+
+function placeCoord(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return NaN;
+  // Whole numbers are stored as ints. Keep a float so the value stays a number
+  // in the same range the rules already allow.
+  return Number.isInteger(n) ? n + 0.000001 : n;
+}
+
+async function refreshAdminToken() {
+  try {
+    if (auth.currentUser) await auth.currentUser.getIdToken(true);
+  } catch (e) {}
+}
 let addPlaceMap = null;
 let addPlaceMarker = null;
 
@@ -1907,9 +1928,10 @@ document.addEventListener('click', async e => {
     if (t.dataset.placeHide) {
       const id = t.dataset.placeHide;
       const hidden = t.dataset.placeHidden !== '1';
+      await refreshAdminToken();
       await db.collection('placeOverrides').doc(id).set({
         hidden,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: placeStamp()
       }, { merge: true });
       showToast(hidden ? 'ซ่อนจากลูกค้าแล้ว' : 'แสดงในค้นหาแล้ว');
       return;
@@ -1926,10 +1948,15 @@ document.addEventListener('click', async e => {
       const lat = Number($('place-edit-lat')?.value);
       const lng = Number($('place-edit-lng')?.value);
       if (!name) return showToast('ใส่ชื่อ', 'error');
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return showToast('พิกัดไม่ถูกต้อง', 'error');
+      const latNum = placeCoord(lat);
+      const lngNum = placeCoord(lng);
+      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return showToast('พิกัดไม่ถูกต้อง', 'error');
+      await refreshAdminToken();
       await db.collection('placeOverrides').doc(id).set({
-        name, lat, lng,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        name,
+        lat: latNum,
+        lng: lngNum,
+        updatedAt: placeStamp()
       }, { merge: true });
       showToast('บันทึกแล้ว');
       closeModal();
@@ -1937,6 +1964,7 @@ document.addEventListener('click', async e => {
     }
 
     if (t.dataset.placeReset) {
+      await refreshAdminToken();
       await db.collection('placeOverrides').doc(t.dataset.placeReset).delete();
       showToast('คืนค่าจาก OpenStreetMap แล้ว');
       return;
@@ -1959,10 +1987,10 @@ document.addEventListener('click', async e => {
 
     if (t.dataset.placeAddSave) {
       const name = ($('place-add-name')?.value || '').trim();
-      const category = $('place-add-cat')?.value || '';
-      const tambon = $('place-add-tambon')?.value || '';
-      const lat = Number($('place-add-lat')?.value);
-      const lng = Number($('place-add-lng')?.value);
+      const category = ($('place-add-cat')?.value || '').trim();
+      const tambon = ($('place-add-tambon')?.value || '').trim();
+      const lat = placeCoord($('place-add-lat')?.value);
+      const lng = placeCoord($('place-add-lng')?.value);
       const id = ($('place-add-id')?.value || '').trim();
       if (!name) return showToast('ใส่ชื่อสถานที่', 'error');
       if (!OSM_CATS[category]) return showToast('เลือกประเภท', 'error');
@@ -1970,6 +1998,7 @@ document.addEventListener('click', async e => {
       if (!Number.isFinite(lat) || lat < 7.5 || lat > 8.5 || !Number.isFinite(lng) || lng < 99.4 || lng > 100.5) {
         return showToast('เลื่อนหมุดให้อยู่ในอำเภอชะอวด', 'error');
       }
+      // placeAddedOk allows only these keys. updatedAt must be a timestamp.
       const payload = {
         type: 'added',
         name,
@@ -1977,8 +2006,9 @@ document.addEventListener('click', async e => {
         tambon,
         lat,
         lng,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        updatedAt: placeStamp()
       };
+      await refreshAdminToken();
       if (id) await db.collection('placeOverrides').doc(id).set(payload);
       else await db.collection('placeOverrides').add(payload);
       showToast('บันทึกสถานที่แล้ว');
@@ -1988,6 +2018,7 @@ document.addEventListener('click', async e => {
 
     if (t.dataset.placeAddedDelete) {
       if (!confirm('ลบสถานที่ที่เพิ่มนี้?')) return;
+      await refreshAdminToken();
       await db.collection('placeOverrides').doc(t.dataset.placeAddedDelete).delete();
       showToast('ลบสถานที่แล้ว');
       return;
