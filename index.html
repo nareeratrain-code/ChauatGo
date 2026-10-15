@@ -330,17 +330,53 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .vehicle-desc { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 .vehicle-price-num { font-size: 18px; font-weight: 900; color: var(--green); line-height: 1; }
 
-#map-page { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 8000; overflow-y: auto; }
-#map-page.show { display: block !important; }
-.map-header-bar { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+#map-page { display: none; position: fixed; top: 0; bottom: 0; left: 50%; width: 100%; max-width: 600px; transform: translateX(-50%); background: var(--bg); z-index: 9200; overflow: hidden; --dest-sheet-h: 236px; }
+#map-page.show { display: flex !important; flex-direction: column; }
+.map-header-bar { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; z-index: 10; }
 .map-header-bar h3 { font-size: 15px; font-weight: 900; }
 .map-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; }
-#main-map { width: 100%; height: 65vh; min-height: 400px; z-index: 1; }
-.map-float-controls { position: absolute; right: 14px; bottom: 140px; display: flex; flex-direction: column; gap: 8px; z-index: 500; }
+.map-stage { position: relative; flex: 1; min-height: 0; }
+#main-map { width: 100%; height: 100%; min-height: 0; z-index: 1; }
+#map-page .leaflet-bottom { bottom: calc(var(--dest-sheet-h) + 8px); }
+.map-center-pin { position: absolute; left: 50%; top: calc(50% - (var(--dest-sheet-h) / 2)); width: 28px; height: 40px; margin-left: -14px; margin-top: -40px; z-index: 450; pointer-events: none; transition: top .25s ease, transform .18s ease; }
+.map-center-pin.lift { transform: translateY(-12px); }
+.map-center-pin-head { width: 26px; height: 26px; border-radius: 50%; background: #E53935; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.35); position: relative; }
+.map-center-pin-head:after { content: ''; position: absolute; left: 50%; top: 20px; transform: translateX(-50%); border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 12px solid #E53935; }
+.map-center-pin-tip { position: absolute; left: 50%; bottom: 0; width: 1px; height: 1px; }
+.map-float-controls { position: absolute; right: 14px; bottom: calc(var(--dest-sheet-h) + 16px); display: flex; flex-direction: column; gap: 8px; z-index: 500; transition: bottom .25s ease; }
 .map-fab { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); border: none; box-shadow: var(--shadow-md); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; color: var(--text); }
-.map-bottom-action { position: absolute; bottom: 24px; left: 14px; right: 14px; z-index: 500; }
-.map-confirm-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 16px; font-weight: 900; font-size: 15px; cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(0,166,81,.4); }
+.dest-sheet { position: absolute; left: 0; right: 0; bottom: 0; height: var(--dest-sheet-h); max-height: 78%; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.16); z-index: 600; display: flex; flex-direction: column; transition: height .25s ease; }
+.dest-sheet.expanded { --dest-sheet-h: 72%; height: 72%; }
+#map-page:has(.dest-sheet.expanded) { --dest-sheet-h: 72%; }
+.dest-sheet-handle { width: 100%; height: 28px; border: none; background: transparent; padding: 0; cursor: grab; flex-shrink: 0; touch-action: none; }
+.dest-sheet-handle:before { content: ''; display: block; width: 42px; height: 5px; border-radius: 99px; background: var(--border); margin: 10px auto 0; }
+.dest-sheet-body { flex: 1; min-height: 0; overflow: hidden; padding: 0 16px; }
+.dest-sheet.expanded .dest-sheet-body { overflow-y: auto; }
+.dest-search { display: flex; align-items: center; gap: 8px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 14px; padding: 0 12px; margin-bottom: 8px; }
+.dest-search input { flex: 1; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 16px; font-weight: 700; padding: 12px 0; outline: none; min-width: 0; }
+.dest-search-results { display: none; margin: 0 0 8px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.dest-sheet.expanded .dest-search-results.show { display: block; }
+.dest-result { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer; }
+.dest-result:last-child { border-bottom: none; }
+.dest-result b { display: block; font-size: 13px; font-weight: 900; }
+.dest-result span { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+.dest-address { font-size: 14px; font-weight: 900; line-height: 1.35; margin-bottom: 6px; }
+.dest-address small { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+.dest-saved { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 2px; }
+.dest-chip { flex: 0 0 auto; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 7px 12px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.dest-estimate { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 800; color: var(--text-muted); background: var(--surface-2); border-radius: 12px; padding: 8px 10px; margin-bottom: 8px; }
+.dest-estimate b { color: var(--green); font-weight: 900; }
+.dest-extra { display: none; }
+.dest-sheet.expanded .dest-extra { display: block; }
+.dest-note-label { display: block; font-size: 12px; font-weight: 900; margin: 4px 0 6px; }
+#dest-rider-note { width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); border-radius: 12px; padding: 10px 12px; font-family: inherit; font-size: 14px; font-weight: 700; resize: none; margin-bottom: 8px; }
+.dest-save-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.dest-save-btn { flex: 1; border: 1px dashed var(--border); background: transparent; color: var(--text-muted); border-radius: 12px; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.map-confirm-btn { margin: 4px 16px calc(12px + env(safe-area-inset-bottom)); padding: 16px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 16px; font-weight: 900; font-size: 15px; cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(0,166,81,.35); flex-shrink: 0; }
 .map-confirm-btn:disabled { opacity: .5; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .dest-sheet, .map-center-pin, .map-float-controls { transition: none; }
+}
 
 .custom-pin { position: relative; width: 40px; height: 50px; }
 .custom-pin-dot { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; }
@@ -730,14 +766,37 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
     <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
     <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
   </div>
-  <div style="position:relative">
+  <div class="map-stage">
     <div id="main-map"></div>
-    <div class="map-float-controls">
-      <button class="map-fab press-scale" onclick="centerToUser()">🎯</button>
-      <button class="map-fab press-scale" onclick="clearMap()">🗑️</button>
+    <div class="map-center-pin" id="map-center-pin" aria-hidden="true">
+      <div class="map-center-pin-head"></div>
+      <i class="map-center-pin-tip" id="map-center-pin-tip"></i>
     </div>
-    <div class="map-bottom-action">
-      <button class="map-confirm-btn" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>📍 เลือกตำแหน่งก่อน</button>
+    <div class="map-float-controls">
+      <button class="map-fab press-scale" onclick="centerToUser()" aria-label="ตำแหน่งของฉัน">🎯</button>
+      <button class="map-fab press-scale" onclick="clearMap()" aria-label="ล้างการค้นหา">🗑️</button>
+    </div>
+    <div class="dest-sheet" id="dest-sheet">
+      <button type="button" class="dest-sheet-handle" id="dest-sheet-handle" aria-expanded="false" aria-label="ขยายหรือย่อรายละเอียด"></button>
+      <div class="dest-sheet-body">
+        <div class="dest-search">
+          <span aria-hidden="true">🔍</span>
+          <input id="dest-search-input" type="search" placeholder="ค้นหาสถานที่ในชะอวด..." autocomplete="off" enterkeyhint="search">
+        </div>
+        <div id="dest-search-results" class="dest-search-results"></div>
+        <div id="dest-address" class="dest-address">เลื่อนแผนที่เพื่อปักหมุด</div>
+        <div id="dest-saved" class="dest-saved"></div>
+        <div id="dest-estimate" class="dest-estimate"></div>
+        <div class="dest-extra">
+          <label class="dest-note-label" for="dest-rider-note">โน้ตถึงไรเดอร์</label>
+          <textarea id="dest-rider-note" rows="2" placeholder="เช่น สีบ้าน จุดสังเกต ให้โทรก่อนถึง"></textarea>
+          <div class="dest-save-row">
+            <button type="button" class="dest-save-btn" id="dest-save-home" onclick="savePinnedPlace('home')">บันทึกเป็นบ้าน</button>
+            <button type="button" class="dest-save-btn" id="dest-save-work" onclick="savePinnedPlace('work')">บันทึกเป็นที่ทำงาน</button>
+          </div>
+        </div>
+      </div>
+      <button class="map-confirm-btn" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>เลือกตำแหน่งก่อน</button>
     </div>
   </div>
 </div>
@@ -2963,7 +3022,7 @@ window.openRideOrderForm = function(vehicle){
     '</div>' +
     '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน')+'"></div>' +
     '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination ? (selectedDestination.address || '') : '')+'"></div>' +
-    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2"></textarea></div>' +
+    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">'+esc((selectedDestination && selectedDestination.note) || '')+'</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc((userProfile&&userProfile.phone)||'')+'"></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ (฿'+fareInfo.total+')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
@@ -3473,6 +3532,7 @@ window.skipLocation = function(){
 
 /* ═══ GLOBAL CLICK ═══ */
 function globalClickHandler(e){
+  if ($('map-page') && $('map-page').classList.contains('show')) return;
   if ($('map-picker') && $('map-picker').classList.contains('show')) return;
   if ($('tracking-page') && $('tracking-page').classList.contains('show')) return;
   var pc = e.target.closest('[data-place-id]');
@@ -3483,25 +3543,418 @@ function globalClickHandler(e){
 }
 
 /* ═══ MAP PAGE ═══ */
+var destHoldAddress = '';
+var destSearchTimer = null;
+var destSearchGen = 0;
+var destGeocodeTimer = null;
+var destGeocodeToken = 0;
+var nominatimReadyAt = 0;
+var CHAUAT_CENTER = { lat: 7.9650, lng: 99.9960 };
+
+function nominatimFetch(url) {
+  var wait = Math.max(0, nominatimReadyAt - Date.now());
+  nominatimReadyAt = Date.now() + wait + 1100;
+  return new Promise(function(resolve, reject) {
+    setTimeout(function() {
+      fetch(url, { headers: { 'Accept': 'application/json', 'Accept-Language': 'th' } })
+        .then(function(res) {
+          if (!res.ok) throw new Error('nominatim ' + res.status);
+          return res.json();
+        })
+        .then(resolve)
+        .catch(reject);
+    }, wait);
+  });
+}
+
+function placeBookKey() {
+  var uid = (currentUser && currentUser.uid) || 'guest';
+  return 'chauat_saved_places_' + uid;
+}
+function loadPlaceBook() {
+  try {
+    var book = JSON.parse(localStorage.getItem(placeBookKey()) || '');
+    if (!book || typeof book !== 'object') throw new Error('empty');
+    book.home = book.home || null;
+    book.work = book.work || null;
+    book.recent = Array.isArray(book.recent) ? book.recent : [];
+    return book;
+  } catch (e) {
+    return { home: null, work: null, recent: [] };
+  }
+}
+function savePlaceBook(book) {
+  try { localStorage.setItem(placeBookKey(), JSON.stringify(book)); } catch (e) {}
+}
+
+function readPinLatLng() {
+  if (!map) return null;
+  var stage = document.querySelector('#map-page .map-stage');
+  var tip = $('map-center-pin-tip');
+  if (!stage || !tip) {
+    var c = map.getCenter();
+    return { lat: c.lat, lng: c.lng };
+  }
+  var stageRect = stage.getBoundingClientRect();
+  var tipRect = tip.getBoundingClientRect();
+  var x = (tipRect.left + tipRect.width / 2) - stageRect.left;
+  var y = (tipRect.top + tipRect.height / 2) - stageRect.top;
+  if (stageRect.width < 20 || stageRect.height < 20) {
+    var fallback = map.getCenter();
+    return { lat: fallback.lat, lng: fallback.lng };
+  }
+  var ll = map.containerPointToLatLng([x, y]);
+  return { lat: ll.lat, lng: ll.lng };
+}
+
+function panPinTo(lat, lng, zoom) {
+  if (!map) return;
+  var z = zoom || map.getZoom() || 16;
+  var stage = document.querySelector('#map-page .map-stage');
+  var tip = $('map-center-pin-tip');
+  var center = L.latLng(lat, lng);
+  if (stage && tip) {
+    var stageRect = stage.getBoundingClientRect();
+    var tipRect = tip.getBoundingClientRect();
+    if (stageRect.width > 20 && stageRect.height > 20) {
+      var pinX = (tipRect.left + tipRect.width / 2) - stageRect.left;
+      var pinY = (tipRect.top + tipRect.height / 2) - stageRect.top;
+      var half = map.getSize().divideBy(2);
+      var offset = L.point(pinX, pinY).subtract(half);
+      var projected = map.project(L.latLng(lat, lng), z).subtract(offset);
+      center = map.unproject(projected, z);
+    }
+  }
+  map.setView(center, z);
+}
+
+function showDestAddress(text, ll) {
+  var el = $('dest-address');
+  if (!el) return;
+  var coord = ll ? (ll.lat.toFixed(5) + ', ' + ll.lng.toFixed(5)) : '';
+  el.innerHTML = esc(text || 'เลื่อนแผนที่เพื่อปักหมุด') + (coord ? '<small>' + esc(coord) + '</small>' : '');
+  el.dataset.address = text || '';
+}
+
+function shortNominatimAddress(data) {
+  if (!data) return '';
+  if (data.display_name) {
+    var bits = data.display_name.split(',').map(function(s) { return s.trim(); }).filter(function(s) {
+      return s && s !== 'ประเทศไทย' && s !== 'Thailand';
+    });
+    if (bits.length) return bits.slice(0, 3).join(', ');
+  }
+  var a = data.address || {};
+  var road = a.road || a.pedestrian || a.neighbourhood || a.village || a.suburb || '';
+  var town = a.town || a.city || a.municipality || a.county || '';
+  var state = a.state || '';
+  return [data.name, road, town, state].filter(function(part, idx, arr) {
+    return part && arr.indexOf(part) === idx;
+  }).slice(0, 3).join(', ');
+}
+
+function scheduleReverseGeocode(lat, lng) {
+  clearTimeout(destGeocodeTimer);
+  var token = ++destGeocodeToken;
+  showDestAddress('กำลังหาที่อยู่...', { lat: lat, lng: lng });
+  destGeocodeTimer = setTimeout(function() {
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=18&addressdetails=1&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
+    nominatimFetch(url).then(function(data) {
+      if (token !== destGeocodeToken) return;
+      var label = shortNominatimAddress(data) || (lat.toFixed(5) + ', ' + lng.toFixed(5));
+      if (selectedDestination && Math.abs(selectedDestination.lat - lat) < 0.0002 && Math.abs(selectedDestination.lng - lng) < 0.0002) {
+        selectedDestination.address = label;
+      }
+      showDestAddress(label, { lat: lat, lng: lng });
+    }).catch(function() {
+      if (token !== destGeocodeToken) return;
+      var label = lat.toFixed(5) + ', ' + lng.toFixed(5);
+      if (selectedDestination) selectedDestination.address = label;
+      showDestAddress(label, { lat: lat, lng: lng });
+    });
+  }, 800);
+}
+
+function onDestMapMoveEnd() {
+  var pin = $('map-center-pin');
+  if (pin) pin.classList.remove('lift');
+  var held = destHoldAddress;
+  destHoldAddress = '';
+  var ll = readPinLatLng();
+  if (!ll) return;
+  var note = ($('dest-rider-note') && $('dest-rider-note').value.trim()) || (selectedDestination && selectedDestination.note) || '';
+  selectedDestination = { lat: ll.lat, lng: ll.lng, address: held || '', note: note };
+  updateConfirmBtnState();
+  updateDestEstimate();
+  if (held) showDestAddress(held, ll);
+  else scheduleReverseGeocode(ll.lat, ll.lng);
+}
+
+function updateDestEstimate() {
+  var el = $('dest-estimate');
+  if (!el) return;
+  if (!selectedDestination) { el.innerHTML = ''; return; }
+  var fare = calculateFare({ type: 'motorcycle', price: 30 }, selectedDestination.lat, selectedDestination.lng);
+  if (userLocation && fare.distance >= 0.05) {
+    el.innerHTML = '<span>จากจุดรับ ' + esc(fmtDistance(fare.distance)) + '</span><b>มอเตอร์ไซค์ประมาณ ฿' + esc(String(fare.total)) + '</b>';
+  } else if (userLocation) {
+    el.innerHTML = '<span>หมุดอยู่ที่จุดรับ</span><b>มอเตอร์ไซค์เริ่มต้น ฿' + esc(String(fare.base)) + '</b>';
+  } else {
+    el.innerHTML = '<span>เปิด GPS เพื่อคำนวณระยะ</span><b>เริ่มต้น ฿' + esc(String(fare.base)) + '</b>';
+  }
+}
+
+function renderSavedPlaces() {
+  var box = $('dest-saved');
+  if (!box) return;
+  var book = loadPlaceBook();
+  var html = '';
+  function chip(kind, place, emptyLabel) {
+    if (!place) return '<button type="button" class="dest-chip" onclick="savePinnedPlace(\'' + kind + '\')">' + emptyLabel + '</button>';
+    return '<button type="button" class="dest-chip" onclick="selectSavedPlace(\'' + kind + '\',' + place.lat + ',' + place.lng + ')">' + (kind === 'home' ? '🏠 ' : '💼 ') + esc(place.label || place.address || emptyLabel) + '</button>';
+  }
+  html += chip('home', book.home, '＋ บ้าน');
+  html += chip('work', book.work, '＋ ที่ทำงาน');
+  (book.recent || []).forEach(function(place, idx) {
+    html += '<button type="button" class="dest-chip" onclick="selectSavedPlace(\'recent\',' + place.lat + ',' + place.lng + ',' + idx + ')">🕐 ' + esc(place.label || 'ล่าสุด') + '</button>';
+  });
+  box.innerHTML = html;
+}
+
+window.savePinnedPlace = function(kind) {
+  if (!selectedDestination) return showToast('ปักหมุดก่อน', 'warning');
+  var label = (selectedDestination.address || $('dest-address') && $('dest-address').dataset.address) || 'จุดที่บันทึก';
+  var place = { label: label, address: label, lat: selectedDestination.lat, lng: selectedDestination.lng };
+  var book = loadPlaceBook();
+  if (kind === 'home') book.home = place;
+  else if (kind === 'work') book.work = place;
+  else return;
+  savePlaceBook(book);
+  renderSavedPlaces();
+  showToast(kind === 'home' ? 'บันทึกเป็นบ้านแล้ว' : 'บันทึกเป็นที่ทำงานแล้ว');
+};
+
+window.selectSavedPlace = function(kind, lat, lng, idx) {
+  var book = loadPlaceBook();
+  var place = kind === 'home' ? book.home : kind === 'work' ? book.work : (book.recent || [])[idx];
+  if (!place) place = { lat: lat, lng: lng, label: '', address: '' };
+  destHoldAddress = place.address || place.label || '';
+  if ($('dest-search-input') && destHoldAddress) $('dest-search-input').value = place.label || destHoldAddress;
+  hideDestSearchResults();
+  panPinTo(place.lat, place.lng, 17);
+};
+
+function rememberRecentPlace() {
+  if (!selectedDestination) return;
+  var label = selectedDestination.address || ($('dest-address') && $('dest-address').dataset.address) || 'จุดที่เลือก';
+  var book = loadPlaceBook();
+  book.recent = (book.recent || []).filter(function(r) {
+    return haversine(r.lat, r.lng, selectedDestination.lat, selectedDestination.lng) > 0.05;
+  });
+  book.recent.unshift({ label: label, address: label, lat: selectedDestination.lat, lng: selectedDestination.lng });
+  book.recent = book.recent.slice(0, 5);
+  savePlaceBook(book);
+}
+
+function searchLocalPlaces(q) {
+  var query = q.toLowerCase();
+  var origin = readPinLatLng() || userLocation || CHAUAT_CENTER;
+  return PLACES.filter(function(p) {
+    return (p.name || '').toLowerCase().indexOf(query) !== -1;
+  }).sort(function(a, b) {
+    return haversine(origin.lat, origin.lng, a.lat, a.lng) - haversine(origin.lat, origin.lng, b.lat, b.lng);
+  }).slice(0, 5).map(function(p) {
+    var cat = (typeof CATS !== 'undefined' && CATS[p.category]) || { name: 'ในชะอวด' };
+    return { label: p.name, sub: cat.name || 'ในชะอวด', lat: p.lat, lng: p.lng, source: 'local' };
+  });
+}
+
+function hideDestSearchResults() {
+  var box = $('dest-search-results');
+  if (!box) return;
+  box.classList.remove('show');
+  box.innerHTML = '';
+}
+
+function renderDestSearchResults(items, pending) {
+  var box = $('dest-search-results');
+  if (!box) return;
+  if (!items.length && !pending) {
+    box.innerHTML = '<div class="dest-result" style="cursor:default"><b>ไม่พบสถานที่</b><span>ลองชื่อถนน หรือเลื่อนหมุดบนแผนที่</span></div>';
+    box.classList.add('show');
+    return;
+  }
+  var html = items.map(function(item, idx) {
+    return '<button type="button" class="dest-result" data-idx="' + idx + '"><b>' + esc(item.label) + '</b><span>' + esc(item.sub || '') + '</span></button>';
+  }).join('');
+  if (pending) html += '<div class="dest-result" style="cursor:default"><b>กำลังค้นหาในแผนที่...</b><span>อำเภอชะอวด จังหวัดนครศรีธรรมราช</span></div>';
+  box.innerHTML = html;
+  box.classList.add('show');
+  box.querySelectorAll('button[data-idx]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var item = items[parseInt(btn.dataset.idx, 10)];
+      if (!item) return;
+      destHoldAddress = item.label;
+      destSearchGen++;
+      if ($('dest-search-input')) $('dest-search-input').value = item.label;
+      hideDestSearchResults();
+      panPinTo(item.lat, item.lng, 17);
+    });
+  });
+}
+
+function searchNominatim(q, localItems) {
+  var gen = destSearchGen;
+  var center = readPinLatLng() || (map ? { lat: map.getCenter().lat, lng: map.getCenter().lng } : CHAUAT_CENTER);
+  var span = 0.45;
+  var west = center.lng - span;
+  var east = center.lng + span;
+  var north = center.lat + span;
+  var south = center.lat - span;
+  var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&accept-language=th&countrycodes=th&limit=5&addressdetails=1&bounded=0'
+    + '&viewbox=' + west + ',' + north + ',' + east + ',' + south
+    + '&q=' + encodeURIComponent(q);
+  nominatimFetch(url).then(function(rows) {
+    if (gen !== destSearchGen) return;
+    var current = ($('dest-search-input') && $('dest-search-input').value || '').trim();
+    if (current !== q) return;
+    var remote = (rows || []).map(function(row) {
+      return {
+        label: row.name || shortNominatimAddress(row) || row.display_name,
+        sub: shortNominatimAddress(row),
+        lat: parseFloat(row.lat),
+        lng: parseFloat(row.lon),
+        source: 'nominatim'
+      };
+    }).filter(function(item) {
+      return isFinite(item.lat) && isFinite(item.lng) && haversine(center.lat, center.lng, item.lat, item.lng) <= 70;
+    }).sort(function(a, b) {
+      return haversine(center.lat, center.lng, a.lat, a.lng) - haversine(center.lat, center.lng, b.lat, b.lng);
+    });
+    var seen = {};
+    var merged = localItems.concat(remote).filter(function(item) {
+      var key = item.lat.toFixed(3) + ',' + item.lng.toFixed(3) + '|' + item.label;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    }).slice(0, 8);
+    renderDestSearchResults(merged, false);
+  }).catch(function() {
+    renderDestSearchResults(localItems, false);
+  });
+}
+
+function onDestSearchInput() {
+  var q = ($('dest-search-input') && $('dest-search-input').value || '').trim();
+  clearTimeout(destSearchTimer);
+  destSearchGen++;
+  var gen = destSearchGen;
+  if (!q) { hideDestSearchResults(); return; }
+  setDestSheetExpanded(true);
+  var local = searchLocalPlaces(q);
+  renderDestSearchResults(local, q.length >= 2);
+  if (q.length < 2) return;
+  destSearchTimer = setTimeout(function() {
+    if (gen !== destSearchGen) return;
+    searchNominatim(q, local);
+  }, 700);
+}
+
+function setDestSheetExpanded(expanded) {
+  var sheet = $('dest-sheet');
+  var handle = $('dest-sheet-handle');
+  if (!sheet) return;
+  if (sheet.classList.contains('expanded') === !!expanded && !sheet.style.height) return;
+  var before = map ? readPinLatLng() : null;
+  var keep = ($('dest-address') && $('dest-address').dataset.address) || (selectedDestination && selectedDestination.address) || '';
+  if (keep.indexOf('กำลังหาที่อยู่') === 0) keep = '';
+  sheet.classList.toggle('expanded', !!expanded);
+  sheet.style.height = '';
+  if (handle) handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  if (map && before) {
+    if (keep) destHoldAddress = keep;
+    requestAnimationFrame(function() { panPinTo(before.lat, before.lng, map.getZoom()); });
+  }
+}
+
+function bindDestSheet() {
+  var handle = $('dest-sheet-handle');
+  var sheet = $('dest-sheet');
+  var input = $('dest-search-input');
+  var note = $('dest-rider-note');
+  if (handle && !handle.dataset.bound) {
+    handle.dataset.bound = '1';
+    var startY = 0;
+    var originY = 0;
+    var dragging = false;
+    handle.addEventListener('pointerdown', function(e) {
+      dragging = true;
+      startY = e.clientY;
+      originY = e.clientY;
+      handle.setPointerCapture(e.pointerId);
+      sheet.style.transition = 'none';
+    });
+    handle.addEventListener('pointermove', function(e) {
+      if (!dragging) return;
+      var next = sheet.getBoundingClientRect().height + (startY - e.clientY);
+      startY = e.clientY;
+      next = Math.max(180, Math.min(window.innerHeight * 0.78, next));
+      sheet.style.height = next + 'px';
+    });
+    function endDrag(e) {
+      if (!dragging) return;
+      dragging = false;
+      var moved = Math.abs(e.clientY - originY);
+      var h = sheet.getBoundingClientRect().height;
+      sheet.style.transition = '';
+      sheet.style.height = '';
+      if (moved < 8) setDestSheetExpanded(!sheet.classList.contains('expanded'));
+      else setDestSheetExpanded(h > window.innerHeight * 0.4);
+    }
+    handle.addEventListener('pointerup', endDrag);
+    handle.addEventListener('pointercancel', endDrag);
+  }
+  if (input && !input.dataset.bound) {
+    input.dataset.bound = '1';
+    input.addEventListener('input', onDestSearchInput);
+    input.addEventListener('focus', function() { setDestSheetExpanded(true); });
+  }
+  if (note && !note.dataset.bound) {
+    note.dataset.bound = '1';
+    note.addEventListener('input', function() {
+      if (selectedDestination) selectedDestination.note = note.value.trim();
+    });
+  }
+  renderSavedPlaces();
+}
+
 window.openMapPage = function(){
   if($('map-page')) $('map-page').classList.add('show');
+  bindDestSheet();
   setTimeout(function(){
     if(typeof L === 'undefined') return;
     try{
       if(!map){
-        map = L.map('main-map',{zoomControl:true}).setView([7.9650, 99.9960], 16);
+        map = L.map('main-map',{zoomControl:true}).setView([CHAUAT_CENTER.lat, CHAUAT_CENTER.lng], 16);
         if (window.ChauatMap) ChauatMap.addBaseTiles(map);
-        map.on('click', function(e){ setDestination(e.latlng.lat, e.latlng.lng, true); });
+        map.on('click', function(e){ destHoldAddress = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
+        map.on('movestart', function(){ var pin = $('map-center-pin'); if (pin) pin.classList.add('lift'); });
+        map.on('moveend', onDestMapMoveEnd);
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(function(pos){
             userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
             showCurrentLocationMarker(userLocation.lat, userLocation.lng);
-            map.setView([userLocation.lat, userLocation.lng], 17);
+            panPinTo(userLocation.lat, userLocation.lng, 17);
+            updateDestEstimate();
           }, function(){});
         }
       }
       map.invalidateSize();
-      setTimeout(function(){ map.invalidateSize(); }, 200);
+      setTimeout(function(){
+        if (!map) return;
+        map.invalidateSize();
+        onDestMapMoveEnd();
+      }, 220);
     }catch(e){}
   }, 300);
 };
@@ -3514,45 +3967,55 @@ function showCurrentLocationMarker(lat, lng){
   currentLocationMarker = L.marker([lat,lng],{icon:icon,zIndexOffset:1000}).addTo(map);
 }
 
-function setDestination(lat, lng, openPopup){
-  if(!map) return;
-  selectedDestination = {lat:lat, lng:lng};
-  if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;}
-  if(destinationCircle){map.removeLayer(destinationCircle);destinationCircle=null;}
-  var icon = window.ChauatMap ? ChauatMap.pin('📌', ChauatMap.COLORS.dest) : L.divIcon({className:'', html:'<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>', iconSize:[40,50], iconAnchor:[20,50]});
-  destinationMarker = L.marker([lat,lng],{icon:icon,draggable:true,autoPan:true,zIndexOffset:2000}).addTo(map);
-  destinationMarker.on('dragend', function(e){
-    var pos = e.target.getLatLng();
-    selectedDestination = {lat:pos.lat, lng:pos.lng};
+function setDestination(lat, lng, openPopup, address){
+  if (address) destHoldAddress = address;
+  if (destinationMarker && map) { map.removeLayer(destinationMarker); destinationMarker = null; }
+  if (destinationCircle && map) { map.removeLayer(destinationCircle); destinationCircle = null; }
+  if (!map) {
+    selectedDestination = { lat: lat, lng: lng, address: address || '' };
     updateConfirmBtnState();
-  });
-  destinationCircle = L.circle([lat,lng],{radius:100,color:'#E53935',fillColor:'#E53935',fillOpacity:.15,weight:2,dashArray:'5,5'}).addTo(map);
-  if(openPopup) destinationMarker.bindPopup('<b>🎯 ปลายทาง</b>').openPopup();
-  updateConfirmBtnState();
+    return;
+  }
+  panPinTo(lat, lng, Math.max(map.getZoom() || 16, 17));
 }
 
 function updateConfirmBtnState(){
   var btn = $('map-confirm-btn'); if(!btn) return;
-  if(selectedDestination){ btn.disabled = false; btn.innerHTML = '📍 ยืนยันตำแหน่งนี้'; }
-  else { btn.disabled = true; btn.innerHTML = '📍 เลือกตำแหน่งก่อน'; }
+  if(selectedDestination && isFinite(selectedDestination.lat) && isFinite(selectedDestination.lng)){
+    btn.disabled = false;
+    btn.textContent = 'ยืนยันตำแหน่งนี้';
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'เลือกตำแหน่งก่อน';
+  }
 }
 
 window.centerToUser = function(){
   if(!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
-    if(map){ map.setView([userLocation.lat,userLocation.lng],18); showCurrentLocationMarker(userLocation.lat,userLocation.lng); }
+    destHoldAddress = '';
+    if(map){ panPinTo(userLocation.lat, userLocation.lng, 18); showCurrentLocationMarker(userLocation.lat, userLocation.lng); }
     showToast('📍 ตำแหน่งของคุณ');
   }, function(){ showToast('ไม่สามารถเข้าถึง GPS','error'); },{enableHighAccuracy:true,timeout:10000});
 };
 window.clearMap = function(){
   if(destinationMarker && map){map.removeLayer(destinationMarker);destinationMarker=null;}
   if(destinationCircle && map){map.removeLayer(destinationCircle);destinationCircle=null;}
-  selectedDestination = null;
-  updateConfirmBtnState();
+  destHoldAddress = '';
+  if ($('dest-search-input')) $('dest-search-input').value = '';
+  if ($('dest-rider-note')) $('dest-rider-note').value = '';
+  hideDestSearchResults();
+  var back = userLocation || CHAUAT_CENTER;
+  if (map) panPinTo(back.lat, back.lng, 16);
+  else { selectedDestination = null; updateConfirmBtnState(); }
 };
 window.confirmMapLocation = function(){
   if(!selectedDestination) return showToast('เลือกตำแหน่งก่อน','warning');
+  var addr = ($('dest-address') && $('dest-address').dataset.address) || selectedDestination.address || '';
+  if (addr && addr.indexOf('กำลังหาที่อยู่') !== 0) selectedDestination.address = addr;
+  if ($('dest-rider-note')) selectedDestination.note = $('dest-rider-note').value.trim();
+  rememberRecentPlace();
   closeMapPage();
   setTimeout(function(){ openVehicleModal(); },300);
 };
@@ -3650,7 +4113,7 @@ window.setDestFromPlace = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if (!p) return;
   closeModal(); openMapPage();
-  setTimeout(function(){ if (map) { map.setView([p.lat, p.lng], 18); setDestination(p.lat, p.lng, true); } }, 500);
+  setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name); }, 500);
 };
 
 /* ═══ EXPOSE ═══ */
