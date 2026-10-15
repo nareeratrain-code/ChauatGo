@@ -10,6 +10,8 @@ rules_version = '2';
 //   * orders update [C]: picked_up only after food is ready when the order needs a kitchen
 //   * isAdmin also covers boss role active/super, users.role admin (not pending),
 //     and the three master emails — a pending admins doc cannot self-promote
+//   * placeOverrides: anyone can read; only isAdmin() can write.
+//     Used to hide or correct a static OSM place (name / lat / lng).
 // Every other collection keeps the v3.8.4 access shape.
 
 service cloud.firestore {
@@ -86,6 +88,21 @@ service cloud.firestore {
 
     function hasField(data, field) {
       return field in data;
+    }
+
+    function placeOverrideOk() {
+      return request.resource.data.keys().hasOnly(['hidden', 'name', 'lat', 'lng', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['updatedAt'])
+        && request.resource.data.updatedAt is timestamp
+        && (!('hidden' in request.resource.data) || request.resource.data.hidden is bool)
+        && (!('name' in request.resource.data) || isValidString(request.resource.data.name, 1, 120))
+        && (
+          (!('lat' in request.resource.data) && !('lng' in request.resource.data))
+          || (
+            isValidNumber(request.resource.data.lat, 7.5, 8.5)
+            && isValidNumber(request.resource.data.lng, 99.4, 100.5)
+          )
+        );
     }
 
     function noRider(data) {
@@ -461,6 +478,14 @@ service cloud.firestore {
     match /places/{placeId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
+
+    // OSM place corrections. Doc id is the dataset id (n123 / w456).
+    // Publish this rules file before the admin hide/edit buttons will succeed.
+    match /placeOverrides/{placeId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && placeOverrideOk();
+      allow delete: if isAdmin();
     }
 
     match /{document=**} {

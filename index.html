@@ -354,7 +354,17 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .dest-sheet.expanded .dest-sheet-body { overflow-y: auto; }
 .dest-search { display: flex; align-items: center; gap: 8px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 14px; padding: 0 12px; margin-bottom: 8px; }
 .dest-search input { flex: 1; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 16px; font-weight: 700; padding: 12px 0; outline: none; min-width: 0; }
-.dest-search-results { display: none; margin: 0 0 8px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.dest-cat-row { display: none; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+.dest-sheet.expanded .dest-cat-row { display: flex; }
+.dest-cat-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.dest-cat-chip.on { border-color: var(--green); color: var(--green); }
+.dest-search-results { display: none; margin: 0 0 8px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); max-height: 42vh; overflow-y: auto; }
+.dest-group { padding: 6px 12px 2px; font-size: 11px; font-weight: 900; color: var(--text-muted); background: var(--surface-2); }
+.dest-result-ico { width: 28px; text-align: center; font-size: 18px; flex-shrink: 0; }
+.dest-osm-credit { padding: 6px 12px 8px; font-size: 10px; font-weight: 700; color: var(--text-muted); }
+.search-cat-row { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
+.search-cat-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.search-cat-chip.on { border-color: var(--green); color: var(--green); }
 .dest-sheet.expanded .dest-search-results.show { display: block; }
 .dest-result { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer; }
 .dest-result:last-child { border-bottom: none; }
@@ -781,8 +791,9 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <div class="dest-sheet-body">
         <div class="dest-search">
           <span aria-hidden="true">🔍</span>
-          <input id="dest-search-input" type="search" placeholder="ค้นหาสถานที่ในชะอวด..." autocomplete="off" enterkeyhint="search">
+          <input id="dest-search-input" type="search" placeholder="ค้นหาสถานที่ในทุกตำบล..." autocomplete="off" enterkeyhint="search">
         </div>
+        <div id="dest-cat-filters" class="dest-cat-row"></div>
         <div id="dest-search-results" class="dest-search-results"></div>
         <div id="dest-address" class="dest-address">เลื่อนแผนที่เพื่อปักหมุด</div>
         <div id="dest-saved" class="dest-saved"></div>
@@ -829,7 +840,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
   <div class="header-top">
     <div class="search-bar">
       <span style="font-size:18px;opacity:.6">🔍</span>
-      <input type="text" id="search-input" placeholder="ค้นหาจาก 490+ สถานที่...">
+      <input type="text" id="search-input" placeholder="ค้นหาสถานที่ในอำเภอชะอวด...">
     </div>
     <div class="profile-avatar press-scale" onclick="openProfileSheet()">
       <span id="profile-avatar-emoji">🧑</span>
@@ -1128,7 +1139,9 @@ var CATS = {
   g:{name:'ปั๊มน้ำมัน',icon:'⛽'}, b:{name:'ธนาคาร',icon:'🏦'},
   e:{name:'สถานศึกษา',icon:'🏫'}, o:{name:'ราชการ',icon:'🏛️'},
   x:{name:'อื่นๆ',icon:'📌'}, l:{name:'สาธารณสุข',icon:'🏥'},
-  p:{name:'ไปรษณีย์',icon:'📦'}, y:{name:'ชุมชน',icon:'🏘️'}
+  p:{name:'ไปรษณีย์',icon:'📦'}, y:{name:'ชุมชน',icon:'🏘️'},
+  i:{name:'ตำรวจ',icon:'🚓'}, k:{name:'แคมป์ปิ้ง',icon:'⛺'},
+  v:{name:'จุดถ่ายรูป',icon:'📷'}
 };
 
 /* ═══ HELPERS ═══ */
@@ -1510,29 +1523,57 @@ function bindSearchInput(){
   var input = $('search-input'); if(!input) return;
   input.removeAttribute('oninput');
   input.addEventListener('input',function(e){doSearch(e.target.value);});
+  input.addEventListener('focus',function(){
+    ensurePlaceData(function(){ if (document.activeElement === input) doSearch(input.value); });
+  });
+}
+
+var HOME_CATS = ['w','e','o','l','r','f','c','m','h','t','g','b','y','x'];
+var homeCatFilter = '';
+
+function homeCatHtml() {
+  var codes = [''].concat(HOME_CATS);
+  return '<div class="search-cat-row">' + codes.map(function(code) {
+    var cat = code ? (CATS[code] || { name: code, icon: '📍' }) : { name: 'ทั้งหมด', icon: '🔎' };
+    return '<button type="button" class="search-cat-chip' + (homeCatFilter === code ? ' on' : '') + '" data-home-cat="' + code + '">' + cat.icon + ' ' + esc(cat.name) + '</button>';
+  }).join('') + '</div>';
 }
 
 window.doSearch = function(q){
   var results = $('search-results'); if(!results) return;
-  if(!q || q.trim().length<1){results.classList.remove('show');results.style.display='none';return;}
-  var query = q.trim().toLowerCase();
-  var matches = PLACES.filter(function(p){
-    return p.name.toLowerCase().indexOf(query)!==-1 || (CATS[p.category]&&CATS[p.category].name.toLowerCase().indexOf(query)!==-1);
-  }).slice(0,20);
-  results.style.display='block'; results.classList.add('show');
-  if(!matches.length){
-    results.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div>';
+  var query = (q || '').trim().toLowerCase();
+  if (!query && !homeCatFilter) {
+    results.style.display = 'block';
+    results.classList.add('show');
+    results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">เลือกหมวด หรือพิมพ์ชื่อสถานที่ในอำเภอชะอวด</div>';
     return;
   }
-  results.innerHTML = matches.map(function(p){
-    var cat = CATS[p.category]||{name:'',icon:'📍'};
-    var hasImg = hasRealImage(p.image);
+  if (!chauatPlaces) {
+    ensurePlaceData(function() {
+      var now = ($('search-input') && $('search-input').value) || '';
+      if (now === (q || '') && homeCatFilter === (homeCatFilter)) doSearch(q);
+    });
+  }
+  var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
+  var matches = searchPlaceCatalog(query, homeCatFilter, origin, 24);
+  results.style.display='block'; results.classList.add('show');
+  if(!matches.length){
+    results.innerHTML = homeCatHtml() + '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div>';
+    return;
+  }
+  results.innerHTML = homeCatHtml() + matches.map(function(p){
+    var cat = placeCatInfo(p);
+    var hasImg = p.placeId && p.image && hasRealImage(p.image);
     var imgHtml = hasImg ? '<img src="'+esc(p.image)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : cat.icon;
-    return '<div class="search-item" data-place-id="'+esc(p.id)+'">' +
+    var attrs = p.placeId
+      ? ' data-place-id="'+esc(p.placeId)+'"'
+      : ' data-osm-lat="'+p.lat+'" data-osm-lng="'+p.lng+'" data-osm-name="'+esc(p.label)+'"';
+    var where = p.tambon ? 'ตำบล' + p.tambon : 'อำเภอชะอวด';
+    return '<div class="search-item"' + attrs + '>' +
       '<div class="search-item-icon">'+imgHtml+'</div>' +
-      '<div class="search-item-info"><div class="search-item-name">'+esc(p.name)+'</div>' +
-      '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+(p.price?' • '+p.price:'')+'</div></div></div>';
-  }).join('');
+      '<div class="search-item-info"><div class="search-item-name">'+esc(p.label)+'</div>' +
+      '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+' • '+esc(where)+(p.price?' • '+p.price:'')+'</div></div></div>';
+  }).join('') + '<div class="dest-osm-credit">สถานที่จาก OpenStreetMap (ODbL)</div>';
 };
 
 /* ═══ NEARBY SHOPS ═══ */
@@ -2975,16 +3016,17 @@ window.doTravelSearch = function(q) {
   var box = $('travel-search-results'); if (!box) return;
   var query = (q || '').trim().toLowerCase();
   if (query.length < 1) { box.classList.remove('show'); return; }
-  var matches = PLACES.filter(function(p) { return p.name.toLowerCase().indexOf(query) !== -1 || (CATS[p.category] && CATS[p.category].name.toLowerCase().indexOf(query) !== -1); });
-  if (userLocation) matches.sort(function(a, b) { return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng); });
-  matches = matches.slice(0, 12);
+  ensurePlaceData();
+  var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
+  var matches = searchPlaceCatalog(query, '', origin, 12);
   if (!matches.length) { box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "' + esc(q) + '"</div>'; box.classList.add('show'); return; }
   box.innerHTML = matches.map(function(p, idx) {
-    var cat = CATS[p.category] || { icon: '📍' };
+    var cat = placeCatInfo(p);
     var dist = userLocation ? fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
-    return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.02) + 's;border-radius:0;margin-bottom:0;box-shadow:none;border-bottom:1px solid var(--border)" data-place-id="' + esc(p.id) + '" data-name="' + esc(p.name) + '" onclick="pickTravelFromSearch(this)">' +
+    var idAttr = p.placeId ? ' data-place-id="' + esc(p.placeId) + '"' : '';
+    return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.02) + 's;border-radius:0;margin-bottom:0;box-shadow:none;border-bottom:1px solid var(--border)"' + idAttr + ' data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-name="' + esc(p.label) + '" onclick="pickTravelFromSearch(this)">' +
       '<div class="travel-place-icon">' + cat.icon + '</div>' +
-      '<div class="travel-place-info"><div class="travel-place-name">' + esc(p.name) + '</div><div class="travel-place-sub">' + esc(cat.name) + '</div></div>' +
+      '<div class="travel-place-info"><div class="travel-place-name">' + esc(p.label) + '</div><div class="travel-place-sub">' + esc(cat.name) + (p.tambon ? ' • ตำบล' + esc(p.tambon) : '') + '</div></div>' +
       (dist ? '<div class="travel-place-dist">' + dist + '</div>' : '') +
     '</div>';
   }).join('');
@@ -2993,11 +3035,14 @@ window.doTravelSearch = function(q) {
 
 window.pickTravelFromSearch = function(el) {
   var placeId = el.dataset.placeId;
-  var p = PLACES.find(function(x) { return x.id === placeId; });
-  if (!p) return;
-  selectedDestination = { lat: p.lat, lng: p.lng, address: p.name };
-  showToast('📍 ' + p.name);
-  if ($('travel-dest-input')) $('travel-dest-input').value = p.name;
+  var p = placeId ? PLACES.find(function(x) { return x.id === placeId; }) : null;
+  var lat = p ? p.lat : parseFloat(el.dataset.lat);
+  var lng = p ? p.lng : parseFloat(el.dataset.lng);
+  var name = p ? p.name : (el.dataset.name || '');
+  if (!isFinite(lat) || !isFinite(lng)) return;
+  selectedDestination = { lat: lat, lng: lng, address: name };
+  showToast('📍 ' + name);
+  if ($('travel-dest-input')) $('travel-dest-input').value = name;
   if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
   var body = document.querySelector('#travel-view .travel-body');
   if (body) setTimeout(function() { body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 200);
@@ -3535,6 +3580,17 @@ function globalClickHandler(e){
   if ($('map-page') && $('map-page').classList.contains('show')) return;
   if ($('map-picker') && $('map-picker').classList.contains('show')) return;
   if ($('tracking-page') && $('tracking-page').classList.contains('show')) return;
+  var homeCat = e.target.closest('[data-home-cat]');
+  if (homeCat) {
+    homeCatFilter = homeCat.dataset.homeCat || '';
+    doSearch(($('search-input') && $('search-input').value) || '');
+    return;
+  }
+  var si = e.target.closest('.search-item');
+  if (si) {
+    if (si.dataset.osmLat) { openOsmDest(parseFloat(si.dataset.osmLat), parseFloat(si.dataset.osmLng), si.dataset.osmName || ''); return; }
+    if (si.dataset.placeId) { showPlaceDetail(si.dataset.placeId); return; }
+  }
   var pc = e.target.closest('[data-place-id]');
   if (pc && pc.dataset.placeId && !e.target.closest('.travel-place-item') && !e.target.closest('.search-item')) { showPlaceDetail(pc.dataset.placeId); return; }
   var mc = e.target.closest('[data-merchant-id]');
@@ -3546,6 +3602,12 @@ function globalClickHandler(e){
 var destHoldAddress = '';
 var destSearchTimer = null;
 var destSearchGen = 0;
+var destCatFilter = '';
+var chauatPlaces = null;
+var chauatPlacesPromise = null;
+var placeOverrides = {};
+var placeOverridesPromise = null;
+var DEST_CATS = ['w','e','o','l','i','r','f','c','m','s','h','t','v','k','g','b','p','y','x'];
 var destGeocodeTimer = null;
 var destGeocodeToken = 0;
 var nominatimReadyAt = 0;
@@ -3756,16 +3818,135 @@ function rememberRecentPlace() {
   savePlaceBook(book);
 }
 
-function searchLocalPlaces(q) {
-  var query = q.toLowerCase();
-  var origin = readPinLatLng() || userLocation || CHAUAT_CENTER;
-  return PLACES.filter(function(p) {
-    return (p.name || '').toLowerCase().indexOf(query) !== -1;
-  }).sort(function(a, b) {
+function loadChauatPlaces() {
+  if (chauatPlaces) return Promise.resolve(chauatPlaces);
+  if (chauatPlacesPromise) return chauatPlacesPromise;
+  chauatPlacesPromise = fetch('/data/chauat-places.json').then(function(res) {
+    if (!res.ok) throw new Error('places ' + res.status);
+    return res.json();
+  }).then(function(data) {
+    chauatPlaces = data;
+    return data;
+  }).catch(function() {
+    chauatPlacesPromise = null;
+    return null;
+  });
+  return chauatPlacesPromise;
+}
+
+function loadPlaceOverrides() {
+  if (placeOverridesPromise) return placeOverridesPromise;
+  if (typeof db === 'undefined' || !db) return Promise.resolve(placeOverrides);
+  placeOverridesPromise = db.collection('placeOverrides').limit(500).get().then(function(snap) {
+    var next = {};
+    snap.forEach(function(doc) { next[doc.id] = doc.data() || {}; });
+    placeOverrides = next;
+    return next;
+  }).catch(function() {
+    placeOverridesPromise = null;
+    return placeOverrides;
+  });
+  return placeOverridesPromise;
+}
+
+function ensurePlaceData(cb) {
+  Promise.all([loadChauatPlaces(), loadPlaceOverrides()]).then(function() { if (cb && chauatPlaces) cb(); });
+}
+
+function foldPlaceName(value) {
+  return String(value || '').toLowerCase().replace(/[\s.'’\-]+/g, '').replace(/^(ร้านอาหาร|ร้านกาแฟ|ร้าน|วัด)/, '');
+}
+
+function placeCatInfo(row) {
+  if (row && row.cat === 'y' && row.label && row.label.indexOf('บ้าน') === 0) return { name: 'หมู่บ้าน', icon: '🏘️' };
+  return (CATS[row && row.cat]) || { name: 'ในชะอวด', icon: '📍' };
+}
+
+function catalogRows() {
+  var rows = [];
+  (PLACES || []).forEach(function(p) {
+    if (!p || !p.name || !isFinite(p.lat) || !isFinite(p.lng)) return;
+    rows.push({ label: p.name, cat: p.category, tambon: '', lat: p.lat, lng: p.lng, placeId: p.id, image: p.image, price: p.price, source: 'curated' });
+  });
+  var list = (chauatPlaces && chauatPlaces.places) || [];
+  list.forEach(function(p) {
+    var over = placeOverrides[p.i] || {};
+    if (over.hidden) return;
+    var lat = typeof over.lat === 'number' ? over.lat : p.lat;
+    var lng = typeof over.lng === 'number' ? over.lng : p.lng;
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    rows.push({
+      label: (over.name && String(over.name).trim()) || p.n,
+      cat: p.c,
+      tambon: p.t || '',
+      lat: lat,
+      lng: lng,
+      osmId: p.i,
+      source: 'osm'
+    });
+  });
+  var kept = [];
+  rows.forEach(function(row) {
+    var key = foldPlaceName(row.label);
+    var dup = kept.some(function(other) {
+      return foldPlaceName(other.label) === key && haversine(other.lat, other.lng, row.lat, row.lng) < 0.15;
+    });
+    if (!dup) kept.push(row);
+  });
+  return kept;
+}
+
+function searchPlaceCatalog(query, cat, origin, limit) {
+  var q = (query || '').trim().toLowerCase();
+  var rows = catalogRows().filter(function(row) {
+    if (cat && row.cat !== cat) return false;
+    if (!q) return !!cat;
+    var info = placeCatInfo(row);
+    var blob = (row.label + ' ' + (row.tambon || '') + ' ' + (info.name || '')).toLowerCase();
+    return blob.indexOf(q) !== -1;
+  });
+  rows.sort(function(a, b) {
     return haversine(origin.lat, origin.lng, a.lat, a.lng) - haversine(origin.lat, origin.lng, b.lat, b.lng);
-  }).slice(0, 5).map(function(p) {
-    var cat = (typeof CATS !== 'undefined' && CATS[p.category]) || { name: 'ในชะอวด' };
-    return { label: p.name, sub: cat.name || 'ในชะอวด', lat: p.lat, lng: p.lng, source: 'local' };
+  });
+  if (cat && !q) {
+    var osm = rows.filter(function(row) { return row.source === 'osm'; });
+    var curated = rows.filter(function(row) { return row.source !== 'osm'; }).slice(0, 6);
+    return osm.concat(curated).slice(0, limit || 80);
+  }
+  return rows.slice(0, limit || 40);
+}
+
+function renderDestCatFilters() {
+  var row = $('dest-cat-filters');
+  if (!row) return;
+  var codes = [''].concat(DEST_CATS);
+  row.innerHTML = codes.map(function(code) {
+    var cat = code ? (CATS[code] || { name: code, icon: '📍' }) : { name: 'ทั้งหมด', icon: '🔎' };
+    return '<button type="button" class="dest-cat-chip' + (destCatFilter === code ? ' on' : '') + '" data-dest-cat="' + code + '">' + cat.icon + ' ' + esc(cat.name) + '</button>';
+  }).join('');
+}
+
+function openOsmDest(lat, lng, name) {
+  if (!isFinite(lat) || !isFinite(lng)) return;
+  var sr = $('search-results');
+  if (sr) { sr.classList.remove('show'); sr.style.display = 'none'; }
+  destHoldAddress = name || '';
+  selectedDestination = { lat: lat, lng: lng, address: name || '' };
+  openMapPage();
+  setTimeout(function() {
+    panPinTo(lat, lng, 17);
+    showDestAddress(name || 'ตำแหน่งที่เลือก', { lat: lat, lng: lng });
+    updateConfirmBtnState();
+    updateDestEstimate();
+  }, 450);
+}
+
+function searchLocalPlaces(q) {
+  var origin = readPinLatLng() || userLocation || CHAUAT_CENTER;
+  return searchPlaceCatalog(q, destCatFilter, origin, destCatFilter && !q ? 40 : 12).map(function(p) {
+    var cat = placeCatInfo(p);
+    var where = p.tambon ? ' • ตำบล' + p.tambon : '';
+    return { label: p.label, sub: cat.icon + ' ' + cat.name + where, tambon: p.tambon || '', lat: p.lat, lng: p.lng, icon: cat.icon, source: p.source || 'local' };
   });
 }
 
@@ -3784,9 +3965,29 @@ function renderDestSearchResults(items, pending) {
     box.classList.add('show');
     return;
   }
-  var html = items.map(function(item, idx) {
-    return '<button type="button" class="dest-result" data-idx="' + idx + '"><b>' + esc(item.label) + '</b><span>' + esc(item.sub || '') + '</span></button>';
-  }).join('');
+  var groups = [];
+  var grouped = {};
+  items.forEach(function(item, idx) {
+    item._idx = idx;
+    var key = item.source === 'nominatim' ? 'จากแผนที่' : (item.tambon ? 'ตำบล' + item.tambon : 'อำเภอชะอวด');
+    if (!grouped[key]) { grouped[key] = []; groups.push(key); }
+    grouped[key].push(item);
+  });
+  var showGroups = groups.length > 1 || !!destCatFilter;
+  var html = '';
+  if (showGroups) {
+    groups.forEach(function(key) {
+      html += '<div class="dest-group">' + esc(key) + '</div>';
+      grouped[key].forEach(function(item) {
+        html += '<button type="button" class="dest-result" data-idx="' + item._idx + '"><span class="dest-result-ico">' + (item.icon || '📍') + '</span><span><b>' + esc(item.label) + '</b><span>' + esc(item.sub || '') + '</span></span></button>';
+      });
+    });
+  } else {
+    html = items.map(function(item) {
+      return '<button type="button" class="dest-result" data-idx="' + item._idx + '"><span class="dest-result-ico">' + (item.icon || '📍') + '</span><span><b>' + esc(item.label) + '</b><span>' + esc(item.sub || '') + '</span></span></button>';
+    }).join('');
+  }
+  html += '<div class="dest-osm-credit">© OpenStreetMap contributors (ODbL)</div>';
   if (pending) html += '<div class="dest-result" style="cursor:default"><b>กำลังค้นหาในแผนที่...</b><span>อำเภอชะอวด จังหวัดนครศรีธรรมราช</span></div>';
   box.innerHTML = html;
   box.classList.add('show');
@@ -3849,15 +4050,21 @@ function onDestSearchInput() {
   clearTimeout(destSearchTimer);
   destSearchGen++;
   var gen = destSearchGen;
-  if (!q) { hideDestSearchResults(); return; }
+  if (!q && !destCatFilter) { hideDestSearchResults(); return; }
   setDestSheetExpanded(true);
-  var local = searchLocalPlaces(q);
-  renderDestSearchResults(local, q.length >= 2);
-  if (q.length < 2) return;
-  destSearchTimer = setTimeout(function() {
+  var draw = function() {
     if (gen !== destSearchGen) return;
-    searchNominatim(q, local);
-  }, 700);
+    var local = searchLocalPlaces(q);
+    var waitRemote = q.length >= 2 && !destCatFilter && local.length < 4;
+    renderDestSearchResults(local, waitRemote);
+    if (!waitRemote) return;
+    destSearchTimer = setTimeout(function() {
+      if (gen !== destSearchGen) return;
+      searchNominatim(q, local);
+    }, 700);
+  };
+  if (!chauatPlaces) ensurePlaceData(draw);
+  else draw();
 }
 
 function setDestSheetExpanded(expanded) {
@@ -3917,8 +4124,24 @@ function bindDestSheet() {
   if (input && !input.dataset.bound) {
     input.dataset.bound = '1';
     input.addEventListener('input', onDestSearchInput);
-    input.addEventListener('focus', function() { setDestSheetExpanded(true); });
+    input.addEventListener('focus', function() {
+      setDestSheetExpanded(true);
+      ensurePlaceData(function() { renderDestCatFilters(); });
+    });
   }
+  var cats = $('dest-cat-filters');
+  if (cats && !cats.dataset.bound) {
+    cats.dataset.bound = '1';
+    cats.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-dest-cat]');
+      if (!btn) return;
+      destCatFilter = btn.dataset.destCat || '';
+      renderDestCatFilters();
+      onDestSearchInput();
+    });
+  }
+  renderDestCatFilters();
+  ensurePlaceData(function() { renderDestCatFilters(); });
   if (note && !note.dataset.bound) {
     note.dataset.bound = '1';
     note.addEventListener('input', function() {

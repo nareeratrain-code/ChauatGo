@@ -1,7 +1,8 @@
-const CACHE_NAME = 'chauat-app-v3.9.9';
+const CACHE_NAME = 'chauat-app-v3.9.10';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
+// /data/chauat-places.json is about 10KB, under the 300KB precache limit.
 // Shell for customer, merchant, admin, rider, and boss.
 // Do not list files that are not deployed. cache.addAll rejects the whole
 // install when any URL 404s, and a rejected install leaves the previous
@@ -23,6 +24,7 @@ const ASSETS = [
   '/brand-ui.css',
   '/brand-ui.js',
   '/map-tiles.js',
+  '/data/chauat-places.json',
   '/images/logo-banner.png',
   '/manifest.json',
   '/icons/icon-192.png',

@@ -62,7 +62,8 @@ const SECTIONS = [
   ['gpTransfers', '📸', 'สลิป GP'],
   ['payouts', '💸', 'โอนไรเดอร์'],
   ['chats', '💬', 'แชท'],
-  ['users', '👥', 'ผู้ใช้']
+  ['users', '👥', 'ผู้ใช้'],
+  ['mapPlaces', '📍', 'สถานที่']
 ];
 
 const STATUS = {
@@ -464,6 +465,22 @@ function start() {
     unsubs.push(unsub);
   });
 
+  const overrideUnsub = db.collection('placeOverrides').limit(500).onSnapshot(s => {
+    store.placeOverrides = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    store.placeOverrideError = '';
+    if (current === 'mapPlaces') render();
+  }, err => {
+    store.placeOverrideError = (err && err.code) || 'permission-denied';
+    if (current === 'mapPlaces') render();
+  });
+  unsubs.push(overrideUnsub);
+  if (!store.osmCatalog || !store.osmCatalog.places) {
+    fetch('/data/chauat-places.json').then(r => r.json()).then(data => {
+      store.osmCatalog = data;
+      if (current === 'mapPlaces') render();
+    }).catch(() => {});
+  }
+
   setupNetwork();
   setupPWA();
   renderNav();
@@ -521,7 +538,7 @@ function render() {
   if (!mainEl) return;
 
   const fn = {
-    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users
+    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users, mapPlaces
   }[current];
 
   if (fn) {
@@ -1386,6 +1403,70 @@ function changeRoleForm(uid) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   21b. OSM PLACE OVERRIDES
+   ═══════════════════════════════════════════════════════════════════ */
+const OSM_CATS = {
+  r: 'ร้านอาหาร', f: 'คาเฟ่', c: 'สะดวกซื้อ', m: 'ตลาด', t: 'ท่องเที่ยว', h: 'ที่พัก',
+  s: 'ร้านค้า', w: 'วัด', g: 'ปั๊มน้ำมัน', b: 'ธนาคาร', e: 'สถานศึกษา', o: 'ราชการ',
+  x: 'อื่นๆ', l: 'สาธารณสุข', p: 'ไปรษณีย์', y: 'ชุมชน', i: 'ตำรวจ', k: 'แคมป์ปิ้ง', v: 'จุดถ่ายรูป'
+};
+
+function mapPlaces() {
+  const catalog = (store.osmCatalog && store.osmCatalog.places) || [];
+  const overrides = {};
+  (store.placeOverrides || []).forEach(row => { overrides[row.id] = row; });
+  const q = (filters.q || '').trim().toLowerCase();
+  const rows = catalog.map(p => {
+    const over = overrides[p.i] || {};
+    return {
+      id: p.i,
+      name: over.name || p.n,
+      original: p.n,
+      cat: OSM_CATS[p.c] || p.c || '',
+      tambon: p.t || '',
+      lat: typeof over.lat === 'number' ? over.lat : p.lat,
+      lng: typeof over.lng === 'number' ? over.lng : p.lng,
+      hidden: !!over.hidden,
+      edited: !!(over.name || typeof over.lat === 'number')
+    };
+  }).filter(row => !q || (row.name + ' ' + row.original + ' ' + row.cat + ' ' + row.tambon).toLowerCase().includes(q));
+  const err = typeof store.placeOverrideError === 'string' ? store.placeOverrideError : '';
+  const warn = err
+    ? `<div class="empty" style="margin-bottom:12px"><div>ยังบันทึกการซ่อนไม่ได้ (${esc(err)})</div><div>ต้อง Publish กฎ Firestore ก่อน — ดู RULES_TH.md</div></div>`
+    : '';
+  const intro = catalog.length
+    ? `<div class="data-card-meta" style="margin:0 0 10px">รายการจาก OpenStreetMap ${catalog.length} จุด • ซ่อนหรือแก้ชื่อ/พิกัดได้ ลูกค้าจะเห็นหลังบันทึก</div>`
+    : '<div class="empty"><div class="icon">📍</div><div>กำลังโหลดรายการสถานที่</div></div>';
+  return warn + searchInput('ค้นหาวัด โรงเรียน อบต....') + intro + rows.map(row => `<div class="data-card">
+    <div class="data-card-header">
+      <div class="data-card-icon">${row.hidden ? '🚫' : '📍'}</div>
+      <div class="data-card-info">
+        <div class="data-card-name">${esc(row.name)}</div>
+        <div class="data-card-meta">${esc(row.cat)}${row.tambon ? ' • ตำบล' + esc(row.tambon) : ' • อำเภอชะอวด'}${row.hidden ? ' • ซ่อนจากลูกค้า' : ''}</div>
+        <div class="data-card-meta">${row.lat.toFixed(5)}, ${row.lng.toFixed(5)}${row.name !== row.original ? ' • เดิม ' + esc(row.original) : ''}</div>
+      </div>
+    </div>
+    <div class="data-card-actions">
+      <button class="${row.hidden ? 'blue' : 'dan'}" data-place-hide="${esc(row.id)}" data-place-hidden="${row.hidden ? '1' : '0'}">${row.hidden ? 'แสดงอีกครั้ง' : 'ซ่อน'}</button>
+      <button class="blue" data-place-edit="${esc(row.id)}">แก้ชื่อ/พิกัด</button>
+      ${row.edited || row.hidden ? `<button data-place-reset="${esc(row.id)}">คืนค่าเดิม</button>` : ''}
+    </div>
+  </div>`).join('');
+}
+
+function editOsmPlace(id) {
+  const place = ((store.osmCatalog && store.osmCatalog.places) || []).find(p => p.i === id);
+  const over = (store.placeOverrides || []).find(p => p.id === id) || {};
+  if (!place) return;
+  openModal('แก้สถานที่', `
+    <div class="form-group"><label>ชื่อที่ลูกค้าเห็น</label><input id="place-edit-name" value="${esc(over.name || place.n)}"></div>
+    <div class="form-group"><label>ละติจูด</label><input id="place-edit-lat" inputmode="decimal" value="${typeof over.lat === 'number' ? over.lat : place.lat}"></div>
+    <div class="form-group"><label>ลองจิจูด</label><input id="place-edit-lng" inputmode="decimal" value="${typeof over.lng === 'number' ? over.lng : place.lng}"></div>
+    <button class="btn-full btn-green" data-place-save="${esc(id)}">บันทึก</button>
+  `);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    22. SEARCH INPUT
    ═══════════════════════════════════════════════════════════════════ */
 function searchInput(placeholder) {
@@ -1431,7 +1512,7 @@ document.addEventListener('click', async e => {
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],' +
     '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-change-role],' +
-    '[data-save-role],[data-approve-admin]'
+    '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset]'
   );
   if (!t) return;
 
@@ -1684,6 +1765,44 @@ document.addEventListener('click', async e => {
       await db.collection('users').doc(uid).update({ isPending: false });
       showToast('✅ อนุมัติแล้ว');
       closeModal();
+      return;
+    }
+
+    if (t.dataset.placeHide) {
+      const id = t.dataset.placeHide;
+      const hidden = t.dataset.placeHidden !== '1';
+      await db.collection('placeOverrides').doc(id).set({
+        hidden,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      showToast(hidden ? 'ซ่อนจากลูกค้าแล้ว' : 'แสดงในค้นหาแล้ว');
+      return;
+    }
+
+    if (t.dataset.placeEdit) {
+      editOsmPlace(t.dataset.placeEdit);
+      return;
+    }
+
+    if (t.dataset.placeSave) {
+      const id = t.dataset.placeSave;
+      const name = ($('place-edit-name')?.value || '').trim();
+      const lat = Number($('place-edit-lat')?.value);
+      const lng = Number($('place-edit-lng')?.value);
+      if (!name) return showToast('ใส่ชื่อ', 'error');
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return showToast('พิกัดไม่ถูกต้อง', 'error');
+      await db.collection('placeOverrides').doc(id).set({
+        name, lat, lng,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      showToast('บันทึกแล้ว');
+      closeModal();
+      return;
+    }
+
+    if (t.dataset.placeReset) {
+      await db.collection('placeOverrides').doc(t.dataset.placeReset).delete();
+      showToast('คืนค่าจาก OpenStreetMap แล้ว');
       return;
     }
 
