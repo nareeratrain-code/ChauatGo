@@ -44,8 +44,8 @@ body{background:var(--bg);color:var(--text);max-width:1000px;margin:0 auto;min-h
 .box h1{font-size:22px;color:var(--brand);text-align:center;margin-bottom:20px;font-weight:900}
 input,select,textarea{width:100%;padding:14px 16px;border:2px solid var(--border);border-radius:12px;font-size:14px;margin-bottom:12px;transition:border-color .2s;font-family:inherit;font-weight:600;min-height:52px;outline:none;background:#fafafa}
 input:focus,select:focus,textarea:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,166,81,.1)}
-button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;transition:transform .1s;font-family:inherit;min-height:44px}
-button:active{transform:scale(.97)}
+button{cursor:pointer;border:none;border-radius:10px;font-weight:800;font-size:13px;padding:10px 16px;transition:filter .1s;font-family:inherit;min-height:44px}
+button:active{filter:brightness(.95)}
 button:disabled{opacity:.5;cursor:not-allowed}
 .pri{background:var(--brand);color:#fff}.sec{background:#f0f0f0;color:#555}.dan{background:#FFEBEE;color:var(--danger)}.blue{background:var(--blue);color:#fff}
 .big{width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:8px;min-height:56px}
@@ -72,7 +72,7 @@ main{padding:16px}
 
 /* ─── Dashboard Cards สีต่างกัน ─── */
 .stat-card{border-radius:16px;padding:16px;color:#fff;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08);cursor:pointer;transition:transform .15s;min-height:110px}
-.stat-card:active{transform:scale(.98)}
+.stat-card:active{filter:brightness(.97)}
 .stat-card::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;background:radial-gradient(circle,rgba(255,255,255,.2),transparent 70%);border-radius:50%;pointer-events:none}
 .stat-card .stat-icon{font-size:28px;margin-bottom:8px;opacity:.95}
 .stat-card .stat-value{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px}
@@ -105,7 +105,7 @@ main{padding:16px}
 
 /* ─── Action Cards ─── */
 .action-card{background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.04);cursor:pointer;transition:transform .15s;min-height:76px}
-.action-card:active{transform:scale(.98)}
+.action-card:active{filter:brightness(.97)}
 .action-card.warn{border-left:4px solid var(--warn);background:#FFFBEB}
 .action-card.danger{border-left:4px solid var(--danger);background:#FFEBEE}
 .action-card.blue{border-left:4px solid var(--blue);background:#EFF6FF}
@@ -125,7 +125,7 @@ main{padding:16px}
 /* ─── Data Cards ─── */
 .card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px rgba(0,0,0,.04)}
 .data-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:10px;box-shadow:0 2px 12px rgba(0,0,0,.04);transition:transform .15s}
-.data-card:active{transform:scale(.98)}
+.data-card:active{filter:brightness(.97)}
 .data-card-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .data-card-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
 .data-card-info{flex:1;min-width:0}
@@ -786,15 +786,16 @@ const PLACES = PLACES_RAW.map((p, i) => ({
 
 console.log('📍 Loaded', PLACES.length, 'places');
 
-firebase.initializeApp({
+const firebaseApp = firebase.apps.find(a => a.name === 'boss') || firebase.initializeApp({
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
   projectId: "chauat-go-b9841",
   storageBucket: "chauat-go-b9841.firebasestorage.app",
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
-});
-const auth = firebase.auth(), db = firebase.firestore(), storage = firebase.storage();
+}, 'boss');
+const auth = firebase.auth(firebaseApp), db = firebase.firestore(firebaseApp), storage = firebase.storage(firebaseApp);
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1101,7 +1102,7 @@ function dashboard() {
         <div class="stat-icon">💰</div>
         <div class="stat-value">฿${todayRevenue.toFixed(0)}</div>
         <div class="stat-label">รายได้วันนี้ (GP)</div>
-        <div class="stat-sub">GP 20% รวม</div>
+        <div class="stat-sub">20% ของค่าส่ง</div>
       </div>
       <div class="stat-card ${b.pendingSlips > 0 ? 'red' : 'green'} ripple" onclick="document.querySelector('[data-go=orders]').click()">
         <div class="stat-icon">📸</div>
@@ -1142,13 +1143,13 @@ function dashboard() {
   }
   if (b.pendingMerchants > 0) {
     actionItems.push(`
-      <div class="action-card blue ripple" onclick="document.querySelector('[data-go=merchants]').click()">
+      <div class="action-card blue" data-go="merchants" data-merchant-status="pending">
         <div class="action-icon">🏪</div>
         <div class="action-info">
           <div class="action-title">ร้านค้ารออนุมัติ</div>
           <div class="action-value">${b.pendingMerchants} ร้าน</div>
         </div>
-        <button class="action-btn blue">ตรวจสอบ →</button>
+        <button type="button" class="action-btn blue" data-go="merchants" data-merchant-status="pending">ตรวจสอบ →</button>
       </div>
     `);
   }
@@ -1280,7 +1281,7 @@ function gp() {
         <div class="stat-icon">📊</div>
         <div class="stat-value">฿${current.totalFare.toFixed(0)}</div>
         <div class="stat-label">ยอดรวม</div>
-        <div class="stat-sub">ก่อนหัก GP 20%</div>
+        <div class="stat-sub">ค่าส่งก่อนหัก 20%</div>
       </div>
       <div class="stat-card green ripple">
         <div class="stat-icon">✅</div>
@@ -1353,7 +1354,7 @@ function gp() {
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-weight:900;font-size:18px">💰 GP Dashboard</div>
-      <span class="tag b">GP 20%</span>
+      <span class="tag b">20% ของค่าส่ง</span>
     </div>
     ${rangeTabs}
     ${summaryCards}
@@ -1364,8 +1365,8 @@ function gp() {
         <thead><tr>
           <th>ไรเดอร์</th>
           <th class="text-center">งาน</th>
-          <th class="text-right">GP (20%)</th>
-          <th class="text-right">ไรเดอร์ได้ (80%)</th>
+          <th class="text-right">แพลตฟอร์ม (20% ของค่าส่ง)</th>
+          <th class="text-right">ไรเดอร์ได้ (80% ของค่าส่ง)</th>
         </tr></thead>
         <tbody>${riderTable}</tbody>
       </table>
@@ -1376,8 +1377,8 @@ function gp() {
         <thead><tr>
           <th>ร้านค้า</th>
           <th class="text-center">งาน</th>
-          <th class="text-right">GP (20%)</th>
-          <th class="text-right">ร้านได้ (80%)</th>
+          <th class="text-right">แพลตฟอร์ม (20% ของค่าส่ง)</th>
+          <th class="text-right">ไรเดอร์ได้ (80% ของค่าส่ง)</th>
         </tr></thead>
         <tbody>${merchantTable}</tbody>
       </table>
@@ -1420,13 +1421,13 @@ function finance() {
     <div class="stat-grid">
       <div class="stat-card blue ripple"><div class="stat-icon">💰</div><div class="stat-value">฿${totalGrossAll.toFixed(0)}</div><div class="stat-label">ยอดขายรวม</div></div>
       <div class="stat-card gold ripple"><div class="stat-icon">📊</div><div class="stat-value">฿${totalPlatformFeeAll.toFixed(0)}</div><div class="stat-label">GP แพลตฟอร์ม</div></div>
-      <div class="stat-card green ripple"><div class="stat-icon">🛵</div><div class="stat-value">฿${totalRiderEarnAll.toFixed(0)}</div><div class="stat-label">ไรเดอร์ 80%</div></div>
+      <div class="stat-card green ripple"><div class="stat-icon">🛵</div><div class="stat-value">฿${totalRiderEarnAll.toFixed(0)}</div><div class="stat-label">ไรเดอร์ 80% ของค่าส่ง</div></div>
       <div class="stat-card purple ripple"><div class="stat-icon">📋</div><div class="stat-value">${completedOrders.length}</div><div class="stat-label">ออเดอร์เสร็จ</div></div>
     </div>
     <div class="table-wrap">
       <table class="gp-table">
         <thead><tr>
-          <th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">ไรเดอร์ได้</th><th class="text-right" style="color:var(--warn)">GP ค้าง</th>
+          <th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">ไรเดอร์ได้ (80% ของค่าส่ง)</th><th class="text-right" style="color:var(--warn)">ต้องโอน (20% ของค่าส่ง)</th>
         </tr></thead>
         <tbody>${rows || '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999">ยังไม่มีข้อมูล</td></tr>'}</tbody>
       </table>
@@ -1813,7 +1814,13 @@ document.addEventListener('click', async e => {
   const t = e.target.closest('[data-go],[data-order],[data-verify],[data-verify-r],[data-rider],[data-del],[data-edit-m],[data-edit-r]');
   if (!t) return;
   try {
-    if (t.dataset.go) { current = t.dataset.go; filters.q = ''; render(); window.scrollTo(0,0); }
+    if (t.dataset.go) {
+      current = t.dataset.go;
+      filters.q = '';
+      if (t.dataset.go === 'merchants') filters.merchantStatus = t.dataset.merchantStatus || 'all';
+      render();
+      window.scrollTo(0,0);
+    }
     else if (t.dataset.order) orderDetail(t.dataset.order);
     else if (t.dataset.editM) editMerchantForm(t.dataset.editM);
     else if (t.dataset.editR) editRiderForm(t.dataset.editR);

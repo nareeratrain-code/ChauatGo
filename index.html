@@ -49,7 +49,6 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -265,8 +264,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .nav-icon-wrap { font-size: 22px !important; line-height: 1 !important; margin-bottom: 3px !important; }
 .nav-label { font-size: 10px !important; font-weight: 800 !important; }
 
-.cart-bar { position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s cubic-bezier(.32,.72,0,1); }
-.cart-bar.show { transform: translateX(-50%) translateY(0); }
+.cart-bar { position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s cubic-bezier(.32,.72,0,1); visibility: hidden; pointer-events: none; }
+.cart-bar.show { transform: translateX(-50%) translateY(0); visibility: visible; pointer-events: auto; }
 
 .profile-sheet { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9500; display: none; justify-content: flex-end; backdrop-filter: blur(4px); }
 .profile-sheet.show { display: flex !important; }
@@ -316,7 +315,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .auth-tab-btn.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
 
 .pay-mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.pay-mode-btn { padding: 14px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 900; cursor: pointer; text-align: center; }
+.pay-mode-btn { position: relative; padding: 14px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 900; cursor: pointer; text-align: center; }
 .pay-mode-btn.active { border-color: var(--green); background: #E8F5E9; color: var(--green); }
 .pay-mode-btn .emoji { display: block; font-size: 26px; margin-bottom: 4px; }
 .pay-mode-btn .sub { display: block; font-size: 10px; font-weight: 700; color: var(--text-muted); margin-top: 4px; }
@@ -367,8 +366,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 #lightbox-img { max-width: 100%; max-height: 90vh; border-radius: 12px; }
 .lightbox-close { position: absolute; top: 20px; right: 20px; background: #fff; border: none; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; font-family: inherit; }
 
-.press-scale { transition: transform .12s; }
-.press-scale:active { transform: scale(.95); }
+.press-scale { transition: filter .12s; }
+.press-scale:active { filter: brightness(.92); }
 .float-anim { animation: floatUp 3s ease-in-out infinite; }
 
 .rating-star { color: #ddd; user-select: none; }
@@ -946,6 +945,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -970,11 +970,14 @@ var firebaseConfig = {
 
 var auth, db, storage;
 try {
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-  auth = firebase.auth();
-  db = firebase.firestore();
-  storage = firebase.storage();
-  if (db.enablePersistence) db.enablePersistence({synchronizeTabs:true}).catch(function(){});
+  var firebaseApp = (firebase.apps || []).filter(function(a){ return a.name === 'customer'; })[0]
+    || firebase.initializeApp(firebaseConfig, 'customer');
+  auth = firebase.auth(firebaseApp);
+  db = firebase.firestore(firebaseApp);
+  storage = firebase.storage(firebaseApp);
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+  try { if (firebase.messaging) firebase.messaging(firebaseApp); }
+  catch (msgErr) { console.warn('FCM พร้อมแล้วแต่ยังส่งพุชไม่ได้จนกว่าจะใส่ Web Push key (VAPID) ใน Firebase Console', msgErr); }
 } catch(e) { console.error('Firebase init error:', e); }
 
 /* ═══ GLOBAL STATE ═══ */
@@ -1397,6 +1400,8 @@ window.saveProfile = async function(){
   var addrVal = $('edit-address') ? $('edit-address').value.trim() : '';
   if(!nameVal){showToast('กรอกชื่อ','error');return;}
   if(phoneVal && phoneVal.replace(/\D/g,'').length < 9){showToast('เบอร์ไม่ถูกต้อง','error');return;}
+  var saveBtn = document.querySelector('#modal-body button.btn-green');
+  if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'กำลังบันทึก...'; }
   var data = {
     name: nameVal, phone: phoneVal, lineId: lineVal, address: addrVal,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1408,9 +1413,10 @@ window.saveProfile = async function(){
     window.userProfile = userProfile;
     showToast('✅ บันทึกโปรไฟล์แล้ว');
     closeModal();
-    setTimeout(function(){ openProfileSheet(); }, 300);
+    closeProfileSheet();
   }catch(e){
     console.error('saveProfile error:', e);
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก'; }
     showToast('บันทึกไม่สำเร็จ: '+e.message,'error');
   }
 };
@@ -1905,12 +1911,16 @@ window.confirmCheckout = async function(grandTotal) {
       paymentMode: selectedPaymentMode,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ ส่งออเดอร์แล้ว');
     cart = []; cartShop = ''; selectedPaymentMode = 'transfer';
-    localStorage.removeItem('chauat_cart');
-    localStorage.removeItem('chauat_cart_shop');
-    updateCartBar(); closeModal(); _refreshCartViews();
-    switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    try {
+      localStorage.removeItem('chauat_cart');
+      localStorage.removeItem('chauat_cart_shop');
+    } catch (storeErr) {}
+    try { updateCartBar(); } catch (uiErr) {}
+    try { closeModal(); } catch (uiErr) {}
+    try { _refreshCartViews(); } catch (uiErr) {}
+    showToast('✅ ส่งออเดอร์แล้ว');
+    try { switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)')); } catch (uiErr) {}
   } catch (e) {
     console.error('confirmCheckout error:', e);
     showToast('ส่งไม่สำเร็จ', 'error');

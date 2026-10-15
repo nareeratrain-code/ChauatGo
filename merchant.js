@@ -20,11 +20,11 @@ const firebaseConfig = {
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('[persistence]', e.code));
+const firebaseApp = firebase.apps.find(a => a.name === 'merchant') || firebase.initializeApp(firebaseConfig, 'merchant');
+const auth = firebase.auth(firebaseApp);
+const db = firebase.firestore(firebaseApp);
+const storage = firebase.storage(firebaseApp);
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 window.CHAUAT_MERCHANT_DEBUG = true;
 console.log('%c🏪 Chauat Go Merchant v3.8.1', 'color:#00A651;font-weight:900;font-size:14px');
@@ -50,6 +50,7 @@ let audioCtx = null;
 let deferredPrompt = null;
 let isShopOpen = false;
 let isSigningUp = false;
+let authEpoch = 0;
 
 let isAudioUnlocked = false;
 let orderLoopTimer = null;
@@ -426,7 +427,8 @@ async function handleLogin(e) {
   try {
     await auth.signInWithEmailAndPassword(email, pw);
     showToast('✅ เข้าสู่ระบบสำเร็จ');
-    $('login-error').textContent = '';
+    const okNotice = $('login-error');
+    if (okNotice) { okNotice.classList.remove('ok'); okNotice.textContent = ''; }
   } catch (err) {
     const msg = {
       'auth/wrong-password': 'รหัสผ่านไม่ถูกต้อง',
@@ -436,7 +438,8 @@ async function handleLogin(e) {
       'auth/too-many-requests': 'ลองหลายครั้งเกินไป',
       'auth/network-request-failed': 'ไม่มีการเชื่อมต่อ'
     }[err.code] || 'เข้าสู่ระบบไม่สำเร็จ';
-    $('login-error').textContent = msg;
+    const errNotice = $('login-error');
+    if (errNotice) { errNotice.classList.remove('ok'); errNotice.textContent = msg; }
     showToast(msg, 'error');
     btn.disabled = false;
     btn.textContent = '🔓 เข้าสู่ระบบ';
@@ -490,29 +493,27 @@ async function handleSignup(e) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
+    const notice = $('login-error');
+    if (notice) {
+      notice.classList.add('ok');
+      notice.textContent = '✅ สมัครสำเร็จ รอแอดมินอนุมัติ — เข้าสู่ระบบด้วยอีเมลนี้ได้เลย';
+    }
+    switchAuthTab('login');
+    const le = $('login-email');
+    if (le) le.value = email;
     showToast('✅ สมัครสำเร็จ! รอแอดมินอนุมัติ');
-
-    setTimeout(async () => {
-      try { await auth.signOut(); } catch (e) {}
-      isSigningUp = false;
-      switchAuthTab('login');
-      const le = $('login-email');
-      if (le) le.value = email;
-      btn.disabled = false;
-      btn.textContent = '🏪 สมัครร้านค้า';
-      showToast('📧 เข้าสู่ระบบด้วยอีเมลที่สมัคร', 'info');
-    }, 1800);
+    try { await auth.signOut(); } catch (e) {}
   } catch (err) {
     console.error('❌ Signup error:', err.code, err.message);
     if (createdUser) {
       try { await db.collection('users').doc(createdUser.uid).delete(); } catch (e) {}
       try { await createdUser.delete(); } catch (e) {}
     }
-    isSigningUp = false;
     showToast('สมัครไม่สำเร็จ: ' + (err.code || err.message), 'error');
-    btn.disabled = false;
-    btn.textContent = '🏪 สมัครร้านค้า';
   }
+  isSigningUp = false;
+  btn.disabled = false;
+  btn.textContent = '🏪 สมัครร้านค้า';
 }
 
 async function handleForgotPassword() {
@@ -542,12 +543,16 @@ async function handleMerchantLogout() {
    11. AUTH STATE
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
+  const epoch = ++authEpoch;
   if (isSigningUp) return;
   if (myProfileUnsub) myProfileUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
   if (myMenusUnsub) myMenusUnsub();
 
+  const stale = () => epoch !== authEpoch || isSigningUp;
+
   if (!user) {
+    if (stale()) return;
     $('login-screen').style.display = 'flex';
     $('app').style.display = 'none';
     stopOrderLoop();
@@ -559,11 +564,25 @@ auth.onAuthStateChanged(async (user) => {
   try {
     let userDoc = null;
     let merchantDoc = null;
+    let readError = null;
     for (let attempt = 1; attempt <= 5; attempt++) {
-      try { userDoc = await db.collection('users').doc(user.uid).get(); } catch (e) {}
-      try { merchantDoc = await db.collection('merchants').doc(user.uid).get(); } catch (e) {}
+      if (stale()) return;
+      try {
+        const src = attempt === 1 ? 'default' : 'server';
+        userDoc = await db.collection('users').doc(user.uid).get({ source: src });
+        merchantDoc = await db.collection('merchants').doc(user.uid).get({ source: src });
+        readError = null;
+      } catch (e) { readError = e; }
       if (userDoc?.exists && merchantDoc?.exists) break;
-      if (attempt < 5) await new Promise(r => setTimeout(r, 1000));
+      if (userDoc && merchantDoc && !userDoc.exists && !merchantDoc.exists && !readError && attempt >= 2) break;
+      if (attempt < 5) await new Promise(r => setTimeout(r, 400));
+    }
+
+    if (stale()) return;
+
+    if (readError && !(userDoc?.exists && merchantDoc?.exists)) {
+      showToast('อ่านข้อมูลบัญชีไม่สำเร็จ — ลองใหม่อีกครั้ง', 'error');
+      return;
     }
 
     if (!userDoc || !userDoc.exists) {
@@ -585,6 +604,7 @@ auth.onAuthStateChanged(async (user) => {
       return;
     }
 
+    if (stale()) return;
     merchantProfile = { uid: user.uid, ...merchantDoc.data() };
     loadSoundSettingsFromProfile();
     $('login-screen').style.display = 'none';
@@ -592,9 +612,9 @@ auth.onAuthStateChanged(async (user) => {
 
     initApp();
   } catch (err) {
+    if (stale()) return;
     console.error('❌ Auth state error:', err);
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
-    await auth.signOut();
   }
 });
 
@@ -1111,7 +1131,7 @@ function viewOrderDetail(orderId) {
         </div>
       </div>
       ${!gp.isPromo ? `<div style="background:#FFF9C4;border-radius:12px;padding:12px;margin-bottom:14px;font-size:12px;font-weight:700">
-        <div style="font-weight:900;margin-bottom:6px">💰 GP 3%</div>
+        <div style="font-weight:900;margin-bottom:6px">💰 GP ร้าน 3% ของยอดอาหาร</div>
         <div style="display:flex;justify-content:space-between;padding:2px 0"><span>รวม</span><b>฿${fmt(gp.total)}</b></div>
         <div style="display:flex;justify-content:space-between;padding:2px 0;padding-left:16px;color:#FF6B35"><span>├─ ไรเดอร์ 2%</span><b>฿${fmt(gp.rider)}</b></div>
         <div style="display:flex;justify-content:space-between;padding:2px 0;padding-left:16px;color:#4A90D9"><span>└─ แพลตฟอร์ม 1%</span><b>฿${fmt(gp.platform)}</b></div>
