@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Rider — v3.9.17</title>
+<title>Chauat Go Rider — v3.9.18</title>
 <meta name="theme-color" content="#FF6B35">
 <meta name="description" content="แอปไรเดอร์ Chauat Go — อ.ชะอวด">
 <meta name="robots" content="noindex,nofollow">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.17-20261015-006';
+  var VERSION = 'v3.9.18-20261015-007';
   var saved = localStorage.getItem('chauat_ver_rider');
   var lastReload = localStorage.getItem('chauat_last_reload_rider');
   var now = Date.now();
@@ -45,7 +45,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest-rider.json">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -77,6 +77,7 @@
 
 <div class="toast" id="toast"></div>
 <button type="button" class="sound-unlock-banner" id="sound-unlock-banner" onclick="unlockRiderAudio()">แตะเพื่อเปิดเสียงแจ้งเตือน</button>
+<button type="button" class="sound-unlock-banner" id="push-banner" style="display:none" onclick="enableRiderPush()">เปิดการแจ้งเตือนเพื่อรับงานแม้ปิดแอป บน iPhone ต้องเพิ่มไปที่หน้าจอโฮมก่อน</button>
 
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div style="font-size:28px">📱</div>
@@ -362,11 +363,13 @@
     </div>
 
     <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
-    <div class="sheet-version">Chauat Go Rider v3.9.17 • © 2025</div>
+    <div class="sheet-version">Chauat Go Rider v3.9.18 • © 2025</div>
   </div>
 </div>
 
 <!-- ═══ NEW JOB POPUP ═══ -->
+<div class="new-job-popup" id="dispatch-offer"></div>
+
 <div class="new-job-popup" id="newJobPopup">
   <div class="new-job-card">
     <div class="popup-icon">🔔</div>
@@ -430,8 +433,11 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="map-tiles.js"></script>
+<script src="geohash.js"></script>
+<script src="dispatch-client.js"></script>
 <script src="voice-call.js"></script>
 <script src="rider.js"></script>
 

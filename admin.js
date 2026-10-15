@@ -25,7 +25,8 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
    ═══════════════════════════════════════════════════════════════════ */
 const store = {
   merchants: [], orders: [], riders: [], users: [], places: [],
-  chats: [], gpTransfers: []
+  chats: [], gpTransfers: [],
+  gpsRiders: [], dispatchConfig: null, dispatchOffers: null, dispatchOffersOrder: ''
 };
 const filters = {
   orders: 'all', q: '', riderStatus: '',
@@ -39,6 +40,8 @@ let deferredPrompt = null;
 let audioCtx = null;
 let seenNewOrders = new Set();
 let lastOrderCount = 0;
+let dispatchMap = null;
+let dispatchMarkers = null;
 
 /* Master admin emails — bypass role check */
 const MASTER_ADMINS = [
@@ -63,7 +66,8 @@ const SECTIONS = [
   ['payouts', '💸', 'โอนไรเดอร์'],
   ['chats', '💬', 'แชท'],
   ['users', '👥', 'ผู้ใช้'],
-  ['mapPlaces', '📍', 'สถานที่']
+  ['mapPlaces', '📍', 'สถานที่'],
+  ['dispatch', '🎯', 'จ่ายงาน']
 ];
 
 const STATUS = {
@@ -477,6 +481,16 @@ function start() {
     if (current === 'mapPlaces') render();
   });
   unsubs.push(overrideUnsub);
+  unsubs.push(db.doc('config/dispatch').onSnapshot(s => {
+    store.dispatchConfig = s.exists ? (s.data() || {}) : null;
+    if (current === 'dispatch') render();
+  }, () => {}));
+
+  unsubs.push(db.collection('gps_riders').limit(200).onSnapshot(s => {
+    store.gpsRiders = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (current === 'dispatch') paintDispatchMap();
+  }, () => {}));
+
   if (!store.osmCatalog || !store.osmCatalog.places) {
     fetch('/data/chauat-places.json').then(r => r.json()).then(data => {
       store.osmCatalog = data;
@@ -491,6 +505,7 @@ function start() {
 }
 
 function stop() {
+  destroyDispatchMap();
   unsubs.forEach(u => u());
   unsubs = [];
   for (const k in store) store[k] = [];
@@ -507,8 +522,10 @@ function getBadgeCounts() {
   const pendingGpSlips = store.gpTransfers.filter(t => t.status === 'pending').length;
   const pendingPayouts = 0; // TODO: จาก payouts collection
 
+  const manualDispatch = store.orders.filter(o => o.dispatchState === 'manual' && !o.riderId).length;
+
   return {
-    pendingMerchants, pendingRiders, newOrders, pendingGpSlips, pendingPayouts
+    pendingMerchants, pendingRiders, newOrders, pendingGpSlips, pendingPayouts, manualDispatch
   };
 }
 
@@ -527,6 +544,7 @@ function renderNav() {
     else if (k === 'riders' && b.pendingRiders) badge = `<span class="nav-badge">${b.pendingRiders}</span>`;
     else if (k === 'orders' && b.newOrders) badge = `<span class="nav-badge">${b.newOrders}</span>`;
     else if (k === 'gpTransfers' && b.pendingGpSlips) badge = `<span class="nav-badge">${b.pendingGpSlips}</span>`;
+    else if (k === 'dispatch' && b.manualDispatch) badge = `<span class="nav-badge">${b.manualDispatch}</span>`;
 
     return `<button class="ripple ${k === current ? 'on' : ''}" data-go="${k}">
       ${badge}
@@ -539,9 +557,14 @@ function renderNav() {
 function render() {
   const mainEl = $('main');
   if (!mainEl) return;
+  const active = document.activeElement;
+  const typing = current === 'dispatch' && active && mainEl.contains(active)
+    && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
+  if (typing) return;
+  destroyDispatchMap();
 
   const fn = {
-    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users, mapPlaces
+    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users, mapPlaces, dispatch
   }[current];
 
   if (fn) {
@@ -552,6 +575,7 @@ function render() {
     }
   }
   try { renderNav(); } catch (err) { console.error('renderNav', err); }
+  if (current === 'dispatch') setTimeout(paintDispatchMap, 30);
 
   // render menu links
   const linksEl = $('menu-links');
@@ -811,6 +835,7 @@ function orderDetail(id) {
     <div class="meta">📍 ${esc(o.address || '')}</div>
 
     ${o.riderName ? `<div class="meta" style="margin-top:8px;color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • ' + esc(o.riderPhone) : ''}</div>` : ''}
+    ${o.dispatchState ? `<div class="meta">🎯 จ่ายงาน: ${esc(o.dispatchState)}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}${o.dispatchOfferRiderId ? ' • เสนอ ' + esc(o.dispatchOfferRiderId) : ''}</div>` : ''}
 
     <div style="background:${isCash ? 'var(--orange-light)' : 'var(--blue-light)'};padding:12px;border-radius:10px;margin-top:14px;font-size:12px;font-weight:700">
       <div style="font-weight:900;margin-bottom:6px">${isCash ? '💵 ลูกค้าจ่ายเงินสด' : '💳 ลูกค้าโอนเงิน'}</div>
@@ -1669,7 +1694,8 @@ document.addEventListener('click', async e => {
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],' +
     '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-change-role],' +
     '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset],' +
-    '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps]'
+    '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps],' +
+    '[data-dispatch-save],[data-dispatch-assign],[data-dispatch-history]'
   );
   if (!t) return;
 
@@ -1710,6 +1736,18 @@ document.addEventListener('click', async e => {
     }
     if (t.dataset.order) {
       orderDetail(t.dataset.order);
+      return;
+    }
+    if (t.hasAttribute('data-dispatch-save')) {
+      await saveDispatchSettings();
+      return;
+    }
+    if (t.hasAttribute('data-dispatch-assign')) {
+      await assignDispatchRider();
+      return;
+    }
+    if (t.dataset.dispatchHistory) {
+      await loadDispatchOffers(t.dataset.dispatchHistory);
       return;
     }
     if (t.dataset.editMerchant) {
@@ -2151,6 +2189,185 @@ window.autoResize = autoResize;
 window.closeModal = closeModal;
 window.installPWA = installPWA;
 window.dismissPWA = dismissPWA;
+
+function gpsFresh(g) {
+  const d = toDate(g && g.updatedAt);
+  if (!d) return false;
+  return Date.now() - d.getTime() < 120000;
+}
+
+function riderNameById(id) {
+  const r = store.riders.find(x => x.id === id);
+  return (r && r.name) || id || '';
+}
+
+function dispatchQueue() {
+  return store.orders.filter(o => {
+    if (['done', 'delivered', 'cancelled'].includes(o.status)) return false;
+    if (o.dispatchState === 'manual' || o.dispatchState === 'seeking' || o.dispatchState === 'offered') return true;
+    return !o.riderId && ['searching', 'pending', 'cooking', 'ready'].includes(o.status);
+  });
+}
+
+function dispatch() {
+  const cfg = store.dispatchConfig || {};
+  const mode = cfg.mode === 'auto' ? 'auto' : 'manual';
+  const steps = Array.isArray(cfg.radiusStepsKm) && cfg.radiusStepsKm.length ? cfg.radiusStepsKm.join(',') : '3,5,8';
+  const w = cfg.weights || {};
+  const fresh = (store.gpsRiders || []).filter(g => g.online === true && gpsFresh(g));
+  const rows = dispatchQueue();
+  const openRows = rows.filter(o => !o.riderId);
+  const historyId = store.dispatchOffersOrder || '';
+  const history = historyId && Array.isArray(store.dispatchOffers) ? store.dispatchOffers : [];
+  const historyHtml = historyId ? `<div class="data-card" style="margin-top:12px">
+      <div class="data-card-name">ประวัติข้อเสนอ ${esc(orderCode(store.orders.find(o => o.id === historyId) || { id: historyId }))}</div>
+      ${history.length ? history.map(h => `<div class="data-card-meta">${esc(h.status)} • ${esc(riderNameById(h.riderId))} • ${h.distanceKm != null ? esc(String(h.distanceKm)) + ' กม.' : 'มือ'} • รอบ ${esc(String(h.wave != null ? h.wave : '—'))}</div>`).join('') : '<div class="data-card-meta">ยังไม่มีข้อเสนอ</div>'}
+    </div>` : '';
+  return `<div class="hero-card" style="margin-bottom:12px">
+      <div class="hero-label">จ่ายงานไรเดอร์</div>
+      <div style="font-size:13px;font-weight:700;margin-top:6px">${mode === 'auto' ? 'โหมดอัตโนมัติ — ระบบเสนอทีละคน' : 'โหมดมือ — ไรเดอร์ยังกดรับจากรายการเอง'}</div>
+    </div>
+    <div class="data-card">
+      <label class="meta">โหมด</label>
+      <select id="dispatch-mode" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border);font-weight:800">
+        <option value="manual" ${mode === 'manual' ? 'selected' : ''}>มือ (รายการเดิม)</option>
+        <option value="auto" ${mode === 'auto' ? 'selected' : ''}>อัตโนมัติ</option>
+      </select>
+      <label class="meta">ระยะค้นหา กม. คั่นด้วยจุลภาค เช่น 3,5,8</label>
+      <input id="dispatch-radius" value="${esc(steps)}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <label class="meta">เวลาให้กดรับ (วินาที)</label>
+      <input id="dispatch-timeout" type="number" min="10" max="120" value="${esc(String(cfg.offerTimeoutSec || 20))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <label class="meta">งานพร้อมกันสูงสุดต่อคน</label>
+      <input id="dispatch-max" type="number" min="1" max="5" value="${esc(String(cfg.maxJobsPerRider || 1))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <div class="meta">น้ำหนักคะแนน (ระยะ / ว่างนาน / อัตรารับ / ดาว)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px">
+        <input id="dispatch-w-distance" type="number" step="0.1" value="${esc(String(w.distance != null ? w.distance : 1))}" placeholder="ระยะ" style="padding:10px;border-radius:10px;border:2px solid var(--border)">
+        <input id="dispatch-w-idle" type="number" step="0.1" value="${esc(String(w.idle != null ? w.idle : 1))}" placeholder="ว่าง" style="padding:10px;border-radius:10px;border:2px solid var(--border)">
+        <input id="dispatch-w-acceptance" type="number" step="0.1" value="${esc(String(w.acceptance != null ? w.acceptance : 1))}" placeholder="อัตรารับ" style="padding:10px;border-radius:10px;border:2px solid var(--border)">
+        <input id="dispatch-w-rating" type="number" step="0.1" value="${esc(String(w.rating != null ? w.rating : 1))}" placeholder="ดาว" style="padding:10px;border-radius:10px;border:2px solid var(--border)">
+      </div>
+      <label class="meta">คีย์ Web Push (วางคีย์สาธารณะจาก Firebase → Cloud Messaging)</label>
+      <input id="dispatch-vapid" value="${esc(cfg.vapidKey || '')}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <button type="button" class="btn-primary" data-dispatch-save="1">บันทึก</button>
+      <div class="meta" style="margin-top:8px">ต้องติดตั้ง Cloud Functions ก่อนสลับเป็นอัตโนมัติ ถ้ายังไม่ติดตั้ง แอปจะขึ้นว่าจ่ายงานยังไม่เปิด</div>
+    </div>
+    <div class="data-card" style="margin-top:12px">
+      <div class="data-card-name">ไรเดอร์ออนไลน์ (${fresh.length})</div>
+      <div class="data-card-meta">จุดที่ส่งพิกัดภายใน 2 นาที</div>
+      <div id="dispatch-rider-map" style="height:280px;border-radius:12px;margin-top:8px;background:#d5dee6"></div>
+    </div>
+    <div style="margin-top:12px;font-weight:900">ออเดอร์ที่อยู่ระหว่างจ่าย (${rows.length})</div>
+    ${rows.length ? rows.map(o => `<div class="data-card" style="margin-top:8px">
+        <div class="data-card-name">${esc(o.title || 'ออเดอร์')} ${o.code ? '• ' + esc(o.code) : ''}</div>
+        <div class="data-card-meta">${esc(o.merchantName || o.type || '')} • ${esc(o.status)} • ${esc(o.dispatchState || 'ยังไม่เริ่ม')}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}</div>
+        <button type="button" class="btn-primary" style="margin-top:8px" data-dispatch-history="${esc(o.id)}">ดูประวัติข้อเสนอ</button>
+      </div>`).join('') : '<div class="empty"><div>ไม่มีออเดอร์ที่รอจ่าย</div></div>'}
+    ${historyHtml}
+    <div class="data-card" style="margin-top:12px">
+      <div class="data-card-name">จ่ายเอง</div>
+      <div class="data-card-meta">ใช้ได้ทั้งสองโหมด แม้ไรเดอร์จะมีงานครบแล้ว</div>
+      <select id="dispatch-order" style="width:100%;margin:8px 0;padding:10px;border-radius:10px;border:2px solid var(--border)">
+        <option value="">เลือกออเดอร์</option>
+        ${openRows.map(o => `<option value="${esc(o.id)}">${esc((o.code || o.title || o.id) + ' • ' + (o.merchantName || o.status))}</option>`).join('')}
+      </select>
+      <select id="dispatch-rider" style="width:100%;margin:8px 0;padding:10px;border-radius:10px;border:2px solid var(--border)">
+        <option value="">เลือกไรเดอร์</option>
+        ${fresh.map(g => `<option value="${esc(g.id)}">${esc(riderNameById(g.id))}</option>`).join('')}
+      </select>
+      <button type="button" class="btn-primary" data-dispatch-assign="1">จ่ายให้ไรเดอร์นี้</button>
+    </div>`;
+}
+
+function destroyDispatchMap() {
+  if (dispatchMap) {
+    try { dispatchMap.remove(); } catch (e) {}
+    dispatchMap = null;
+    dispatchMarkers = null;
+  }
+}
+
+function paintDispatchMap() {
+  const el = document.getElementById('dispatch-rider-map');
+  if (!el || typeof L === 'undefined') return;
+  if (dispatchMap && dispatchMap.getContainer() !== el) destroyDispatchMap();
+  if (!dispatchMap) {
+    dispatchMap = L.map(el).setView([7.965, 99.994], 12);
+    if (window.ChauatMap) ChauatMap.addBaseTiles(dispatchMap);
+    dispatchMarkers = L.layerGroup().addTo(dispatchMap);
+    setTimeout(() => { try { dispatchMap && dispatchMap.invalidateSize(); } catch (e) {} }, 200);
+  }
+  if (!dispatchMarkers) return;
+  dispatchMarkers.clearLayers();
+  const pts = [];
+  (store.gpsRiders || []).forEach(g => {
+    if (g.online !== true || !gpsFresh(g)) return;
+    const lat = Number(g.lat);
+    const lng = Number(g.lng);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    const icon = window.ChauatMap ? ChauatMap.pin('🛵', '#1565C0', false) : null;
+    const marker = L.marker([lat, lng], icon ? { icon: icon } : undefined);
+    marker.bindPopup(esc(riderNameById(g.id)));
+    marker.addTo(dispatchMarkers);
+    pts.push([lat, lng]);
+  });
+  if (!dispatchMap) return;
+  if (pts.length === 1) dispatchMap.setView(pts[0], 14);
+  else if (pts.length > 1) {
+    try { dispatchMap.fitBounds(pts, { padding: [24, 24], maxZoom: 15 }); } catch (e) {}
+  }
+}
+
+async function saveDispatchSettings() {
+  const steps = String(($('dispatch-radius') && $('dispatch-radius').value) || '')
+    .split(/[, ]+/).map(Number).filter(n => n > 0 && n <= 50);
+  const modeEl = $('dispatch-mode');
+  const body = {
+    mode: modeEl && modeEl.value === 'auto' ? 'auto' : 'manual',
+    radiusStepsKm: steps.length ? steps : [3, 5, 8],
+    offerTimeoutSec: Math.min(120, Math.max(10, Number($('dispatch-timeout') && $('dispatch-timeout').value) || 20)),
+    maxJobsPerRider: Math.min(5, Math.max(1, Math.round(Number($('dispatch-max') && $('dispatch-max').value) || 1))),
+    staleLocationSec: 120,
+    weights: {
+      distance: Number($('dispatch-w-distance') && $('dispatch-w-distance').value) || 0,
+      idle: Number($('dispatch-w-idle') && $('dispatch-w-idle').value) || 0,
+      acceptance: Number($('dispatch-w-acceptance') && $('dispatch-w-acceptance').value) || 0,
+      rating: Number($('dispatch-w-rating') && $('dispatch-w-rating').value) || 0
+    },
+    vapidKey: String(($('dispatch-vapid') && $('dispatch-vapid').value) || '').trim(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    await db.doc('config/dispatch').set(body, { merge: true });
+    showToast('บันทึกการจ่ายงานแล้ว');
+  } catch (err) {
+    showToast('บันทึกไม่สำเร็จ — ตรวจว่า Publish กฎแล้ว', 'error');
+  }
+}
+
+async function loadDispatchOffers(orderId) {
+  try {
+    const snap = await db.collection('orders').doc(orderId).collection('dispatchOffers')
+      .orderBy('createdAt', 'desc').limit(20).get();
+    store.dispatchOffersOrder = orderId;
+    store.dispatchOffers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  } catch (err) {
+    showToast('โหลดประวัติไม่สำเร็จ', 'error');
+  }
+}
+
+async function assignDispatchRider() {
+  const orderId = $('dispatch-order') && $('dispatch-order').value;
+  const riderId = $('dispatch-rider') && $('dispatch-rider').value;
+  if (!orderId || !riderId) return showToast('เลือกออเดอร์และไรเดอร์', 'warning');
+  if (!window.ChauatFn) return showToast('ระบบจ่ายงานยังไม่เปิด — แอดมินต้องติดตั้ง Cloud Functions', 'error');
+  try {
+    await ChauatFn.callFunction('manualAssignRider', { orderId: orderId, riderId: riderId }, auth);
+    showToast('จ่ายงานแล้ว');
+  } catch (err) {
+    showToast((err && err.message) || 'จ่ายงานไม่สำเร็จ', 'error');
+  }
+}
 
 /* Service Worker */
 if ('serviceWorker' in navigator) {

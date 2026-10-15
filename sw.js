@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.17';
+const CACHE_NAME = 'chauat-app-v3.9.18';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -26,6 +26,9 @@ const ASSETS = [
   '/voice-call.css',
   '/voice-call.js',
   '/map-tiles.js',
+  '/geohash.js',
+  '/dispatch-client.js',
+  '/manifest-rider.json',
   '/data/chauat-places.json',
   '/images/logo-512.png',
   '/images/logo-512.webp',
@@ -50,6 +53,44 @@ function isAppCode(url, request) {
   if (request.mode === 'navigate') return true;
   return /\.(?:html|js|css|json)$/i.test(url.pathname);
 }
+
+try {
+  importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
+  firebase.initializeApp({
+    apiKey: 'AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM',
+    authDomain: 'chauat-go-b9841.firebaseapp.com',
+    projectId: 'chauat-go-b9841',
+    storageBucket: 'chauat-go-b9841.firebasestorage.app',
+    messagingSenderId: '282197694521',
+    appId: '1:282197694521:web:0528c22747a0c04bd815e8'
+  });
+  firebase.messaging().onBackgroundMessage((payload) => {
+    const note = (payload && payload.notification) || {};
+    const data = (payload && payload.data) || {};
+    const title = note.title || 'ChauatGo';
+    const body = note.body || '';
+    self.registration.showNotification(title, {
+      body: body,
+      icon: '/icons/icon-512.png',
+      data: data,
+      tag: data.offerId || data.orderId || 'chauat-push'
+    });
+  });
+} catch (err) {}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (let i = 0; i < list.length; i++) {
+      const client = list[i];
+      if (client.url && client.url.indexOf('/rider.html') !== -1 && typeof client.focus === 'function') {
+        return client.focus();
+      }
+    }
+    if (self.clients.openWindow) return self.clients.openWindow('/rider.html');
+  }));
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {

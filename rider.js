@@ -48,6 +48,17 @@ let newJobPopupId = null;
 let seenJobIds = new Set();
 let audioCtx = null;
 let gpsWatchId = null;
+let gpsUploadTimer = null;
+let lastGpsUpload = 0;
+let dispatchUnsub = null;
+let offerUnsub = null;
+let myOpenUnsub = null;
+let myActiveUnsub = null;
+let dispatchConfig = { mode: 'manual' };
+let openJobs = [];
+let activeMine = [];
+let currentOffer = null;
+let offerTick = null;
 let isOnline = false;
 let currentHistoryFilter = 'all';
 let cameraFile = null;
@@ -83,7 +94,12 @@ function orderFoodReady(j) {
   return !!(j && (j.foodReady || j.readyAt || j.status === 'ready'));
 }
 
+function dispatchMode() {
+  return dispatchConfig && dispatchConfig.mode === 'auto' ? 'auto' : 'manual';
+}
+
 function riderMayClaim(j) {
+  if (dispatchMode() === 'auto') return false;
   if (!j || j.riderId) return false;
   if (orderNeedsKitchen(j)) return RIDER_CLAIM_STATUSES.includes(j.status);
   return RIDER_OPEN_STATUSES.includes(j.status);
@@ -432,6 +448,29 @@ function startRepeatingAlert(jobId) {
   beginAlertLoop(alertJobId, until);
 }
 
+function startOfferAlert(offerId, expiresAtMs) {
+  if (alertTimer) clearTimeout(alertTimer);
+  alertTimer = null;
+  const until = Math.max(Date.now() + 1000, Number(expiresAtMs) || (Date.now() + 20000));
+  alertJobId = offerId || 'offer';
+  alertUntil = until;
+  const prefs = loadSoundPrefs();
+  const ctx = ensureAudioGraph(false);
+  const ready = !!(ctx && ctx.state === 'running' && audioUnlocked);
+  if (!prefs.on || prefs.volume <= 0) {
+    vibrateJob();
+    showSoundBanner(false);
+    return;
+  }
+  if (!ready) {
+    showSoundBanner(true);
+    vibrateJob();
+    return;
+  }
+  showSoundBanner(false);
+  beginAlertLoop(alertJobId, until);
+}
+
 function stopRepeatingAlert() {
   if (alertTimer) clearTimeout(alertTimer);
   alertTimer = null;
@@ -690,12 +729,18 @@ async function handleLogout() {
   if (!confirm('ออกจากระบบ?')) return;
   closeSheet();
   if (myProfileUnsub) myProfileUnsub();
-  if (myJobsUnsub) myJobsUnsub();
+  stopJobSubs();
+  stopDispatchSubs();
   if (myHistoryUnsub) myHistoryUnsub();
   if (activeChatUnsub) activeChatUnsub();
+  isOnline = false;
   stopGPS();
+  if (gpsUploadTimer) { clearInterval(gpsUploadTimer); gpsUploadTimer = null; }
+  await markGpsOffline();
   clearPaymentTimers();
   allJobs = [];
+  openJobs = [];
+  activeMine = [];
   allHistory = [];
   seenJobIds.clear();
   foodReadySeen = null;
@@ -713,7 +758,8 @@ auth.onAuthStateChanged(async (user) => {
   if (isSigningUp) return;
 
   if (myProfileUnsub) myProfileUnsub();
-  if (myJobsUnsub) myJobsUnsub();
+  stopJobSubs();
+  stopDispatchSubs();
   if (myHistoryUnsub) myHistoryUnsub();
 
   const stale = () => epoch !== authEpoch || isSigningUp;
@@ -776,18 +822,21 @@ function initApp() {
   updateHeader();
   updatePendingBanner();
   subscribeProfile();
-  subscribeJobs();
+  subscribeDispatch();
   subscribeHistory();
   setupNetwork();
   setupPWA();
-  requestNotificationPermission();
+  updatePushBanner();
   setTimeout(scheduleGPSIfActive, 1500);
+  setTimeout(syncLocationUpload, 1500);
 }
 
-function requestNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    setTimeout(() => Notification.requestPermission().catch(() => {}), 3000);
-  }
+function updatePushBanner() {
+  const el = $('push-banner');
+  if (!el) return;
+  const need = !!(currentUser && riderProfile && riderProfile.verified && isOnline
+    && typeof Notification !== 'undefined' && Notification.permission !== 'granted');
+  el.style.display = need ? 'block' : 'none';
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -810,46 +859,75 @@ function subscribeProfile() {
   });
 }
 
-/* งานใหม่ = ร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready) */
+function stopJobSubs() {
+  if (myOpenUnsub) { myOpenUnsub(); myOpenUnsub = null; }
+  if (myActiveUnsub) { myActiveUnsub(); myActiveUnsub = null; }
+  myJobsUnsub = null;
+}
+
+function mapOrderDoc(d) {
+  const data = d.data();
+  return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
+}
+
+function publishJobs(prevOpenIds) {
+  const map = new Map();
+  openJobs.forEach(j => map.set(j.id, j));
+  activeMine.forEach(j => map.set(j.id, j));
+  allJobs = Array.from(map.values());
+  allJobs.sort((a, b) => {
+    const ta = a.createdAt ? a.createdAt.getTime() : 0;
+    const tb = b.createdAt ? b.createdAt.getTime() : 0;
+    return tb - ta;
+  });
+  if (dispatchMode() !== 'auto') {
+    const newJobs = openJobs.filter(j =>
+      !prevOpenIds.has(j.id) &&
+      riderMayClaim(j) &&
+      riderProfile?.verified === true &&
+      isOnline
+    );
+    if (newJobs.length > 0 && prevOpenIds.size > 0) {
+      showNewJobPopup(newJobs[0]);
+      startRepeatingAlert(newJobs[0].id);
+    }
+  }
+  noteFoodReady(allJobs);
+  if (window.ChauatCall) ChauatCall.watch(allJobs);
+  renderJobs();
+  updateHeroStats();
+  scheduleGPSIfActive();
+  autoStartPaymentWatch();
+}
+
+/* งานใหม่ = ร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready)
+   แยกคิวรี่ เพราะกฎอ่านออเดอร์ไม่ให้ไรเดอร์เห็นงานที่คนอื่นรับไปแล้ว */
 function subscribeJobs() {
-  if (myJobsUnsub) myJobsUnsub();
-  myJobsUnsub = db.collection('orders')
-    .where('status', 'in', ['searching', 'pending', 'cooking', 'ready', 'accepted', 'picked_up', 'customer_paid', 'on_the_way'])
-    .limit(50)
+  stopJobSubs();
+  const prevOpen = new Set(openJobs.map(j => j.id));
+  if (dispatchMode() === 'auto') {
+    openJobs = [];
+    publishJobs(prevOpen);
+  } else if (currentUser) {
+    myOpenUnsub = db.collection('orders')
+      .where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])
+      .limit(50)
+      .onSnapshot(snap => {
+        const prev = seenJobIds;
+        openJobs = snap.docs.map(mapOrderDoc);
+        seenJobIds = new Set(openJobs.map(j => j.id));
+        publishJobs(prev);
+      }, err => console.warn('open jobs', err && err.code));
+  }
+  if (!currentUser) return;
+  myActiveUnsub = db.collection('orders')
+    .where('riderId', '==', currentUser.uid)
+    .where('status', 'in', ['accepted', 'picked_up', 'customer_paid', 'on_the_way', 'ready'])
+    .limit(20)
     .onSnapshot(snap => {
-      const prevIds = seenJobIds;
-      allJobs = snap.docs.map(d => {
-        const data = d.data();
-        return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
-      });
-
-      /* ⭐ v3.9.1: Sort client-side */
-      allJobs.sort((a, b) => {
-        const ta = a.createdAt ? a.createdAt.getTime() : 0;
-        const tb = b.createdAt ? b.createdAt.getTime() : 0;
-        return tb - ta;
-      });
-
-      const newJobs = allJobs.filter(j =>
-        !prevIds.has(j.id) &&
-        riderMayClaim(j) &&
-        riderProfile?.verified === true &&
-        isOnline
-      );
-
-      if (newJobs.length > 0 && prevIds.size > 0) {
-        showNewJobPopup(newJobs[0]);
-        startRepeatingAlert(newJobs[0].id);
-      }
-
-      noteFoodReady(allJobs);
-      seenJobIds = new Set(allJobs.map(j => j.id));
-      if (window.ChauatCall) ChauatCall.watch(allJobs);
-      renderJobs();
-      updateHeroStats();
-      scheduleGPSIfActive();
-      autoStartPaymentWatch();
-    });
+      activeMine = snap.docs.map(mapOrderDoc);
+      publishJobs(seenJobIds);
+    }, err => console.warn('my jobs', err && err.code));
 }
 
 function subscribeHistory() {
@@ -907,6 +985,7 @@ function updateOnlineToggle() {
     ? 'รอการอนุมัติ'
     : (isOnline ? 'พร้อมรับงาน' : 'ออฟไลน์');
   renderJobs();
+  updatePushBanner();
 }
 
 function updateHeroStats() {
@@ -925,7 +1004,12 @@ function updateHeroStats() {
   const incomeEl = $('hero-income');
   if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
   const subEl = $('hero-sub');
-  if (subEl) subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้`;
+  if (subEl) {
+    const totalOffers = Number(riderProfile?.offersTotal || 0);
+    const acceptedOffers = Number(riderProfile?.offersAccepted || 0);
+    const rate = totalOffers > 0 ? ` • รับงาน ${acceptedOffers}/${totalOffers}` : '';
+    subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้` + rate;
+  }
   const feeEl = $('hero-fee');
   if (feeEl) feeEl.textContent = '฿' + fmt(feeTotal);
   const tipEl = $('hero-tip');
@@ -1108,6 +1192,9 @@ function renderJobCard(j, type) {
 
 /* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้ */
 async function acceptJob(jobId) {
+  if (dispatchMode() === 'auto') {
+    return showToast('โหมดอัตโนมัติ — รอกดรับจากใบเสนอ', 'warning');
+  }
   try {
     const ref = db.collection('orders').doc(jobId);
     let readyAlready = false;
@@ -1803,6 +1890,8 @@ async function toggleOnline() {
     showToast(newState ? '🟢 ออนไลน์' : '⚫ ออฟไลน์');
     if (newState) scheduleGPSIfActive();
     else stopGPS();
+    syncLocationUpload();
+    updatePushBanner();
   } catch (err) {
     isOnline = !newState;
     riderProfile.status = prevStatus;
@@ -1827,15 +1916,7 @@ function startGPS() {
     async (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
       try {
-        await db.collection('gps_riders').doc(currentUser.uid).set({
-          riderId: currentUser.uid,
-          name: riderProfile.name,
-          lat: latitude,
-          lng: longitude,
-          accuracy,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
+        await writeGps(latitude, longitude, accuracy);
         await checkArrivalForActiveOrders(latitude, longitude);
       } catch (err) {}
     },
@@ -1849,6 +1930,59 @@ function stopGPS() {
     navigator.geolocation.clearWatch(gpsWatchId);
     gpsWatchId = null;
   }
+}
+
+function syncLocationUpload() {
+  if (isOnline && currentUser && riderProfile?.verified === true) {
+    uploadLocationOnce();
+    if (!gpsUploadTimer) gpsUploadTimer = setInterval(uploadLocationOnce, 20000);
+    return;
+  }
+  if (gpsUploadTimer) {
+    clearInterval(gpsUploadTimer);
+    gpsUploadTimer = null;
+  }
+  if (currentUser) markGpsOffline();
+}
+
+function uploadLocationOnce() {
+  if (!navigator.geolocation || !currentUser || !isOnline) return;
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    try {
+      await writeGps(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+      await checkArrivalForActiveOrders(pos.coords.latitude, pos.coords.longitude);
+    } catch (err) {}
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 });
+}
+
+async function writeGps(latitude, longitude, accuracy) {
+  if (!currentUser || !isOnline) return;
+  const now = Date.now();
+  if (now - lastGpsUpload < 15000) return;
+  lastGpsUpload = now;
+  const geohash = window.ChauatGeo ? ChauatGeo.geohashForLocation(latitude, longitude) : '';
+  await db.collection('gps_riders').doc(currentUser.uid).set({
+    riderId: currentUser.uid,
+    name: (riderProfile && riderProfile.name) || '',
+    lat: latitude,
+    lng: longitude,
+    accuracy: accuracy || null,
+    geohash: geohash,
+    online: true,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+}
+
+async function markGpsOffline() {
+  if (!currentUser) return;
+  lastGpsUpload = 0;
+  try {
+    await db.collection('gps_riders').doc(currentUser.uid).set({
+      riderId: currentUser.uid,
+      online: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch (err) {}
 }
 
 async function checkArrivalForActiveOrders(myLat, myLng) {
@@ -1928,6 +2062,7 @@ function showProfile() {
       <p><b>ทะเบียน:</b> ${esc(riderProfile.plate || '—')}</p>
       <p><b>สถานะ:</b> ${riderProfile.verified ? '✅ อนุมัติแล้ว' : '⏳ รออนุมัติ'}</p>
       <p><b>Rating:</b> ⭐ ${(riderProfile.rating || 0).toFixed(1)} (${riderProfile.totalRatings || 0} รีวิว)</p>
+      <p><b>อัตรารับงาน:</b> ${Number(riderProfile.offersAccepted || 0)}/${Number(riderProfile.offersTotal || 0)} ข้อเสนอ</p>
       <p><b>งานทั้งหมด:</b> ${riderProfile.totalJobs || 0} งาน</p>
       <p><b>รายได้รวม:</b> ฿${fmt(riderProfile.totalIncome || 0)}</p>
       <p><b>Trust Score:</b> ⭐ ${riderProfile.trustScore || 100} / 100</p>
@@ -2287,6 +2422,201 @@ function dismissPWA() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   24b. AUTO DISPATCH OFFER
+   ═══════════════════════════════════════════════════════════════════ */
+function callDispatch(name, data) {
+  if (!window.ChauatFn) {
+    return Promise.reject(new Error('ระบบจ่ายงานยังไม่เปิด — แอดมินต้องติดตั้ง Cloud Functions'));
+  }
+  return ChauatFn.callFunction(name, data, auth);
+}
+
+function subscribeDispatch() {
+  if (dispatchUnsub) dispatchUnsub();
+  dispatchUnsub = db.doc('config/dispatch').onSnapshot((snap) => {
+    dispatchConfig = snap.exists ? (snap.data() || { mode: 'manual' }) : { mode: 'manual' };
+    subscribeJobs();
+    subscribeOffers();
+    updatePushBanner();
+    maybeRefreshPush();
+  }, () => {
+    dispatchConfig = { mode: 'manual' };
+    subscribeJobs();
+  });
+}
+
+function stopDispatchSubs() {
+  if (dispatchUnsub) { dispatchUnsub(); dispatchUnsub = null; }
+  if (offerUnsub) { offerUnsub(); offerUnsub = null; }
+  clearOffer(false);
+}
+
+function subscribeOffers() {
+  if (offerUnsub) { offerUnsub(); offerUnsub = null; }
+  if (!currentUser || dispatchMode() !== 'auto') {
+    clearOffer(false);
+    return;
+  }
+  offerUnsub = db.collectionGroup('dispatchOffers')
+    .where('riderId', '==', currentUser.uid)
+    .where('status', '==', 'pending')
+    .limit(5)
+    .onSnapshot((snap) => {
+      const now = Date.now();
+      const rows = snap.docs.map((d) => {
+        const data = d.data() || {};
+        const exp = data.expiresAt && typeof data.expiresAt.toDate === 'function'
+          ? data.expiresAt.toDate().getTime() : 0;
+        const parent = d.ref.parent && d.ref.parent.parent;
+        return {
+          id: d.id,
+          orderId: data.orderId || (parent ? parent.id : ''),
+          riderId: data.riderId,
+          title: data.title || '',
+          merchantName: data.merchantName || '',
+          pickupName: data.pickupName || '',
+          fare: data.fare,
+          orderCode: data.orderCode || '',
+          distanceKm: data.distanceKm,
+          expiresAtMs: exp
+        };
+      }).filter((o) => o.orderId && (!o.expiresAtMs || o.expiresAtMs > now));
+      rows.sort((a, b) => (a.expiresAtMs || 0) - (b.expiresAtMs || 0));
+      if (!rows.length) { clearOffer(true); return; }
+      showOffer(rows[0]);
+    }, (err) => console.warn('offers', err && err.code));
+}
+
+function showOffer(offer) {
+  const same = currentOffer && currentOffer.id === offer.id;
+  currentOffer = offer;
+  const el = $('dispatch-offer');
+  if (!el) return;
+  const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
+  const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
+  el.className = 'new-job-popup show';
+  el.innerHTML = `
+    <div class="new-job-card">
+      <div class="popup-icon">🛵</div>
+      <h2>มีงานเสนอให้คุณ</h2>
+      <p>${esc(who)}</p>
+      <div class="detail">
+        <div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
+        <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>
+        <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
+        <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
+      </div>
+      <div class="job-actions two">
+        <button type="button" class="action-btn-big btn-green-big ripple" onclick="acceptDispatchOffer()">✅ รับงาน</button>
+        <button type="button" class="action-btn-big btn-gray-big ripple" onclick="skipDispatchOffer()">⏭️ ข้าม</button>
+      </div>
+    </div>`;
+  if (!same) startOfferAlert(offer.id, offer.expiresAtMs);
+  if (offerTick) clearInterval(offerTick);
+  offerTick = setInterval(tickOffer, 250);
+  tickOffer();
+}
+
+function clearOffer(stopSound) {
+  if (offerTick) { clearInterval(offerTick); offerTick = null; }
+  currentOffer = null;
+  if (stopSound !== false) stopRepeatingAlert();
+  const el = $('dispatch-offer');
+  if (el) { el.className = 'new-job-popup'; el.innerHTML = ''; }
+}
+
+function tickOffer() {
+  if (!currentOffer) return;
+  const left = Math.max(0, Math.ceil((currentOffer.expiresAtMs - Date.now()) / 1000));
+  const n = $('offer-seconds');
+  if (n) n.textContent = String(left);
+  if (left <= 0 && currentOffer.expiresAtMs && Date.now() >= currentOffer.expiresAtMs) {
+    const o = currentOffer;
+    clearOffer(true);
+    callDispatch('expireDispatchOffer', { orderId: o.orderId, offerId: o.id }).catch(() => {});
+  }
+}
+
+async function acceptDispatchOffer() {
+  const o = currentOffer;
+  if (!o) return;
+  try {
+    await callDispatch('acceptDispatchOffer', { orderId: o.orderId, offerId: o.id });
+    clearOffer(true);
+    showToast('รับงานแล้ว');
+    scheduleGPSIfActive();
+  } catch (err) {
+    showToast((err && err.message) || 'รับงานไม่สำเร็จ', 'error');
+  }
+}
+
+async function skipDispatchOffer() {
+  const o = currentOffer;
+  if (!o) return;
+  clearOffer(true);
+  try {
+    await callDispatch('skipDispatchOffer', { orderId: o.orderId, offerId: o.id });
+    showToast('ข้ามงานนี้', 'info');
+  } catch (err) {
+    showToast((err && err.message) || 'ข้ามไม่สำเร็จ', 'error');
+  }
+}
+
+function iosNeedsHomeScreen() {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+  const standalone = window.navigator.standalone === true
+    || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  return ios && !standalone;
+}
+
+async function enableRiderPush(silent) {
+  if (silent !== true) unlockRiderAudio();
+  if (iosNeedsHomeScreen()) {
+    if (silent !== true) showToast('บน iPhone ต้องกดแชร์แล้วเลือก เพิ่มไปที่หน้าจอโฮม ก่อน จึงจะรับแจ้งเตือนได้', 'warning', 8000);
+    return;
+  }
+  const vapid = (dispatchConfig && dispatchConfig.vapidKey) || '';
+  if (!vapid) {
+    if (silent !== true) showToast('แอดมินยังไม่ได้ใส่คีย์ Web Push ในหน้าจ่ายงาน', 'warning', 6000);
+    updatePushBanner();
+    return;
+  }
+  if (!('Notification' in window) || !firebase.messaging) {
+    showToast('เบราว์เซอร์นี้ไม่รองรับการแจ้งเตือน', 'warning');
+    return;
+  }
+  let perm = Notification.permission;
+  if (perm === 'default') {
+    try { perm = await Notification.requestPermission(); } catch (e) { perm = 'denied'; }
+  }
+  if (perm !== 'granted') {
+    showToast('ยังไม่เปิดการแจ้งเตือน — จะไม่ได้รับงานเมื่อปิดแอป', 'warning', 6000);
+    updatePushBanner();
+    return;
+  }
+  try {
+    const messaging = firebase.messaging();
+    const reg = await navigator.serviceWorker.ready;
+    const token = await messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
+    if (!token || !currentUser) throw new Error('no-token');
+    await db.collection('riders').doc(currentUser.uid).update({
+      fcmTokens: firebase.firestore.FieldValue.arrayUnion(token)
+    });
+    if (silent !== true) showToast('เปิดการแจ้งเตือนแล้ว รับงานได้แม้ปิดแอป');
+  } catch (err) {
+    if (silent !== true) showToast('เปิดการแจ้งเตือนไม่สำเร็จ', 'error');
+  }
+  updatePushBanner();
+}
+
+function maybeRefreshPush() {
+  if (!currentUser || !dispatchConfig || !dispatchConfig.vapidKey) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  if (iosNeedsHomeScreen()) return;
+  enableRiderPush(true).catch(() => {});
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
@@ -2353,6 +2683,9 @@ window.showHistory = showHistory;
 window.showJobDetail = showJobDetail;
 window.closeNewJobPopup = closeNewJobPopup;
 window.acceptFromPopup = acceptFromPopup;
+window.acceptDispatchOffer = acceptDispatchOffer;
+window.skipDispatchOffer = skipDispatchOffer;
+window.enableRiderPush = enableRiderPush;
 window.openChatWithCustomer = openChatWithCustomer;
 window.openChatRoom = openChatRoom;
 window.closeChat = closeChat;
