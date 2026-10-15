@@ -747,6 +747,14 @@ main { padding: 0 14px 30px; }
   font-size: 15px;
 }
 .modal-body { padding: 20px; }
+.place-add-map {
+  height: 220px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #d5dee6;
+  border: 2px solid var(--border);
+}
+.place-add-map .leaflet-container { height: 100%; width: 100%; font-family: inherit; }
 
 .meta { font-size: 12px; color: var(--text-muted); font-weight: 700; }
 .nm { font-size: 16px; font-weight: 900; color: var(--text); }

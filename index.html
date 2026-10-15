@@ -1137,11 +1137,11 @@ var CATS = {
   t:{name:'ท่องเที่ยว',icon:'🏞️'}, h:{name:'ที่พัก',icon:'🏨'},
   s:{name:'ร้านค้า',icon:'🛍️'}, w:{name:'วัด',icon:'🛕'},
   g:{name:'ปั๊มน้ำมัน',icon:'⛽'}, b:{name:'ธนาคาร',icon:'🏦'},
-  e:{name:'สถานศึกษา',icon:'🏫'}, o:{name:'ราชการ',icon:'🏛️'},
+  e:{name:'สถานศึกษา',icon:'🏫'}, o:{name:'อบต./เทศบาล',icon:'🏛️'},
   x:{name:'อื่นๆ',icon:'📌'}, l:{name:'สาธารณสุข',icon:'🏥'},
   p:{name:'ไปรษณีย์',icon:'📦'}, y:{name:'ชุมชน',icon:'🏘️'},
   i:{name:'ตำรวจ',icon:'🚓'}, k:{name:'แคมป์ปิ้ง',icon:'⛺'},
-  v:{name:'จุดถ่ายรูป',icon:'📷'}
+  v:{name:'จุดเช็กอิน',icon:'📷'}
 };
 
 /* ═══ HELPERS ═══ */
@@ -3885,6 +3885,23 @@ function catalogRows() {
       source: 'osm'
     });
   });
+  Object.keys(placeOverrides).forEach(function(id) {
+    var over = placeOverrides[id] || {};
+    if (over.type !== 'added' || over.hidden) return;
+    var lat = Number(over.lat);
+    var lng = Number(over.lng);
+    var name = String(over.name || '').trim();
+    if (!name || !isFinite(lat) || !isFinite(lng)) return;
+    rows.push({
+      label: name,
+      cat: over.category || 'x',
+      tambon: over.tambon || '',
+      lat: lat,
+      lng: lng,
+      osmId: id,
+      source: 'added'
+    });
+  });
   var kept = [];
   rows.forEach(function(row) {
     var key = foldPlaceName(row.label);
@@ -3909,8 +3926,8 @@ function searchPlaceCatalog(query, cat, origin, limit) {
     return haversine(origin.lat, origin.lng, a.lat, a.lng) - haversine(origin.lat, origin.lng, b.lat, b.lng);
   });
   if (cat && !q) {
-    var osm = rows.filter(function(row) { return row.source === 'osm'; });
-    var curated = rows.filter(function(row) { return row.source !== 'osm'; }).slice(0, 6);
+    var osm = rows.filter(function(row) { return row.source === 'osm' || row.source === 'added'; });
+    var curated = rows.filter(function(row) { return row.source === 'curated'; }).slice(0, 6);
     return osm.concat(curated).slice(0, limit || 80);
   }
   return rows.slice(0, limit || 40);
