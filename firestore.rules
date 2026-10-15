@@ -10,6 +10,9 @@ rules_version = '2';
 //   * orders update [C]: picked_up only after food is ready when the order needs a kitchen
 //   * isAdmin also covers boss role active/super, users.role admin (not pending),
 //     and the three master emails — a pending admins doc cannot self-promote
+//   * placeOverrides: anyone can read; only isAdmin() can write.
+//     OSM corrections: hidden / name / lat / lng.
+//     Admin-added places: type 'added' plus name, category, tambon, lat, lng.
 // Every other collection keeps the v3.8.4 access shape.
 
 service cloud.firestore {
@@ -86,6 +89,38 @@ service cloud.firestore {
 
     function hasField(data, field) {
       return field in data;
+    }
+
+    function placeCorrectionOk() {
+      return request.resource.data.keys().hasOnly(['hidden', 'name', 'lat', 'lng', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['updatedAt'])
+        && request.resource.data.updatedAt is timestamp
+        && (!('hidden' in request.resource.data) || request.resource.data.hidden is bool)
+        && (!('name' in request.resource.data) || isValidString(request.resource.data.name, 1, 120))
+        && (
+          (!('lat' in request.resource.data) && !('lng' in request.resource.data))
+          || (
+            isValidNumber(request.resource.data.lat, 7.5, 8.5)
+            && isValidNumber(request.resource.data.lng, 99.4, 100.5)
+          )
+        );
+    }
+
+    function placeAddedOk() {
+      return request.resource.data.keys().hasOnly(['type', 'name', 'category', 'tambon', 'lat', 'lng', 'hidden', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['type', 'name', 'category', 'tambon', 'lat', 'lng', 'updatedAt'])
+        && request.resource.data.type == 'added'
+        && isValidString(request.resource.data.name, 1, 120)
+        && request.resource.data.category in ['r', 'f', 'c', 'm', 't', 'h', 's', 'w', 'g', 'b', 'e', 'o', 'x', 'l', 'p', 'y', 'i', 'k', 'v']
+        && request.resource.data.tambon in ['ชะอวด', 'ท่าเสม็ด', 'ท่าประจะ', 'เคร็ง', 'วังอ่าง', 'บ้านตูล', 'ขอนหาด', 'เกาะขันธ์', 'ควนหนองหงษ์', 'เขาพระทอง', 'นางหลง']
+        && isValidNumber(request.resource.data.lat, 7.5, 8.5)
+        && isValidNumber(request.resource.data.lng, 99.4, 100.5)
+        && request.resource.data.updatedAt is timestamp
+        && (!('hidden' in request.resource.data) || request.resource.data.hidden is bool);
+    }
+
+    function placeOverrideOk() {
+      return placeCorrectionOk() || placeAddedOk();
     }
 
     function noRider(data) {
@@ -461,6 +496,14 @@ service cloud.firestore {
     match /places/{placeId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
+
+    // OSM corrections (doc id n123 / w456) or admin-added places (type 'added').
+    // Publish this rules file before hide, edit, add, or delete will succeed.
+    match /placeOverrides/{placeId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && placeOverrideOk();
+      allow delete: if isAdmin();
     }
 
     match /{document=**} {

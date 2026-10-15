@@ -62,7 +62,8 @@ const SECTIONS = [
   ['gpTransfers', '📸', 'สลิป GP'],
   ['payouts', '💸', 'โอนไรเดอร์'],
   ['chats', '💬', 'แชท'],
-  ['users', '👥', 'ผู้ใช้']
+  ['users', '👥', 'ผู้ใช้'],
+  ['mapPlaces', '📍', 'สถานที่']
 ];
 
 const STATUS = {
@@ -464,6 +465,22 @@ function start() {
     unsubs.push(unsub);
   });
 
+  const overrideUnsub = db.collection('placeOverrides').limit(500).onSnapshot(s => {
+    store.placeOverrides = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    store.placeOverrideError = '';
+    if (current === 'mapPlaces') render();
+  }, err => {
+    store.placeOverrideError = (err && err.code) || 'permission-denied';
+    if (current === 'mapPlaces') render();
+  });
+  unsubs.push(overrideUnsub);
+  if (!store.osmCatalog || !store.osmCatalog.places) {
+    fetch('/data/chauat-places.json').then(r => r.json()).then(data => {
+      store.osmCatalog = data;
+      if (current === 'mapPlaces') render();
+    }).catch(() => {});
+  }
+
   setupNetwork();
   setupPWA();
   renderNav();
@@ -521,7 +538,7 @@ function render() {
   if (!mainEl) return;
 
   const fn = {
-    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users
+    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users, mapPlaces
   }[current];
 
   if (fn) {
@@ -1386,6 +1403,204 @@ function changeRoleForm(uid) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   21b. OSM PLACE OVERRIDES
+   ═══════════════════════════════════════════════════════════════════ */
+const OSM_CATS = {
+  r: 'ร้านอาหาร', f: 'คาเฟ่', c: 'สะดวกซื้อ', m: 'ตลาด', t: 'ท่องเที่ยว', h: 'ที่พัก',
+  s: 'ร้านค้า', w: 'วัด', g: 'ปั๊มน้ำมัน', b: 'ธนาคาร', e: 'สถานศึกษา', o: 'อบต./เทศบาล',
+  x: 'อื่นๆ', l: 'สาธารณสุข', p: 'ไปรษณีย์', y: 'ชุมชน', i: 'ตำรวจ', k: 'แคมป์ปิ้ง', v: 'จุดเช็กอิน'
+};
+const PLACE_CAT_ORDER = ['o', 'r', 'm', 'k', 'v', 'w', 'e', 'l', 'i', 'f', 'c', 's', 't', 'h', 'g', 'b', 'p', 'y', 'x'];
+const PLACE_TAMBONS = ['ชะอวด', 'ท่าเสม็ด', 'ท่าประจะ', 'เคร็ง', 'วังอ่าง', 'บ้านตูล', 'ขอนหาด', 'เกาะขันธ์', 'ควนหนองหงษ์', 'เขาพระทอง', 'นางหลง'];
+const CHAUAT_PLACE_CENTER = { lat: 7.965, lng: 99.996 };
+let addPlaceMap = null;
+let addPlaceMarker = null;
+
+function mapPlaces() {
+  const catalog = (store.osmCatalog && store.osmCatalog.places) || [];
+  const overrides = {};
+  (store.placeOverrides || []).forEach(row => { overrides[row.id] = row; });
+  const q = (filters.q || '').trim().toLowerCase();
+  const rows = catalog.map(p => {
+    const over = overrides[p.i] || {};
+    return {
+      id: p.i,
+      name: over.name || p.n,
+      original: p.n,
+      cat: OSM_CATS[p.c] || p.c || '',
+      tambon: p.t || '',
+      lat: typeof over.lat === 'number' ? over.lat : p.lat,
+      lng: typeof over.lng === 'number' ? over.lng : p.lng,
+      hidden: !!over.hidden,
+      edited: !!(over.name || typeof over.lat === 'number')
+    };
+  }).filter(row => !q || (row.name + ' ' + row.original + ' ' + row.cat + ' ' + row.tambon).toLowerCase().includes(q));
+  const err = typeof store.placeOverrideError === 'string' ? store.placeOverrideError : '';
+  const warn = err
+    ? `<div class="empty" style="margin-bottom:12px"><div>ยังบันทึกการซ่อนไม่ได้ (${esc(err)})</div><div>ต้อง Publish กฎ Firestore ก่อน — ดู RULES_TH.md</div></div>`
+    : '';
+  const intro = catalog.length
+    ? `<div class="data-card-meta" style="margin:14px 0 10px">รายการจาก OpenStreetMap ${catalog.length} จุด • ซ่อนหรือแก้ชื่อ/พิกัดได้ ลูกค้าจะเห็นหลังบันทึก</div>`
+    : '<div class="empty"><div class="icon">📍</div><div>กำลังโหลดรายการสถานที่</div></div>';
+  return warn + searchInput('ค้นหาวัด โรงเรียน อบต....') + addedPlaceCards(q) + intro + rows.map(row => `<div class="data-card">
+    <div class="data-card-header">
+      <div class="data-card-icon">${row.hidden ? '🚫' : '📍'}</div>
+      <div class="data-card-info">
+        <div class="data-card-name">${esc(row.name)}</div>
+        <div class="data-card-meta">${esc(row.cat)}${row.tambon ? ' • ตำบล' + esc(row.tambon) : ' • อำเภอชะอวด'}${row.hidden ? ' • ซ่อนจากลูกค้า' : ''}</div>
+        <div class="data-card-meta">${row.lat.toFixed(5)}, ${row.lng.toFixed(5)}${row.name !== row.original ? ' • เดิม ' + esc(row.original) : ''}</div>
+      </div>
+    </div>
+    <div class="data-card-actions">
+      <button class="${row.hidden ? 'blue' : 'dan'}" data-place-hide="${esc(row.id)}" data-place-hidden="${row.hidden ? '1' : '0'}">${row.hidden ? 'แสดงอีกครั้ง' : 'ซ่อน'}</button>
+      <button class="blue" data-place-edit="${esc(row.id)}">แก้ชื่อ/พิกัด</button>
+      ${row.edited || row.hidden ? `<button data-place-reset="${esc(row.id)}">คืนค่าเดิม</button>` : ''}
+    </div>
+  </div>`).join('');
+}
+
+function addedPlaceCards(q) {
+  const added = (store.placeOverrides || []).filter(row => row && row.type === 'added');
+  const rows = added.filter(row => !q || ((row.name || '') + ' ' + (OSM_CATS[row.category] || '') + ' ' + (row.tambon || '')).toLowerCase().includes(q));
+  const head = `<button class="btn-primary" style="margin-bottom:12px" data-place-add="1">＋ เพิ่มสถานที่</button>
+    <div class="data-card-meta" style="margin:0 0 10px">สถานที่ที่เพิ่มเอง ${added.length} จุด • รวมในค้นหาของลูกค้าหลังบันทึก</div>`;
+  if (!added.length) {
+    return head + '<div class="empty" style="margin-bottom:12px"><div>ยังไม่มีสถานที่ที่เพิ่มเอง</div></div>';
+  }
+  if (!rows.length) return head;
+  return head + rows.map(row => {
+    const lat = Number(row.lat);
+    const lng = Number(row.lng);
+    const coords = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : 'ยังไม่มีพิกัด';
+    return `<div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon">➕</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(row.name || 'ไม่มีชื่อ')}</div>
+          <div class="data-card-meta">${esc(OSM_CATS[row.category] || row.category || '')}${row.tambon ? ' • ตำบล' + esc(row.tambon) : ''}</div>
+          <div class="data-card-meta">${coords}</div>
+        </div>
+      </div>
+      <div class="data-card-actions">
+        <button class="blue" data-place-added-edit="${esc(row.id)}">แก้ไข</button>
+        <button class="dan" data-place-added-delete="${esc(row.id)}">ลบ</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function destroyAddPlaceMap() {
+  if (addPlaceMap) {
+    try { addPlaceMap.remove(); } catch (e) {}
+  }
+  addPlaceMap = null;
+  addPlaceMarker = null;
+}
+
+function setAddPlaceCoords(lat, lng) {
+  const latEl = $('place-add-lat');
+  const lngEl = $('place-add-lng');
+  const label = $('place-add-coords');
+  if (latEl) latEl.value = String(lat);
+  if (lngEl) lngEl.value = String(lng);
+  if (label) label.textContent = lat.toFixed(6) + ', ' + lng.toFixed(6) + ' • แตะแผนที่หรือลากหมุด';
+}
+
+function bindAddPlaceMap(lat, lng) {
+  const el = $('place-add-map');
+  if (!el || typeof L === 'undefined') return;
+  destroyAddPlaceMap();
+  addPlaceMap = L.map(el, { zoomControl: true, attributionControl: true }).setView([lat, lng], 16);
+  if (window.ChauatMap && ChauatMap.addBaseTiles) ChauatMap.addBaseTiles(addPlaceMap);
+  else {
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      detectRetina: true,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(addPlaceMap);
+  }
+  addPlaceMarker = L.marker([lat, lng], { draggable: true }).addTo(addPlaceMap);
+  setAddPlaceCoords(lat, lng);
+  addPlaceMarker.on('dragend', () => {
+    const ll = addPlaceMarker.getLatLng();
+    setAddPlaceCoords(ll.lat, ll.lng);
+  });
+  addPlaceMap.on('click', ev => {
+    addPlaceMarker.setLatLng(ev.latlng);
+    setAddPlaceCoords(ev.latlng.lat, ev.latlng.lng);
+  });
+  setTimeout(() => { if (addPlaceMap) addPlaceMap.invalidateSize(); }, 200);
+}
+
+function openAddPlaceForm(id) {
+  destroyAddPlaceMap();
+  const existing = id
+    ? ((store.placeOverrides || []).find(p => p.id === id && p.type === 'added') || null)
+    : null;
+  if (id && !existing) return;
+  const name = existing ? (existing.name || '') : '';
+  const cat = existing && OSM_CATS[existing.category] ? existing.category : 'o';
+  const tambon = existing && PLACE_TAMBONS.includes(existing.tambon) ? existing.tambon : '';
+  const lat = existing && Number.isFinite(Number(existing.lat)) ? Number(existing.lat) : CHAUAT_PLACE_CENTER.lat;
+  const lng = existing && Number.isFinite(Number(existing.lng)) ? Number(existing.lng) : CHAUAT_PLACE_CENTER.lng;
+  const catOptions = PLACE_CAT_ORDER.map(code =>
+    `<option value="${code}" ${code === cat ? 'selected' : ''}>${esc(OSM_CATS[code])}</option>`
+  ).join('');
+  const tambonOptions = '<option value="">เลือกตำบล</option>' + PLACE_TAMBONS.map(t =>
+    `<option value="${esc(t)}" ${t === tambon ? 'selected' : ''}>${esc(t)}</option>`
+  ).join('');
+  openModal(existing ? 'แก้ไขสถานที่' : 'เพิ่มสถานที่', `
+    <div class="form-field"><label>ชื่อสถานที่</label><input id="place-add-name" maxlength="120" value="${esc(name)}" placeholder="เช่น ตลาดชะอวด"></div>
+    <div class="form-field"><label>ประเภท</label><select id="place-add-cat">${catOptions}</select></div>
+    <div class="form-field"><label>ตำบล</label><select id="place-add-tambon">${tambonOptions}</select></div>
+    <div class="form-field">
+      <label>ตำแหน่งบนแผนที่</label>
+      <div id="place-add-map" class="place-add-map"></div>
+      <button type="button" class="btn-secondary" data-place-gps="1" style="margin-top:8px">ใช้ตำแหน่งปัจจุบัน</button>
+    </div>
+    <div class="meta" id="place-add-coords" style="margin:-4px 0 12px">${lat.toFixed(6)}, ${lng.toFixed(6)} • แตะแผนที่หรือลากหมุด</div>
+    <input type="hidden" id="place-add-lat" value="${lat}">
+    <input type="hidden" id="place-add-lng" value="${lng}">
+    <input type="hidden" id="place-add-id" value="${existing ? esc(existing.id) : ''}">
+    <button type="button" class="btn-primary" data-place-add-save="1">บันทึก</button>
+  `);
+  setTimeout(() => bindAddPlaceMap(lat, lng), 40);
+}
+
+function useAddPlaceGps() {
+  if (!navigator.geolocation) return showToast('เครื่องนี้ไม่มี GPS', 'error');
+  showToast('กำลังหาตำแหน่ง...', 'info');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    if (addPlaceMarker && addPlaceMap) {
+      addPlaceMarker.setLatLng([lat, lng]);
+      addPlaceMap.setView([lat, lng], 17);
+      setAddPlaceCoords(lat, lng);
+    }
+    if (lat < 7.5 || lat > 8.5 || lng < 99.4 || lng > 100.5) {
+      showToast('ตำแหน่งนี้อยู่นอกอำเภอชะอวด', 'warning');
+      return;
+    }
+    showToast('ปักหมุดที่ตำแหน่งปัจจุบันแล้ว');
+  }, () => {
+    showToast('หา GPS ไม่ได้ ใช้หมุดบนแผนที่ต่อ', 'error');
+  }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 });
+}
+
+function editOsmPlace(id) {
+  const place = ((store.osmCatalog && store.osmCatalog.places) || []).find(p => p.i === id);
+  const over = (store.placeOverrides || []).find(p => p.id === id) || {};
+  if (!place) return;
+  openModal('แก้สถานที่', `
+    <div class="form-group"><label>ชื่อที่ลูกค้าเห็น</label><input id="place-edit-name" value="${esc(over.name || place.n)}"></div>
+    <div class="form-group"><label>ละติจูด</label><input id="place-edit-lat" inputmode="decimal" value="${typeof over.lat === 'number' ? over.lat : place.lat}"></div>
+    <div class="form-group"><label>ลองจิจูด</label><input id="place-edit-lng" inputmode="decimal" value="${typeof over.lng === 'number' ? over.lng : place.lng}"></div>
+    <button class="btn-full btn-green" data-place-save="${esc(id)}">บันทึก</button>
+  `);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    22. SEARCH INPUT
    ═══════════════════════════════════════════════════════════════════ */
 function searchInput(placeholder) {
@@ -1418,6 +1633,7 @@ function openModal(title, html) {
 }
 
 function closeModal() {
+  destroyAddPlaceMap();
   $('modal-overlay')?.classList.remove('show');
 }
 
@@ -1431,7 +1647,8 @@ document.addEventListener('click', async e => {
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],' +
     '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-change-role],' +
-    '[data-save-role],[data-approve-admin]'
+    '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset],' +
+    '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps]'
   );
   if (!t) return;
 
@@ -1684,6 +1901,95 @@ document.addEventListener('click', async e => {
       await db.collection('users').doc(uid).update({ isPending: false });
       showToast('✅ อนุมัติแล้ว');
       closeModal();
+      return;
+    }
+
+    if (t.dataset.placeHide) {
+      const id = t.dataset.placeHide;
+      const hidden = t.dataset.placeHidden !== '1';
+      await db.collection('placeOverrides').doc(id).set({
+        hidden,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      showToast(hidden ? 'ซ่อนจากลูกค้าแล้ว' : 'แสดงในค้นหาแล้ว');
+      return;
+    }
+
+    if (t.dataset.placeEdit) {
+      editOsmPlace(t.dataset.placeEdit);
+      return;
+    }
+
+    if (t.dataset.placeSave) {
+      const id = t.dataset.placeSave;
+      const name = ($('place-edit-name')?.value || '').trim();
+      const lat = Number($('place-edit-lat')?.value);
+      const lng = Number($('place-edit-lng')?.value);
+      if (!name) return showToast('ใส่ชื่อ', 'error');
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return showToast('พิกัดไม่ถูกต้อง', 'error');
+      await db.collection('placeOverrides').doc(id).set({
+        name, lat, lng,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      showToast('บันทึกแล้ว');
+      closeModal();
+      return;
+    }
+
+    if (t.dataset.placeReset) {
+      await db.collection('placeOverrides').doc(t.dataset.placeReset).delete();
+      showToast('คืนค่าจาก OpenStreetMap แล้ว');
+      return;
+    }
+
+    if (t.dataset.placeAdd) {
+      openAddPlaceForm();
+      return;
+    }
+
+    if (t.dataset.placeAddedEdit) {
+      openAddPlaceForm(t.dataset.placeAddedEdit);
+      return;
+    }
+
+    if (t.dataset.placeGps) {
+      useAddPlaceGps();
+      return;
+    }
+
+    if (t.dataset.placeAddSave) {
+      const name = ($('place-add-name')?.value || '').trim();
+      const category = $('place-add-cat')?.value || '';
+      const tambon = $('place-add-tambon')?.value || '';
+      const lat = Number($('place-add-lat')?.value);
+      const lng = Number($('place-add-lng')?.value);
+      const id = ($('place-add-id')?.value || '').trim();
+      if (!name) return showToast('ใส่ชื่อสถานที่', 'error');
+      if (!OSM_CATS[category]) return showToast('เลือกประเภท', 'error');
+      if (!PLACE_TAMBONS.includes(tambon)) return showToast('เลือกตำบล', 'error');
+      if (!Number.isFinite(lat) || lat < 7.5 || lat > 8.5 || !Number.isFinite(lng) || lng < 99.4 || lng > 100.5) {
+        return showToast('เลื่อนหมุดให้อยู่ในอำเภอชะอวด', 'error');
+      }
+      const payload = {
+        type: 'added',
+        name,
+        category,
+        tambon,
+        lat,
+        lng,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if (id) await db.collection('placeOverrides').doc(id).set(payload);
+      else await db.collection('placeOverrides').add(payload);
+      showToast('บันทึกสถานที่แล้ว');
+      closeModal();
+      return;
+    }
+
+    if (t.dataset.placeAddedDelete) {
+      if (!confirm('ลบสถานที่ที่เพิ่มนี้?')) return;
+      await db.collection('placeOverrides').doc(t.dataset.placeAddedDelete).delete();
+      showToast('ลบสถานที่แล้ว');
       return;
     }
 

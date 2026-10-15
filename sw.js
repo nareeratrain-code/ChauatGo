@@ -1,5 +1,8 @@
-const CACHE_NAME = 'chauat-app-v3.9.7';
+const CACHE_NAME = 'chauat-app-v3.9.11';
+const TILE_CACHE = 'chauat-tiles-v1';
+const TILE_CACHE_LIMIT = 300;
 
+// /data/chauat-places.json is about 10KB, under the 300KB precache limit.
 // Shell for customer, merchant, admin, rider, and boss.
 // Do not list files that are not deployed. cache.addAll rejects the whole
 // install when any URL 404s, and a rejected install leaves the previous
@@ -20,6 +23,8 @@ const ASSETS = [
   '/boss.html',
   '/brand-ui.css',
   '/brand-ui.js',
+  '/map-tiles.js',
+  '/data/chauat-places.json',
   '/images/logo-banner.png',
   '/manifest.json',
   '/icons/icon-192.png',
@@ -59,7 +64,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    const stale = keys.filter((key) => key !== CACHE_NAME);
+    const stale = keys.filter((key) => key !== CACHE_NAME && key !== TILE_CACHE);
     await Promise.all(stale.map((key) => caches.delete(key)));
     await self.clients.claim();
     // Open tabs were painted by the previous worker. Reload them once an
@@ -93,6 +98,11 @@ self.addEventListener('fetch', (event) => {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
   // Firebase API calls stay on the network and are never written to Cache Storage.
   if (isFirebaseRequest(url)) return;
+  if (isMapTile(url)) {
+    const zoom = tileZoom(url);
+    if (zoom >= 13 && zoom <= 19) event.respondWith(cacheMapTile(request));
+    return;
+  }
   if (url.origin !== self.location.origin) return;
   if (url.pathname === '/sw.js' || url.pathname === '/sw-admin.js') return;
 
@@ -141,6 +151,48 @@ async function matchCached(request, url) {
     return (await caches.match(url.pathname)) || (await caches.match('/index.html'));
   }
   return undefined;
+}
+
+function isMapTile(url) {
+  return url.hostname === 'tile.openstreetmap.org' &&
+    /^\/\d+\/\d+\/\d+\.png$/i.test(url.pathname);
+}
+
+function tileZoom(url) {
+  const match = url.pathname.match(/^\/(\d+)\//);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+async function trimTileCache(cache) {
+  const keys = await cache.keys();
+  if (keys.length <= TILE_CACHE_LIMIT) return;
+  const ranked = keys.map((req) => {
+    let zoom = 0;
+    try { zoom = tileZoom(new URL(req.url)); } catch (err) {}
+    return { req: req, zoom: zoom };
+  }).sort((a, b) => a.zoom - b.zoom);
+  const extra = keys.length - TILE_CACHE_LIMIT;
+  await Promise.all(ranked.slice(0, extra).map((item) => cache.delete(item.req)));
+}
+
+async function cacheMapTile(request) {
+  const cache = await caches.open(TILE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    const blocked = response.headers && response.headers.get('x-blocked');
+    if (response && response.ok && response.type !== 'opaque' && !blocked) {
+      try {
+        await cache.put(request, response.clone());
+        await trimTileCache(cache);
+      } catch (err) {}
+    }
+    return response;
+  } catch (err) {
+    if (cached) return cached;
+    return Response.error();
+  }
 }
 
 async function networkFirst(request, url) {
