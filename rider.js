@@ -34,8 +34,9 @@ console.log('%c🛵 Chauat Go Rider v3.9.1', 'color:#FF6B35;font-weight:900;font
    ═══════════════════════════════════════════════════════════════════ */
 let currentUser = null;
 let riderProfile = null;
-let allJobs = [];
+var allJobs = [];
 let allHistory = [];
+let riderJobMap = null;
 let myProfileUnsub = null;
 let myJobsUnsub = null;
 let myHistoryUnsub = null;
@@ -1386,10 +1387,18 @@ function showJobDetail(jobId) {
         ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
         : ''));
 
+  const hasMapPoint = !!(
+    (job.shopPlaceLat && job.shopPlaceLng) ||
+    (job.lat && job.lng) ||
+    (job.fromLat && job.fromLng)
+  );
+  destroyRiderJobMap();
+
   mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 รายละเอียดงาน</h2>
     ${codeHtml}
     ${payStatusHtml}
+    ${hasMapPoint ? '<div id="rider-job-map" style="height:240px;border-radius:14px;margin-bottom:14px;overflow:hidden"></div>' : ''}
     <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px">
       <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(job.title || 'งาน')}</div>
       <div style="font-size:13px;font-weight:700;color:var(--text-muted);line-height:1.9">
@@ -1421,6 +1430,57 @@ function showJobDetail(jobId) {
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
+  if (hasMapPoint) setTimeout(() => mountRiderJobMap(job), 60);
+}
+
+function destroyRiderJobMap() {
+  if (!riderJobMap) return;
+  try { riderJobMap.remove(); } catch (e) {}
+  riderJobMap = null;
+}
+
+function mountRiderJobMap(job) {
+  destroyRiderJobMap();
+  const el = document.getElementById('rider-job-map');
+  if (!el || typeof L === 'undefined' || !window.ChauatMap) return;
+  const shop = ChauatMap.point(job.shopPlaceLat, job.shopPlaceLng);
+  const drop = ChauatMap.point(job.lat, job.lng);
+  const from = ChauatMap.point(job.fromLat, job.fromLng);
+  const customer = drop || (shop ? from : null);
+  const showFrom = from && !ChauatMap.same(from, shop) && !ChauatMap.same(from, customer);
+  const line = [];
+  if (shop) line.push(shop);
+  if (showFrom) line.push(from);
+  if (customer && !ChauatMap.same(customer, line[line.length - 1])) line.push(customer);
+  if (!line.length && from) line.push(from);
+  if (!line.length) {
+    el.style.display = 'none';
+    return;
+  }
+  riderJobMap = L.map(el, { zoomControl: true });
+  ChauatMap.addBaseTiles(riderJobMap);
+  if (shop) {
+    L.marker([shop.lat, shop.lng], { icon: ChauatMap.pin('🏪', ChauatMap.COLORS.shop), zIndexOffset: 900 })
+      .addTo(riderJobMap)
+      .bindPopup('<b>🏪 ' + esc(job.shopPlaceName || job.merchantName || 'ร้าน') + '</b>');
+  }
+  if (showFrom) {
+    L.marker([from.lat, from.lng], { icon: ChauatMap.pin('📍', ChauatMap.COLORS.user), zIndexOffset: 950 })
+      .addTo(riderJobMap)
+      .bindPopup('<b>📍 จุดรับ</b>');
+  }
+  if (customer) {
+    L.marker([customer.lat, customer.lng], { icon: ChauatMap.pin('🏠', ChauatMap.COLORS.customer), zIndexOffset: 1000 })
+      .addTo(riderJobMap)
+      .bindPopup('<b>🏠 จุดส่ง</b>');
+  }
+  if (line.length >= 2) ChauatMap.route(riderJobMap, null, line);
+  ChauatMap.fit(riderJobMap, line, 17);
+  setTimeout(() => {
+    if (!riderJobMap) return;
+    riderJobMap.invalidateSize();
+    ChauatMap.fit(riderJobMap, line, 17);
+  }, 220);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1594,6 +1654,7 @@ function requestGPS() {
 function openSheet() { $('sheetOverlay')?.classList.add('show'); }
 function closeSheet() { $('sheetOverlay')?.classList.remove('show'); }
 function closeModal() {
+  destroyRiderJobMap();
   $('modalOverlay')?.classList.remove('show');
   const mc = $('modalContent');
   if (mc) mc.innerHTML = '';

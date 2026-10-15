@@ -956,6 +956,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="map-tiles.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -1034,7 +1035,12 @@ var _shoppingPlacesCache = [];
 var trackingOrderId = null;
 var trackingMap = null;
 var trackingRiderMarker = null;
+var trackingShopMarker = null;
+var trackingOriginMarker = null;
 var trackingDestMarker = null;
+var trackingRoute = null;
+var trackingFitKey = '';
+var placeDetailMap = null;
 var trackingUnsub = null;
 var trackingWatchId = null;
 var orderListUnsub = null;
@@ -2208,14 +2214,24 @@ window.openTrackingPage = function(orderId){
   var page = $('tracking-page');
   if (page) page.classList.add('show');
 
+  trackingFitKey = '';
+  lastTrackedPositions = {};
+  if (trackingWatchId) { try { trackingWatchId(); } catch (e) {} trackingWatchId = null; }
+  if (trackingMap) clearTrackingGraphics();
+
   setTimeout(function(){
     if (typeof L === 'undefined') return;
     if (!trackingMap) {
-      trackingMap = L.map('track-map', {zoomControl:true}).setView([7.9650, 99.9960], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:19 }).addTo(trackingMap);
+      trackingMap = L.map('track-map', {zoomControl:true}).setView([7.9650, 99.9960], 16);
+      if (window.ChauatMap) ChauatMap.addBaseTiles(trackingMap);
     }
     trackingMap.invalidateSize();
-    setTimeout(function(){ trackingMap.invalidateSize(); }, 200);
+    if (currentTrackingOrder) syncTrackingMap(currentTrackingOrder);
+    setTimeout(function(){
+      if (!trackingMap) return;
+      trackingMap.invalidateSize();
+      if (currentTrackingOrder) syncTrackingMap(currentTrackingOrder);
+    }, 200);
   }, 300);
 
   if (trackingUnsub) trackingUnsub();
@@ -2311,33 +2327,74 @@ function renderTrackingInfo(o){
   var $tl = $('track-timeline'); if ($tl) $tl.innerHTML = html;
 }
 
-function renderTrackingMarkers(o){
-  if (!trackingMap) return;
-  if (o.lat && o.lng) {
-    if (trackingDestMarker) trackingMap.removeLayer(trackingDestMarker);
-    var destIcon = L.divIcon({ className:'', html:'<div class="custom-pin"><div class="custom-pin-dot red">🏠</div></div>', iconSize:[40,50], iconAnchor:[20,50] });
-    trackingDestMarker = L.marker([o.lat, o.lng], {icon:destIcon, zIndexOffset:1000}).addTo(trackingMap);
-    trackingDestMarker.bindPopup('<b>🏠 บ้านคุณ</b>');
-    if (!lastTrackedPositions.dest) { trackingMap.setView([o.lat, o.lng], 15); lastTrackedPositions.dest = {lat:o.lat, lng:o.lng}; }
+function clearTrackingGraphics() {
+  [trackingDestMarker, trackingShopMarker, trackingOriginMarker, trackingRiderMarker].forEach(function(layer){
+    if (layer && trackingMap) { try { trackingMap.removeLayer(layer); } catch (e) {} }
+  });
+  if (trackingRoute && trackingMap) { try { trackingMap.removeLayer(trackingRoute); } catch (e) {} }
+  trackingDestMarker = null;
+  trackingShopMarker = null;
+  trackingOriginMarker = null;
+  trackingRiderMarker = null;
+  trackingRoute = null;
+}
+
+function trackingMarker(existing, pt, icon, zIndex, popupHtml) {
+  if (!pt) {
+    if (existing && trackingMap) { try { trackingMap.removeLayer(existing); } catch (e) {} }
+    return null;
   }
-  if (o.shopPlaceLat && o.shopPlaceLng) {
-    var shopIcon = L.divIcon({ className:'', html:'<div class="custom-pin orange"><div class="custom-pin-dot orange">🏪</div></div>', iconSize:[40,50], iconAnchor:[20,50] });
-    L.marker([o.shopPlaceLat, o.shopPlaceLng], {icon:shopIcon}).addTo(trackingMap).bindPopup('<b>🏪 '+esc(o.shopPlaceName||'ร้านค้า')+'</b>');
+  if (existing) {
+    existing.setLatLng([pt.lat, pt.lng]);
+    return existing;
+  }
+  var marker = L.marker([pt.lat, pt.lng], { icon: icon, zIndexOffset: zIndex }).addTo(trackingMap);
+  if (popupHtml) marker.bindPopup(popupHtml);
+  return marker;
+}
+
+function syncTrackingMap(o) {
+  if (!trackingMap || !o || !window.ChauatMap) return;
+  var shop = ChauatMap.point(o.shopPlaceLat, o.shopPlaceLng);
+  var dest = ChauatMap.point(o.lat, o.lng);
+  var from = ChauatMap.point(o.fromLat, o.fromLng);
+  var rider = lastTrackedPositions.rider ? ChauatMap.point(lastTrackedPositions.rider.lat, lastTrackedPositions.rider.lng) : null;
+  if (!dest && from && !ChauatMap.same(from, shop)) dest = from;
+  var showOrigin = !!(from && !ChauatMap.same(from, shop) && !ChauatMap.same(from, dest));
+
+  trackingShopMarker = trackingMarker(trackingShopMarker, shop, ChauatMap.pin('🏪', ChauatMap.COLORS.shop), 900, '<b>🏪 ' + esc(o.shopPlaceName || o.merchantName || 'ร้านค้า') + '</b>');
+  trackingOriginMarker = trackingMarker(trackingOriginMarker, showOrigin ? from : null, ChauatMap.pin('📍', ChauatMap.COLORS.user), 950, '<b>📍 จุดรับ</b>');
+  trackingDestMarker = trackingMarker(trackingDestMarker, dest, ChauatMap.pin('🏠', ChauatMap.COLORS.customer), 1000, '<b>🏠 จุดส่ง</b>');
+  trackingRiderMarker = trackingMarker(trackingRiderMarker, rider, ChauatMap.pin('🛵', ChauatMap.COLORS.rider, true), 2000, '<b>🛵 ไรเดอร์</b>');
+
+  var line = [];
+  if (shop) line.push(shop);
+  if (showOrigin) line.push(from);
+  if (rider) line.push(rider);
+  if (dest) line.push(dest);
+  trackingRoute = ChauatMap.route(trackingMap, trackingRoute, line);
+  if (dest) lastTrackedPositions.dest = dest;
+
+  var fitKey = (shop ? 's' : '') + (showOrigin ? 'o' : '') + (rider ? 'r' : '') + (dest ? 'd' : '');
+  var size = trackingMap.getSize();
+  if (fitKey && size && size.x > 20 && size.y > 20 && fitKey !== trackingFitKey) {
+    trackingFitKey = fitKey;
+    ChauatMap.fit(trackingMap, line, 17);
   }
 }
 
+function renderTrackingMarkers(o){
+  syncTrackingMap(o);
+}
+
 function updateRiderMarkerOnTracking(lat, lng, o){
-  if (!trackingMap) return;
   lastTrackedPositions.rider = {lat:lat, lng:lng};
-  if (trackingRiderMarker) trackingRiderMarker.setLatLng([lat, lng]);
-  else {
-    var icon = L.divIcon({ className:'', html:'<div class="custom-pin orange"><div class="pin-pulse"></div><div class="custom-pin-dot orange">🛵</div></div>', iconSize:[40,50], iconAnchor:[20,50] });
-    trackingRiderMarker = L.marker([lat, lng], {icon:icon, zIndexOffset:2000}).addTo(trackingMap);
-    trackingRiderMarker.bindPopup('<b>🛵 ไรเดอร์</b>');
-  }
+  if (!trackingMap) return;
   var destOrder = o || currentTrackingOrder;
-  if (destOrder && destOrder.lat && destOrder.lng) {
-    var dist = haversine(lat, lng, destOrder.lat, destOrder.lng);
+  syncTrackingMap(destOrder || {});
+  var destPt = destOrder ? (ChauatMap.point(destOrder.lat, destOrder.lng) || ChauatMap.point(destOrder.fromLat, destOrder.fromLng)) : null;
+  if (destPt) {
+    var dist = haversine(lat, lng, destPt.lat, destPt.lng);
     var eta = Math.ceil(dist / 0.4);
     if ($('track-eta')) $('track-eta').textContent = dist < 0.1 ? '🎉 ถึงแล้ว' : '~' + eta + ' นาที';
   }
@@ -3356,7 +3413,11 @@ window.submitShopOrder = async function(placeId){
 
 /* ═══ MODAL / LIGHTBOX ═══ */
 window.openModal = function(){ if($('modal')) $('modal').classList.add('show'); };
-window.closeModal = function(){ if($('modal')) $('modal').classList.remove('show'); if($('modal-body')) $('modal-body').innerHTML = ''; };
+window.closeModal = function(){
+  if (placeDetailMap) { try { placeDetailMap.remove(); } catch (e) {} placeDetailMap = null; }
+  if($('modal')) $('modal').classList.remove('show');
+  if($('modal-body')) $('modal-body').innerHTML = '';
+};
 window.openLightbox = function(src){ if($('lightbox-img')) $('lightbox-img').src = src; if($('img-lightbox')) $('img-lightbox').classList.add('show'); };
 window.closeLightbox = function(){ if($('img-lightbox')) $('img-lightbox').classList.remove('show'); };
 
@@ -3428,14 +3489,14 @@ window.openMapPage = function(){
     if(typeof L === 'undefined') return;
     try{
       if(!map){
-        map = L.map('main-map',{zoomControl:true}).setView([7.9650, 99.9960], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap', maxZoom:19 }).addTo(map);
+        map = L.map('main-map',{zoomControl:true}).setView([7.9650, 99.9960], 16);
+        if (window.ChauatMap) ChauatMap.addBaseTiles(map);
         map.on('click', function(e){ setDestination(e.latlng.lat, e.latlng.lng, true); });
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(function(pos){
             userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
             showCurrentLocationMarker(userLocation.lat, userLocation.lng);
-            map.setView([userLocation.lat, userLocation.lng], 15);
+            map.setView([userLocation.lat, userLocation.lng], 17);
           }, function(){});
         }
       }
@@ -3449,8 +3510,7 @@ window.closeMapPage = function(){ if($('map-page')) $('map-page').classList.remo
 function showCurrentLocationMarker(lat, lng){
   if(!map) return;
   if(currentLocationMarker) map.removeLayer(currentLocationMarker);
-  var iconHtml = '<div class="custom-pin blue"><div class="pin-pulse"></div><div class="custom-pin-dot blue">📍</div></div>';
-  var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
+  var icon = window.ChauatMap ? ChauatMap.pin('📍', ChauatMap.COLORS.user, true) : L.divIcon({className:'', html:'<div class="custom-pin blue"><div class="pin-pulse"></div><div class="custom-pin-dot blue">📍</div></div>', iconSize:[40,50], iconAnchor:[20,50]});
   currentLocationMarker = L.marker([lat,lng],{icon:icon,zIndexOffset:1000}).addTo(map);
 }
 
@@ -3459,8 +3519,7 @@ function setDestination(lat, lng, openPopup){
   selectedDestination = {lat:lat, lng:lng};
   if(destinationMarker){map.removeLayer(destinationMarker);destinationMarker=null;}
   if(destinationCircle){map.removeLayer(destinationCircle);destinationCircle=null;}
-  var iconHtml = '<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>';
-  var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
+  var icon = window.ChauatMap ? ChauatMap.pin('📌', ChauatMap.COLORS.dest) : L.divIcon({className:'', html:'<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>', iconSize:[40,50], iconAnchor:[20,50]});
   destinationMarker = L.marker([lat,lng],{icon:icon,draggable:true,autoPan:true,zIndexOffset:2000}).addTo(map);
   destinationMarker.on('dragend', function(e){
     var pos = e.target.getLatLng();
@@ -3482,7 +3541,7 @@ window.centerToUser = function(){
   if(!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
-    if(map){ map.setView([userLocation.lat,userLocation.lng],16); showCurrentLocationMarker(userLocation.lat,userLocation.lng); }
+    if(map){ map.setView([userLocation.lat,userLocation.lng],18); showCurrentLocationMarker(userLocation.lat,userLocation.lng); }
     showToast('📍 ตำแหน่งของคุณ');
   }, function(){ showToast('ไม่สามารถเข้าถึง GPS','error'); },{enableHighAccuracy:true,timeout:10000});
 };
@@ -3520,13 +3579,13 @@ window.openMapPicker = function(mode){
   setTimeout(function(){
     if (typeof L === 'undefined') return;
     if (!mapPickerMap) {
-      mapPickerMap = L.map('map-picker-map', {zoomControl:true}).setView([7.9650, 99.9960], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap', maxZoom:19 }).addTo(mapPickerMap);
+      mapPickerMap = L.map('map-picker-map', {zoomControl:true}).setView([7.9650, 99.9960], 16);
+      if (window.ChauatMap) ChauatMap.addBaseTiles(mapPickerMap);
       mapPickerMap.on('click', function(e){ setMapPickerPosition(e.latlng.lat, e.latlng.lng); });
     }
     mapPickerMap.invalidateSize();
     var start = mode === 'exp-origin' && expOrigin ? expOrigin : mode === 'exp-destination' && expDestination ? expDestination : userLocation || null;
-    if (start) { mapPickerMap.setView([start.lat, start.lng], 16); setMapPickerPosition(start.lat, start.lng); }
+    if (start) { mapPickerMap.setView([start.lat, start.lng], 17); setMapPickerPosition(start.lat, start.lng); }
     setTimeout(function(){ mapPickerMap.invalidateSize(); }, 200);
   }, 300);
 };
@@ -3538,8 +3597,7 @@ function setMapPickerPosition(lat, lng){
   mapPickerValue = {lat:lat, lng:lng};
   if (mapPickerMarker) mapPickerMap.removeLayer(mapPickerMarker);
   if (mapPickerCircle) mapPickerMap.removeLayer(mapPickerCircle);
-  var iconHtml = '<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>';
-  var icon = L.divIcon({className:'', html:iconHtml, iconSize:[40,50], iconAnchor:[20,50]});
+  var icon = window.ChauatMap ? ChauatMap.pin('📌', ChauatMap.COLORS.dest) : L.divIcon({className:'', html:'<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>', iconSize:[40,50], iconAnchor:[20,50]});
   mapPickerMarker = L.marker([lat,lng], {icon:icon, draggable:true, autoPan:true, zIndexOffset:2000}).addTo(mapPickerMap);
   mapPickerMarker.on('dragend', function(e){ var pos = e.target.getLatLng(); setMapPickerPosition(pos.lat, pos.lng); });
   mapPickerCircle = L.circle([lat,lng], {radius:100, color:'#E53935', fillColor:'#E53935', fillOpacity:.15, weight:2, dashArray:'5,5'}).addTo(mapPickerMap);
@@ -3564,18 +3622,35 @@ window.showPlaceDetail = function(placeId){
   var cat = CATS[p.category]||{name:'',icon:'📍'};
   var hasImg = hasRealImage(p.image);
   var distance = userLocation ? fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
+  if (placeDetailMap) { try { placeDetailMap.remove(); } catch (e) {} placeDetailMap = null; }
   $('modal-body').innerHTML =
     (hasImg ? '<img src="'+esc(p.image)+'" style="width:100%;border-radius:14px;margin-bottom:14px;max-height:200px;object-fit:cover">' : '') +
-    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:48px;margin-bottom:8px">'+cat.icon+'</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+esc(p.name)+'</h2><div style="font-size:12px;color:var(--text-muted);margin-top:6px">'+cat.name+(p.rating?' • ⭐ '+p.rating:'')+(distance?' • 📍 '+distance:'')+'</div></div>' +
+    '<div style="text-align:center;margin-bottom:12px"><div style="font-size:48px;margin-bottom:8px">'+cat.icon+'</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+esc(p.name)+'</h2><div style="font-size:12px;color:var(--text-muted);margin-top:6px">'+cat.name+(p.rating?' • ⭐ '+p.rating:'')+(distance?' • 📍 '+distance:'')+'</div></div>' +
+    '<div id="place-detail-map" style="height:240px;border-radius:14px;margin-bottom:12px;overflow:hidden"></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><button class="btn-full btn-green press-scale" onclick="setDestFromPlace(\''+esc(p.id)+'\')">🎯 ตั้งปลายทาง</button><button class="btn-full btn-gray press-scale" onclick="window.open(\'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lng+'\',\'_blank\')">🧭 นำทาง</button></div>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
   openModal();
+  setTimeout(function(){
+    var el = document.getElementById('place-detail-map');
+    if (!el || typeof L === 'undefined' || !window.ChauatMap) return;
+    if (placeDetailMap) { try { placeDetailMap.remove(); } catch (e) {} placeDetailMap = null; }
+    placeDetailMap = L.map(el, { zoomControl: true }).setView([p.lat, p.lng], 18);
+    ChauatMap.addBaseTiles(placeDetailMap);
+    L.marker([p.lat, p.lng], { icon: ChauatMap.pin(cat.icon || '📍', ChauatMap.COLORS.place) })
+      .addTo(placeDetailMap)
+      .bindPopup('<b>' + esc(p.name) + '</b>');
+    setTimeout(function(){
+      if (!placeDetailMap) return;
+      placeDetailMap.invalidateSize();
+      ChauatMap.fit(placeDetailMap, [{ lat: p.lat, lng: p.lng }], 18);
+    }, 200);
+  }, 60);
 };
 window.setDestFromPlace = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if (!p) return;
   closeModal(); openMapPage();
-  setTimeout(function(){ if (map) { map.setView([p.lat, p.lng], 17); setDestination(p.lat, p.lng, true); } }, 500);
+  setTimeout(function(){ if (map) { map.setView([p.lat, p.lng], 18); setDestination(p.lat, p.lng, true); } }, 500);
 };
 
 /* ═══ EXPOSE ═══ */
