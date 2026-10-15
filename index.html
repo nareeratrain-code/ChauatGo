@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.13</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.14</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.13-20261015-001';
+  var VERSION = 'v3.9.14-20261015-002';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -330,7 +330,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .vehicle-desc { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 .vehicle-price-num { font-size: 18px; font-weight: 900; color: var(--green); line-height: 1; }
 
-#map-page { display: none; position: fixed; top: 0; bottom: 0; left: 50%; width: 100%; max-width: 600px; transform: translateX(-50%); background: var(--bg); z-index: 9200; overflow: hidden; --dest-sheet-h: 236px; }
+#map-page { display: none; position: fixed; top: 0; bottom: 0; left: 50%; width: 100%; max-width: 600px; transform: translateX(-50%); background: var(--bg); z-index: 9300 !important; overflow: hidden; --dest-sheet-h: 236px; }
 #map-page.show { display: flex !important; flex-direction: column; }
 .map-header-bar { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; z-index: 10; }
 .map-header-bar h3 { font-size: 15px; font-weight: 900; }
@@ -496,7 +496,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state .icon { font-size: 64px; margin-bottom: 12px; opacity: .5; }
 
-.travel-view { position: fixed; inset: 0; background: var(--bg); z-index: 8000; display: none; flex-direction: column; max-width: 600px; margin: 0 auto; }
+.travel-view { position: fixed; inset: 0; background: var(--bg); z-index: 9100 !important; display: none; flex-direction: column; max-width: 600px; margin: 0 auto; }
 .travel-view.show { display: flex !important; }
 .travel-header { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .travel-header h3 { font-size: 16px; font-weight: 900; flex: 1; text-align: center; }
@@ -723,7 +723,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       <span style="font-size:18px;opacity:.6">🔍</span>
       <input type="text" id="travel-dest-input" placeholder="ไปที่..." autocomplete="off">
     </div>
-    <button class="travel-map-btn press-scale" onclick="openMapPicker('travel')">
+    <button type="button" class="travel-map-btn press-scale" onclick="openMapPicker('travel')">
       🗺️ <span>แผนที่</span>
     </button>
   </div>
@@ -1019,7 +1019,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.13 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.14 • © 2024</div>
       </div>
     </div>
   </div>
@@ -1095,12 +1095,9 @@ var chatUnsub = null;
 var chatListUnsub = null;
 var expOrigin = null;
 var expDestination = null;
+var expressDraft = null;
+var foodDropoff = null;
 var mapPickerMode = null;
-var mapPickerMap = null;
-var mapPickerMarker = null;
-var mapPickerCircle = null;
-var mapPickerValue = null;
-var mapPickerSearchTimer = null;
 var _shoppingPlacesCache = [];
 var trackingOrderId = null;
 var trackingMap = null;
@@ -1991,8 +1988,12 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
   var isCash = selectedPaymentMode === 'cash';
   var netAfterDiscount = subtotal - discountTotal;
   var grandTotal = netAfterDiscount + deliveryFee + (isCash ? cashTip : 0);
+  var dropAddr = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '';
+  var dropPin = foodDropoff && isFinite(foodDropoff.lat) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:6px">✓ ' + foodDropoff.lat.toFixed(4) + ', ' + foodDropoff.lng.toFixed(4) + '</div>' : '';
   return '' +
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">💳</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ยืนยันออเดอร์</h2></div>' +
+    '<div class="form-group"><label>🏠 ที่อยู่จัดส่ง</label><div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.4">' + esc(dropAddr || 'ยังไม่มีที่อยู่') + '</div>' + dropPin +
+      '<button type="button" class="btn-full btn-gray press-scale" style="margin-top:8px" onclick="openMapPicker(\'food\')">🗺️ เลือกที่อยู่จากแผนที่</button></div>' +
     '<div class="form-group"><label>💳 เลือกวิธีชำระ</label><div class="pay-mode-row">' +
       '<button class="pay-mode-btn ' + (isCash ? '' : 'active') + '" onclick="setPaymentMode(\'transfer\')"><span class="emoji">💳</span><span>โอนเงิน</span><span class="sub">โอนให้ไรเดอร์</span></button>' +
       '<button class="pay-mode-btn ' + (isCash ? 'active' : '') + '" onclick="setPaymentMode(\'cash\')"><span class="badge-cash" style="position:absolute;top:6px;right:6px;background:var(--orange);color:#fff;font-size:9px;font-weight:900;padding:2px 6px;border-radius:6px">+฿' + cashTip + '</span><span class="emoji">💵</span><span>เงินสด</span><span class="sub">ให้ไรเดอร์</span></button>' +
@@ -2055,13 +2056,13 @@ window.confirmCheckout = async function(grandTotal) {
       cashTip: cashTip,
       status: 'searching',                   /* ⭐ v3.9.0 */
       riderId: null,                          /* ⭐ v3.9.0 */
-      address: (userProfile && userProfile.address) || '',
-      lat: userLocation ? userLocation.lat : null,
-      lng: userLocation ? userLocation.lng : null,
+      address: (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '',
+      lat: (foodDropoff && isFinite(foodDropoff.lat)) ? foodDropoff.lat : (userLocation ? userLocation.lat : null),
+      lng: (foodDropoff && isFinite(foodDropoff.lng)) ? foodDropoff.lng : (userLocation ? userLocation.lng : null),
       paymentMode: selectedPaymentMode,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    cart = []; cartShop = ''; selectedPaymentMode = 'transfer';
+    cart = []; cartShop = ''; selectedPaymentMode = 'transfer'; foodDropoff = null;
     try {
       localStorage.removeItem('chauat_cart');
       localStorage.removeItem('chauat_cart_shop');
@@ -3189,33 +3190,63 @@ window.submitOrder = async function(type){
 };
 
 /* ═══ EXPRESS ═══ */
-function openExpressForm(dest){
-  expOrigin = userLocation ? {lat:userLocation.lat, lng:userLocation.lng, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'} : null;
-  expDestination = dest ? {lat:dest.lat, lng:dest.lng, address:''} : null;
+function captureExpressDraft() {
+  if (!$('order-from') && !$('order-to') && !$('order-note') && !$('order-phone')) return;
+  expressDraft = {
+    from: $('order-from') ? $('order-from').value : '',
+    to: $('order-to') ? $('order-to').value : '',
+    note: $('order-note') ? $('order-note').value : '',
+    phone: $('order-phone') ? $('order-phone').value : ''
+  };
+}
+
+function renderExpressForm() {
   var suggestions = [];
   if (PLACES.length) {
     var pool = PLACES.slice();
     for (var i = 0; i < 4 && pool.length; i++) { var idx = Math.floor(Math.random() * pool.length); suggestions.push(pool.splice(idx, 1)[0]); }
   }
-  var sugChipsHtml = suggestions.map(function(p){ return '<button class="sug-chip" onclick="setExpDestinationFromPlace(\''+esc(p.id)+'\')">' + esc(p.name.slice(0, 22)) + '</button>'; }).join('');
+  var sugChipsHtml = suggestions.map(function(p){ return '<button type="button" class="sug-chip" onclick="setExpDestinationFromPlace(\''+esc(p.id)+'\')">' + esc(p.name.slice(0, 22)) + '</button>'; }).join('');
+  var fromVal = (expressDraft && expressDraft.from != null) ? expressDraft.from : (expOrigin ? expOrigin.address : '');
+  var toVal = (expressDraft && expressDraft.to != null) ? expressDraft.to : (expDestination ? expDestination.address : '');
+  var noteVal = (expressDraft && expressDraft.note != null) ? expressDraft.note : '';
+  var phoneVal = (expressDraft && expressDraft.phone != null) ? expressDraft.phone : ((userProfile && userProfile.phone) || '');
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">📦</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2><div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿30 เริ่มต้น</div></div>' +
-    '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(expOrigin ? expOrigin.address : '') + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" onclick="openMapPicker(\'exp-origin\')">🗺️ เลือกจากแผนที่</button></div>' + (expOrigin ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '') + '</div>' +
-    '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(expDestination ? expDestination.address : '') + '" placeholder="พิมพ์ที่อยู่ปลายทาง..." autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="openMapPicker(\'exp-destination\')">🗺️ เลือกจากแผนที่</button></div>' + (expDestination ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '') + '</div>' +
-    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2"></textarea></div>' +
-    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc((userProfile&&userProfile.phone)||'') + '"></div>' +
-    '<button class="btn-full btn-green press-scale" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
-    '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
+    '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button type="button" class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" onclick="openMapPicker(\'exp-origin\')">🗺️ เลือกจากแผนที่</button></div>' + (expOrigin ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '') + '</div>' +
+    '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง..." autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" onclick="openMapPicker(\'exp-destination\')">🗺️ เลือกจากแผนที่</button></div>' + (expDestination ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '') + '</div>' +
+    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">' + esc(noteVal) + '</textarea></div>' +
+    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc(phoneVal) + '"></div>' +
+    '<button type="button" class="btn-full btn-green press-scale" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
+    '<button type="button" class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
+  openModal();
+}
+
+function openExpressForm(dest){
+  expOrigin = userLocation ? {lat:userLocation.lat, lng:userLocation.lng, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'} : null;
+  expDestination = (dest && isFinite(dest.lat) && isFinite(dest.lng)) ? {lat:dest.lat, lng:dest.lng, address: dest.address || dest.name || ''} : null;
+  expressDraft = null;
+  renderExpressForm();
+}
+
+function reopenFoodCheckout() {
+  if (!cart.length) return;
+  var subtotal = 0, discountTotal = 0;
+  cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
+  if ($('modal-body')) $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, 20, 5);
   openModal();
 }
 
 window.useCurrentLocationForExp = function(){
   if (!navigator.geolocation) return showToast('ไม่รองรับ GPS','error');
   showToast('📡 กำลังหาตำแหน่ง...','info');
+  captureExpressDraft();
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
     expOrigin = {lat: pos.coords.latitude, lng: pos.coords.longitude, address: (userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'};
-    openExpressForm(expDestination);
+    if (!expressDraft) expressDraft = {};
+    expressDraft.from = expOrigin.address;
+    renderExpressForm();
     showToast('✅ ใช้ตำแหน่งปัจจุบัน');
   }, function(){ showToast('ไม่สามารถเข้าถึง GPS','error'); }, {enableHighAccuracy:true, timeout:10000});
 };
@@ -3223,8 +3254,11 @@ window.useCurrentLocationForExp = function(){
 window.setExpDestinationFromPlace = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if (!p) return;
+  captureExpressDraft();
   expDestination = {lat:p.lat, lng:p.lng, address:p.name};
-  openExpressForm(expOrigin);
+  if (!expressDraft) expressDraft = {};
+  expressDraft.to = p.name;
+  renderExpressForm();
   showToast('🎯 ' + p.name);
 };
 
@@ -4194,22 +4228,49 @@ function bindDestSheet() {
   renderSavedPlaces();
 }
 
-window.openMapPage = function(){
+var mapOpenToken = 0;
+
+function mapPickerSeed() {
+  if (mapPickerMode === 'exp-origin' && expOrigin && isFinite(expOrigin.lat)) return expOrigin;
+  if (mapPickerMode === 'exp-destination' && expDestination && isFinite(expDestination.lat)) return expDestination;
+  if (mapPickerMode === 'travel' && selectedDestination && isFinite(selectedDestination.lat)) return selectedDestination;
+  if (mapPickerMode === 'food' && foodDropoff && isFinite(foodDropoff.lat)) return foodDropoff;
+  return null;
+}
+
+function syncMapTitle() {
+  var title = document.querySelector('#map-page .map-header-bar h3');
+  if (!title) return;
+  if (mapPickerMode === 'exp-origin') title.textContent = '🗺️ เลือกจุดรับ';
+  else if (mapPickerMode === 'food') title.textContent = '🗺️ ที่อยู่จัดส่ง';
+  else title.textContent = '🗺️ เลือกตำแหน่งปลายทาง';
+}
+
+window.openMapPage = function(keepPickerMode){
+  if (!keepPickerMode) mapPickerMode = null;
+  syncMapTitle();
+  var seed = mapPickerSeed();
+  var token = ++mapOpenToken;
+  var confirmBtn = $('map-confirm-btn');
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'เลือกตำแหน่งก่อน'; }
   if($('map-page')) $('map-page').classList.add('show');
   bindDestSheet();
   setTimeout(function(){
+    if (token !== mapOpenToken) return;
     if(typeof L === 'undefined') return;
     try{
       if(!map){
-        map = L.map('main-map',{zoomControl:true}).setView([CHAUAT_CENTER.lat, CHAUAT_CENTER.lng], 16);
+        map = L.map('main-map',{zoomControl:true}).setView([seed ? seed.lat : CHAUAT_CENTER.lat, seed ? seed.lng : CHAUAT_CENTER.lng], 16);
         if (window.ChauatMap) ChauatMap.addBaseTiles(map);
         map.on('click', function(e){ destHoldAddress = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
         map.on('movestart', function(){ var pin = $('map-center-pin'); if (pin) pin.classList.add('lift'); });
         map.on('moveend', onDestMapMoveEnd);
-        if (navigator.geolocation) {
+        if (!seed && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(function(pos){
+            if (token !== mapOpenToken) return;
             userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
             showCurrentLocationMarker(userLocation.lat, userLocation.lng);
+            if (!$('map-page') || !$('map-page').classList.contains('show')) return;
             panPinTo(userLocation.lat, userLocation.lng, 17);
             updateDestEstimate();
           }, function(){});
@@ -4217,14 +4278,27 @@ window.openMapPage = function(){
       }
       map.invalidateSize();
       setTimeout(function(){
-        if (!map) return;
+        if (token !== mapOpenToken || !map) return;
         map.invalidateSize();
-        onDestMapMoveEnd();
+        if (seed && isFinite(seed.lat) && isFinite(seed.lng)) {
+          destHoldAddress = seed.address || '';
+          panPinTo(seed.lat, seed.lng, 17);
+          selectedDestination = { lat: seed.lat, lng: seed.lng, address: seed.address || '', note: seed.note || '' };
+          if (seed.address) showDestAddress(seed.address, seed);
+          updateConfirmBtnState();
+          updateDestEstimate();
+        } else {
+          onDestMapMoveEnd();
+        }
       }, 220);
     }catch(e){}
   }, 300);
 };
-window.closeMapPage = function(){ if($('map-page')) $('map-page').classList.remove('show'); };
+window.closeMapPage = function(){
+  mapOpenToken++;
+  if($('map-page')) $('map-page').classList.remove('show');
+  mapPickerMode = null;
+};
 
 function showCurrentLocationMarker(lat, lng){
   if(!map) return;
@@ -4282,7 +4356,47 @@ window.confirmMapLocation = function(){
   if (addr && addr.indexOf('กำลังหาที่อยู่') !== 0) selectedDestination.address = addr;
   if ($('dest-rider-note')) selectedDestination.note = $('dest-rider-note').value.trim();
   rememberRecentPlace();
+  var mode = mapPickerMode;
+  var picked = {
+    lat: selectedDestination.lat,
+    lng: selectedDestination.lng,
+    address: selectedDestination.address || '',
+    note: selectedDestination.note || ''
+  };
+  if (!picked.address || picked.address.indexOf('กำลังหาที่อยู่') === 0) {
+    picked.address = 'พิกัด ' + picked.lat.toFixed(5) + ', ' + picked.lng.toFixed(5);
+  }
+  selectedDestination = picked;
   closeMapPage();
+  if (mode === 'travel') {
+    selectedDestination = picked;
+    if ($('travel-dest-input')) $('travel-dest-input').value = picked.address;
+    if ($('travel-view')) $('travel-view').classList.add('show');
+    showToast('📍 ' + (picked.address || 'เลือกปลายทางแล้ว'));
+    var body = document.querySelector('#travel-view .travel-body');
+    if (body) setTimeout(function(){ body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 250);
+    return;
+  }
+  if (mode === 'exp-origin' || mode === 'exp-destination') {
+    if (mode === 'exp-origin') {
+      expOrigin = { lat: picked.lat, lng: picked.lng, address: picked.address };
+      if (!expressDraft) expressDraft = {};
+      expressDraft.from = picked.address;
+    } else {
+      expDestination = { lat: picked.lat, lng: picked.lng, address: picked.address };
+      if (!expressDraft) expressDraft = {};
+      expressDraft.to = picked.address;
+    }
+    renderExpressForm();
+    showToast('📍 ' + (picked.address || 'เลือกตำแหน่งแล้ว'));
+    return;
+  }
+  if (mode === 'food') {
+    foodDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address };
+    reopenFoodCheckout();
+    showToast('📍 ' + (picked.address || 'เลือกที่อยู่จัดส่งแล้ว'));
+    return;
+  }
   setTimeout(function(){ openVehicleModal(); },300);
 };
 
@@ -4300,48 +4414,11 @@ window.selectVehicle = function(el){
   setTimeout(function(){ closeVehicleModal(); openRideOrderForm(selectedVehicle); }, 400);
 };
 
-/* ═══ MAP PICKER ═══ */
+/* ═══ MAP PICKER — full-map sheet (the old #map-picker overlay was removed) ═══ */
 window.openMapPicker = function(mode){
-  if ($('modal')) $('modal').classList.remove('show');
-  mapPickerMode = mode; mapPickerValue = null;
-  if ($('map-picker')) $('map-picker').classList.add('show');
-  setTimeout(function(){
-    if (typeof L === 'undefined') return;
-    if (!mapPickerMap) {
-      mapPickerMap = L.map('map-picker-map', {zoomControl:true}).setView([7.9650, 99.9960], 16);
-      if (window.ChauatMap) ChauatMap.addBaseTiles(mapPickerMap);
-      mapPickerMap.on('click', function(e){ setMapPickerPosition(e.latlng.lat, e.latlng.lng); });
-    }
-    mapPickerMap.invalidateSize();
-    var start = mode === 'exp-origin' && expOrigin ? expOrigin : mode === 'exp-destination' && expDestination ? expDestination : userLocation || null;
-    if (start) { mapPickerMap.setView([start.lat, start.lng], 17); setMapPickerPosition(start.lat, start.lng); }
-    setTimeout(function(){ mapPickerMap.invalidateSize(); }, 200);
-  }, 300);
-};
-window.closeMapPicker = function(){
-  if ($('map-picker')) $('map-picker').classList.remove('show');
-  mapPickerMode = null; mapPickerValue = null;
-};
-function setMapPickerPosition(lat, lng){
-  mapPickerValue = {lat:lat, lng:lng};
-  if (mapPickerMarker) mapPickerMap.removeLayer(mapPickerMarker);
-  if (mapPickerCircle) mapPickerMap.removeLayer(mapPickerCircle);
-  var icon = window.ChauatMap ? ChauatMap.pin('📌', ChauatMap.COLORS.dest) : L.divIcon({className:'', html:'<div class="custom-pin"><div class="custom-pin-dot red">📌</div></div>', iconSize:[40,50], iconAnchor:[20,50]});
-  mapPickerMarker = L.marker([lat,lng], {icon:icon, draggable:true, autoPan:true, zIndexOffset:2000}).addTo(mapPickerMap);
-  mapPickerMarker.on('dragend', function(e){ var pos = e.target.getLatLng(); setMapPickerPosition(pos.lat, pos.lng); });
-  mapPickerCircle = L.circle([lat,lng], {radius:100, color:'#E53935', fillColor:'#E53935', fillOpacity:.15, weight:2, dashArray:'5,5'}).addTo(mapPickerMap);
-  if ($('map-picker-coord')) $('map-picker-coord').textContent = '📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
-  if ($('map-picker-confirm')) $('map-picker-confirm').disabled = false;
-}
-window.confirmMapPicker = function(){
-  if (!mapPickerValue) return showToast('เลือกตำแหน่งก่อน','warning');
-  var addr = 'พิกัด ' + mapPickerValue.lat.toFixed(4) + ', ' + mapPickerValue.lng.toFixed(4);
-  var picked = {lat:mapPickerValue.lat, lng:mapPickerValue.lng, address:addr};
-  var savedMode = mapPickerMode;
-  closeMapPicker();
-  showToast('✅ ' + addr);
-  if (savedMode === 'exp-origin') { expOrigin = picked; openExpressForm(expDestination); }
-  else if (savedMode === 'exp-destination') { expDestination = picked; openExpressForm(expOrigin); }
+  mapPickerMode = mode || 'travel';
+  if (mode === 'exp-origin' || mode === 'exp-destination') captureExpressDraft();
+  openMapPage(true);
 };
 
 /* ═══ PLACE DETAIL ═══ */
@@ -4407,7 +4484,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.13 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.14 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
