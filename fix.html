@@ -30,18 +30,19 @@ const log = (msg) => {
 
 log('1. Firebase SDK: ' + (typeof firebase !== 'undefined' ? '✅' : '❌'));
 
-firebase.initializeApp({
+const firebaseApp = firebase.apps.find(a => a.name === 'fix') || firebase.initializeApp({
   apiKey: "AIzaSyB6PnikectfjjYfvO7VhpuxEIXQdJeASBM",
   authDomain: "chauat-go-b9841.firebaseapp.com",
   projectId: "chauat-go-b9841",
   storageBucket: "chauat-go-b9841.firebasestorage.app",
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
-});
+}, 'fix');
 log('2. initializeApp ✅');
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+const auth = firebase.auth(firebaseApp);
+const db = firebase.firestore(firebaseApp);
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 log('3. auth + db พร้อม');
 
 async function doLogin() {

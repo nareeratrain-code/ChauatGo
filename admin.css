@@ -225,7 +225,7 @@ body {
   position: relative; overflow: hidden;
 }
 .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-.btn-primary:active { transform: scale(.97); }
+.btn-primary:active { filter: brightness(.95); }
 
 .btn-secondary {
   width: 100%; padding: 14px; margin-top: 8px;
@@ -273,7 +273,7 @@ body {
   display: flex; align-items: center; justify-content: center;
   transition: transform .15s; flex-shrink: 0;
 }
-.menu-btn:active { transform: scale(.92); }
+.menu-btn:active { filter: brightness(.92); }
 
 /* ═══ NAV ═══ */
 nav {
@@ -295,7 +295,7 @@ nav button {
   position: relative;
   min-height: 70px;
 }
-nav button:active { transform: scale(.95); }
+nav button:active { filter: brightness(.95); }
 nav button.on {
   background: linear-gradient(135deg, #76B82A, #5A8E1F);
   color: #fff; border-color: var(--brand);
@@ -391,7 +391,7 @@ main { padding: 0 14px 30px; }
   content: ''; position: absolute; top: -40px; right: -30px;
   width: 140px; height: 140px;
   background: radial-gradient(circle, rgba(255,255,255,.15), transparent 65%);
-  border-radius: 50%;
+  border-radius: 50%; pointer-events: none;
 }
 .hero-label { font-size: 12px; font-weight: 800; opacity: .9; position: relative; z-index: 1; }
 .hero-amount { font-size: 38px; font-weight: 900; margin-top: 6px; line-height: 1; position: relative; z-index: 1; text-shadow: 0 2px 8px rgba(0,0,0,.15); }
@@ -415,7 +415,7 @@ main { padding: 0 14px 30px; }
   border-left: 4px solid var(--brand);
   animation: cardSlideIn .3s backwards;
 }
-.stat-card:active { transform: scale(.97); }
+.stat-card:active { filter: brightness(.97); }
 .stat-card.blue { border-left-color: var(--blue); }
 .stat-card.purple { border-left-color: var(--purple); }
 .stat-card.orange { border-left-color: var(--orange); }
@@ -442,7 +442,7 @@ main { padding: 0 14px 30px; }
   cursor: pointer; transition: transform .15s;
   border-left: 4px solid var(--brand);
 }
-.action-card:active { transform: scale(.98); }
+.action-card:active { filter: brightness(.97); }
 .action-card.danger { border-left-color: var(--red); background: linear-gradient(90deg, var(--red-light), var(--surface)); }
 .action-card.warn { border-left-color: var(--orange); background: linear-gradient(90deg, var(--orange-light), var(--surface)); }
 .action-card.blue { border-left-color: var(--blue); background: linear-gradient(90deg, var(--blue-light), var(--surface)); }
@@ -555,7 +555,7 @@ main { padding: 0 14px 30px; }
   transition: transform .15s;
   background: var(--surface-2); color: var(--text);
 }
-.data-card-actions button:active { transform: scale(.96); }
+.data-card-actions button:active { filter: brightness(.95); }
 .data-card-actions button.pri {
   background: linear-gradient(135deg, #00A651, #008C45);
   color: #fff;
@@ -769,6 +769,7 @@ main { padding: 0 14px 30px; }
 
 /* ═══ RIPPLE ═══ */
 .ripple { position: relative; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.ripple::before, .ripple::after { pointer-events: none !important; }
 .ripple::after {
   content: ''; position: absolute; top: 50%; left: 50%;
   width: 5px; height: 5px;
@@ -776,7 +777,7 @@ main { padding: 0 14px 30px; }
   opacity: 0; border-radius: 100%;
   transform: scale(1) translate(-50%, -50%);
   transform-origin: 50% 50%;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 .ripple:active::after { animation: ripple .6s ease-out; }
 

@@ -14,18 +14,18 @@ const firebaseConfig = {
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-db.enablePersistence({ synchronizeTabs: true }).catch(e => console.warn('persistence:', e.code));
+const firebaseApp = firebase.apps.find(a => a.name === 'admin') || firebase.initializeApp(firebaseConfig, 'admin');
+const auth = firebase.auth(firebaseApp);
+const db = firebase.firestore(firebaseApp);
+const storage = firebase.storage(firebaseApp);
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 /* ═══════════════════════════════════════════════════════════════════
    2. GLOBAL STATE
    ═══════════════════════════════════════════════════════════════════ */
 const store = {
   merchants: [], orders: [], riders: [], users: [], places: [],
-  chats: [], gpTransfers: [], riders: []
+  chats: [], gpTransfers: []
 };
 const filters = {
   orders: 'all', q: '', riderStatus: '',
@@ -71,6 +71,14 @@ const STATUS = {
   on_the_way: '🚀 กำลังส่ง', delivered: '✅ สำเร็จ', done: '✅ เสร็จ',
   cancelled: '❌ ยกเลิก'
 };
+
+function statusLabel(o) {
+  const base = STATUS[o?.status] || o?.status || '—';
+  const riderMoved = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'].includes(o?.status);
+  const shopConfirmed = !!(o && (o.cookingAt || o.readyAt || o.code));
+  if (riderMoved && !shopConfirmed) return base + ' • ร้านยังไม่ยืนยัน';
+  return base;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    3. HELPERS
@@ -425,7 +433,10 @@ function start() {
         }
 
         render();
-      }, err => debugLog(`[${k}] ${err.code}`, true));
+      }, err => {
+        console.warn('[admin]', k, err && err.code);
+        debugLog(`[${k}] ${err.code}`, true);
+      });
     unsubs.push(unsub);
   });
 
@@ -465,6 +476,7 @@ function renderNav() {
   const navEl = $('nav');
   if (!navEl) return;
 
+  navEl.classList.remove('hidden');
   navEl.innerHTML = SECTIONS.map(([k, icon, label]) => {
     let badge = '';
     if (k === 'merchants' && b.pendingMerchants) badge = `<span class="nav-badge">${b.pendingMerchants}</span>`;
@@ -488,8 +500,14 @@ function render() {
     dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users
   }[current];
 
-  if (fn) mainEl.innerHTML = fn();
-  renderNav();
+  if (fn) {
+    try { mainEl.innerHTML = fn(); }
+    catch (err) {
+      console.error('render', current, err);
+      mainEl.innerHTML = '<div class="empty"><div class="icon">⚠️</div><div>แสดงข้อมูลไม่สำเร็จ — รีเฟรชหน้า</div></div>';
+    }
+  }
+  try { renderNav(); } catch (err) { console.error('renderNav', err); }
 
   // render menu links
   const linksEl = $('menu-links');
@@ -531,12 +549,12 @@ function dashboard() {
   ).length;
 
   const hero = `<div class="hero-card">
-    <div class="hero-label">💰 GP แพลตฟอร์มวันนี้ (20%)</div>
+    <div class="hero-label">💰 GP แพลตฟอร์มวันนี้ (20% ของค่าส่ง)</div>
     <div class="hero-amount">฿${todayGp.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
     <div class="hero-trend">${up ? '📈' : '📉'} ${up ? '+' : ''}${trend}% เทียบเมื่อวาน</div>
     <div class="hero-grid">
       <div class="hero-grid-cell">
-        <div class="lbl">📦 งานเสร็จ</div>
+        <div class="lbl">📦 เสร็จวันนี้</div>
         <div class="val">${todayOrders} งาน</div>
       </div>
       <div class="hero-grid-cell">
@@ -550,7 +568,7 @@ function dashboard() {
     <div class="stat-card blue" data-go="merchants">
       <div class="stat-icon">🏪</div>
       <div class="stat-value">${store.merchants.length}</div>
-      <div class="stat-label">ร้านค้า</div>
+      <div class="stat-label">ร้านค้าทั้งหมด</div>
       <div class="stat-sub">${b.pendingMerchants ? '⏳ ' + b.pendingMerchants + ' รออนุมัติ' : '✅ ทั้งหมดอนุมัติ'}</div>
     </div>
     <div class="stat-card purple" data-go="riders">
@@ -562,7 +580,7 @@ function dashboard() {
     <div class="stat-card orange" data-go="orders">
       <div class="stat-icon">📋</div>
       <div class="stat-value">${store.orders.length}</div>
-      <div class="stat-label">ออเดอร์</div>
+      <div class="stat-label">ออเดอร์ทั้งหมด</div>
       <div class="stat-sub">${b.newOrders ? '🔔 ' + b.newOrders + ' ใหม่' : '✅ เสร็จ ' + completed.length}</div>
     </div>
     <div class="stat-card teal" data-go="users">
@@ -575,7 +593,7 @@ function dashboard() {
       <div class="stat-icon">💰</div>
       <div class="stat-value">฿${todayGp.toFixed(0)}</div>
       <div class="stat-label">GP วันนี้</div>
-      <div class="stat-sub">20% ของค่าบริการ</div>
+      <div class="stat-sub">20% ของค่าส่ง</div>
     </div>
     <div class="stat-card ${b.pendingGpSlips > 0 ? 'red' : 'green'}" data-go="gpTransfers">
       <div class="stat-icon">📸</div>
@@ -589,46 +607,46 @@ function dashboard() {
   const actions = [];
 
   if (b.newOrders) {
-    actions.push(`<div class="action-card warn ripple" data-go="orders">
+    actions.push(`<div class="action-card warn" data-go="orders">
       <div class="action-icon">🔔</div>
       <div class="action-info">
         <div class="action-title">ออเดอร์ใหม่รอดำเนินการ</div>
         <div class="action-value">${b.newOrders} รายการ</div>
       </div>
-      <button class="action-btn orange">ดู →</button>
+      <button type="button" class="action-btn orange" data-go="orders">ดู →</button>
     </div>`);
   }
 
   if (b.pendingGpSlips) {
-    actions.push(`<div class="action-card warn ripple" data-go="gpTransfers">
+    actions.push(`<div class="action-card warn" data-go="gpTransfers">
       <div class="action-icon">📸</div>
       <div class="action-info">
         <div class="action-title">สลิป GP รอตรวจสอบ</div>
         <div class="action-value">${b.pendingGpSlips} ใบ</div>
       </div>
-      <button class="action-btn orange">ตรวจ →</button>
+      <button type="button" class="action-btn orange" data-go="gpTransfers">ตรวจ →</button>
     </div>`);
   }
 
   if (b.pendingMerchants) {
-    actions.push(`<div class="action-card blue ripple" data-go="merchants">
+    actions.push(`<div class="action-card blue" data-go="merchants" data-merchant-status="pending">
       <div class="action-icon">🏪</div>
       <div class="action-info">
         <div class="action-title">ร้านค้ารออนุมัติ</div>
         <div class="action-value">${b.pendingMerchants} ร้าน</div>
       </div>
-      <button class="action-btn blue">ดู →</button>
+      <button type="button" class="action-btn blue" data-go="merchants" data-merchant-status="pending">ดู →</button>
     </div>`);
   }
 
   if (b.pendingRiders) {
-    actions.push(`<div class="action-card blue ripple" data-go="riders">
+    actions.push(`<div class="action-card blue" data-go="riders">
       <div class="action-icon">🛵</div>
       <div class="action-info">
         <div class="action-title">ไรเดอร์รออนุมัติ</div>
         <div class="action-value">${b.pendingRiders} คน</div>
       </div>
-      <button class="action-btn blue">ดู →</button>
+      <button type="button" class="action-btn blue" data-go="riders">ดู →</button>
     </div>`);
   }
 
@@ -651,7 +669,7 @@ function dashboard() {
       <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">${esc(o.title || 'ออเดอร์')}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${fmtTime(o.createdAt)} • ${esc(STATUS[o.status] || o.status)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${fmtTime(o.createdAt)} • ${esc(statusLabel(o))}</div>
       </div>
     </div>`;
   }).join('');
@@ -701,7 +719,7 @@ function orders() {
             ${payBadge}${slipBadge}
           </div>
         </div>
-        <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(STATUS[o.status] || o.status)}</span>
+        <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(statusLabel(o))}</span>
       </div>
     </div>`;
   }).join('') || '<div class="empty"><div class="icon">📭</div><div>ไม่พบออเดอร์</div></div>');
@@ -760,7 +778,7 @@ function orderDetail(id) {
         <select id="ostatus" data-oid="${esc(o.id)}" style="margin-top:6px;padding:10px;min-height:44px;border-radius:10px;border:2px solid var(--border);background:var(--surface);font-family:inherit;font-weight:900;color:var(--text)">${opts}</select>
       </div>
       <div style="text-align:right">
-        <div class="meta">GP แพลตฟอร์ม</div>
+        <div class="meta">GP แพลตฟอร์ม (20% ค่าส่ง + 1% อาหาร)</div>
         <div style="font-size:16px;font-weight:900;color:var(--green)">฿${fmt(mainGp.platform + storeGp.platform)}</div>
       </div>
     </div>
@@ -944,7 +962,7 @@ function gp() {
 
   return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <div style="font-weight:900;font-size:18px">💰 GP Dashboard</div>
-    <span class="tag b">20% + 3%</span>
+    <span class="tag b">ค่าส่ง 20% + อาหาร 3%</span>
   </div>
   ${tabs}
   <div class="stat-grid">
@@ -962,18 +980,18 @@ function gp() {
     <div class="stat-card orange">
       <div class="stat-icon">💵</div>
       <div class="stat-value">฿${current.mainGp.toFixed(0)}</div>
-      <div class="stat-label">GP 20% (ค่าบริการ)</div>
+      <div class="stat-label">GP แพลตฟอร์ม 20% ของค่าส่ง</div>
     </div>
     <div class="stat-card purple">
       <div class="stat-icon">🏪</div>
       <div class="stat-value">฿${current.storeGp.toFixed(0)}</div>
-      <div class="stat-label">GP 3% (ร้านค้า)</div>
+      <div class="stat-label">GP ร้าน 3% ของยอดอาหาร</div>
     </div>
   </div>
 
   <div class="section-divider"><div class="title">🛵 GP รายไรเดอร์</div><div class="line"></div></div>
   <div class="table-wrap"><table class="gp-table">
-    <thead><tr><th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">GP 20%</th><th class="text-right">GP 2%</th></tr></thead>
+    <thead><tr><th>ไรเดอร์</th><th class="text-center">งาน</th><th class="text-right">20% ของค่าส่ง</th><th class="text-right">2% ของยอดอาหาร</th></tr></thead>
     <tbody>${riderRows.length ? riderRows.map(([id, r]) =>
       `<tr><td style="font-weight:900">🛵 ${esc(r.name)}</td><td class="text-center">${r.count}</td><td class="text-right money-pos">฿${r.gp.toFixed(2)}</td><td class="text-right" style="color:var(--orange);font-weight:900">฿${r.storeGp.toFixed(2)}</td></tr>`
     ).join('') : '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-light)">ไม่มีข้อมูล</td></tr>'}</tbody>
@@ -981,7 +999,7 @@ function gp() {
 
   <div class="section-divider"><div class="title">🏪 GP รายร้านค้า</div><div class="line"></div></div>
   <div class="table-wrap"><table class="gp-table">
-    <thead><tr><th>ร้านค้า</th><th class="text-center">งาน</th><th class="text-right">GP 3%</th></tr></thead>
+    <thead><tr><th>ร้านค้า</th><th class="text-center">งาน</th><th class="text-right">GP ร้าน 3% ของยอดอาหาร</th></tr></thead>
     <tbody>${merchantRows.length ? merchantRows.map(([id, m]) =>
       `<tr><td style="font-weight:900">🏪 ${esc(m.name)}</td><td class="text-center">${m.count}</td><td class="text-right money-pos">฿${m.gp.toFixed(2)}</td></tr>`
     ).join('') : '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-light)">ไม่มีข้อมูล</td></tr>'}</tbody>
@@ -1392,6 +1410,9 @@ document.addEventListener('click', async e => {
     if (t.dataset.go) {
       current = t.dataset.go;
       filters.q = '';
+      if (t.dataset.go === 'merchants') {
+        filters.merchantStatus = t.dataset.merchantStatus || 'all';
+      }
       render();
       window.scrollTo(0, 0);
       return;

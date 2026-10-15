@@ -257,7 +257,7 @@ body {
   position: relative; overflow: hidden;
 }
 .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-.btn-primary:active { transform: scale(.97); }
+.btn-primary:active { filter: brightness(.95); }
 
 .btn-secondary {
   width: 100%; padding: 12px; margin-top: 8px;
@@ -267,13 +267,14 @@ body {
   background: var(--surface-2); color: var(--text);
   transition: transform .15s;
 }
-.btn-secondary:active { transform: scale(.97); }
+.btn-secondary:active { filter: brightness(.95); }
 
 .login-error {
   text-align: center; color: var(--red);
   font-size: 12px; font-weight: 700;
   margin-top: 12px; min-height: 18px;
 }
+.login-error.ok { color: var(--green); }
 .login-hint {
   text-align: center; font-size: 11px;
   color: var(--text-light); margin-top: 16px; font-weight: 600;
@@ -366,7 +367,7 @@ body {
   content: ''; position: absolute; top: -40px; right: -30px;
   width: 140px; height: 140px;
   background: radial-gradient(circle, rgba(255,255,255,.15), transparent 65%);
-  border-radius: 50%;
+  border-radius: 50%; pointer-events: none;
 }
 .hero-label {
   font-size: 12px; font-weight: 800;
@@ -516,7 +517,7 @@ body {
   display: flex; align-items: center; justify-content: center; gap: 4px;
   min-height: 44px;
 }
-.action-btn-big:active { transform: scale(.96); }
+.action-btn-big:active { filter: brightness(.95); }
 .btn-green-big {
   background: linear-gradient(135deg, #00A651, #008C45);
   color: #fff;
@@ -916,6 +917,7 @@ body {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
+.ripple::before, .ripple::after { pointer-events: none !important; }
 .ripple::after {
   content: '';
   position: absolute;
@@ -926,7 +928,7 @@ body {
   border-radius: 100%;
   transform: scale(1) translate(-50%, -50%);
   transform-origin: 50% 50%;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 .ripple:active::after {
   animation: ripple .6s ease-out;
@@ -955,7 +957,7 @@ body {
   transition: transform .15s, box-shadow .15s;
   animation: cardSlideIn .35s backwards;
 }
-.jc-card:active { transform: scale(.99); }
+.jc-card:active { filter: brightness(.98); }
 .jc-card.jc-new {
   border-left-color: var(--orange);
   background: linear-gradient(135deg, #FFFBF5, var(--surface));
@@ -1149,7 +1151,7 @@ body {
   justify-content: center;
   gap: 6px;
 }
-.jc-primary-btn:active { transform: scale(.97); }
+.jc-primary-btn:active { filter: brightness(.95); }
 .jc-accept {
   background: linear-gradient(135deg, #00A651, #008C45);
   box-shadow: 0 4px 12px rgba(0,166,81,.35);
