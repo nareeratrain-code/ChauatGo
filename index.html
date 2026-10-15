@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.12</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.13</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.12-20261015-001';
+  var VERSION = 'v3.9.13-20261015-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -1019,7 +1019,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.12 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.13 • © 2024</div>
       </div>
     </div>
   </div>
@@ -1499,14 +1499,39 @@ window.saveProfile = async function(){
   if(phoneVal && phoneVal.replace(/\D/g,'').length < 9){showToast('เบอร์ไม่ถูกต้อง','error');return;}
   var saveBtn = document.querySelector('#modal-body button.btn-green');
   if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = 'กำลังบันทึก...'; }
-  var data = {
-    name: nameVal, phone: phoneVal, lineId: lineVal, address: addrVal,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  var ref = db.collection('users').doc(currentUser.uid);
+  var patch = {
+    name: nameVal,
+    phone: phoneVal,
+    lineId: lineVal,
+    address: addrVal,
+    updatedAt: firebase.firestore.Timestamp.now()
   };
   try{
-    await db.collection('users').doc(currentUser.uid).set(data, { merge: true });
-    await currentUser.updateProfile({displayName:nameVal});
-    userProfile = Object.assign({}, userProfile, data);
+    var snap = await ref.get();
+    if (snap.exists) {
+      // Update only these fields. role and isPending stay as they are.
+      await ref.update(patch);
+    } else {
+      // set(merge) on a missing doc is a create, and create requires role.
+      await ref.set({
+        role: 'user',
+        email: (currentUser.email || '').trim(),
+        name: nameVal,
+        phone: phoneVal,
+        lineId: lineVal,
+        address: addrVal,
+        createdAt: firebase.firestore.Timestamp.now(),
+        updatedAt: patch.updatedAt
+      });
+    }
+    try { await currentUser.updateProfile({displayName:nameVal}); } catch (profileErr) {}
+    var keptRole = (snap.exists && snap.data() && snap.data().role) || (userProfile && userProfile.role) || 'user';
+    userProfile = Object.assign({}, userProfile || { uid: currentUser.uid }, {
+      name: nameVal, phone: phoneVal, lineId: lineVal, address: addrVal,
+      email: (userProfile && userProfile.email) || (currentUser.email || ''),
+      role: keptRole
+    });
     window.userProfile = userProfile;
     showToast('✅ บันทึกโปรไฟล์แล้ว');
     closeModal();
@@ -4382,7 +4407,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.12 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.13 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
