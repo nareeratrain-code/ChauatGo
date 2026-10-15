@@ -80,6 +80,30 @@ function statusLabel(o) {
   return base;
 }
 
+/* Same field the shop, rider, and customer show: orders.code ("OD-2181"). */
+function orderCode(o) {
+  return String((o && o.code) || '').trim();
+}
+
+function orderMatchesQuery(o, q) {
+  const needle = String(q || '').trim().toLowerCase();
+  if (!needle) return true;
+  const code = orderCode(o).toLowerCase();
+  const codeNum = code.replace(/^od-/, '');
+  const needleNum = needle.replace(/^od-/, '');
+  const fields = [o.title, o.userName, o.id, code];
+  if (fields.some(v => String(v || '').toLowerCase().includes(needle))) return true;
+  return !!(codeNum && needleNum && codeNum.includes(needleNum));
+}
+
+function orderCodeHtml(o) {
+  const code = orderCode(o);
+  if (code) {
+    return `<div style="font-size:15px;font-weight:900;letter-spacing:.4px;color:var(--brand)">🧾 ${esc(code)}</div>`;
+  }
+  return `<div class="data-card-meta" style="font-family:monospace">ไม่มีเลข OD • ${esc((o.id || '').slice(-8))}</div>`;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    3. HELPERS
    ═══════════════════════════════════════════════════════════════════ */
@@ -668,6 +692,7 @@ function dashboard() {
     return `<div class="ripple" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;min-height:60px" data-order="${esc(o.id)}">
       <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
+        ${orderCodeHtml(o)}
         <div style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)">${esc(o.title || 'ออเดอร์')}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${fmtTime(o.createdAt)} • ${esc(statusLabel(o))}</div>
       </div>
@@ -690,7 +715,7 @@ function orders() {
   const q = filters.q.toLowerCase();
   let list = store.orders.filter(o =>
     (filters.orders === 'all' || o.status === filters.orders) &&
-    (!q || [o.title, o.userName, o.id].some(v => String(v || '').toLowerCase().includes(q)))
+    orderMatchesQuery(o, q)
   );
   list.sort((a, b) => ts(b) - ts(a));
 
@@ -701,7 +726,7 @@ function orders() {
     ).join('')}
   </select>`;
 
-  return searchInput('ค้นหาออเดอร์...') + sel + (list.map(o => {
+  return searchInput('ค้นหา OD, ชื่อ, หรือรหัสเอกสาร...') + sel + (list.map(o => {
     const slipBadge = o.riderSlipUrl
       ? (o.riderSlipVerified ? '<span class="tag">📸 ✅</span>' : '<span class="tag w">📸 รอ</span>')
       : '';
@@ -712,6 +737,7 @@ function orders() {
       <div class="data-card-header">
         <div class="data-card-icon" style="background:var(--blue-light)">📋</div>
         <div class="data-card-info">
+          ${orderCodeHtml(o)}
           <div class="data-card-name">${esc(o.title || 'ออเดอร์')}</div>
           <div class="data-card-meta">฿${esc(o.total || 0)} • 👤 ${esc(o.userName || '—')}</div>
           <div class="data-card-meta">🕐 ${fmtTime(o.createdAt)}</div>
@@ -751,7 +777,11 @@ function orderDetail(id) {
       </div>` : ''}
     </div>` : '';
 
-  openModal('📋 ออเดอร์', `
+  const code = orderCode(o);
+  openModal(code ? `🧾 ${code}` : '📋 ออเดอร์', `
+    ${code
+      ? `<div style="text-align:center;font-size:28px;font-weight:900;letter-spacing:2px;color:var(--brand);margin-bottom:4px">🧾 ${esc(code)}</div>`
+      : `<div class="meta" style="font-weight:900">ไม่มีเลข OD (ออเดอร์เก่า)</div>`}
     <div class="meta" style="font-family:monospace;font-size:11px">ID: ${esc(o.id)}</div>
     <div class="nm" style="font-size:18px;margin:8px 0">${esc(o.title || '')}</div>
 
