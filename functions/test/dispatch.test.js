@@ -86,10 +86,10 @@ function assertNoProtectedShop(value) {
 }
 
 test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HOST }, async () => {
-  const admin = require('firebase-admin');
-  if (!admin.apps.length) admin.initializeApp({ projectId: 'chauat-go-b9841' });
-  const db = admin.firestore();
-  const { Timestamp, FieldValue } = admin.firestore;
+  const { initializeApp, getApps } = require('firebase-admin/app');
+  const { getFirestore, Timestamp, FieldValue } = require('firebase-admin/firestore');
+  if (!getApps().length) initializeApp({ projectId: 'chauat-go-b9841' });
+  const db = getFirestore();
   const pickup = { lat: 8.02, lng: 100.15 };
   const shop = 'ร้านทดสอบ';
 
