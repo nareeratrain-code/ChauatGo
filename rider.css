@@ -1070,6 +1070,27 @@ body {
   cursor: pointer; font-family: inherit;
   box-shadow: 0 4px 12px rgba(255,107,53,.3);
 }
+.camera-btn-gallery {
+  width: 100%; padding: 14px;
+  background: #1c1c1c; color: #fff;
+  border: 1.5px solid #444; border-radius: 14px;
+  font-weight: 900; font-size: 14px;
+  cursor: pointer; font-family: inherit;
+}
+.photo-source-row {
+  display: flex; gap: 8px; margin-top: 8px;
+}
+.photo-source-btn {
+  flex: 1; min-height: 44px; padding: 10px 8px;
+  border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text);
+  font-weight: 800; font-size: 13px;
+  font-family: inherit; cursor: pointer;
+}
+.photo-source-btn.camera {
+  background: linear-gradient(135deg, #FF6B35, #E55A2B);
+  color: #fff; border: none;
+}
 .camera-btn-send {
   width: 100%; padding: 14px;
   background: linear-gradient(135deg, #00A651, #008C45);

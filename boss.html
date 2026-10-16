@@ -14,7 +14,7 @@
 
 <script>
 (function() {
-  const APP_VERSION = 'v3.3.0';
+  const APP_VERSION = 'v3.3.1';
   const savedVersion = localStorage.getItem('chauat_app_version');
   if (savedVersion && savedVersion !== APP_VERSION) {
     localStorage.setItem('chauat_app_version', APP_VERSION);
@@ -301,7 +301,7 @@ table.gp-table tr:hover{background:#fafafa}
       <picture><source srcset="images/logo-512.webp" type="image/webp"><img class="cg-logo" src="images/logo-512.png" alt="ChauatGo"></picture>
       <div class="cg-brand-copy">
         <div class="cg-brand-name">ChauatGo</div>
-        <div class="cg-brand-tag">ภาพรวมผู้ดูแล <span class="vbadge">v3.3.0</span></div>
+        <div class="cg-brand-tag">ภาพรวมผู้ดูแล <span class="vbadge">v3.3.1</span></div>
       </div>
     </div>
     <div class="admin-info">
@@ -1764,10 +1764,15 @@ function orderDetail(id) {
     </div>` : `
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
       <div style="font-weight:900;margin-bottom:8px;font-size:13px">💸 สลิปโอนร้าน</div>
-      <div class="slip-upload-box" onclick="$('admin-slip-input-${esc(o.id)}').click()">
-        <div class="icon">📤</div><div class="label">อัปโหลดสลิป</div><div class="hint">แตะเลือกรูป</div>
+      <div class="slip-upload-box" style="cursor:default">
+        <div class="icon">📤</div><div class="label">อัปโหลดสลิป</div><div class="hint">ถ่ายรูปหรือเลือกจากคลังภาพ</div>
+        <div style="display:flex;gap:8px;width:100%;margin-top:4px">
+          <button type="button" class="pri ripple" style="flex:1" onclick="$('admin-slip-camera-${esc(o.id)}').click()">📷 ถ่ายรูป</button>
+          <button type="button" class="sec ripple" style="flex:1" onclick="$('admin-slip-gallery-${esc(o.id)}').click()">🖼️ เลือกจากคลังภาพ</button>
+        </div>
       </div>
-      <input type="file" id="admin-slip-input-${esc(o.id)}" accept="image/*" capture="environment" style="display:none" onchange="uploadAdminSlip('${esc(o.id)}', this.files[0])">
+      <input type="file" id="admin-slip-camera-${esc(o.id)}" accept="image/*" capture="environment" style="display:none" onchange="uploadAdminSlip('${esc(o.id)}', this.files[0])">
+      <input type="file" id="admin-slip-gallery-${esc(o.id)}" accept="image/*" style="display:none" onchange="uploadAdminSlip('${esc(o.id)}', this.files[0])">
       <div class="slip-progress" id="admin-slip-progress-${esc(o.id)}" style="display:none"><div class="slip-progress-bar" id="admin-slip-bar-${esc(o.id)}"></div></div>
     </div>`;
   const code = orderCode(o);
@@ -1802,6 +1807,10 @@ async function rejectRiderSlip(id) {
 }
 async function uploadAdminSlip(orderId, file) {
   if (!file) return;
+  ['camera', 'gallery'].forEach((kind) => {
+    const el = document.getElementById(`admin-slip-${kind}-${orderId}`);
+    if (el) el.value = '';
+  });
   if (file.size > 5 * 1024 * 1024) return toast('ไฟล์เกิน 5MB', true);
   const pB = $(`admin-slip-progress-${orderId}`), bar = $(`admin-slip-bar-${orderId}`);
   pB.style.display = 'block';
@@ -1948,7 +1957,7 @@ function prefillAdmin() {
   toast('กรอกรหัสผ่าน แล้วกด "เข้าสู่ระบบ"');
 }
 
-console.log('%c🛵 Chauat Go Admin v3.3.0', 'color:#00A651;font-weight:900;font-size:16px');
+console.log('%c🛵 Chauat Go Admin v3.3.1', 'color:#00A651;font-weight:900;font-size:16px');
 console.log('%c✓ Master Bypass: adminchauatgo@gmail.com, admin@chauatgo.com, chauatgo@gmail.com', 'color:#1565C0;font-weight:700');
 console.log('%c✓ GP Dashboard | ✓ Badge | ✓ Colors', 'color:#9C27B0;font-weight:700');
 </script>

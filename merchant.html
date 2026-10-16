@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#00A651">
 <meta name="robots" content="noindex, nofollow">
-<title>Chauat Go Merchant — POS หลังร้าน v3.8.1</title>
+<title>Chauat Go Merchant — POS หลังร้าน v3.9.19</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chauat Merchant">
@@ -14,7 +14,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.17-20261015-006';
+  var VERSION = 'v3.9.19-20261016-001';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -432,6 +432,9 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 .slip-upload-box .ico { font-size: 48px; margin-bottom: 8px; }
 .slip-upload-box .lbl { font-size: 14px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
 .slip-upload-box .hint { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.photo-source-row { display: flex; gap: 8px; margin: -6px 0 14px; }
+.photo-source-btn { flex: 1; min-height: 44px; padding: 10px 8px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-weight: 800; font-size: 13px; font-family: inherit; cursor: pointer; }
+.photo-source-btn.camera { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; }
 .slip-preview { width: 100%; border-radius: 16px; margin-bottom: 14px; display: block; max-height: 300px; object-fit: contain; background: var(--surface-2); }
 .slip-progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 14px; }
 .slip-progress-bar { height: 100%; width: 0%; background: var(--green); transition: width .3s; }
@@ -983,7 +986,7 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
     <button class="order-btn btn-gray ripple menu-link" onclick="closeSheet('menu-sheet');installPWA()">📱 ติดตั้งแอป</button>
     <button class="order-btn btn-reject ripple menu-link" onclick="handleMerchantLogout()">🚪 ออกจากระบบ</button>
     <button class="sheet-close ripple" onclick="closeSheet('menu-sheet')">ปิด</button>
-    <div class="sheet-version">Chauat Merchant v3.8.1</div>
+    <div class="sheet-version">Chauat Merchant v3.9.19</div>
   </div>
 </div>
 
@@ -1075,12 +1078,17 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
       <div style="display:flex;justify-content:space-between;padding:4px 0"><span>เลขบัญชี</span><b>xxx-x-xxxxx-x</b></div>
       <div style="display:flex;justify-content:space-between;padding:4px 0"><span>ชื่อบัญชี</span><b>บริษัท Chauat Go จำกัด</b></div>
     </div>
-    <div class="slip-upload-box" onclick="document.getElementById('gp-slip-input').click()">
+    <div class="slip-upload-box" style="cursor:default">
       <div class="ico">📸</div>
-      <div class="lbl">แตะเพื่อแนบสลิปโอน</div>
-      <div class="hint">แนบสลิปโอนเงินให้ chauatgo</div>
+      <div class="lbl">แนบสลิปโอน</div>
+      <div class="hint">ถ่ายรูปหรือเลือกจากคลังภาพ</div>
     </div>
-    <input type="file" id="gp-slip-input" accept="image/*" capture="environment" style="display:none">
+    <div class="photo-source-row">
+      <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('gp-slip-camera').click()">📷 ถ่ายรูป</button>
+      <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('gp-slip-gallery').click()">🖼️ เลือกจากคลังภาพ</button>
+    </div>
+    <input type="file" id="gp-slip-camera" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="gp-slip-gallery" accept="image/*" style="display:none">
     <img id="gp-slip-preview" class="slip-preview" style="display:none">
     <div class="slip-progress" id="gp-slip-progress" style="display:none"><div class="slip-progress-bar" id="gp-slip-progress-bar"></div></div>
     <div class="form-field"><label>📝 หมายเหตุ (ไม่บังคับ)</label><textarea id="gp-note" rows="2" maxlength="200" style="resize:none"></textarea></div>
