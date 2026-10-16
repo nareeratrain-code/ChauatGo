@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.15</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.20</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.17-20261015-006';
+  var VERSION = 'v3.9.20-20261016-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -426,7 +426,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .rating-inline .star { color: #FFC107; }
 .rate-btn { margin-top: 8px; padding: 8px 14px; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; background: linear-gradient(135deg, #FFC107, #FFA000); color: #fff; cursor: pointer; font-family: inherit; }
 
-#chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 8500; display: none; flex-direction: column; }
+#chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 9600; display: none; flex-direction: column; }
 #chat-page.show { display: flex !important; }
 .chat-header { background: var(--header-grad); color: #fff; padding: 14px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); flex-shrink: 0; }
 .chat-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
@@ -446,7 +446,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .chat-img-btn { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 20px; cursor: pointer; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .chat-send-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
-#tracking-page { position: fixed; inset: 0; background: var(--bg); z-index: 8700; display: none; flex-direction: column; }
+#tracking-page { position: fixed; inset: 0; background: var(--bg); z-index: 9400; display: none; flex-direction: column; }
 #tracking-page.show { display: flex !important; }
 .track-header { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .track-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
@@ -494,6 +494,11 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .near-alert-btns { display: flex; gap: 8px; }
 
 .orders-tab, .messages-tab { padding: 14px; display: none; }
+.chat-list-item { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 14px; padding: 12px; margin-bottom: 8px; box-shadow: var(--shadow-sm); cursor: pointer; }
+.chat-list-avatar { width: 44px; height: 44px; border-radius: 50%; background: #E3F2FD; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.chat-list-body { flex: 1; min-width: 0; }
+.chat-list-name { font-size: 14px; font-weight: 900; color: var(--text); }
+.chat-list-last { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .order-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); margin: 14px 0 10px; text-transform: uppercase; }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
 .empty-state .icon { font-size: 64px; margin-bottom: 12px; opacity: .5; }
@@ -1023,7 +1028,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.15 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.20 • © 2024</div>
       </div>
     </div>
   </div>
@@ -2862,7 +2867,11 @@ function subscribeChatMessages(orderId) {
       if (snap.metadata && snap.metadata.hasPendingWrites) return;
       var lastMsg = snap.docs[snap.docs.length-1];
       if (lastMsg && lastMsg.data().senderId !== currentUser.uid) soundNewChat();
-    }, function(err){ console.warn('Chat sub:', err.message); });
+    }, function(err){
+      console.warn('Chat sub:', err.message);
+      var box = $('chat-messages');
+      if (box) box.innerHTML = '<div class="chat-empty">โหลดข้อความไม่สำเร็จ</div>';
+    });
 }
 
 function scrollChatToBottom() {
@@ -2983,6 +2992,11 @@ function subscribeChatList() {
           '<div style="font-size:18px;color:var(--text-light)">›</div>' +
         '</div>';
       }).join('');
+    }, function(err){
+      console.warn('chat list', err && err.code);
+      if ($('chat-list')) $('chat-list').innerHTML = '';
+      if ($('chat-list-empty')) $('chat-list-empty').style.display = 'block';
+      showToast('โหลดรายการแชทไม่สำเร็จ', 'error');
     });
 }
 
@@ -4525,7 +4539,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.15 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.20 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
