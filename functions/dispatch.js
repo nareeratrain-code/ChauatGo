@@ -1,6 +1,7 @@
 'use strict';
 
-const admin = require('firebase-admin');
+const { FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 const { geohashQueryBounds, distanceBetween } = require('geofire-common');
 
 const DEFAULT_CONFIG = {
@@ -171,7 +172,7 @@ async function notifyRider(db, riderId, msg) {
     if (!snap.exists) return;
     const tokens = snap.data().fcmTokens;
     if (!Array.isArray(tokens) || !tokens.length) return;
-    const res = await admin.messaging().sendEachForMulticast({
+    const res = await getMessaging().sendEachForMulticast({
       tokens: tokens.slice(0, 20),
       notification: { title: msg.title, body: msg.body },
       data: stringifyData(msg.data),
@@ -191,7 +192,7 @@ async function notifyRider(db, riderId, msg) {
     });
     if (bad.length) {
       await db.collection('riders').doc(riderId).update({
-        fcmTokens: admin.firestore.FieldValue.arrayRemove.apply(admin.firestore.FieldValue, bad)
+        fcmTokens: FieldValue.arrayRemove.apply(FieldValue, bad)
       });
     }
   } catch (err) {
@@ -277,7 +278,7 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
     await ref.update({
       dispatchState: 'manual',
       dispatchManualReason: 'ไม่มีจุดรับ',
-      dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
     return { skipped: 'no-pickup' };
   }
@@ -303,7 +304,7 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
       dispatchState: 'manual',
       dispatchRadiusStep: step,
       dispatchManualReason: 'ไม่มีไรเดอร์ในระยะ',
-      dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
     return { skipped: 'exhausted', step: step };
   }
@@ -350,10 +351,10 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
     if (oldSnap && oldSnap.exists && oldSnap.data().status === 'pending') {
       tx.update(oldRef, {
         status: 'expired',
-        respondedAt: admin.firestore.FieldValue.serverTimestamp()
+        respondedAt: FieldValue.serverTimestamp()
       });
       if (oldRiderSnap && oldRiderSnap.exists) {
-        tx.update(oldRiderRef, { offersTotal: admin.firestore.FieldValue.increment(1) });
+        tx.update(oldRiderRef, { offersTotal: FieldValue.increment(1) });
       }
     }
 
@@ -371,8 +372,8 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
       pickupName: order.shopPlaceName || order.fromName || order.merchantName || '',
       fare: Number(order.fare || order.total || 0),
       orderCode: order.code || order.orderCode || '',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromDate(expiresAt),
       respondedAt: null
     });
     tx.update(ref, {
@@ -380,11 +381,11 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
       dispatchState: 'offered',
       dispatchOfferId: offerRef.id,
       dispatchOfferRiderId: chosen.riderId,
-      dispatchOfferExpiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      dispatchOfferExpiresAt: Timestamp.fromDate(expiresAt),
       dispatchRadiusStep: step,
-      dispatchOfferedIds: admin.firestore.FieldValue.arrayUnion(chosen.riderId),
-      dispatchManualReason: admin.firestore.FieldValue.delete(),
-      dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      dispatchOfferedIds: FieldValue.arrayUnion(chosen.riderId),
+      dispatchManualReason: FieldValue.delete(),
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
     return { ok: true, offerId: offerRef.id, riderId: chosen.riderId };
   });
@@ -433,18 +434,18 @@ async function expireOffer(db, orderId, offerId, reason) {
     const riderSnap = offer.riderId ? await tx.get(riderRef) : null;
     tx.update(offerRef, {
       status: status,
-      respondedAt: admin.firestore.FieldValue.serverTimestamp()
+      respondedAt: FieldValue.serverTimestamp()
     });
     if (riderSnap && riderSnap.exists) {
-      tx.update(riderRef, { offersTotal: admin.firestore.FieldValue.increment(1) });
+      tx.update(riderRef, { offersTotal: FieldValue.increment(1) });
     }
     if (order.dispatchOfferId === offerId && !order.riderId) {
       tx.update(orderRef, {
         dispatchState: 'seeking',
-        dispatchOfferId: admin.firestore.FieldValue.delete(),
-        dispatchOfferRiderId: admin.firestore.FieldValue.delete(),
-        dispatchOfferExpiresAt: admin.firestore.FieldValue.delete(),
-        dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+        dispatchOfferId: FieldValue.delete(),
+        dispatchOfferRiderId: FieldValue.delete(),
+        dispatchOfferExpiresAt: FieldValue.delete(),
+        dispatchUpdatedAt: FieldValue.serverTimestamp()
       });
       return { acted: true, advance: true };
     }
@@ -483,21 +484,21 @@ async function acceptOffer(db, uid, orderId, offerId) {
       riderName: rider.name || offer.riderName || '',
       riderPhone: rider.phone || '',
       status: 'accepted',
-      acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      acceptedAt: FieldValue.serverTimestamp(),
       dispatchState: 'assigned',
       dispatchCounted: true,
-      dispatchOfferRiderId: admin.firestore.FieldValue.delete(),
-      dispatchOfferExpiresAt: admin.firestore.FieldValue.delete(),
-      dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      dispatchOfferRiderId: FieldValue.delete(),
+      dispatchOfferExpiresAt: FieldValue.delete(),
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
     tx.update(offerRef, {
       status: 'accepted',
-      respondedAt: admin.firestore.FieldValue.serverTimestamp()
+      respondedAt: FieldValue.serverTimestamp()
     });
     tx.update(riderRef, {
-      offersAccepted: admin.firestore.FieldValue.increment(1),
-      offersTotal: admin.firestore.FieldValue.increment(1),
-      activeJobCount: admin.firestore.FieldValue.increment(1),
+      offersAccepted: FieldValue.increment(1),
+      offersTotal: FieldValue.increment(1),
+      activeJobCount: FieldValue.increment(1),
       idleSince: null
     });
   });
@@ -526,7 +527,7 @@ async function manualAssign(db, adminUid, orderId, riderId) {
     if (prevSnap && prevSnap.exists && prevSnap.data().status === 'pending') {
       tx.update(prevRef, {
         status: 'expired',
-        respondedAt: admin.firestore.FieldValue.serverTimestamp()
+        respondedAt: FieldValue.serverTimestamp()
       });
     }
     tx.set(offerRef, {
@@ -539,8 +540,8 @@ async function manualAssign(db, adminUid, orderId, riderId) {
       title: order.title || '',
       merchantName: order.merchantName || '',
       orderCode: order.code || order.orderCode || '',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      respondedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      respondedAt: FieldValue.serverTimestamp(),
       wave: Number(order.dispatchRadiusStep || 0)
     });
     tx.update(orderRef, {
@@ -548,20 +549,20 @@ async function manualAssign(db, adminUid, orderId, riderId) {
       riderName: rider.name || '',
       riderPhone: rider.phone || '',
       status: 'accepted',
-      acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+      acceptedAt: FieldValue.serverTimestamp(),
       dispatchState: 'assigned',
       dispatchCounted: true,
       dispatchOfferId: offerRef.id,
-      dispatchOfferRiderId: admin.firestore.FieldValue.delete(),
-      dispatchOfferExpiresAt: admin.firestore.FieldValue.delete(),
+      dispatchOfferRiderId: FieldValue.delete(),
+      dispatchOfferExpiresAt: FieldValue.delete(),
       dispatchMode: 'manual-override',
-      dispatchManualReason: admin.firestore.FieldValue.delete(),
-      dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      dispatchManualReason: FieldValue.delete(),
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
     tx.update(riderRef, {
-      offersAccepted: admin.firestore.FieldValue.increment(1),
-      offersTotal: admin.firestore.FieldValue.increment(1),
-      activeJobCount: admin.firestore.FieldValue.increment(1),
+      offersAccepted: FieldValue.increment(1),
+      offersTotal: FieldValue.increment(1),
+      activeJobCount: FieldValue.increment(1),
       idleSince: null
     });
   });
@@ -581,7 +582,7 @@ async function releaseRiderJob(db, riderId) {
     if (!snap.exists) return;
     const n = Math.max(0, Number((snap.data() || {}).activeJobCount || 0) - 1);
     const patch = { activeJobCount: n };
-    if (n === 0) patch.idleSince = admin.firestore.FieldValue.serverTimestamp();
+    if (n === 0) patch.idleSince = FieldValue.serverTimestamp();
     tx.update(ref, patch);
   });
 }
@@ -602,24 +603,24 @@ async function ensureAssigned(db, orderId) {
       offerSnap = await tx.get(offerRef);
     }
     const patch = {
-      activeJobCount: admin.firestore.FieldValue.increment(1),
+      activeJobCount: FieldValue.increment(1),
       idleSince: null
     };
     if (offerSnap && offerSnap.exists && offerSnap.data().status === 'pending') {
       tx.update(offerRef, {
         status: 'accepted',
-        respondedAt: admin.firestore.FieldValue.serverTimestamp()
+        respondedAt: FieldValue.serverTimestamp()
       });
-      patch.offersAccepted = admin.firestore.FieldValue.increment(1);
-      patch.offersTotal = admin.firestore.FieldValue.increment(1);
+      patch.offersAccepted = FieldValue.increment(1);
+      patch.offersTotal = FieldValue.increment(1);
     }
     if (riderSnap.exists) tx.update(riderRef, patch);
     tx.update(orderRef, {
       dispatchState: 'assigned',
       dispatchCounted: true,
-      dispatchOfferRiderId: admin.firestore.FieldValue.delete(),
-      dispatchOfferExpiresAt: admin.firestore.FieldValue.delete(),
-      dispatchUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+      dispatchOfferRiderId: FieldValue.delete(),
+      dispatchOfferExpiresAt: FieldValue.delete(),
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
   });
 }
@@ -672,13 +673,13 @@ async function onGpsWritten(db, before, after, riderId) {
   const jobs = snap.exists ? Number((snap.data() || {}).activeJobCount || 0) : 0;
   if (jobs <= 0) {
     await riderRef.set({
-      idleSince: admin.firestore.FieldValue.serverTimestamp()
+      idleSince: FieldValue.serverTimestamp()
     }, { merge: true });
   }
 }
 
 async function sweepExpired(db) {
-  const now = admin.firestore.Timestamp.now();
+  const now = Timestamp.now();
   const snap = await db.collectionGroup('dispatchOffers')
     .where('status', '==', 'pending')
     .where('expiresAt', '<', now)

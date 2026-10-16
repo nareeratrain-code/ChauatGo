@@ -4,13 +4,14 @@ const { onDocumentWritten, onDocumentCreated } = require('firebase-functions/v2/
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
+const { getFirestore } = require('firebase-admin/firestore');
 const D = require('./dispatch');
 
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 });
 
-if (!admin.apps.length) admin.initializeApp();
-const db = admin.firestore();
+if (!getApps().length) initializeApp();
+const db = getFirestore();
 
 const CALL = { invoker: 'public', cors: true };
 
