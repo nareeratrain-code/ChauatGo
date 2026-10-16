@@ -28,6 +28,7 @@ test('food still waiting on the shop is not dispatched', () => {
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', riderId: 'r1' }), false);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', dispatchState: 'manual' }), false);
   assert.equal(D.needsDispatch({ type: 'ride', status: 'searching' }), true);
+  assert.equal(D.needsDispatch({ type: 'shopping', status: 'searching' }), true);
   assert.equal(D.needsDispatch({ type: 'express', status: 'pending' }), true);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cancelled' }), false);
 });
@@ -181,6 +182,9 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
 
   const idleSince = Timestamp.fromDate(new Date(Date.now() - 3 * 60 * 60 * 1000));
   await seedRider('test-busy', pickup.lat, pickup.lng, { activeJobCount: 1, idleSince: null });
+  await seedOrder('ord-busy-hold', {
+    type: 'ride', status: 'accepted', riderId: 'test-busy', merchantId: '', code: 'OD-BUSY'
+  });
   await seedRider('test-idle', 8.0227, 100.15, { idleSince: idleSince, rating: 4 });
   await seedRider('test-near', 8.021, 100.15, { idleSince: Timestamp.fromDate(new Date()), rating: 5 });
   await seedRider('test-far', 8.07, 100.15, { rating: 5 });
@@ -319,6 +323,36 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.match(stuckFood.data().code, /^OD-\d{4}$/);
   const stuckFoodOffers = await db.collection('orders').doc('ord-stuck-food').collection('dispatchOffers').get();
   assert.equal(stuckFoodOffers.size, 0);
+
+  await seedRider('test-full', pickup.lat + 0.002, pickup.lng, { activeJobCount: 1 });
+  await D.onOrderWritten(db, {
+    riderId: 'test-full', status: 'accepted', dispatchCounted: true
+  }, {
+    riderId: 'test-full', status: 'searching', dispatchCounted: true, type: 'shopping'
+  }, 'ord-rewind-count');
+  const rewound = await db.collection('riders').doc('test-full').get();
+  assert.equal(rewound.data().activeJobCount, 0);
+
+  await db.collection('riders').doc('test-full').update({ activeJobCount: 4 });
+  await seedOrder('ord-shop-stuck', {
+    type: 'shopping',
+    status: 'searching',
+    merchantId: '',
+    merchantName: '',
+    shopPlaceName: '7-Eleven',
+    code: 'OD-8548',
+    paymentMode: 'cash',
+    items: '- น้ำแข็ง 1',
+    dispatchState: 'manual',
+    dispatchManualReason: 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์ในระยะมีงานอยู่แล้ว'
+  });
+  const shopSweep = await D.sweepStuck(db);
+  assert.ok(shopSweep.nudged >= 1);
+  const freedFull = await db.collection('riders').doc('test-full').get();
+  assert.equal(freedFull.data().activeJobCount, 0);
+  const shopStuck = await db.collection('orders').doc('ord-shop-stuck').get();
+  assert.equal(shopStuck.data().dispatchState, 'offered');
+  assert.notEqual(shopStuck.data().dispatchOfferRiderId || '', '');
 
   const allOrders = await db.collection('orders').get();
   allOrders.forEach((doc) => assertNoProtectedShop(doc.data()));
