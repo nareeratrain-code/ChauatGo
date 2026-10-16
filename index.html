@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.22</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.23</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.22-20261016-001';
+  var VERSION = 'v3.9.23-20261017-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -1041,7 +1041,7 @@ button.chat-list-item:active { filter: brightness(.97); }
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.22 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.23 • © 2024</div>
       </div>
     </div>
   </div>
@@ -2606,7 +2606,7 @@ window.showOrderBill = async function(orderId) {
     var o = Object.assign({ id: snap.id }, snap.data());
 
     var itemsHtml = '';
-    if (o.items && o.items.length) {
+    if (Array.isArray(o.items) && o.items.length) {
       o.items.forEach(function(it) {
         var origPrice = Number(it.originalPrice || it.price || 0);
         var finalPrice = Number(it.finalPrice || it.price || 0);
@@ -2625,8 +2625,9 @@ window.showOrderBill = async function(orderId) {
           '</div>';
         }
       });
-    } else if (o.itemsText) {
-      itemsHtml = '<div style="font-size:13px">' + esc(o.itemsText) + '</div>';
+    } else {
+      var itemNote = (typeof o.items === 'string' && o.items.trim()) ? o.items : (o.itemsText || '');
+      if (itemNote) itemsHtml = '<div style="font-size:13px;white-space:pre-wrap">' + esc(itemNote) + '</div>';
     }
 
     var subtotal = Number(o.subtotal || o.itemsTotal || o.foodTotal || 0);
@@ -2678,17 +2679,17 @@ window.showOrderBill = async function(orderId) {
         '<div style="font-size:13px;font-weight:900">' + esc(o.userName || '—') + '</div>' +
         (o.address ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">📍 ' + esc(o.address) + '</div>' : '') +
       '</div>' +
-      (o.merchantName ?
+      ((o.merchantName || o.shopPlaceName) ?
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px">' +
-        '<div style="font-size:11px;color:var(--text-muted);font-weight:800;margin-bottom:6px">🏪 ร้านค้า</div>' +
-        '<div style="font-size:13px;font-weight:900">' + esc(o.merchantName) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-muted);font-weight:800;margin-bottom:6px">🏪 จุดรับ</div>' +
+        '<div style="font-size:13px;font-weight:900">' + esc(o.merchantName || o.shopPlaceName) + '</div>' +
       '</div>' : '') +
       '<div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px">' +
         '<div style="font-size:11px;color:var(--text-muted);font-weight:800;margin-bottom:10px">🍽️ รายการ</div>' +
         itemsHtml +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px">' +
-        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700"><span>ค่าอาหาร</span><b>฿' + fmt(subtotal) + '</b></div>' +
+        (subtotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700"><span>ค่าอาหาร</span><b>฿' + fmt(subtotal) + '</b></div>' : '') +
         (discountTotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:900;color:var(--promo-red)"><span>🔥 ส่วนลด</span><b>-฿' + fmt(discountTotal) + '</b></div>' : '') +
         (fare > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700"><span>📦 ค่าส่ง</span><b>฿' + fmt(fare) + '</b></div>' : '') +
         (cashTip > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:#E65100"><span>💵 ค่าบริการเงินสด</span><b>฿' + fmt(cashTip) + '</b></div>' : '') +
@@ -4597,7 +4598,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.22 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.23 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>

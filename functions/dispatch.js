@@ -269,7 +269,10 @@ async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen,
     skips.badStatus += 1;
     return;
   }
-  const jobs = Number(r.activeJobCount || 0);
+  let jobs = Number(r.activeJobCount || 0);
+  if (jobs >= cfg.maxJobsPerRider) {
+    jobs = await reconcileRiderJobs(db, doc.id);
+  }
   if (jobs >= cfg.maxJobsPerRider) {
     skips.busy += 1;
     return;
@@ -654,6 +657,39 @@ async function releaseRiderJob(db, riderId) {
   });
 }
 
+async function countActiveJobs(db, riderId) {
+  const snap = await db.collection('orders')
+    .where('riderId', '==', riderId)
+    .where('status', 'in', ACTIVE_STATUSES)
+    .limit(8)
+    .get();
+  return snap.size;
+}
+
+async function reconcileRiderJobs(db, riderId) {
+  if (!riderId) return 0;
+  const live = await countActiveJobs(db, riderId);
+  const ref = db.collection('riders').doc(riderId);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+    const current = Number((snap.data() || {}).activeJobCount || 0);
+    if (current <= live) return;
+    const patch = { activeJobCount: live };
+    if (live === 0) patch.idleSince = FieldValue.serverTimestamp();
+    tx.update(ref, patch);
+  });
+  return live;
+}
+
+async function reconcileBusyRiders(db) {
+  const snap = await db.collection('riders').where('activeJobCount', '>', 0).limit(40).get();
+  for (const doc of snap.docs) {
+    await reconcileRiderJobs(db, doc.id);
+  }
+  return snap.size;
+}
+
 async function ensureAssigned(db, orderId) {
   const orderRef = db.collection('orders').doc(orderId);
   await db.runTransaction(async (tx) => {
@@ -728,11 +764,14 @@ async function noteWaitingForShop(db, orderId, hinted) {
   return { ok: true, waiting: true };
 }
 
+function holdsJobSlot(order) {
+  return !!(order && order.riderId && ACTIVE_STATUSES.indexOf(order.status) !== -1);
+}
+
 async function onOrderWritten(db, before, after, orderId) {
-  if (before && after && before.riderId
-    && ACTIVE_STATUSES.indexOf(before.status) !== -1
-    && TERMINAL.indexOf(after.status) !== -1
-    && TERMINAL.indexOf(before.status) === -1) {
+  const beforeHolds = holdsJobSlot(before);
+  const afterSameRider = after && before && after.riderId === before.riderId && holdsJobSlot(after);
+  if (beforeHolds && !afterSameRider) {
     await releaseRiderJob(db, before.riderId);
   }
   if (after && after.riderId && (!before || !before.riderId) && after.dispatchCounted !== true) {
@@ -811,7 +850,13 @@ function offerStillLive(order, nowMs) {
   return !!(order.dispatchOfferRiderId && exp > nowMs);
 }
 
+function canRetryManual(order) {
+  const reason = order && order.dispatchManualReason;
+  return typeof reason === 'string' && reason.indexOf('ไม่มีไรเดอร์ว่าง') === 0;
+}
+
 async function sweepStuck(db) {
+  await reconcileBusyRiders(db);
   const cfg = await loadConfig(db);
   if (cfg.mode !== 'auto') return { checked: 0, nudged: 0, mode: cfg.mode };
   const snap = await db.collection('orders')
@@ -828,7 +873,17 @@ async function sweepStuck(db) {
     if (!String(order.code || '').trim() && TERMINAL.indexOf(order.status) === -1) {
       await ensureOrderCode(db, doc.id);
     }
-    if (order.dispatchState === 'manual') continue;
+    if (order.dispatchState === 'manual' && !canRetryManual(order)) continue;
+    if (order.dispatchState === 'manual') {
+      await doc.ref.update({
+        dispatchState: 'seeking',
+        dispatchRadiusStep: 0,
+        dispatchManualReason: FieldValue.delete(),
+        dispatchUpdatedAt: FieldValue.serverTimestamp()
+      });
+      order.dispatchState = 'seeking';
+      order.dispatchManualReason = '';
+    }
     if (needsDispatch(order)) {
       await offerNext(db, doc.id);
       nudged += 1;
@@ -863,6 +918,8 @@ module.exports = {
   acceptOffer,
   manualAssign,
   releaseRiderJob,
+  reconcileRiderJobs,
+  reconcileBusyRiders,
   ensureAssigned,
   onOrderWritten,
   onGpsWritten,
