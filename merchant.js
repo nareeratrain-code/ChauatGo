@@ -2138,16 +2138,19 @@ function openGpTransferForm() {
   if (roundEl) roundEl.textContent = new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
   const preview = $('gp-slip-preview');
   if (preview) preview.style.display = 'none';
-  const input = $('gp-slip-input');
-  if (input) input.value = '';
+  ['gp-slip-camera', 'gp-slip-gallery'].forEach((id) => {
+    const input = $(id);
+    if (input) input.value = '';
+  });
   const note = $('gp-note');
   if (note) note.value = '';
   openSheet('gp-transfer-sheet');
 }
 
 document.addEventListener('change', (e) => {
-  if (e.target.id === 'gp-slip-input') {
+  if (e.target.id === 'gp-slip-camera' || e.target.id === 'gp-slip-gallery') {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
     if (file.size > MAX_IMG_SIZE) return showToast('รูปใหญ่เกิน 5MB', 'error');
     gpSlipFile = file;

@@ -1313,14 +1313,19 @@ function openPickupModal(jobId, job) {
       <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">
         📸 รูปอาหาร <span style="color:#E53935">*บังคับ</span>
       </label>
-      <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--surface-2);overflow:hidden;position:relative" onclick="document.getElementById('pickup-food-input').click()">
+      <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:220px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden;position:relative">
         <div id="pickup-food-placeholder" style="text-align:center">
           <div style="font-size:36px">🍽️</div>
-          <div style="font-size:12px;font-weight:700;margin-top:6px;color:var(--text-muted)">แตะเพื่อถ่ายรูปอาหาร</div>
+          <div style="font-size:12px;font-weight:700;margin-top:6px;color:var(--text-muted)">ยังไม่มีรูปอาหาร</div>
         </div>
         <img id="pickup-food-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
-      <input type="file" id="pickup-food-input" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
+      <div class="photo-source-row">
+        <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('pickup-food-camera').click()">📷 ถ่ายรูป</button>
+        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ เลือกจากคลังภาพ</button>
+      </div>
+      <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
+      <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">
     </div>
 
     <!-- สลิปโอนร้าน -->
@@ -1328,14 +1333,19 @@ function openPickupModal(jobId, job) {
       <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">
         🧾 สลิปที่จ่ายร้าน <span style="color:#E53935">*บังคับ</span>
       </label>
-      <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--surface-2);overflow:hidden;position:relative" onclick="document.getElementById('pickup-slip-input').click()">
+      <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:220px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden;position:relative">
         <div id="pickup-slip-placeholder" style="text-align:center">
           <div style="font-size:36px">🧾</div>
-          <div style="font-size:12px;font-weight:700;margin-top:6px;color:var(--text-muted)">แตะเพื่อแนบสลิป</div>
+          <div style="font-size:12px;font-weight:700;margin-top:6px;color:var(--text-muted)">ยังไม่มีสลิป</div>
         </div>
         <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
-      <input type="file" id="pickup-slip-input" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
+      <div class="photo-source-row">
+        <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('pickup-slip-camera').click()">📷 ถ่ายรูป</button>
+        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ เลือกจากคลังภาพ</button>
+      </div>
+      <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
+      <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
     </div>
 
     <!-- ปุ่ม -->
