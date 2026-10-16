@@ -79,6 +79,15 @@ test('missing config stays on the manual list', () => {
   const custom = D.normalizeConfig({ mode: 'auto', radiusStepsKm: [2, 4], offerTimeoutSec: 15, maxJobsPerRider: 2 });
   assert.equal(custom.mode, 'auto');
   assert.deepEqual(custom.radiusStepsKm, [2, 4]);
+  assert.equal(D.normalizeConfig({ mode: 'อัตโนมัติ' }).mode, 'auto');
+  assert.equal(D.normalizeConfig({ mode: 'AUTO' }).mode, 'auto');
+  assert.equal(D.exhaustedReason(8, {}), 'ไม่มีไรเดอร์ว่างในระยะ 8 กม.');
+  assert.equal(
+    D.exhaustedReason(8, { unverified: 1 }),
+    'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์ในระยะยังไม่พร้อมรับงาน'
+  );
+  assert.equal(D.REASON_NO_PICKUP, 'ร้านไม่มีพิกัด');
+  assert.equal(D.REASON_WAIT_SHOP, 'รอร้านรับออเดอร์');
 });
 
 function assertNoProtectedShop(value) {
@@ -135,6 +144,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       shopPlaceLng: pickup.lng,
       shopPlaceName: shop,
       fare: 40,
+      paymentMode: 'transfer',
       code: 'OD-TEST'
     }, extra || {});
     assertNoProtectedShop(body);
@@ -151,6 +161,14 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(manual, undefined);
   const manualDoc = await db.collection('orders').doc('ord-manual-mode').get();
   assert.equal(manualDoc.data().dispatchState || '', '');
+
+  await seedOrder('ord-manual-wait', { status: 'searching', code: '' });
+  await D.onOrderWritten(db, null, {
+    type: 'food', status: 'searching', merchantName: shop, code: ''
+  }, 'ord-manual-wait');
+  const manualWait = await db.collection('orders').doc('ord-manual-wait').get();
+  assert.equal(manualWait.data().dispatchState || '', '');
+  assert.match(manualWait.data().code, /^OD-\d{4}$/);
 
   await db.doc('config/dispatch').set({
     mode: 'auto',
@@ -203,7 +221,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   await D.expireOffer(db, 'ord-chain', third.data().dispatchOfferId, 'skipped');
   const done = await db.collection('orders').doc('ord-chain').get();
   assert.equal(done.data().dispatchState, 'manual');
-  assert.equal(done.data().dispatchManualReason, 'ไม่มีไรเดอร์ในระยะ');
+  assert.equal(done.data().dispatchManualReason, 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์ในระยะมีงานอยู่แล้ว');
 
   await seedOrder('ord-accept');
   const offer = await D.offerNext(db, 'ord-accept');
@@ -237,13 +255,17 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(freed.data().activeJobCount, 0);
   assert.ok(freed.data().idleSince);
 
-  await seedOrder('ord-wait', { status: 'searching' });
+  await seedOrder('ord-wait', { status: 'searching', code: '' });
   await D.onOrderWritten(db, { type: 'food', status: 'pending', merchantName: shop }, {
-    type: 'food', status: 'searching', merchantName: shop,
+    type: 'food', status: 'searching', merchantName: shop, paymentMode: 'transfer',
     shopPlaceLat: pickup.lat, shopPlaceLng: pickup.lng
   }, 'ord-wait');
   const waiting = await db.collection('orders').doc('ord-wait').get();
-  assert.equal(waiting.data().dispatchState || '', '');
+  assert.equal(waiting.data().dispatchState, 'waiting');
+  assert.equal(waiting.data().dispatchManualReason, 'รอร้านรับออเดอร์');
+  assert.match(waiting.data().code, /^OD-\d{4}$/);
+  const waitOffers = await db.collection('orders').doc('ord-wait').collection('dispatchOffers').get();
+  assert.equal(waitOffers.size, 0);
 
   await seedOrder('ord-nopick');
   await db.collection('orders').doc('ord-nopick').update({
@@ -255,7 +277,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const noPick = await D.offerNext(db, 'ord-nopick');
   assert.equal(noPick.skipped, 'no-pickup');
   const noPickDoc = await db.collection('orders').doc('ord-nopick').get();
-  assert.equal(noPickDoc.data().dispatchManualReason, 'ไม่มีจุดรับ');
+  assert.equal(noPickDoc.data().dispatchManualReason, 'ร้านไม่มีพิกัด');
 
   await db.collection('admins').doc('admin-1').set({ role: 'active' });
   const isAdmin = await D.callerIsAdmin(db, { uid: 'admin-1', token: {} });
@@ -268,6 +290,35 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const forcedDoc = await db.collection('orders').doc('ord-force').get();
   assert.equal(forcedDoc.data().riderId, 'test-busy');
   assert.equal(forcedDoc.data().dispatchMode, 'manual-override');
+  await assert.rejects(
+    () => D.manualAssign(db, 'admin-1', 'ord-force', 'test-near'),
+    (err) => err && err.message === 'taken'
+  );
+
+  await seedOrder('ord-null-rider', { riderId: null, code: '' });
+  const nullAssign = await D.manualAssign(db, 'admin-1', 'ord-null-rider', 'test-near');
+  assert.equal(nullAssign.ok, true);
+  const nullDoc = await db.collection('orders').doc('ord-null-rider').get();
+  assert.equal(nullDoc.data().riderId, 'test-near');
+  assert.equal(nullDoc.data().status, 'accepted');
+  assert.match(nullDoc.data().code, /^OD-\d{4}$/);
+
+  await seedOrder('ord-stuck-ride', { type: 'ride', status: 'searching', merchantId: '', code: '' });
+  await seedOrder('ord-stuck-cook', { status: 'cooking', code: 'OD-COOK' });
+  await seedOrder('ord-stuck-food', { status: 'searching', code: '' });
+  const swept = await D.sweepStuck(db);
+  assert.ok(swept.nudged >= 2);
+  const stuckRide = await db.collection('orders').doc('ord-stuck-ride').get();
+  assert.equal(stuckRide.data().dispatchState, 'offered');
+  assert.match(stuckRide.data().code, /^OD-\d{4}$/);
+  const stuckCook = await db.collection('orders').doc('ord-stuck-cook').get();
+  assert.equal(stuckCook.data().dispatchState, 'offered');
+  const stuckFood = await db.collection('orders').doc('ord-stuck-food').get();
+  assert.equal(stuckFood.data().dispatchState, 'waiting');
+  assert.equal(stuckFood.data().dispatchManualReason, 'รอร้านรับออเดอร์');
+  assert.match(stuckFood.data().code, /^OD-\d{4}$/);
+  const stuckFoodOffers = await db.collection('orders').doc('ord-stuck-food').collection('dispatchOffers').get();
+  assert.equal(stuckFoodOffers.size, 0);
 
   const allOrders = await db.collection('orders').get();
   allOrders.forEach((doc) => assertNoProtectedShop(doc.data()));
