@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.15</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.22</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.17-20261015-006';
+  var VERSION = 'v3.9.22-20261016-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -1023,7 +1023,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.15 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.22 • © 2024</div>
       </div>
     </div>
   </div>
@@ -2075,6 +2075,9 @@ window.confirmCheckout = async function(grandTotal) {
       lat: (foodDropoff && isFinite(foodDropoff.lat)) ? foodDropoff.lat : (userLocation ? userLocation.lat : null),
       lng: (foodDropoff && isFinite(foodDropoff.lng)) ? foodDropoff.lng : (userLocation ? userLocation.lng : null),
       paymentMode: selectedPaymentMode,
+      code: generateOrderCode(),
+      deliveryCode: generateDeliveryCode(),
+      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     cart = []; cartShop = ''; selectedPaymentMode = 'transfer'; foodDropoff = null;
@@ -3172,6 +3175,9 @@ window.submitRideOrder = async function(){
       riderId: null,
       fare: fareInfo.total, total: fareInfo.total,
       paymentMode: 'transfer',
+      code: generateOrderCode(),
+      deliveryCode: generateDeliveryCode(),
+      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ เรียกรถแล้ว ฿' + fareInfo.total);
@@ -3222,6 +3228,9 @@ window.submitOrder = async function(type){
       riderId: null,
       fare: baseFare, total: baseFare,
       paymentMode: 'transfer',
+      code: generateOrderCode(),
+      deliveryCode: generateDeliveryCode(),
+      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งออเดอร์แล้ว');
@@ -3327,6 +3336,9 @@ window.submitExpressOrder = async function(){
       status: 'searching',
       riderId: null,
       fare: total, total: total, paymentMode: 'transfer',
+      code: generateOrderCode(),
+      deliveryCode: generateDeliveryCode(),
+      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งออเดอร์แล้ว ฿' + total);
@@ -3607,6 +3619,9 @@ window.submitShopOrder = async function(placeId){
       riderId: null,
       fare: fare, total: fare,
       paymentMode: 'cash',
+      code: generateOrderCode(),
+      deliveryCode: generateDeliveryCode(),
+      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งออเดอร์แล้ว ฿' + fare);
@@ -4525,7 +4540,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.15 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.22 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>

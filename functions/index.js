@@ -53,9 +53,10 @@ exports.onDispatchOfferCreated = onDocumentCreated({
 
 exports.sweepDispatchOffers = onSchedule({
   schedule: 'every 1 minutes',
-  timeoutSeconds: 60
+  timeoutSeconds: 120
 }, async () => {
   await D.sweepExpired(db);
+  await D.sweepStuck(db);
 });
 
 exports.onGpsOnline = onDocumentWritten('gps_riders/{riderId}', async (event) => {

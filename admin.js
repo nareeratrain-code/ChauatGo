@@ -835,7 +835,7 @@ function orderDetail(id) {
     <div class="meta">📍 ${esc(o.address || '')}</div>
 
     ${o.riderName ? `<div class="meta" style="margin-top:8px;color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • ' + esc(o.riderPhone) : ''}</div>` : ''}
-    ${o.dispatchState ? `<div class="meta">🎯 จ่ายงาน: ${esc(o.dispatchState)}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}${o.dispatchOfferRiderId ? ' • เสนอ ' + esc(o.dispatchOfferRiderId) : ''}</div>` : ''}
+    ${(o.dispatchState || o.dispatchManualReason) ? `<div class="meta">🎯 จ่ายงาน: ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}${o.dispatchOfferRiderId ? ' • เสนอ ' + esc(riderNameById(o.dispatchOfferRiderId)) : ''}</div>` : ''}
 
     <div style="background:${isCash ? 'var(--orange-light)' : 'var(--blue-light)'};padding:12px;border-radius:10px;margin-top:14px;font-size:12px;font-weight:700">
       <div style="font-weight:900;margin-bottom:6px">${isCash ? '💵 ลูกค้าจ่ายเงินสด' : '💳 ลูกค้าโอนเงิน'}</div>
@@ -2201,10 +2201,21 @@ function riderNameById(id) {
   return (r && r.name) || id || '';
 }
 
+function dispatchStateLabel(state) {
+  const map = {
+    waiting: 'รอร้าน',
+    seeking: 'กำลังหาไรเดอร์',
+    offered: 'กำลังเสนอ',
+    manual: 'ต้องจ่ายมือ',
+    assigned: 'จ่ายแล้ว'
+  };
+  return map[state] || state || 'ยังไม่เริ่ม';
+}
+
 function dispatchQueue() {
   return store.orders.filter(o => {
     if (['done', 'delivered', 'cancelled'].includes(o.status)) return false;
-    if (o.dispatchState === 'manual' || o.dispatchState === 'seeking' || o.dispatchState === 'offered') return true;
+    if (o.dispatchState === 'manual' || o.dispatchState === 'seeking' || o.dispatchState === 'offered' || o.dispatchState === 'waiting') return true;
     return !o.riderId && ['searching', 'pending', 'cooking', 'ready'].includes(o.status);
   });
 }
@@ -2259,7 +2270,7 @@ function dispatch() {
     <div style="margin-top:12px;font-weight:900">ออเดอร์ที่อยู่ระหว่างจ่าย (${rows.length})</div>
     ${rows.length ? rows.map(o => `<div class="data-card" style="margin-top:8px">
         <div class="data-card-name">${esc(o.title || 'ออเดอร์')} ${o.code ? '• ' + esc(o.code) : ''}</div>
-        <div class="data-card-meta">${esc(o.merchantName || o.type || '')} • ${esc(o.status)} • ${esc(o.dispatchState || 'ยังไม่เริ่ม')}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}</div>
+        <div class="data-card-meta">${esc(o.merchantName || o.type || '')} • ${esc(o.status)} • ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}</div>
         <button type="button" class="btn-primary" style="margin-top:8px" data-dispatch-history="${esc(o.id)}">ดูประวัติข้อเสนอ</button>
       </div>`).join('') : '<div class="empty"><div>ไม่มีออเดอร์ที่รอจ่าย</div></div>'}
     ${historyHtml}
