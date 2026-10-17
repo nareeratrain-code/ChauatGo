@@ -1570,6 +1570,7 @@ async function sendChatText() {
   try {
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       text, senderRole: 'admin', senderName: 'Admin',
+      senderId: auth.currentUser ? auth.currentUser.uid : '',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('chats').doc(activeChatId).update({
@@ -1592,6 +1593,7 @@ async function sendChatImage(file) {
     const url = await ref.getDownloadURL();
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       imageUrl: url, senderRole: 'admin', senderName: 'Admin',
+      senderId: auth.currentUser ? auth.currentUser.uid : '',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await db.collection('chats').doc(activeChatId).update({

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.24';
+const CACHE_NAME = 'chauat-app-v3.9.25';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
