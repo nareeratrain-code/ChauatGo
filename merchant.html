@@ -14,7 +14,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.19-20261016-001';
+  var VERSION = 'v3.9.20-20261017-005';
   var saved = localStorage.getItem('chauat_ver_merchant');
   var lastReload = localStorage.getItem('chauat_last_reload_merchant');
   var now = Date.now();
@@ -1137,6 +1137,9 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 
 <!-- FIREBASE SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+<script src="config/env.js"></script>
+<script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>

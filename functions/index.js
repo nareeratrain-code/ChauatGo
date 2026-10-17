@@ -7,13 +7,27 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const D = require('./dispatch');
+const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 });
 
 if (!getApps().length) initializeApp();
 const db = getFirestore();
 
-const CALL = { invoker: 'public', cors: true };
+const APP_CHECK_ENFORCE = enforceFromEnv(process.env);
+const CALL = { invoker: 'public', cors: true, enforceAppCheck: APP_CHECK_ENFORCE };
+console.info('[appcheck] enforce=' + APP_CHECK_ENFORCE);
+
+function guardAppCheck(req, name) {
+  try {
+    assertAppCheck(req, name, APP_CHECK_ENFORCE);
+  } catch (err) {
+    if (err && err.code === 'app-check') {
+      throw new HttpsError('unauthenticated', 'แอปไม่ผ่านการตรวจสอบ');
+    }
+    throw err;
+  }
+}
 
 const REASONS = {
   'missing-offer': 'ไม่พบข้อเสนอ',
@@ -68,6 +82,7 @@ exports.onGpsOnline = onDocumentWritten('gps_riders/{riderId}', async (event) =>
 
 exports.acceptDispatchOffer = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'acceptDispatchOffer');
   const data = req.data || {};
   if (!data.orderId || !data.offerId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
   try {
@@ -79,6 +94,7 @@ exports.acceptDispatchOffer = onCall(CALL, async (req) => {
 
 exports.skipDispatchOffer = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'skipDispatchOffer');
   const data = req.data || {};
   if (!data.orderId || !data.offerId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
   const offer = await db.collection('orders').doc(data.orderId)
@@ -91,6 +107,7 @@ exports.skipDispatchOffer = onCall(CALL, async (req) => {
 
 exports.expireDispatchOffer = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'expireDispatchOffer');
   const data = req.data || {};
   if (!data.orderId || !data.offerId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
   const offer = await db.collection('orders').doc(data.orderId)
@@ -103,6 +120,7 @@ exports.expireDispatchOffer = onCall(CALL, async (req) => {
 
 exports.manualAssignRider = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'manualAssignRider');
   if (!(await D.callerIsAdmin(db, req.auth))) {
     throw new HttpsError('permission-denied', 'เฉพาะแอดมิน');
   }

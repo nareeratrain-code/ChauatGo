@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.26-20261017-004';
+  var VERSION = 'v3.9.27-20261017-005';
   var saved = localStorage.getItem('chauat_ver_rider');
   var lastReload = localStorage.getItem('chauat_last_reload_rider');
   var now = Date.now();
@@ -431,6 +431,9 @@
 
 <!-- ═══ FIREBASE SDK ═══ -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+<script src="config/env.js"></script>
+<script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>

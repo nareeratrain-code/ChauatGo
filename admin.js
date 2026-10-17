@@ -15,6 +15,7 @@ const firebaseConfig = {
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
 const firebaseApp = firebase.apps.find(a => a.name === 'admin') || firebase.initializeApp(firebaseConfig, 'admin');
+if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
 const auth = firebase.auth(firebaseApp);
 const db = firebase.firestore(firebaseApp);
 const storage = firebase.storage(firebaseApp);

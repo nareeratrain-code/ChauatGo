@@ -21,6 +21,7 @@ const firebaseConfig = {
 };
 
 const firebaseApp = firebase.apps.find(a => a.name === 'merchant') || firebase.initializeApp(firebaseConfig, 'merchant');
+if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
 const auth = firebase.auth(firebaseApp);
 const db = firebase.firestore(firebaseApp);
 const storage = firebase.storage(firebaseApp);
