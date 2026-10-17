@@ -6,7 +6,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "node --test test/dispatch.test.js",
+    "test": "node --test test/*.test.js",
     "test:emu": "cd .. && npx --yes firebase-tools emulators:exec --only firestore --project chauat-go-b9841 \"npm test --prefix functions\""
   },
   "dependencies": {

@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.25-20261017-003';
+  var VERSION = 'v3.9.27-20261017-005';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -1057,6 +1057,9 @@ button.chat-list-item:active { filter: brightness(.97); }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="map-tiles.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+<script src="config/env.js"></script>
+<script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -1085,6 +1088,7 @@ var auth, db, storage;
 try {
   var firebaseApp = (firebase.apps || []).filter(function(a){ return a.name === 'customer'; })[0]
     || firebase.initializeApp(firebaseConfig, 'customer');
+  if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
   auth = firebase.auth(firebaseApp);
   db = firebase.firestore(firebaseApp);
   storage = firebase.storage(firebaseApp);

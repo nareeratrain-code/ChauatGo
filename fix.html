@@ -20,6 +20,9 @@ button{background:#00A651;color:#fff;border:none;font-weight:900;cursor:pointer}
 <div id="log">พร้อมทำงาน...</div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+<script src="config/env.js"></script>
+<script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
@@ -38,6 +41,7 @@ const firebaseApp = firebase.apps.find(a => a.name === 'fix') || firebase.initia
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 }, 'fix');
+if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
 log('2. initializeApp ✅');
 
 const auth = firebase.auth(firebaseApp);

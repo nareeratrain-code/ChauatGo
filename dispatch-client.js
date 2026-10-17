@@ -12,16 +12,31 @@
     return 'https://' + REGION + '-' + PROJECT + '.cloudfunctions.net';
   }
 
+  function appCheckHeader() {
+    if (!root.ChauatAppCheck || typeof root.ChauatAppCheck.token !== 'function') {
+      return Promise.resolve('');
+    }
+    return Promise.resolve().then(function () {
+      return root.ChauatAppCheck.token();
+    }).then(function (token) {
+      return token || '';
+    }).catch(function () {
+      return '';
+    });
+  }
+
   function callFunction(name, data, auth) {
     var user = auth && auth.currentUser;
     if (!user) return Promise.reject(new Error('ต้องเข้าสู่ระบบ'));
-    return user.getIdToken().then(function (token) {
+    return Promise.all([user.getIdToken(), appCheckHeader()]).then(function (parts) {
+      var headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + parts[0]
+      };
+      if (parts[1]) headers['X-Firebase-AppCheck'] = parts[1];
       return fetch(functionsBase() + '/' + name, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
+        headers: headers,
         body: JSON.stringify({ data: data || {} })
       });
     }).then(function (res) {

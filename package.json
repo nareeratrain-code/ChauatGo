@@ -1,0 +1,10 @@
+{
+  "name": "chauatgo",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-client.js"
+  },
+  "dependencies": {
+    "terser": "^5.36.0"
+  }
+}

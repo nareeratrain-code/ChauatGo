@@ -341,6 +341,9 @@ table.gp-table tr:hover{background:#fafafa}
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
+<script src="config/env.js"></script>
+<script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -825,6 +828,7 @@ const firebaseApp = firebase.apps.find(a => a.name === 'boss') || firebase.initi
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 }, 'boss');
+if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
 const auth = firebase.auth(firebaseApp), db = firebase.firestore(firebaseApp), storage = firebase.storage(firebaseApp);
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
