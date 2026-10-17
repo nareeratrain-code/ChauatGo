@@ -21,6 +21,11 @@ rules_version = '2';
 //   * auto dispatch: riders cannot write dispatch fields or dispatchOffers.
 //     While config/dispatch.mode is auto, a rider may claim only the order
 //     currently offered to them. config/dispatch is admin-write, auth-read.
+//   * chats/messages: the order's customer, rider, or shop may read and send
+//     even when the chat doc has no userId/riderId (or does not exist yet).
+//     A missing chat can be read as "not found" by any signed-in user.
+//     Message keys are only senderId, senderRole, senderName, text, imageUrl,
+//     imagePath, createdAt, systemMessage — no phone fields.
 // Every other collection keeps the v3.8.4 access shape.
 
 service cloud.firestore {
@@ -34,13 +39,19 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
+    // Phone sign-in stores email as null. .lower() on null denies the whole rule.
+    function authEmail() {
+      return isAuth() && request.auth.token.get('email', '') is string
+        ? request.auth.token.get('email', '').lower()
+        : '';
+    }
+
     function isMasterEmail() {
-      return isAuth()
-        && request.auth.token.get('email', '').lower() in [
-          'adminchauatgo@gmail.com',
-          'admin@chauatgo.com',
-          'chauatgo@gmail.com'
-        ];
+      return authEmail() in [
+        'adminchauatgo@gmail.com',
+        'admin@chauatgo.com',
+        'chauatgo@gmail.com'
+      ];
     }
 
     function isBossActive() {
@@ -216,24 +227,65 @@ service cloud.firestore {
       return /databases/$(database)/documents/chats/$(chatId);
     }
 
-    function isChatMember(chatId) {
-      return isAuth() && (
-        isAdmin()
-        || (
-          exists(chatPath(chatId))
-          && (
-            get(chatPath(chatId)).data.get('userId', '') == myUid()
-            || get(chatPath(chatId)).data.get('riderId', '') == myUid()
-            || get(chatPath(chatId)).data.get('merchantId', '') == myUid()
-          )
-        )
-      );
-    }
-
     function chatParticipantOn(data) {
       return data.get('userId', '') == myUid()
         || data.get('riderId', '') == myUid()
         || data.get('merchantId', '') == myUid();
+    }
+
+    function blankId(value) {
+      return (value == null || value == '') ? '' : value;
+    }
+
+    function orderParty(orderId, field) {
+      return isAuth()
+        && exists(orderPath(orderId))
+        && blankId(get(orderPath(orderId)).data.get(field, '')) == myUid();
+    }
+
+    function chatParty(chatId, field) {
+      return isAuth()
+        && exists(chatPath(chatId))
+        && blankId(get(chatPath(chatId)).data.get(field, '')) == myUid();
+    }
+
+    function isOrderParty(orderId) {
+      return orderParty(orderId, 'userId')
+        || orderParty(orderId, 'riderId')
+        || orderParty(orderId, 'merchantId');
+    }
+
+    function chatIdsFollowOrder(chatId) {
+      return exists(orderPath(chatId))
+        && blankId(request.resource.data.get('userId', '')) == blankId(get(orderPath(chatId)).data.get('userId', ''))
+        && blankId(request.resource.data.get('riderId', '')) == blankId(get(orderPath(chatId)).data.get('riderId', ''))
+        && blankId(request.resource.data.get('merchantId', '')) == blankId(get(orderPath(chatId)).data.get('merchantId', ''));
+    }
+
+    function messageOk() {
+      let data = request.resource.data;
+      return data.keys().hasOnly([
+          'senderId', 'senderRole', 'senderName', 'text', 'imageUrl', 'imagePath', 'createdAt', 'systemMessage'
+        ])
+        && data.keys().hasAll(['senderId', 'senderRole', 'createdAt'])
+        && data.senderId is string
+        && data.senderId == myUid()
+        && data.senderRole in ['user', 'rider', 'merchant', 'admin']
+        && data.createdAt is timestamp
+        && (!('senderName' in data) || (data.senderName is string && data.senderName.size() <= 120))
+        && (!('text' in data) || (data.text is string && data.text.size() <= 2000))
+        && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 2000))
+        && (!('imagePath' in data) || (data.imagePath is string && data.imagePath.size() <= 400))
+        && (!('systemMessage' in data) || data.systemMessage is bool)
+        && (
+          (('text' in data) && (data.text is string) && data.text.size() > 0)
+          || (('imageUrl' in data) && (data.imageUrl is string) && data.imageUrl.size() > 0)
+        );
+    }
+
+    function messageFrom(chatId, role, field) {
+      return request.resource.data.senderRole == role
+        && (orderParty(chatId, field) || chatParty(chatId, field));
     }
 
     function orderPath(orderId) {
@@ -641,23 +693,49 @@ service cloud.firestore {
     }
 
     match /chats/{chatId} {
-      allow read: if isAdmin() || (isAuth() && chatParticipantOn(resource.data));
-      allow create: if isAuth() && chatParticipantOn(request.resource.data);
-      allow update: if isAdmin()
+      // A missing chat used to deny the get(), so the app never created it
+      // and the following message write was permission-denied.
+      allow read: if resource == null
+        ? isAuth()
+        : (
+          isOrderParty(chatId)
+          || (isAuth() && chatParticipantOn(resource.data))
+          || isAdmin()
+        );
+      allow create: if isAuth() && (
+        (isOrderParty(chatId) && chatIdsFollowOrder(chatId))
+        || (chatParticipantOn(request.resource.data) && !exists(orderPath(chatId)))
+      );
+      allow update: if (
+          isOrderParty(chatId)
+          && chatIdsFollowOrder(chatId)
+          && onlyChanged([
+            'userId', 'riderId', 'merchantId', 'userName', 'riderName', 'merchantName',
+            'lastMessage', 'lastSenderId', 'lastMessageAt', 'orderId', 'unreadAdmin'
+          ])
+        )
         || (
           isAuth()
+          && resource != null
           && chatParticipantOn(resource.data)
-          && request.resource.data.get('userId', '') == resource.data.get('userId', '')
-          && request.resource.data.get('riderId', '') == resource.data.get('riderId', '')
-          && request.resource.data.get('merchantId', '') == resource.data.get('merchantId', '')
-        );
+          && unchanged('userId')
+          && unchanged('riderId')
+          && unchanged('merchantId')
+        )
+        || isAdmin();
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        allow read: if isChatMember(chatId);
-        allow create: if isChatMember(chatId) && (
-          request.resource.data.get('senderId', '') == myUid()
-          || (isAdmin() && request.resource.data.get('senderRole', '') == 'admin')
+        allow read: if isOrderParty(chatId)
+          || chatParty(chatId, 'userId')
+          || chatParty(chatId, 'riderId')
+          || chatParty(chatId, 'merchantId')
+          || isAdmin();
+        allow create: if messageOk() && (
+          messageFrom(chatId, 'user', 'userId')
+          || messageFrom(chatId, 'rider', 'riderId')
+          || messageFrom(chatId, 'merchant', 'merchantId')
+          || (request.resource.data.senderRole == 'admin' && isAdmin())
         );
         allow update, delete: if isAdmin();
       }

@@ -2298,6 +2298,46 @@ function renderChatMessages(msgs) {
   el.scrollTop = el.scrollHeight;
 }
 
+async function ensureMerchantChat(orderId) {
+  const order = allOrders.find(x => x.id === orderId);
+  let data = order;
+  if (!data) {
+    const snap = await db.collection('orders').doc(orderId).get();
+    if (!snap.exists) throw new Error('missing-order');
+    data = { id: snap.id, ...snap.data() };
+  }
+  const chatRef = db.collection('chats').doc(orderId);
+  const body = {
+    orderId,
+    userId: data.userId || '',
+    userName: data.userName || 'ลูกค้า',
+    riderId: data.riderId || '',
+    riderName: data.riderName || '',
+    merchantId: data.merchantId || '',
+    merchantName: data.merchantName || merchantProfile?.name || ''
+  };
+  let snap = null;
+  try { snap = await chatRef.get(); } catch (e) { snap = null; }
+  if (!snap || !snap.exists) {
+    await chatRef.set({
+      ...body,
+      lastMessage: '',
+      lastSenderId: '',
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } else {
+    const prev = snap.data() || {};
+    const updates = {};
+    ['orderId', 'userId', 'userName', 'riderId', 'riderName', 'merchantId', 'merchantName'].forEach((key) => {
+      if ((prev[key] || '') !== (body[key] || '')) updates[key] = body[key];
+    });
+    if (Object.keys(updates).length) {
+      try { await chatRef.update(updates); } catch (e) {}
+    }
+  }
+}
+
 async function sendChatText() {
   const text = $('chatInput')?.value.trim();
   if (!text || !activeChatId) return;
@@ -2305,16 +2345,21 @@ async function sendChatText() {
   inp.value = '';
   inp.style.height = 'auto';
   try {
+    await ensureMerchantChat(activeChatId);
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       text, senderId: currentUser.uid, senderRole: 'merchant',
       senderName: merchantProfile.name,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: text.slice(0, 80),
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    try {
+      await db.collection('chats').doc(activeChatId).update({
+        lastMessage: text.slice(0, 80),
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('chat preview', previewErr && previewErr.code);
+    }
   } catch (err) { showToast('ส่งไม่สำเร็จ', 'error'); }
 }
 
@@ -2329,16 +2374,21 @@ async function sendChatImage(file) {
     await ref.put(compressed);
     const url = await ref.getDownloadURL();
 
+    await ensureMerchantChat(activeChatId);
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       imageUrl: url, senderId: currentUser.uid, senderRole: 'merchant',
       senderName: merchantProfile.name,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '📷 รูปภาพ',
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    try {
+      await db.collection('chats').doc(activeChatId).update({
+        lastMessage: '📷 รูปภาพ',
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('chat preview', previewErr && previewErr.code);
+    }
     showToast('✅ ส่งรูปแล้ว');
   } catch (err) { showToast('อัปโหลดไม่สำเร็จ', 'error'); }
 }

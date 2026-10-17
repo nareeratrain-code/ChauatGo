@@ -61,6 +61,7 @@ let currentOffer = null;
 let offerTick = null;
 let acceptingOffer = false;
 const hiddenOfferIds = new Set();
+const offerDeadlines = new Map();
 let isOnline = false;
 let currentHistoryFilter = 'all';
 let cameraFile = null;
@@ -2328,6 +2329,56 @@ function renderChatMessages(msgs) {
   el.scrollTop = el.scrollHeight;
 }
 
+async function ensureRiderChat(orderId) {
+  const job = allJobs.find(j => j.id === orderId) || allHistory.find(j => j.id === orderId);
+  let order = job;
+  if (!order) {
+    const snap = await db.collection('orders').doc(orderId).get();
+    if (!snap.exists) {
+      const missing = new Error('missing-order');
+      missing.code = 'not-found';
+      throw missing;
+    }
+    order = { id: snap.id, ...snap.data() };
+  }
+  if (order.riderId !== currentUser.uid) {
+    const denied = new Error('not-party');
+    denied.code = 'permission-denied';
+    throw denied;
+  }
+  const chatRef = db.collection('chats').doc(orderId);
+  const body = {
+    orderId,
+    userId: order.userId || '',
+    userName: order.userName || 'ลูกค้า',
+    riderId: order.riderId || '',
+    riderName: order.riderName || riderProfile?.name || 'ไรเดอร์',
+    merchantId: order.merchantId || '',
+    merchantName: order.merchantName || ''
+  };
+  let snap = null;
+  try { snap = await chatRef.get(); } catch (e) { snap = null; }
+  if (!snap || !snap.exists) {
+    await chatRef.set({
+      ...body,
+      lastMessage: '',
+      lastSenderId: '',
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } else {
+    const data = snap.data() || {};
+    const updates = {};
+    ['orderId', 'userId', 'userName', 'riderId', 'riderName', 'merchantId', 'merchantName'].forEach((key) => {
+      if ((data[key] || '') !== (body[key] || '')) updates[key] = body[key];
+    });
+    if (Object.keys(updates).length) {
+      try { await chatRef.update(updates); } catch (e) {}
+    }
+  }
+  return body;
+}
+
 async function sendChatText() {
   const text = $('chatInput')?.value.trim();
   if (!text || !activeChatId) return;
@@ -2336,6 +2387,7 @@ async function sendChatText() {
   inp.style.height = 'auto';
 
   try {
+    await ensureRiderChat(activeChatId);
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       text,
       senderId: currentUser.uid,
@@ -2343,14 +2395,19 @@ async function sendChatText() {
       senderName: riderProfile?.name || currentUser.displayName || 'ไรเดอร์',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: text.slice(0, 80),
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    try {
+      await db.collection('chats').doc(activeChatId).update({
+        lastMessage: text.slice(0, 80),
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('chat preview', previewErr && previewErr.code);
+    }
   } catch (err) {
     console.warn('sendChatText error:', err);
-    showToast('ส่งไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    const code = (err && (err.code || err.message)) || '';
+    showToast(String(code).indexOf('permission-denied') !== -1 ? 'ส่งไม่สำเร็จ: ไม่มีสิทธิ์ส่งข้อความ' : 'ส่งไม่สำเร็จ', 'error');
     inp.value = text;
   }
 }
@@ -2366,6 +2423,7 @@ async function sendChatImage(file) {
     await ref.put(compressed);
     const url = await ref.getDownloadURL();
 
+    await ensureRiderChat(activeChatId);
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       imageUrl: url,
       senderId: currentUser.uid,
@@ -2373,11 +2431,15 @@ async function sendChatImage(file) {
       senderName: riderProfile?.name || currentUser.displayName || 'ไรเดอร์',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '📷 รูปภาพ',
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    try {
+      await db.collection('chats').doc(activeChatId).update({
+        lastMessage: '📷 รูปภาพ',
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('chat preview', previewErr && previewErr.code);
+    }
     showToast('✅ ส่งรูปแล้ว');
   } catch (err) {
     console.warn('sendChatImage error:', err);
@@ -2456,6 +2518,7 @@ function subscribeDispatch() {
   }, () => {
     dispatchConfig = { mode: 'manual' };
     subscribeJobs();
+    subscribeOffers();
   });
 }
 
@@ -2465,22 +2528,50 @@ function stopDispatchSubs() {
   clearOffer(false);
 }
 
+function timestampMs(value) {
+  if (!value) return 0;
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+  return 0;
+}
+
+/* Countdown starts when this phone receives the offer. expiresAt - Date.now()
+   hides the card in about a second when the phone clock is ahead of the server. */
+function offerWindowMs(data) {
+  const sec = Number(data && data.timeoutSec);
+  if (Number.isFinite(sec) && sec >= 10 && sec <= 120) return Math.round(sec * 1000);
+  const exp = timestampMs(data && data.expiresAt);
+  const created = timestampMs(data && data.createdAt);
+  if (exp > created && created > 0) {
+    const diff = exp - created;
+    if (diff >= 10000 && diff <= 120000) return diff;
+  }
+  return 20000;
+}
+
+function ensureOfferDeadline(id, data) {
+  const known = offerDeadlines.get(id);
+  if (known) return known;
+  const deadline = Date.now() + offerWindowMs(data);
+  offerDeadlines.set(id, deadline);
+  return deadline;
+}
+
 function subscribeOffers() {
-  if (offerUnsub) { offerUnsub(); offerUnsub = null; }
   if (!currentUser || dispatchMode() !== 'auto') {
+    if (offerUnsub) { offerUnsub(); offerUnsub = null; }
     clearOffer(false);
     return;
   }
+  if (offerUnsub) return;
   offerUnsub = db.collectionGroup('dispatchOffers')
     .where('riderId', '==', currentUser.uid)
     .where('status', '==', 'pending')
     .limit(5)
     .onSnapshot((snap) => {
-      const now = Date.now();
+      if (snap.metadata && snap.metadata.fromCache && snap.empty && currentOffer) return;
       const rows = snap.docs.map((d) => {
         const data = d.data() || {};
-        const exp = data.expiresAt && typeof data.expiresAt.toDate === 'function'
-          ? data.expiresAt.toDate().getTime() : 0;
         const parent = d.ref.parent && d.ref.parent.parent;
         return {
           id: d.id,
@@ -2492,42 +2583,45 @@ function subscribeOffers() {
           fare: data.fare,
           orderCode: data.orderCode || '',
           distanceKm: data.distanceKm,
-          expiresAtMs: exp
+          deadlineMs: ensureOfferDeadline(d.id, data)
         };
-      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && (!o.expiresAtMs || o.expiresAtMs > now));
-      rows.sort((a, b) => (a.expiresAtMs || 0) - (b.expiresAtMs || 0));
+      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && Date.now() < o.deadlineMs);
+      rows.sort((a, b) => a.deadlineMs - b.deadlineMs);
       if (!rows.length) { clearOffer(true); return; }
       showOffer(rows[0]);
     }, (err) => console.warn('offers', err && err.code));
 }
 
 function showOffer(offer) {
-  const same = currentOffer && currentOffer.id === offer.id;
+  const same = currentOffer && currentOffer.id === offer.id && $('offer-seconds');
   currentOffer = offer;
   const el = $('dispatch-offer');
   if (!el) return;
-  const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
-  const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
-  el.className = 'new-job-popup show';
-  el.innerHTML = `
-    <div class="new-job-card">
-      <div class="popup-icon">🛵</div>
-      <h2>มีงานเสนอให้คุณ</h2>
-      <p>${esc(who)}</p>
-      <div class="detail">
-        <div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
-        <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>
-        <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
-        <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
-      </div>
-      <div class="job-actions two">
-        <button type="button" class="action-btn-big btn-green-big ripple" onclick="acceptDispatchOffer()">✅ รับงาน</button>
-        <button type="button" class="action-btn-big btn-gray-big ripple" onclick="skipDispatchOffer()">⏭️ ข้าม</button>
-      </div>
-    </div>`;
-  if (!same) startOfferAlert(offer.id, offer.expiresAtMs);
-  if (offerTick) clearInterval(offerTick);
-  offerTick = setInterval(tickOffer, 250);
+  if (!same) {
+    const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
+    const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
+    el.className = 'new-job-popup show';
+    el.innerHTML = `
+      <div class="new-job-card">
+        <div class="popup-icon">🛵</div>
+        <h2>มีงานเสนอให้คุณ</h2>
+        <p>${esc(who)}</p>
+        <div class="detail">
+          <div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>
+          <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
+          <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
+        </div>
+        <div class="job-actions two">
+          <button type="button" class="action-btn-big btn-green-big ripple" onclick="acceptDispatchOffer()">✅ รับงาน</button>
+          <button type="button" class="action-btn-big btn-gray-big ripple" onclick="skipDispatchOffer()">⏭️ ข้าม</button>
+        </div>
+      </div>`;
+    startOfferAlert(offer.id, offer.deadlineMs);
+  } else if (!el.classList.contains('show')) {
+    el.className = 'new-job-popup show';
+  }
+  if (!offerTick) offerTick = setInterval(tickOffer, 250);
   tickOffer();
 }
 
@@ -2541,13 +2635,13 @@ function clearOffer(stopSound) {
 
 function tickOffer() {
   if (!currentOffer) return;
-  const left = Math.max(0, Math.ceil((currentOffer.expiresAtMs - Date.now()) / 1000));
+  const deadline = currentOffer.deadlineMs || offerDeadlines.get(currentOffer.id) || 0;
+  const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
   const n = $('offer-seconds');
   if (n) n.textContent = String(left);
-  if (left <= 0 && currentOffer.expiresAtMs && Date.now() >= currentOffer.expiresAtMs) {
-    const o = currentOffer;
+  if (deadline && Date.now() >= deadline) {
+    hiddenOfferIds.add(currentOffer.id);
     clearOffer(true);
-    callDispatch('expireDispatchOffer', { orderId: o.orderId, offerId: o.id }).catch(() => {});
   }
 }
 
@@ -2607,7 +2701,7 @@ async function acceptDispatchOffer() {
   acceptingOffer = true;
   try {
     if (riderProfile && riderProfile.verified !== true) throw new Error('unverified');
-    if (o.expiresAtMs && Date.now() >= o.expiresAtMs) throw new Error('expired');
+    if (o.deadlineMs && Date.now() >= o.deadlineMs) throw new Error('expired');
     const cap = maxJobsPerRider();
     const mine = await db.collection('orders')
       .where('riderId', '==', currentUser.uid)
@@ -2628,9 +2722,6 @@ async function acceptDispatchOffer() {
       const offer = offerSnap.data() || {};
       if (offer.riderId !== currentUser.uid) throw new Error('permission');
       if (offer.status !== 'pending') throw new Error('closed');
-      const exp = offer.expiresAt && typeof offer.expiresAt.toDate === 'function'
-        ? offer.expiresAt.toDate().getTime() : 0;
-      if (exp && exp < Date.now()) throw new Error('expired');
       if (job.riderId) throw new Error('taken');
       if (job.dispatchOfferId && job.dispatchOfferId !== o.id) throw new Error('stale');
       if (job.dispatchOfferRiderId && job.dispatchOfferRiderId !== currentUser.uid) throw new Error('permission');

@@ -2212,6 +2212,34 @@ function dispatchStateLabel(state) {
   return map[state] || state || 'ยังไม่เริ่ม';
 }
 
+function offerEndText(h) {
+  const statusMap = {
+    pending: 'กำลังเสนอ',
+    accepted: 'รับแล้ว',
+    skipped: 'ข้าม',
+    expired: 'ปิดแล้ว'
+  };
+  const why = {
+    timeout: 'หมดเวลา ไม่กดรับ',
+    skipped: 'ไรเดอร์กดข้าม',
+    accepted: 'ไรเดอร์รับงาน',
+    replaced: 'ถูกแทนที่',
+    manual: 'แอดมินจ่ายมือ'
+  };
+  let line = statusMap[h.status] || h.status || '';
+  if (h.endReason) line += ' — ' + (why[h.endReason] || h.endReason);
+  const start = toDate(h.createdAt);
+  const end = toDate(h.respondedAt);
+  if (start && end) {
+    const sec = Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
+    line += ' • อยู่ ' + sec + ' วินาที';
+  }
+  line += ' • ' + riderNameById(h.riderId);
+  if (h.distanceKm != null) line += ' • ' + h.distanceKm + ' กม.';
+  if (h.wave != null) line += ' • รอบ ' + h.wave;
+  return line;
+}
+
 function dispatchQueue() {
   return store.orders.filter(o => {
     if (['done', 'delivered', 'cancelled'].includes(o.status)) return false;
@@ -2232,7 +2260,7 @@ function dispatch() {
   const history = historyId && Array.isArray(store.dispatchOffers) ? store.dispatchOffers : [];
   const historyHtml = historyId ? `<div class="data-card" style="margin-top:12px">
       <div class="data-card-name">ประวัติข้อเสนอ ${esc(orderCode(store.orders.find(o => o.id === historyId) || { id: historyId }))}</div>
-      ${history.length ? history.map(h => `<div class="data-card-meta">${esc(h.status)} • ${esc(riderNameById(h.riderId))} • ${h.distanceKm != null ? esc(String(h.distanceKm)) + ' กม.' : 'มือ'} • รอบ ${esc(String(h.wave != null ? h.wave : '—'))}</div>`).join('') : '<div class="data-card-meta">ยังไม่มีข้อเสนอ</div>'}
+      ${history.length ? history.map(h => `<div class="data-card-meta">${esc(offerEndText(h))}</div>`).join('') : '<div class="data-card-meta">ยังไม่มีข้อเสนอ</div>'}
     </div>` : '';
   return `<div class="hero-card" style="margin-bottom:12px">
       <div class="hero-label">จ่ายงานไรเดอร์</div>

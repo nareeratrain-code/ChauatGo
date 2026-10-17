@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.24</title>
+<title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.25</title>
 <meta name="theme-color" content="#76B82A">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.24-20261017-002';
+  var VERSION = 'v3.9.25-20261017-003';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -310,6 +310,13 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .form-group label { display: block; font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: 6px; }
 .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 14px 16px; border: 2px solid var(--border); border-radius: 14px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); }
 .form-group input:focus, .form-group textarea:focus { border-color: var(--green); background: var(--surface); }
+.sug-chips, .shop-quick-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sug-chip, .shop-quick-chip { flex: 0 0 auto; max-width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 7px 12px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.exp-suggest { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 6; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-md); max-height: 220px; overflow-y: auto; }
+.exp-suggest.show { display: block; }
+.exp-suggest-item { width: 100%; display: block; text-align: left; border: none; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px; font-weight: 800; padding: 10px 12px; cursor: pointer; }
+.exp-suggest-item small { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+.exp-suggest-item:last-child { border-bottom: none; }
 .btn-full { width: 100%; padding: 14px; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-top: 8px; }
 .btn-green { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
 .btn-gray { background: var(--surface-2); color: var(--text); }
@@ -1041,7 +1048,7 @@ button.chat-list-item:active { filter: brightness(.97); }
       </div>
       <div class="pf-section">
         <button class="pf-logout-btn press-scale" onclick="handleLogout()">🚪 ออกจากระบบ</button>
-        <div class="pf-version">Chauat Go v3.9.24 • © 2024</div>
+        <div class="pf-version">Chauat Go v3.9.25 • © 2024</div>
       </div>
     </div>
   </div>
@@ -1127,6 +1134,9 @@ var chatListUnsub = null;
 var expOrigin = null;
 var expDestination = null;
 var expressDraft = null;
+var expressCompose = { from: '', to: '' };
+var expressSuggestRows = { from: [], to: [] };
+var activeChatRole = 'user';
 var foodDropoff = null;
 var mapPickerMode = null;
 var _shoppingPlacesCache = [];
@@ -2834,29 +2844,9 @@ window.openChatPage = async function(orderId) {
       if (box) box.innerHTML = '<div class="chat-empty">ยังไม่มีไรเดอร์รับงาน</div>';
       return showToast('ยังไม่มีไรเดอร์รับงาน','warning');
     }
-    var chatRef = db.collection('chats').doc(orderId);
-    var chatSnap = await chatRef.get();
-    if (!chatSnap.exists) {
-      await chatRef.set({
-        orderId: orderId,
-        userId: o.userId,
-        userName: o.userName || 'ลูกค้า',
-        riderId: o.riderId,
-        riderName: o.riderName || 'ไรเดอร์',
-        merchantId: o.merchantId || '',
-        merchantName: o.merchantName || '',
-        lastMessage: '', lastSenderId: '',
-        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    } else {
-      var data = chatSnap.data();
-      var updates = {};
-      if (!data.merchantId && o.merchantId) updates.merchantId = o.merchantId;
-      if (!data.merchantName && o.merchantName) updates.merchantName = o.merchantName;
-      if (Object.keys(updates).length > 0) { try { await chatRef.update(updates); } catch (e) {} }
-    }
-    var isUser = o.userId === currentUser.uid;
+    var ensured = await ensureOrderChat(orderId, o);
+    var isUser = ensured.role === 'user';
+    activeChatRole = ensured.role;
     var otherName = isUser ? (o.riderName || 'ไรเดอร์') : (o.userName || 'ลูกค้า');
     if ($('chat-title')) $('chat-title').textContent = otherName;
     if ($('chat-subtitle')) $('chat-subtitle').textContent = orderLabel(o) + ' • ' + (o.title || 'ออเดอร์');
@@ -2916,38 +2906,103 @@ function scrollChatToBottom() {
   if (box) box.scrollTop = box.scrollHeight;
 }
 
+function chatPartyRole(order) {
+  if (!order || !currentUser) return '';
+  if (order.userId === currentUser.uid) return 'user';
+  if (order.riderId === currentUser.uid) return 'rider';
+  return '';
+}
+
+function chatBodyFromOrder(order) {
+  return {
+    orderId: order.id || activeChatId || '',
+    userId: order.userId || '',
+    userName: order.userName || 'ลูกค้า',
+    riderId: order.riderId || '',
+    riderName: order.riderName || '',
+    merchantId: order.merchantId || '',
+    merchantName: order.merchantName || ''
+  };
+}
+
+async function ensureOrderChat(orderId, knownOrder) {
+  var order = knownOrder;
+  if (!order) {
+    var orderSnap = await db.collection('orders').doc(orderId).get();
+    if (!orderSnap.exists) {
+      var missing = new Error('missing-order');
+      missing.code = 'not-found';
+      throw missing;
+    }
+    order = Object.assign({ id: orderSnap.id }, orderSnap.data());
+  }
+  var role = chatPartyRole(order);
+  if (!role) {
+    var denied = new Error('not-party');
+    denied.code = 'permission-denied';
+    throw denied;
+  }
+  var chatRef = db.collection('chats').doc(orderId);
+  var body = chatBodyFromOrder(order);
+  body.orderId = orderId;
+  var snap = null;
+  try { snap = await chatRef.get(); } catch (e) { snap = null; }
+  if (!snap || !snap.exists) {
+    await chatRef.set(Object.assign({}, body, {
+      lastMessage: '',
+      lastSenderId: '',
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }));
+  } else {
+    var data = snap.data() || {};
+    var updates = {};
+    ['orderId', 'userId', 'userName', 'riderId', 'riderName', 'merchantId', 'merchantName'].forEach(function(key) {
+      if ((data[key] || '') !== (body[key] || '')) updates[key] = body[key];
+    });
+    if (Object.keys(updates).length) {
+      try { await chatRef.update(updates); } catch (e) {}
+    }
+  }
+  activeChatRole = role;
+  return { order: order, role: role };
+}
+
+function chatFailToast(err) {
+  var code = (err && (err.code || err.message)) || '';
+  if (String(code).indexOf('permission-denied') !== -1) showToast('ส่งไม่สำเร็จ: ไม่มีสิทธิ์ส่งข้อความ', 'error');
+  else showToast('ส่งไม่สำเร็จ', 'error');
+}
+
 window.sendChatMessage = async function() {
   if (!activeChatId || !currentUser) return;
   var inp = $('chat-input'); if (!inp) return;
   var text = inp.value.trim(); if (!text) return;
   inp.value = '';
   try {
-    var isUser = await isChatUser(activeChatId);
+    var ensured = await ensureOrderChat(activeChatId);
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       senderId: currentUser.uid,
-      senderRole: isUser ? 'user' : 'rider',
+      senderRole: ensured.role,
       senderName: (userProfile && userProfile.name) || currentUser.displayName || '',
       text: text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: text.slice(0, 80),
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    try {
+      await db.collection('chats').doc(activeChatId).update({
+        lastMessage: text.slice(0, 80),
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('chat preview', previewErr && previewErr.code);
+    }
   } catch (e) {
     console.warn('sendChatMessage error:', e);
-    showToast('ส่งไม่สำเร็จ: ' + (e.code || e.message), 'error');
+    chatFailToast(e);
     inp.value = text;
   }
 };
-
-async function isChatUser(orderId) {
-  try {
-    var s = await db.collection('orders').doc(orderId).get();
-    return s.exists && s.data().userId === currentUser.uid;
-  } catch (e) { return false; }
-}
 
 window.triggerChatImagePick = function() {
   if (!activeChatId || !currentUser) return showToast('กรุณาเปิดแชทก่อน', 'warning');
@@ -2973,19 +3028,23 @@ window.handleChatImage = async function(event) {
     var ref = storage.ref(path);
     var snap = await ref.put(file, { contentType: file.type });
     var url = await snap.ref.getDownloadURL();
-    var senderRole = (await isChatUser(activeChatId)) ? 'user' : 'rider';
+    var ensured = await ensureOrderChat(activeChatId);
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       senderId: currentUser.uid,
-      senderRole: senderRole,
+      senderRole: ensured.role,
       senderName: (userProfile && userProfile.name) || currentUser.displayName || '',
       imageUrl: url, imagePath: path, text: '',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await db.collection('chats').doc(activeChatId).update({
-      lastMessage: '📷 รูปภาพ',
-      lastSenderId: currentUser.uid,
-      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    try {
+      await db.collection('chats').doc(activeChatId).update({
+        lastMessage: '📷 รูปภาพ',
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('chat preview', previewErr && previewErr.code);
+    }
     showToast('✅ ส่งรูปแล้ว');
   } catch (e) {
     console.error('handleChatImage error:', e);
@@ -3045,6 +3104,36 @@ document.addEventListener('click', function(e) {
   if (!row) return;
   e.preventDefault();
   openChatPage(row.getAttribute('data-open-chat'));
+});
+
+document.addEventListener('pointerdown', function(e) {
+  var btn = e.target && e.target.closest ? e.target.closest('#modal-body button') : null;
+  if (!btn) return;
+  var active = document.activeElement;
+  if (active && active !== btn && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
+}, true);
+
+document.addEventListener('click', function(e) {
+  var mapBtn = e.target && e.target.closest ? e.target.closest('[data-exp-map]') : null;
+  if (mapBtn) {
+    e.preventDefault();
+    openMapPicker(mapBtn.getAttribute('data-exp-map'));
+    return;
+  }
+  var chip = e.target && e.target.closest ? e.target.closest('[data-exp-place]') : null;
+  if (chip) {
+    e.preventDefault();
+    setExpDestinationFromPlace(chip.getAttribute('data-exp-place'));
+    return;
+  }
+  var sug = e.target && e.target.closest ? e.target.closest('[data-exp-suggest]') : null;
+  if (sug) {
+    e.preventDefault();
+    var which = sug.getAttribute('data-exp-suggest');
+    var idx = parseInt(sug.getAttribute('data-suggest-index'), 10);
+    var row = (expressSuggestRows[which] || [])[idx];
+    if (row) applyExpressCatalog(which, row);
+  }
 });
 
 /* ═══ TRAVEL VIEW ═══ */
@@ -3190,7 +3279,7 @@ window.openRideOrderForm = function(vehicle){
       '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>' +
     '</div>' +
     '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc((userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน')+'"></div>' +
-    '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination ? (selectedDestination.address || '') : '')+'"></div>' +
+    '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(selectedDestination ? (selectedDestination.address || '') : '')+'" placeholder="พิมพ์ปลายทาง หรือเลือกจากแผนที่" autocomplete="off"></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">'+esc((selectedDestination && selectedDestination.note) || '')+'</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc((userProfile&&userProfile.phone)||'')+'"></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ (฿'+fareInfo.total+')</button>' +
@@ -3209,12 +3298,20 @@ function calculateFare(vehicle, destLat, destLng) {
 
 window.submitRideOrder = async function(){
   if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
-  if(!selectedDestination) return showToast('ไม่มีตำแหน่งปลายทาง','error');
   if(!selectedVehicle) return showToast('ไม่ได้เลือกรถ','error');
+  var active = document.activeElement;
+  if (active && active.blur && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกจุดรับ-ปลายทาง','error');
-  var fareInfo = calculateFare(selectedVehicle, selectedDestination.lat, selectedDestination.lng);
+  var pin = selectedDestination;
+  if (!pointMatchesText(pin, to)) {
+    var hit = exactCatalogPlace(to);
+    pin = hit ? { lat: hit.lat, lng: hit.lng, address: hit.label } : null;
+  }
+  var destLat = pin && isFinite(pin.lat) ? pin.lat : null;
+  var destLng = pin && isFinite(pin.lng) ? pin.lng : null;
+  var fareInfo = calculateFare(selectedVehicle, destLat, destLng);
   try{
     await db.collection('orders').add({
       type:'ride', vehicle:selectedVehicle.type,
@@ -3227,7 +3324,7 @@ window.submitRideOrder = async function(){
       note:$('order-note').value.trim(),
       fromLat: userLocation ? userLocation.lat : null,
       fromLng: userLocation ? userLocation.lng : null,
-      lat:selectedDestination.lat, lng:selectedDestination.lng,
+      lat:destLat, lng:destLng,
       distanceKm: fareInfo.distance,
       status:'searching',
       riderId: null,
@@ -3308,26 +3405,135 @@ function captureExpressDraft() {
   };
 }
 
+function expressFieldText(id) {
+  var el = $(id);
+  var live = el ? String(el.value || '').trim() : '';
+  var composed = id === 'order-to' ? String(expressCompose.to || '').trim() : (id === 'order-from' ? String(expressCompose.from || '').trim() : '');
+  if (live) return live;
+  if (composed) return composed;
+  if (!el && expressDraft) {
+    if (id === 'order-to') return String(expressDraft.to || '').trim();
+    if (id === 'order-from') return String(expressDraft.from || '').trim();
+  }
+  return '';
+}
+
+function pointMatchesText(point, text) {
+  if (!point || !isFinite(point.lat) || !isFinite(point.lng)) return false;
+  var typed = String(text || '').trim();
+  if (!typed) return true;
+  var addr = String(point.address || '').trim();
+  if (!addr) return false;
+  return addr === typed || foldPlaceName(addr) === foldPlaceName(typed);
+}
+
+function exactCatalogPlace(text) {
+  var q = String(text || '').trim();
+  if (!q || typeof searchPlaceCatalog !== 'function') return null;
+  var origin = userLocation || CHAUAT_CENTER;
+  var rows = [];
+  try { rows = searchPlaceCatalog(q, '', origin, 8); } catch (e) { return null; }
+  var folded = foldPlaceName(q);
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].label === q || foldPlaceName(rows[i].label) === folded) return rows[i];
+  }
+  return null;
+}
+
+function renderExpressSuggest(which) {
+  var inputId = which === 'from' ? 'order-from' : 'order-to';
+  var box = $(which === 'from' ? 'exp-from-suggest' : 'exp-to-suggest');
+  var input = $(inputId);
+  if (!box || !input) return;
+  var q = String(input.value || expressCompose[which] || '').trim();
+  if (q.length < 1) { box.innerHTML = ''; box.classList.remove('show'); expressSuggestRows[which] = []; return; }
+  var origin = userLocation || CHAUAT_CENTER;
+  var rows = [];
+  try { rows = searchPlaceCatalog(q, '', origin, 6); } catch (e) { rows = []; }
+  expressSuggestRows[which] = rows;
+  if (!rows.length) { box.innerHTML = ''; box.classList.remove('show'); return; }
+  box.classList.add('show');
+  box.innerHTML = rows.map(function(row, i) {
+    var where = row.tambon ? '<small>ตำบล' + esc(row.tambon) + '</small>' : '';
+    return '<button type="button" class="exp-suggest-item" data-exp-suggest="' + which + '" data-suggest-index="' + i + '">' + esc(row.label) + where + '</button>';
+  }).join('');
+}
+
+function bindExpressFields() {
+  ['order-from', 'order-to', 'order-note', 'order-phone'].forEach(function(id) {
+    var el = $(id);
+    if (!el || el.dataset.bound) return;
+    el.dataset.bound = '1';
+    var which = id === 'order-from' ? 'from' : (id === 'order-to' ? 'to' : '');
+    el.addEventListener('compositionstart', function() { el.dataset.composing = '1'; });
+    el.addEventListener('compositionupdate', function(e) {
+      if (!which) return;
+      var data = (e && e.data) || '';
+      var value = el.value || '';
+      expressCompose[which] = value.indexOf(data) !== -1 ? value : (value + data);
+    });
+    el.addEventListener('compositionend', function() {
+      el.dataset.composing = '';
+      captureExpressDraft();
+      if (which && String(el.value || '').trim()) expressCompose[which] = '';
+      if (which) renderExpressSuggest(which);
+    });
+    el.addEventListener('input', function() {
+      if (el.dataset.composing === '1') return;
+      if (which) expressCompose[which] = '';
+      captureExpressDraft();
+      if (which) renderExpressSuggest(which);
+    });
+    el.addEventListener('focus', function() {
+      if (which) ensurePlaceData(function() { renderExpressSuggest(which); });
+    });
+  });
+}
+
+function applyExpressCatalog(which, row) {
+  if (!row) return;
+  captureExpressDraft();
+  var point = { lat: row.lat, lng: row.lng, address: row.label };
+  if (!expressDraft) expressDraft = {};
+  if (which === 'from') {
+    expOrigin = point;
+    expressDraft.from = row.label;
+    expressCompose.from = '';
+  } else {
+    expDestination = point;
+    expressDraft.to = row.label;
+    expressCompose.to = '';
+  }
+  renderExpressForm();
+  showToast('📍 ' + row.label);
+}
+
 function renderExpressForm() {
   var suggestions = [];
   if (PLACES.length) {
     var pool = PLACES.slice();
     for (var i = 0; i < 4 && pool.length; i++) { var idx = Math.floor(Math.random() * pool.length); suggestions.push(pool.splice(idx, 1)[0]); }
   }
-  var sugChipsHtml = suggestions.map(function(p){ return '<button type="button" class="sug-chip" onclick="setExpDestinationFromPlace(\''+esc(p.id)+'\')">' + esc(p.name.slice(0, 22)) + '</button>'; }).join('');
+  var sugChipsHtml = suggestions.map(function(p) {
+    return '<button type="button" class="sug-chip" data-exp-place="' + esc(p.id) + '">' + esc(p.name.slice(0, 22)) + '</button>';
+  }).join('');
   var fromVal = (expressDraft && expressDraft.from != null) ? expressDraft.from : (expOrigin ? expOrigin.address : '');
   var toVal = (expressDraft && expressDraft.to != null) ? expressDraft.to : (expDestination ? expDestination.address : '');
   var noteVal = (expressDraft && expressDraft.note != null) ? expressDraft.note : '';
   var phoneVal = (expressDraft && expressDraft.phone != null) ? expressDraft.phone : ((userProfile && userProfile.phone) || '');
+  var originBadge = (expOrigin && isFinite(expOrigin.lat)) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ จุดรับ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '';
+  var destBadge = (expDestination && isFinite(expDestination.lat)) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ จุดส่ง ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '';
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">📦</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2><div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿30 เริ่มต้น</div></div>' +
-    '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button type="button" class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" onclick="openMapPicker(\'exp-origin\')">🗺️ เลือกจากแผนที่</button></div>' + (expOrigin ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '') + '</div>' +
-    '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง..." autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" onclick="openMapPicker(\'exp-destination\')">🗺️ เลือกจากแผนที่</button></div>' + (expDestination ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '') + '</div>' +
+    '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button type="button" class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่</button></div>' + originBadge + '</div>' +
+    '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-destination">🗺️ เลือกจุดส่งจากแผนที่</button></div>' + destBadge + '</div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">' + esc(noteVal) + '</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc(phoneVal) + '"></div>' +
-    '<button type="button" class="btn-full btn-green press-scale" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
+    '<button type="button" class="btn-full btn-green press-scale" data-exp-submit="1" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
     '<button type="button" class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
+  bindExpressFields();
+  ensurePlaceData(function(){});
 }
 
 function openExpressForm(dest){
@@ -3372,12 +3578,24 @@ window.setExpDestinationFromPlace = function(placeId){
 
 window.submitExpressOrder = async function(){
   if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ','warning'); }
-  var fromAddr = $('order-from').value.trim();
-  var toAddr = $('order-to').value.trim();
-  if (!expOrigin && !fromAddr) return showToast('กรอกต้นทาง','error');
-  if (!expDestination && !toAddr) return showToast('กรอกปลายทาง','error');
+  var active = document.activeElement;
+  if (active && active.blur && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
+  var fromAddr = expressFieldText('order-from');
+  var toAddr = expressFieldText('order-to');
+  if (!pointMatchesText(expOrigin, fromAddr)) {
+    var fromHit = exactCatalogPlace(fromAddr);
+    expOrigin = fromHit ? { lat: fromHit.lat, lng: fromHit.lng, address: fromHit.label } : null;
+  }
+  if (!pointMatchesText(expDestination, toAddr)) {
+    var toHit = exactCatalogPlace(toAddr);
+    expDestination = toHit ? { lat: toHit.lat, lng: toHit.lng, address: toHit.label } : null;
+  }
+  var fromText = fromAddr || (expOrigin && expOrigin.address) || '';
+  var toText = toAddr || (expDestination && expDestination.address) || '';
+  if (!fromText) return showToast('กรอกต้นทาง','error');
+  if (!toText) return showToast('กรอกปลายทาง','error');
   var baseFare = 30, distanceKm = 0;
-  if (expOrigin && expDestination) distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
+  if (expOrigin && expDestination && isFinite(expOrigin.lat) && isFinite(expDestination.lat)) distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
   var total = Math.round(baseFare + (distanceKm * 5));
   try{
     await db.collection('orders').add({
@@ -3385,9 +3603,9 @@ window.submitExpressOrder = async function(){
       userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
       userPhone: $('order-phone').value.trim(),
       title: '📦 ส่งด่วน',
-      from: fromAddr || (expOrigin ? expOrigin.address : ''),
-      to: toAddr || (expDestination ? expDestination.address : ''),
-      address: toAddr || (expDestination ? expDestination.address : ''),
+      from: fromText,
+      to: toText,
+      address: toText,
       fromLat: expOrigin ? expOrigin.lat : null, fromLng: expOrigin ? expOrigin.lng : null,
       lat: expDestination ? expDestination.lat : null, lng: expDestination ? expDestination.lng : null,
       distanceKm: distanceKm, note: $('order-note').value.trim(),
@@ -3623,7 +3841,7 @@ window.openShopOrderForm = function(placeId){
     '<div class="form-group"><label>🛒 รายการที่ให้ซื้อ</label>' +
       '<textarea id="shop-items" class="shop-items-input" placeholder="เช่น&#10;- โซดา 2 ขวด&#10;- น้ำแข็ง 1 ถุง"></textarea>' +
       '<div class="shop-quick-chips">' + quickItems.map(function(item){
-        return '<button class="shop-quick-chip" onclick="addQuickItem(\'' + esc(item) + '\')">+ ' + esc(item) + '</button>';
+        return '<button type="button" class="shop-quick-chip" onclick="addQuickItem(\'' + esc(item) + '\')">+ ' + esc(item) + '</button>';
       }).join('') + '</div>' +
     '</div>' +
     '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;font-weight:700">' +
@@ -4352,16 +4570,26 @@ function mapPickerSeed() {
   return null;
 }
 
+function currentMapPickerMode() {
+  var page = $('map-page');
+  return (page && page.dataset.picker) || mapPickerMode || null;
+}
+
 function syncMapTitle() {
   var title = document.querySelector('#map-page .map-header-bar h3');
   if (!title) return;
-  if (mapPickerMode === 'exp-origin') title.textContent = '🗺️ เลือกจุดรับ';
-  else if (mapPickerMode === 'food') title.textContent = '🗺️ ที่อยู่จัดส่ง';
+  var mode = currentMapPickerMode();
+  if (mode === 'exp-origin') title.textContent = '🗺️ เลือกจุดรับ';
+  else if (mode === 'exp-destination') title.textContent = '🗺️ เลือกจุดส่ง';
+  else if (mode === 'food') title.textContent = '🗺️ ที่อยู่จัดส่ง';
   else title.textContent = '🗺️ เลือกตำแหน่งปลายทาง';
 }
 
 window.openMapPage = function(keepPickerMode){
-  if (!keepPickerMode) mapPickerMode = null;
+  if (!keepPickerMode) {
+    mapPickerMode = null;
+    if ($('map-page')) delete $('map-page').dataset.picker;
+  }
   syncMapTitle();
   var seed = mapPickerSeed();
   var token = ++mapOpenToken;
@@ -4410,7 +4638,10 @@ window.openMapPage = function(keepPickerMode){
 };
 window.closeMapPage = function(){
   mapOpenToken++;
-  if($('map-page')) $('map-page').classList.remove('show');
+  if($('map-page')) {
+    $('map-page').classList.remove('show');
+    delete $('map-page').dataset.picker;
+  }
   mapPickerMode = null;
 };
 
@@ -4470,7 +4701,7 @@ window.confirmMapLocation = function(){
   if (addr && addr.indexOf('กำลังหาที่อยู่') !== 0) selectedDestination.address = addr;
   if ($('dest-rider-note')) selectedDestination.note = $('dest-rider-note').value.trim();
   rememberRecentPlace();
-  var mode = mapPickerMode;
+  var mode = currentMapPickerMode();
   var picked = {
     lat: selectedDestination.lat,
     lng: selectedDestination.lng,
@@ -4502,7 +4733,7 @@ window.confirmMapLocation = function(){
       expressDraft.to = picked.address;
     }
     renderExpressForm();
-    showToast('📍 ' + (picked.address || 'เลือกตำแหน่งแล้ว'));
+    showToast(mode === 'exp-origin' ? 'ตั้งจุดรับแล้ว' : 'ตั้งจุดส่งแล้ว');
     return;
   }
   if (mode === 'food') {
@@ -4531,6 +4762,7 @@ window.selectVehicle = function(el){
 /* ═══ MAP PICKER — full-map sheet (the old #map-picker overlay was removed) ═══ */
 window.openMapPicker = function(mode){
   mapPickerMode = mode || 'travel';
+  if ($('map-page')) $('map-page').dataset.picker = mapPickerMode;
   if (mode === 'exp-origin' || mode === 'exp-destination') captureExpressDraft();
   openMapPage(true);
 };
@@ -4598,7 +4830,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.24 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.25 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
