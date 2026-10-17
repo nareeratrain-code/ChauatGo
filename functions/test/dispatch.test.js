@@ -354,6 +354,43 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(shopStuck.data().dispatchState, 'offered');
   assert.notEqual(shopStuck.data().dispatchOfferRiderId || '', '');
 
+  // Transfer pickup ("รอลูกค้าโอนเงิน") is still an active job. A stored
+  // count of 0 must not offer this rider a second order, and must not accept one.
+  await seedRider('test-hold-pay', pickup.lat + 0.001, pickup.lng, { activeJobCount: 0, idleSince: null });
+  await seedOrder('ord-await-transfer', {
+    type: 'food',
+    status: 'picked_up',
+    riderId: 'test-hold-pay',
+    paymentMode: 'transfer',
+    code: 'OD-6355'
+  });
+  await seedOrder('ord-should-skip-holder', { status: 'cooking', code: 'OD-HOLD' });
+  const held = await D.offerNext(db, 'ord-should-skip-holder');
+  assert.notEqual(held.riderId, 'test-hold-pay');
+  const raised = await db.collection('riders').doc('test-hold-pay').get();
+  assert.equal(raised.data().activeJobCount, 1);
+  await db.collection('riders').doc('test-hold-pay').update({ activeJobCount: 0 });
+  const holdOffer = db.collection('orders').doc('ord-should-skip-holder').collection('dispatchOffers').doc('offer-hold');
+  await holdOffer.set({
+    riderId: 'test-hold-pay',
+    status: 'pending',
+    expiresAt: Timestamp.fromDate(new Date(Date.now() + 60000))
+  });
+  await db.collection('orders').doc('ord-should-skip-holder').update({
+    riderId: FieldValue.delete(),
+    dispatchOfferId: 'offer-hold',
+    dispatchOfferRiderId: 'test-hold-pay',
+    dispatchState: 'offered'
+  });
+  await assert.rejects(
+    () => D.acceptOffer(db, 'test-hold-pay', 'ord-should-skip-holder', 'offer-hold'),
+    (err) => err && err.message === 'busy'
+  );
+  const holdOrder = await db.collection('orders').doc('ord-should-skip-holder').get();
+  assert.notEqual(holdOrder.data().riderId || '', 'test-hold-pay');
+  const holdCount = await db.collection('riders').doc('test-hold-pay').get();
+  assert.equal(holdCount.data().activeJobCount, 1);
+
   const allOrders = await db.collection('orders').get();
   allOrders.forEach((doc) => assertNoProtectedShop(doc.data()));
   assert.ok(allOrders.size > 0);
@@ -458,6 +495,32 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     } catch (err) {
       throw new Error('offered claim: ' + (err && err.message));
     }
+
+    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+      const root = ctx.firestore();
+      await root.collection('orders').doc('shop-offer').set({
+        type: 'shopping',
+        status: 'searching',
+        userId: 'cust1',
+        merchantId: '',
+        merchantName: '',
+        shopPlaceName: '7-Eleven',
+        code: 'OD-8548',
+        dispatchOfferId: 'shop-of',
+        dispatchOfferRiderId: 'rider1'
+      });
+      await root.collection('orders').doc('shop-offer').collection('dispatchOffers').doc('shop-of').set({
+        riderId: 'rider1', status: 'pending', orderId: 'shop-offer'
+      });
+    });
+    try {
+      await assertSucceeds(rdb.collection('orders').doc('shop-offer').update(claim));
+    } catch (err) {
+      throw new Error('shopping offer claim: ' + (err && err.message));
+    }
+    await assertFails(rdb.collection('orders').doc('shop-offer').collection('dispatchOffers').doc('shop-of').update({
+      status: 'accepted'
+    }));
   } finally {
     await rulesEnv.cleanup();
   }
