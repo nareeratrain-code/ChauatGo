@@ -87,6 +87,14 @@ test('missing config stays on the manual list', () => {
     D.exhaustedReason(8, { unverified: 1 }),
     'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์ในระยะยังไม่พร้อมรับงาน'
   );
+  assert.equal(D.exhaustedReason(8, { cooldown: 1 }), 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — รอเสนอซ้ำหลังคูลดาวน์');
+  assert.equal(D.exhaustedReason(8, { far: 2 }), 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์อยู่นอกระยะ');
+  assert.equal(cfg.unassignedTimeoutMin, 60);
+  assert.equal(cfg.staleAssignTimeoutMin, 60);
+  assert.equal(cfg.reofferCooldownSec, 180);
+  assert.equal(D.normalizeConfig({ unassignedTimeoutMin: 1, staleAssignTimeoutMin: 90, reofferCooldownSec: 10 }).unassignedTimeoutMin, 5);
+  assert.equal(D.normalizeConfig({ staleAssignTimeoutMin: 90 }).staleAssignTimeoutMin, 90);
+  assert.equal(D.normalizeConfig({ reofferCooldownSec: 10 }).reofferCooldownSec, 30);
   assert.equal(D.REASON_NO_PICKUP, 'ร้านไม่มีพิกัด');
   assert.equal(D.REASON_WAIT_SHOP, 'รอร้านรับออเดอร์');
 });
@@ -427,6 +435,138 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.notEqual(holdOrder.data().riderId || '', 'test-hold-pay');
   const holdCount = await db.collection('riders').doc('test-hold-pay').get();
   assert.equal(holdCount.data().activeJobCount, 1);
+
+  const hourAgo = Timestamp.fromDate(new Date(Date.now() - 2 * 60 * 60 * 1000));
+  await seedOrder('ord-old-open', {
+    type: 'express',
+    status: 'searching',
+    merchantId: '',
+    merchantName: '',
+    code: 'OD-7794',
+    createdAt: hourAgo,
+    dispatchState: 'manual',
+    dispatchManualReason: 'ไม่มีไรเดอร์ว่างในระยะ 8 กม.',
+    dispatchOfferedIds: ['test-near']
+  });
+  await seedOrder('ord-young-open', {
+    type: 'ride',
+    status: 'searching',
+    merchantId: '',
+    merchantName: '',
+    code: 'OD-NEW',
+    createdAt: Timestamp.fromDate(new Date()),
+    dispatchState: 'manual',
+    dispatchManualReason: 'ไม่มีไรเดอร์ว่างในระยะ 8 กม.'
+  });
+  await seedRider('test-slow', pickup.lat, pickup.lng, { activeJobCount: 1, name: 'สมหมาย' });
+  await seedOrder('ord-stale-accept', {
+    type: 'shopping',
+    status: 'accepted',
+    riderId: 'test-slow',
+    riderName: 'สมหมาย',
+    merchantId: '',
+    merchantName: '',
+    code: 'OD-SLOW',
+    acceptedAt: hourAgo,
+    dispatchState: 'assigned',
+    dispatchCounted: true,
+    dispatchOfferId: 'live-slow'
+  });
+  await db.collection('orders').doc('ord-stale-accept').collection('dispatchOffers').doc('live-slow').set({
+    riderId: 'test-slow',
+    status: 'pending',
+    orderId: 'ord-stale-accept',
+    createdAt: hourAgo
+  });
+  const timed = await D.sweepTimeouts(db);
+  assert.ok(timed.cancelled >= 1);
+  assert.ok(timed.cleared >= 1);
+  const oldOpen = await db.collection('orders').doc('ord-old-open').get();
+  assert.equal(oldOpen.exists, true);
+  assert.equal(oldOpen.data().status, 'cancelled');
+  assert.equal(oldOpen.data().cancelReason, 'ไม่มีไรเดอร์รับภายใน 1 ชม.');
+  assert.equal(oldOpen.data().dispatchState, 'expired_unassigned');
+  assert.equal(oldOpen.data().customerNotice, 'ไม่มีไรเดอร์รับภายใน 1 ชม.');
+  const youngOpen = await db.collection('orders').doc('ord-young-open').get();
+  assert.equal(youngOpen.data().status, 'searching');
+  const staleAccept = await db.collection('orders').doc('ord-stale-accept').get();
+  assert.equal(staleAccept.exists, true);
+  assert.equal(staleAccept.data().riderId, 'test-slow');
+  assert.equal(staleAccept.data().status, 'cancelled');
+  assert.equal(staleAccept.data().cancelReason, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(staleAccept.data().dispatchState, 'auto_cleared');
+  assert.equal(staleAccept.data().adminFlag, 'auto_cleared');
+  assert.equal(staleAccept.data().customerNotice, 'ไม่จบงานภายใน 1 ชม.');
+  const closedOffer = await db.collection('orders').doc('ord-stale-accept').collection('dispatchOffers').doc('live-slow').get();
+  assert.equal(closedOffer.data().status, 'expired');
+  assert.equal(closedOffer.data().endReason, 'stale_job');
+  await D.onOrderWritten(db, {
+    riderId: 'test-slow', status: 'accepted', dispatchCounted: true, type: 'shopping'
+  }, staleAccept.data(), 'ord-stale-accept');
+  const slowDoc = await db.collection('riders').doc('test-slow').get();
+  assert.equal(slowDoc.data().activeJobCount, 0);
+  assert.equal(slowDoc.data().lastNotice.text, 'OD-SLOW • ไม่จบงานภายใน 1 ชม.');
+  await seedOrder('ord-with-goods', {
+    type: 'express',
+    status: 'picked_up',
+    riderId: 'test-slow',
+    riderName: 'สมหมาย',
+    merchantId: '',
+    merchantName: '',
+    code: 'OD-GOODS',
+    acceptedAt: hourAgo,
+    dispatchState: 'assigned',
+    dispatchOfferId: 'goods-offer'
+  });
+  await db.collection('orders').doc('ord-with-goods').collection('dispatchOffers').doc('goods-offer').set({
+    riderId: 'test-slow', status: 'pending', orderId: 'ord-with-goods'
+  });
+  await db.collection('riders').doc('test-slow').update({ activeJobCount: 1 });
+  const clearedGoods = await D.sweepTimeouts(db);
+  assert.ok(clearedGoods.cleared >= 1);
+  const goods = await db.collection('orders').doc('ord-with-goods').get();
+  assert.equal(goods.exists, true);
+  assert.equal(goods.data().riderId, 'test-slow');
+  assert.equal(goods.data().status, 'cancelled');
+  assert.equal(goods.data().cancelReason, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(goods.data().adminFlag, 'auto_cleared');
+  const goodsOffer = await db.collection('orders').doc('ord-with-goods').collection('dispatchOffers').doc('goods-offer').get();
+  assert.equal(goodsOffer.data().status, 'expired');
+  await D.onOrderWritten(db, {
+    riderId: 'test-slow', status: 'picked_up', type: 'express'
+  }, goods.data(), 'ord-with-goods');
+  const afterGoods = await db.collection('riders').doc('test-slow').get();
+  assert.equal(afterGoods.data().activeJobCount, 0);
+
+  const coolCfg = await D.loadConfig(db);
+  const cooled = await D.findCandidates(db, pickup, 8, ['test-slow'], coolCfg, Date.now(), [], new Map([['test-slow', 90]]));
+  assert.equal(cooled.list.some((c) => c.riderId === 'test-slow'), false);
+  assert.ok(cooled.notes.some((n) => n.riderId === 'test-slow' && n.reason.indexOf('รออีก 90') !== -1));
+  const freeAgain = await D.findCandidates(db, pickup, 8, [], coolCfg, Date.now(), []);
+  assert.ok(freeAgain.list.some((c) => c.riderId === 'test-slow'));
+
+  await seedOrder('ord-reoffer', {
+    type: 'express',
+    status: 'searching',
+    merchantId: '',
+    merchantName: '',
+    code: 'OD-RE',
+    createdAt: Timestamp.fromDate(new Date()),
+    dispatchState: 'seeking',
+    dispatchOfferedIds: ['test-slow']
+  });
+  await db.collection('orders').doc('ord-reoffer').collection('dispatchOffers').doc('old-offer').set({
+    riderId: 'test-slow',
+    status: 'expired',
+    endReason: 'timeout',
+    createdAt: Timestamp.fromDate(new Date(Date.now() - 10 * 60 * 1000))
+  });
+  const gpsSnap = await db.collection('gps_riders').get();
+  for (const g of gpsSnap.docs) {
+    if (g.id !== 'test-slow') await g.ref.update({ online: false });
+  }
+  const reoffered = await D.offerNext(db, 'ord-reoffer');
+  assert.equal(reoffered.riderId, 'test-slow');
 
   const allOrders = await db.collection('orders').get();
   allOrders.forEach((doc) => assertNoProtectedShop(doc.data()));

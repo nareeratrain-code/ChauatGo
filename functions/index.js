@@ -55,6 +55,7 @@ exports.sweepDispatchOffers = onSchedule({
   schedule: 'every 1 minutes',
   timeoutSeconds: 120
 }, async () => {
+  await D.sweepTimeouts(db);
   await D.sweepExpired(db);
   await D.sweepStuck(db);
 });

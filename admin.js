@@ -40,6 +40,8 @@ let deferredPrompt = null;
 let audioCtx = null;
 let seenNewOrders = new Set();
 let lastOrderCount = 0;
+let adminFlagsPrimed = false;
+const seenAdminFlags = new Set();
 let dispatchMap = null;
 let dispatchMarkers = null;
 
@@ -462,6 +464,15 @@ function start() {
             showToast('🔔 มีออเดอร์ใหม่');
           }
           lastOrderCount = newPending.length;
+          items.forEach(o => {
+            if (!o.adminFlag || !o.adminFlagReason) return;
+            const stamp = o.adminFlagAt && o.adminFlagAt.seconds ? o.adminFlagAt.seconds : o.adminFlag;
+            const key = o.id + ':' + o.adminFlag + ':' + stamp;
+            if (seenAdminFlags.has(key)) return;
+            seenAdminFlags.add(key);
+            if (adminFlagsPrimed) showToast((orderCode(o) || 'ออเดอร์') + ' • ' + o.adminFlagReason, 'warning');
+          });
+          adminFlagsPrimed = true;
         }
 
         render();
@@ -788,6 +799,8 @@ function orders() {
           <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
             ${payBadge}${slipBadge}
           </div>
+          ${o.cancelReason ? `<div class="data-card-meta">${esc(o.cancelReason)}</div>` : ''}
+          ${o.adminFlagReason ? `<div class="data-card-meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
         </div>
         <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(statusLabel(o))}</span>
       </div>
@@ -836,6 +849,9 @@ function orderDetail(id) {
 
     ${o.riderName ? `<div class="meta" style="margin-top:8px;color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • ' + esc(o.riderPhone) : ''}</div>` : ''}
     ${(o.dispatchState || o.dispatchManualReason) ? `<div class="meta">🎯 จ่ายงาน: ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}${o.dispatchOfferRiderId ? ' • เสนอ ' + esc(riderNameById(o.dispatchOfferRiderId)) : ''}</div>` : ''}
+    ${o.cancelReason ? `<div class="meta">${esc(o.cancelReason)}</div>` : ''}
+    ${o.adminFlagReason ? `<div class="meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
+    ${dispatchSkipHtml(o)}
 
     <div style="background:${isCash ? 'var(--orange-light)' : 'var(--blue-light)'};padding:12px;border-radius:10px;margin-top:14px;font-size:12px;font-weight:700">
       <div style="font-weight:900;margin-bottom:6px">${isCash ? '💵 ลูกค้าจ่ายเงินสด' : '💳 ลูกค้าโอนเงิน'}</div>
@@ -2190,10 +2206,51 @@ window.closeModal = closeModal;
 window.installPWA = installPWA;
 window.dismissPWA = dismissPWA;
 
+function gpsLimitMs() {
+  const sec = Number((store.dispatchConfig && store.dispatchConfig.staleLocationSec) || 120);
+  return (sec > 0 ? sec : 120) * 1000;
+}
+
 function gpsFresh(g) {
   const d = toDate(g && g.updatedAt);
   if (!d) return false;
-  return Date.now() - d.getTime() < 120000;
+  return Date.now() - d.getTime() < gpsLimitMs();
+}
+
+function riderDispatchHint(r) {
+  const g = (store.gpsRiders || []).find(x => x.id === r.id);
+  if (r.verified !== true) return 'ยังไม่อนุมัติ';
+  const ready = ['active', 'available', 'online'].includes(r.status);
+  if (!ready) return 'สถานะ ' + (r.status || 'ออฟไลน์');
+  if (!g) return 'ไม่มีเอกสารพิกัด — แอปยังไม่ส่งตำแหน่ง';
+  if (g.online !== true) return 'พิกัดถูกตั้งเป็นออฟไลน์';
+  if (!Number.isFinite(Number(g.lat)) || !Number.isFinite(Number(g.lng))) return 'ไม่มี lat/lng';
+  const d = toDate(g.updatedAt);
+  if (!d) return 'ไม่มี updatedAt';
+  const age = Math.round((Date.now() - d.getTime()) / 1000);
+  const jobs = Number(r.activeJobCount || 0);
+  const hash = g.geohash ? '' : ' • ไม่มี geohash';
+  const limit = Math.round(gpsLimitMs() / 1000);
+  if (age > limit) return 'พิกัดเก่า ' + age + ' วินาที (เกณฑ์ ' + limit + ')' + hash;
+  if (jobs > 0) return 'พิกัดสด ' + age + ' วิ • งานค้าง ' + jobs + hash;
+  return 'พร้อมรับงาน • พิกัดสด ' + age + ' วิ' + hash;
+}
+
+function riderHintHtml() {
+  const watched = (store.riders || []).filter(r => {
+    if (r.verified !== true) return false;
+    const ready = ['active', 'available', 'online'].includes(r.status);
+    const gps = (store.gpsRiders || []).find(g => g.id === r.id);
+    return ready || (gps && gps.online === true);
+  }).slice(0, 20);
+  if (!watched.length) return '<div class="data-card-meta" style="margin-top:8px">ยังไม่มีไรเดอร์ที่เปิดรับงาน</div>';
+  return `<div style="margin-top:8px">${watched.map(r => `<div class="data-card-meta"><b>${esc(r.name || r.id)}</b> — ${esc(riderDispatchHint(r))}</div>`).join('')}</div>`;
+}
+
+function dispatchSkipHtml(o) {
+  const rows = Array.isArray(o && o.dispatchSkip) ? o.dispatchSkip : [];
+  if (!rows.length) return '';
+  return rows.map(s => `<div class="data-card-meta">• ${esc((s && s.name) || riderNameById(s && s.riderId))} — ${esc((s && s.reason) || '')}</div>`).join('');
 }
 
 function riderNameById(id) {
@@ -2207,7 +2264,9 @@ function dispatchStateLabel(state) {
     seeking: 'กำลังหาไรเดอร์',
     offered: 'กำลังเสนอ',
     manual: 'ต้องจ่ายมือ',
-    assigned: 'จ่ายแล้ว'
+    assigned: 'จ่ายแล้ว',
+    expired_unassigned: 'หมดเวลา ไม่มีคนรับ',
+    auto_cleared: 'ระบบยกเลิกเพราะไม่จบงาน'
   };
   return map[state] || state || 'ยังไม่เริ่ม';
 }
@@ -2224,7 +2283,9 @@ function offerEndText(h) {
     skipped: 'ไรเดอร์กดข้าม',
     accepted: 'ไรเดอร์รับงาน',
     replaced: 'ถูกแทนที่',
-    manual: 'แอดมินจ่ายมือ'
+    manual: 'แอดมินจ่ายมือ',
+    unassigned_timeout: 'ยกเลิกเพราะไม่มีคนรับ',
+    stale_job: 'ยกเลิกเพราะไม่จบงาน'
   };
   let line = statusMap[h.status] || h.status || '';
   if (h.endReason) line += ' — ' + (why[h.endReason] || h.endReason);
@@ -2246,6 +2307,20 @@ function dispatchQueue() {
     if (o.dispatchState === 'manual' || o.dispatchState === 'seeking' || o.dispatchState === 'offered' || o.dispatchState === 'waiting') return true;
     return !o.riderId && ['searching', 'pending', 'cooking', 'ready'].includes(o.status);
   });
+}
+
+function autoClearedOrders() {
+  return (store.orders || []).filter(o => o.adminFlag === 'auto_cleared' || o.dispatchState === 'auto_cleared');
+}
+
+function autoClearedHtml() {
+  const rows = autoClearedOrders();
+  if (!rows.length) return '';
+  return `<div style="margin-top:12px;font-weight:900">ระบบยกเลิกเพราะไม่จบงาน (${rows.length})</div>` + rows.map(o => `<div class="data-card" style="margin-top:8px">
+      <div class="data-card-name">${esc(orderCode(o) || o.title || 'ออเดอร์')}</div>
+      <div class="data-card-meta">${esc(o.cancelReason || o.adminFlagReason || '')}${o.autoClearedRiderName || o.riderName ? ' • ไรเดอร์ ' + esc(o.autoClearedRiderName || o.riderName) : ''}</div>
+      <div class="data-card-meta">${esc(fmtTime(o.cancelledAt || o.adminFlagAt))}</div>
+    </div>`).join('');
 }
 
 function dispatch() {
@@ -2278,6 +2353,12 @@ function dispatch() {
       <input id="dispatch-timeout" type="number" min="10" max="120" value="${esc(String(cfg.offerTimeoutSec || 20))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <label class="meta">งานพร้อมกันสูงสุดต่อคน</label>
       <input id="dispatch-max" type="number" min="1" max="5" value="${esc(String(cfg.maxJobsPerRider || 1))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <label class="meta">ยกเลิกถ้าไม่มีไรเดอร์รับ (นาที)</label>
+      <input id="dispatch-unassigned-min" type="number" min="5" max="1440" value="${esc(String(cfg.unassignedTimeoutMin || 60))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <label class="meta">ยกเลิกงานที่ไรเดอร์รับแล้วไม่จบ รวมถึงรับของแล้ว (นาที)</label>
+      <input id="dispatch-stale-min" type="number" min="5" max="1440" value="${esc(String(cfg.staleAssignTimeoutMin || 60))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <label class="meta">เสนอซ้ำให้คนเดิมได้หลัง (วินาที)</label>
+      <input id="dispatch-reoffer-sec" type="number" min="30" max="3600" value="${esc(String(cfg.reofferCooldownSec || 180))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <div class="meta">น้ำหนักคะแนน (ระยะ / ว่างนาน / อัตรารับ / ดาว)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px">
         <input id="dispatch-w-distance" type="number" step="0.1" value="${esc(String(w.distance != null ? w.distance : 1))}" placeholder="ระยะ" style="padding:10px;border-radius:10px;border:2px solid var(--border)">
@@ -2294,11 +2375,15 @@ function dispatch() {
       <div class="data-card-name">ไรเดอร์ออนไลน์ (${fresh.length})</div>
       <div class="data-card-meta">จุดที่ส่งพิกัดภายใน 2 นาที</div>
       <div id="dispatch-rider-map" style="height:280px;border-radius:12px;margin-top:8px;background:#d5dee6"></div>
+      ${riderHintHtml()}
     </div>
     <div style="margin-top:12px;font-weight:900">ออเดอร์ที่อยู่ระหว่างจ่าย (${rows.length})</div>
+    ${autoClearedHtml()}
     ${rows.length ? rows.map(o => `<div class="data-card" style="margin-top:8px">
         <div class="data-card-name">${esc(o.title || 'ออเดอร์')} ${o.code ? '• ' + esc(o.code) : ''}</div>
         <div class="data-card-meta">${esc(o.merchantName || o.type || '')} • ${esc(o.status)} • ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}</div>
+        ${o.adminFlagReason ? `<div class="data-card-meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
+        ${dispatchSkipHtml(o)}
         <button type="button" class="btn-primary" style="margin-top:8px" data-dispatch-history="${esc(o.id)}">ดูประวัติข้อเสนอ</button>
       </div>`).join('') : '<div class="empty"><div>ไม่มีออเดอร์ที่รอจ่าย</div></div>'}
     ${historyHtml}
@@ -2365,6 +2450,9 @@ async function saveDispatchSettings() {
     radiusStepsKm: steps.length ? steps : [3, 5, 8],
     offerTimeoutSec: Math.min(120, Math.max(10, Number($('dispatch-timeout') && $('dispatch-timeout').value) || 20)),
     maxJobsPerRider: Math.min(5, Math.max(1, Math.round(Number($('dispatch-max') && $('dispatch-max').value) || 1))),
+    unassignedTimeoutMin: Math.min(1440, Math.max(5, Math.round(Number($('dispatch-unassigned-min') && $('dispatch-unassigned-min').value) || 60))),
+    staleAssignTimeoutMin: Math.min(1440, Math.max(5, Math.round(Number($('dispatch-stale-min') && $('dispatch-stale-min').value) || 60))),
+    reofferCooldownSec: Math.min(3600, Math.max(30, Math.round(Number($('dispatch-reoffer-sec') && $('dispatch-reoffer-sec').value) || 180))),
     staleLocationSec: 120,
     weights: {
       distance: Number($('dispatch-w-distance') && $('dispatch-w-distance').value) || 0,

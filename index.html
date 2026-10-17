@@ -2231,6 +2231,14 @@ function subscribeUserOrders(){
     .onSnapshot(function(snap){
       var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
       all.sort(function(a,b){return (b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
+      var prevStatus = window._orderNoticeStatus || {};
+      all.forEach(function(o){
+        if (o.status === 'cancelled' && o.cancelReason && prevStatus[o.id] && prevStatus[o.id] !== 'cancelled') {
+          showToast((o.code || 'ออเดอร์') + ' • ' + o.cancelReason, 'warning');
+        }
+        prevStatus[o.id] = o.status;
+      });
+      window._orderNoticeStatus = prevStatus;
       paintUserOrders(all);
     });
 }
@@ -2297,6 +2305,7 @@ function renderOrderCard(o){
         '<div class="order-track-title">'+esc(o.title||'ออเดอร์')+'</div>' +
         codeHtml +
         '<div class="order-track-sub">'+(statusMap[o.status]||o.status)+' • ฿'+fmt(o.total||o.fare||0)+'</div>' +
+        (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
         orderPrepNote(o) +
         '<div style="margin-top:4px">' + payBadge + '</div>' +
       '</div>' +
