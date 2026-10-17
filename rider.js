@@ -852,11 +852,14 @@ function subscribeProfile() {
   myProfileUnsub = db.collection('riders').doc(currentUser.uid).onSnapshot(snap => {
     if (!snap.exists) return;
     const prevVerified = riderProfile?.verified;
+    const prevNotice = riderProfile && riderProfile.lastNotice && riderProfile.lastNotice.text;
     riderProfile = { uid: currentUser.uid, ...snap.data() };
     if (prevVerified === false && riderProfile.verified === true) {
       showToast('🎉 แอดมินอนุมัติแล้ว!', 'success');
       soundNewJob();
     }
+    const notice = riderProfile.lastNotice && riderProfile.lastNotice.text;
+    if (notice && prevNotice && notice !== prevNotice) showToast(notice, 'warning', 6000);
     updateHeader();
     updatePendingBanner();
     updateOnlineToggle();
@@ -991,6 +994,7 @@ function updateOnlineToggle() {
     : (isOnline ? 'พร้อมรับงาน' : 'ออฟไลน์');
   renderJobs();
   updatePushBanner();
+  syncLocationUpload();
 }
 
 function updateHeroStats() {
@@ -1920,7 +1924,7 @@ function scheduleGPSIfActive() {
     j.riderId === currentUser?.uid &&
     RIDER_ACTIVE_STATUSES.includes(j.status)
   );
-  if (hasActive && isOnline) startGPS();
+  if (isOnline || hasActive) startGPS();
   else stopGPS();
 }
 
@@ -1949,6 +1953,7 @@ function stopGPS() {
 
 function syncLocationUpload() {
   if (isOnline && currentUser && riderProfile?.verified === true) {
+    startGPS();
     uploadLocationOnce();
     if (!gpsUploadTimer) gpsUploadTimer = setInterval(uploadLocationOnce, 20000);
     return;
@@ -1987,6 +1992,17 @@ async function writeGps(latitude, longitude, accuracy) {
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !isOnline) return;
+  lastGpsUpload = 0;
+  uploadLocationOnce();
+});
+window.addEventListener('pageshow', () => {
+  if (!isOnline) return;
+  lastGpsUpload = 0;
+  uploadLocationOnce();
+});
 
 async function markGpsOffline() {
   if (!currentUser) return;

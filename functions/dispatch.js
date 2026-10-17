@@ -10,6 +10,9 @@ const DEFAULT_CONFIG = {
   offerTimeoutSec: 20,
   maxJobsPerRider: 1,
   staleLocationSec: 120,
+  reofferCooldownSec: 180,
+  unassignedTimeoutMin: 60,
+  staleAssignTimeoutMin: 60,
   weights: { distance: 1, idle: 1, acceptance: 1, rating: 1 }
 };
 
@@ -53,6 +56,11 @@ function tsMillis(v) {
 
 const REASON_NO_PICKUP = 'ร้านไม่มีพิกัด';
 const REASON_WAIT_SHOP = 'รอร้านรับออเดอร์';
+const REASON_UNASSIGNED = 'ไม่มีไรเดอร์รับภายใน 1 ชม.';
+const REASON_STALE_JOB = 'ไม่จบงานภายใน 1 ชม.';
+const REASON_STALE_GOODS = 'ไม่จบงานภายใน 1 ชม. — ของอยู่กับไรเดอร์ ไม่ดึงงานคืน';
+const GOODS_STATUSES = ['picked_up', 'customer_paid', 'on_the_way'];
+const TIMEOUT_STATUSES = OPEN_STATUSES.concat(ACTIVE_STATUSES);
 
 function normalizeMode(mode) {
   const raw = String(mode || '').trim();
@@ -73,6 +81,9 @@ function normalizeConfig(raw) {
     offerTimeoutSec: clamp(Number(d.offerTimeoutSec) || 20, 10, 120),
     maxJobsPerRider: clamp(Math.round(Number(d.maxJobsPerRider) || 1), 1, 5),
     staleLocationSec: clamp(Number(d.staleLocationSec) || 120, 30, 600),
+    reofferCooldownSec: clamp(Math.round(Number(d.reofferCooldownSec) || 180), 30, 3600),
+    unassignedTimeoutMin: clamp(Math.round(Number(d.unassignedTimeoutMin) || 60), 5, 1440),
+    staleAssignTimeoutMin: clamp(Math.round(Number(d.staleAssignTimeoutMin) || 60), 5, 1440),
     weights: {
       distance: numOr(w.distance, 1),
       idle: numOr(w.idle, 1),
@@ -94,7 +105,32 @@ function exhaustedReason(radiusKm, skips) {
   }
   if ((s.stale || 0) > 0 && !(s.busy > 0)) return base + ' — พิกัดไรเดอร์เก่าเกินไป';
   if ((s.busy || 0) > 0) return base + ' — ไรเดอร์ในระยะมีงานอยู่แล้ว';
+  if ((s.cooldown || 0) > 0) return base + ' — รอเสนอซ้ำหลังคูลดาวน์';
+  if ((s.offline || 0) > 0) return base + ' — ไรเดอร์ปิดพิกัด';
+  if ((s.noPoint || 0) > 0) return base + ' — ไรเดอร์ไม่มีพิกัด';
+  if ((s.far || 0) > 0) return base + ' — ไรเดอร์อยู่นอกระยะ';
   return base;
+}
+
+function skipNote(notes, riderId, name, reason) {
+  if (!Array.isArray(notes) || notes.length >= 12) return;
+  notes.push({
+    riderId: String(riderId || ''),
+    name: String(name || ''),
+    reason: String(reason || '')
+  });
+}
+
+function ageText(ms) {
+  const sec = Math.max(0, Math.round(Number(ms || 0) / 1000));
+  if (sec < 90) return sec + ' วินาที';
+  return Math.round(sec / 60) + ' นาที';
+}
+
+function timeoutReason(minutes, base) {
+  const min = Math.round(Number(minutes) || 60);
+  if (min === 60) return base;
+  return base.replace('1 ชม.', min + ' นาที');
 }
 
 function codePatch(order) {
@@ -236,40 +272,62 @@ async function notifyRider(db, riderId, msg) {
   }
 }
 
-async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips) {
-  if (!doc || seen.has(doc.id) || skip.has(doc.id)) return;
+async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips, notes, cooldownLeft) {
+  if (!doc || seen.has(doc.id)) return;
   seen.add(doc.id);
   const g = doc.data() || {};
+  const gpsName = g.name || '';
+  if (skip.has(doc.id)) {
+    skips.cooldown += 1;
+    const left = cooldownLeft && cooldownLeft.get(doc.id);
+    skipNote(notes, doc.id, gpsName, left
+      ? 'เพิ่งถูกเสนอไปแล้ว รออีก ' + left + ' วินาที'
+      : 'เพิ่งถูกเสนอไปแล้ว รอคูลดาวน์');
+    return;
+  }
   if (g.online !== true) {
     skips.offline += 1;
+    skipNote(notes, doc.id, gpsName, 'ปิดสถานะพิกัด');
     return;
   }
   const lat = finiteOrNull(g.lat);
   const lng = finiteOrNull(g.lng);
-  if (lat == null || lng == null) return;
+  if (lat == null || lng == null) {
+    skips.noPoint += 1;
+    skipNote(notes, doc.id, gpsName, 'ไม่มี lat/lng');
+    return;
+  }
   const updated = tsMillis(g.updatedAt);
   const staleMs = cfg.staleLocationSec * 1000;
   if (!updated || nowMs - updated > staleMs) {
     skips.stale += 1;
+    skipNote(notes, doc.id, gpsName, updated
+      ? 'พิกัดเก่า ' + ageText(nowMs - updated) + ' (เกณฑ์ ' + cfg.staleLocationSec + ' วินาที)'
+      : 'ไม่มีเวลาพิกัด');
     return;
   }
   const dist = distanceBetween([pickup.lat, pickup.lng], [lat, lng]);
   if (dist > radiusKm + 0.001) {
     skips.far += 1;
+    skipNote(notes, doc.id, gpsName, 'อยู่นอกระยะ ' + dist.toFixed(1) + ' กม. (วง ' + radiusKm + ' กม.)');
     return;
   }
   const riderSnap = await db.collection('riders').doc(doc.id).get();
   if (!riderSnap.exists) {
     skips.badStatus += 1;
+    skipNote(notes, doc.id, gpsName, 'ไม่มีโปรไฟล์ไรเดอร์');
     return;
   }
   const r = riderSnap.data() || {};
+  const riderName = r.name || gpsName;
   if (r.verified !== true) {
     skips.unverified += 1;
+    skipNote(notes, doc.id, riderName, 'ยังไม่ได้รับอนุมัติ');
     return;
   }
-  if (r.status !== 'active' && r.status !== 'available') {
+  if (r.status !== 'active' && r.status !== 'available' && r.status !== 'online') {
     skips.badStatus += 1;
+    skipNote(notes, doc.id, riderName, 'สถานะไม่พร้อมรับงาน (' + (r.status || 'ว่าง') + ')');
     return;
   }
   let jobs = Number(r.activeJobCount || 0);
@@ -286,6 +344,7 @@ async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen,
   }
   if (jobs >= cfg.maxJobsPerRider) {
     skips.busy += 1;
+    skipNote(notes, doc.id, riderName, 'มีงาน ' + jobs + '/' + cfg.maxJobsPerRider);
     return;
   }
   const idleSince = tsMillis(r.idleSince) || tsMillis(r.onlineSince) || updated;
@@ -302,13 +361,38 @@ async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen,
   });
 }
 
-async function findCandidates(db, pickup, radiusKm, offeredIds, cfg, nowMs, extraSkip) {
+async function ridersOnCooldown(db, orderId, order, nowMs, cooldownMs) {
+  const left = new Map();
+  if (!cooldownMs || cooldownMs <= 0) return left;
+  const at = (order && order.dispatchOfferedAt) || {};
+  Object.keys(at).forEach((id) => {
+    const t = tsMillis(at[id]);
+    if (!id || !t || nowMs - t >= cooldownMs) return;
+    left.set(id, Math.max(1, Math.ceil((cooldownMs - (nowMs - t)) / 1000)));
+  });
+  const snap = await db.collection('orders').doc(orderId).collection('dispatchOffers')
+    .orderBy('createdAt', 'desc')
+    .limit(40)
+    .get();
+  snap.docs.forEach((doc) => {
+    const data = doc.data() || {};
+    const id = data.riderId;
+    if (!id || left.has(id)) return;
+    const t = tsMillis(data.createdAt) || tsMillis(data.respondedAt);
+    if (!t || nowMs - t >= cooldownMs) return;
+    left.set(id, Math.max(1, Math.ceil((cooldownMs - (nowMs - t)) / 1000)));
+  });
+  return left;
+}
+
+async function findCandidates(db, pickup, radiusKm, offeredIds, cfg, nowMs, extraSkip, cooldownLeft) {
   const bounds = geohashQueryBounds([pickup.lat, pickup.lng], radiusKm * 1000);
   const skip = new Set(offeredIds || []);
   (extraSkip || []).forEach((id) => skip.add(id));
   const seen = new Set();
   const out = [];
-  const skips = { offline: 0, stale: 0, far: 0, busy: 0, unverified: 0, badStatus: 0 };
+  const notes = [];
+  const skips = { offline: 0, stale: 0, far: 0, busy: 0, unverified: 0, badStatus: 0, cooldown: 0, noPoint: 0 };
   for (let i = 0; i < bounds.length; i++) {
     const start = bounds[i][0];
     const end = bounds[i][1];
@@ -319,16 +403,16 @@ async function findCandidates(db, pickup, radiusKm, offeredIds, cfg, nowMs, extr
       .limit(40)
       .get();
     for (const doc of snap.docs) {
-      await considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips);
+      await considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips, notes, cooldownLeft);
     }
   }
   // Admin's manual list does not use geohash. A fresh online rider with a
   // missing geohash would show there and never be offered. Scan online docs too.
   const onlineSnap = await db.collection('gps_riders').where('online', '==', true).limit(80).get();
   for (const doc of onlineSnap.docs) {
-    await considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips);
+    await considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips, notes, cooldownLeft);
   }
-  return { list: out, skips: skips };
+  return { list: out, skips: skips, notes: notes };
 }
 
 async function offerNextOnce(db, orderId, cfg, extraSkip) {
@@ -361,17 +445,23 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
     return { skipped: 'no-pickup' };
   }
 
-  const offered = Array.isArray(preData.dispatchOfferedIds) ? preData.dispatchOfferedIds.slice() : [];
+  const cooldownLeft = await ridersOnCooldown(db, orderId, preData, nowMs, cfg.reofferCooldownSec * 1000);
+  const offered = Array.from(cooldownLeft.keys());
+  (extraSkip || []).forEach((id) => {
+    if (offered.indexOf(id) === -1) offered.push(id);
+  });
   let step = Number(preData.dispatchRadiusStep || 0);
   if (step < 0) step = 0;
   const steps = cfg.radiusStepsKm;
   let chosen = null;
   let radiusKm = steps[0];
   let lastSkips = {};
+  let lastNotes = [];
   while (step < steps.length) {
     radiusKm = steps[step];
-    const found = await findCandidates(db, pickup, radiusKm, offered, cfg, nowMs, extraSkip);
+    const found = await findCandidates(db, pickup, radiusKm, offered, cfg, nowMs, extraSkip, cooldownLeft);
     lastSkips = found.skips || {};
+    lastNotes = found.notes || [];
     const ranked = rankCandidates(found.list || [], cfg.weights, radiusKm);
     if (ranked.length) {
       chosen = ranked[0];
@@ -385,6 +475,7 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
       dispatchState: 'manual',
       dispatchRadiusStep: step,
       dispatchManualReason: exhaustedReason(lastRadius, lastSkips),
+      dispatchSkip: lastNotes,
       dispatchUpdatedAt: FieldValue.serverTimestamp()
     }, codePatch(preData)));
     return { skipped: 'exhausted', step: step };
@@ -467,7 +558,9 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
       dispatchOfferExpiresAt: Timestamp.fromDate(expiresAt),
       dispatchRadiusStep: step,
       dispatchOfferedIds: FieldValue.arrayUnion(chosen.riderId),
+      ['dispatchOfferedAt.' + chosen.riderId]: Timestamp.fromMillis(nowMs),
       dispatchManualReason: FieldValue.delete(),
+      dispatchSkip: FieldValue.delete(),
       dispatchUpdatedAt: FieldValue.serverTimestamp()
     }, codePatch(order)));
     return { ok: true, offerId: offerRef.id, riderId: chosen.riderId };
@@ -891,8 +984,153 @@ function offerStillLive(order, nowMs) {
 }
 
 function canRetryManual(order) {
-  const reason = order && order.dispatchManualReason;
-  return typeof reason === 'string' && reason.indexOf('ไม่มีไรเดอร์ว่าง') === 0;
+  if (!order || order.dispatchState !== 'manual') return false;
+  if (order.dispatchManualReason === REASON_NO_PICKUP) return false;
+  return true;
+}
+
+function createdMs(order) {
+  return tsMillis(order && order.createdAt) || tsMillis(order && order.codeCreatedAt) || 0;
+}
+
+function statusAfterRelease(order) {
+  if (!needsKitchen(order)) return 'searching';
+  if (order.foodReady || order.readyAt || order.status === 'ready') return 'ready';
+  if (order.cookingAt || order.status === 'cooking') return 'cooking';
+  return 'searching';
+}
+
+async function writeRiderNotice(db, riderId, text) {
+  if (!riderId || !text) return;
+  try {
+    await db.collection('riders').doc(riderId).set({
+      lastNotice: { text: text, at: FieldValue.serverTimestamp() }
+    }, { merge: true });
+  } catch (err) {
+    /* The order update is the record. A missing rider profile must not abort the sweep. */
+  }
+  await notifyRider(db, riderId, {
+    title: 'แจ้งจากระบบจ่ายงาน',
+    body: text,
+    data: { type: 'dispatch_notice' }
+  });
+}
+
+async function cancelUnassigned(db, ref, reason) {
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return false;
+    const order = snap.data() || {};
+    if (order.riderId) return false;
+    if (TERMINAL.indexOf(order.status) !== -1) return false;
+    if (OPEN_STATUSES.indexOf(order.status) === -1) return false;
+    let offerRef = null;
+    let offerSnap = null;
+    if (order.dispatchOfferId) {
+      offerRef = ref.collection('dispatchOffers').doc(order.dispatchOfferId);
+      offerSnap = await tx.get(offerRef);
+    }
+    if (offerSnap && offerSnap.exists && offerSnap.data().status === 'pending') {
+      tx.update(offerRef, {
+        status: 'expired',
+        endReason: 'unassigned_timeout',
+        respondedAt: FieldValue.serverTimestamp()
+      });
+    }
+    tx.update(ref, {
+      status: 'cancelled',
+      cancelReason: reason,
+      cancelledBy: 'system',
+      cancelledAt: FieldValue.serverTimestamp(),
+      dispatchState: 'expired_unassigned',
+      dispatchManualReason: reason,
+      dispatchOfferRiderId: FieldValue.delete(),
+      dispatchOfferExpiresAt: FieldValue.delete(),
+      dispatchUpdatedAt: FieldValue.serverTimestamp(),
+      adminFlag: 'expired_unassigned',
+      adminFlagReason: reason,
+      adminFlagAt: FieldValue.serverTimestamp(),
+      customerNotice: reason
+    });
+    return true;
+  });
+}
+
+async function releaseStaleAssignment(db, ref, reason) {
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return false;
+    const order = snap.data() || {};
+    if (!order.riderId || order.status !== 'accepted') return false;
+    const riderId = order.riderId;
+    const patch = {
+      riderId: FieldValue.delete(),
+      riderName: FieldValue.delete(),
+      riderPhone: FieldValue.delete(),
+      status: statusAfterRelease(order),
+      dispatchState: 'seeking',
+      dispatchMode: 'auto',
+      dispatchCounted: FieldValue.delete(),
+      dispatchManualReason: reason,
+      dispatchRadiusStep: 0,
+      dispatchOfferRiderId: FieldValue.delete(),
+      dispatchOfferExpiresAt: FieldValue.delete(),
+      adminFlag: 'released_stale',
+      adminFlagReason: reason,
+      adminFlagAt: FieldValue.serverTimestamp(),
+      releasedRiderId: riderId,
+      releasedRiderName: order.riderName || '',
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
+    };
+    patch['dispatchOfferedAt.' + riderId] = Timestamp.fromMillis(Date.now());
+    tx.update(ref, patch);
+    return true;
+  });
+}
+
+async function sweepTimeouts(db) {
+  const cfg = await loadConfig(db);
+  if (cfg.mode !== 'auto') return { cancelled: 0, released: 0, flagged: 0, mode: cfg.mode };
+  const nowMs = Date.now();
+  const unassignedMs = cfg.unassignedTimeoutMin * 60 * 1000;
+  const staleMs = cfg.staleAssignTimeoutMin * 60 * 1000;
+  const unassignedReason = timeoutReason(cfg.unassignedTimeoutMin, REASON_UNASSIGNED);
+  const staleReason = timeoutReason(cfg.staleAssignTimeoutMin, REASON_STALE_JOB);
+  const goodsReason = timeoutReason(cfg.staleAssignTimeoutMin, REASON_STALE_GOODS);
+  const snap = await db.collection('orders').where('status', 'in', TIMEOUT_STATUSES).limit(200).get();
+  let cancelled = 0;
+  let released = 0;
+  let flagged = 0;
+  for (const doc of snap.docs) {
+    const order = doc.data() || {};
+    if (!order.riderId && OPEN_STATUSES.indexOf(order.status) !== -1) {
+      const born = createdMs(order);
+      if (!born || nowMs - born < unassignedMs) continue;
+      if (await cancelUnassigned(db, doc.ref, unassignedReason)) cancelled += 1;
+      continue;
+    }
+    if (!order.riderId || ACTIVE_STATUSES.indexOf(order.status) === -1) continue;
+    const since = tsMillis(order.acceptedAt);
+    if (!since || nowMs - since < staleMs) continue;
+    if (GOODS_STATUSES.indexOf(order.status) !== -1) {
+      if (order.adminFlag === 'stale_with_goods') continue;
+      await doc.ref.update({
+        adminFlag: 'stale_with_goods',
+        adminFlagReason: goodsReason,
+        adminFlagAt: FieldValue.serverTimestamp(),
+        dispatchUpdatedAt: FieldValue.serverTimestamp()
+      });
+      flagged += 1;
+      continue;
+    }
+    if (order.status !== 'accepted') continue;
+    if (await releaseStaleAssignment(db, doc.ref, staleReason)) {
+      released += 1;
+      const code = order.code ? order.code + ' • ' : '';
+      await writeRiderNotice(db, order.riderId, code + staleReason);
+    }
+  }
+  return { cancelled: cancelled, released: released, flagged: flagged };
 }
 
 async function sweepStuck(db) {
@@ -940,6 +1178,9 @@ module.exports = {
   ACTIVE_STATUSES,
   REASON_NO_PICKUP,
   REASON_WAIT_SHOP,
+  REASON_UNASSIGNED,
+  REASON_STALE_JOB,
+  REASON_STALE_GOODS,
   normalizeConfig,
   exhaustedReason,
   needsKitchen,
@@ -965,5 +1206,6 @@ module.exports = {
   onGpsWritten,
   sweepExpired,
   sweepStuck,
+  sweepTimeouts,
   tsMillis
 };
