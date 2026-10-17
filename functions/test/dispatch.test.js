@@ -209,50 +209,41 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
 
   await seedOrder('ord-chain');
   const first = await D.offerNext(db, 'ord-chain');
-  assert.equal(first.riderId, 'test-idle');
+  assert.ok(first.riderIds.indexOf('test-idle') !== -1);
+  assert.ok(first.riderIds.indexOf('test-near') !== -1);
+  assert.ok(first.riderIds.indexOf('test-far') !== -1);
+  assert.ok(first.riderIds.indexOf('test-stale') !== -1);
+  assert.ok(first.riderIds.indexOf('test-busy') === -1);
   const chain = await db.collection('orders').doc('ord-chain').get();
   assert.equal(chain.data().dispatchState, 'offered');
-  assert.equal(chain.data().dispatchOfferRiderId, 'test-idle');
+  assert.equal(chain.data().dispatchOfferRiderId || '', '');
 
   const again = await D.offerNext(db, 'ord-chain');
   assert.equal(again.skipped, 'live');
   const offers1 = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').get();
-  assert.equal(offers1.size, 1);
-  const freshOffer = offers1.docs[0].data();
-  assert.equal(freshOffer.timeoutSec, 20);
-  assert.equal(freshOffer.status, 'pending');
+  assert.equal(offers1.size, 4);
+  offers1.docs.forEach((doc) => {
+    assert.equal(doc.data().broadcast, true);
+    assert.equal(doc.data().status, 'pending');
+  });
 
-  const tooSoon = await D.expireOffer(db, 'ord-chain', first.offerId, 'expired');
-  assert.equal(tooSoon.early, true);
-  const stillPending = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').doc(first.offerId).get();
-  assert.equal(stillPending.data().status, 'pending');
-  assert.equal(stillPending.data().endReason || '', '');
-
-  await D.expireOffer(db, 'ord-chain', first.offerId, 'skipped');
-  const skippedOffer = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').doc(first.offerId).get();
+  await D.expireOffer(db, 'ord-chain', 'test-idle', 'skipped');
+  const skippedOffer = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').doc('test-idle').get();
   assert.equal(skippedOffer.data().status, 'skipped');
   assert.equal(skippedOffer.data().endReason, 'skipped');
+  const stillOpen = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').doc('test-far').get();
+  assert.equal(stillOpen.data().status, 'pending');
   const second = await db.collection('orders').doc('ord-chain').get();
-  assert.equal(second.data().dispatchOfferRiderId, 'test-near');
+  assert.equal(second.data().dispatchState, 'offered');
   assert.ok(second.data().dispatchOfferedIds.indexOf('test-idle') !== -1);
   assert.ok(second.data().dispatchOfferedIds.indexOf('test-busy') === -1);
 
-  await D.expireOffer(db, 'ord-chain', second.data().dispatchOfferId, 'skipped');
-  const third = await db.collection('orders').doc('ord-chain').get();
-  assert.equal(third.data().dispatchOfferRiderId, 'test-far');
-  assert.equal(third.data().dispatchRadiusStep, 2);
-
-  await D.expireOffer(db, 'ord-chain', third.data().dispatchOfferId, 'skipped');
-  const done = await db.collection('orders').doc('ord-chain').get();
-  assert.equal(done.data().dispatchState, 'manual');
-  assert.equal(done.data().dispatchManualReason, 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์ในระยะมีงานอยู่แล้ว');
-
   await seedOrder('ord-accept');
   const offer = await D.offerNext(db, 'ord-accept');
-  assert.equal(offer.riderId, 'test-idle');
+  assert.ok(offer.riderIds.indexOf('test-idle') !== -1);
   const raced = await Promise.allSettled([
-    D.acceptOffer(db, 'test-idle', 'ord-accept', offer.offerId),
-    D.acceptOffer(db, 'test-idle', 'ord-accept', offer.offerId)
+    D.acceptOffer(db, 'test-idle', 'ord-accept', 'test-idle'),
+    D.acceptOffer(db, 'test-idle', 'ord-accept', 'test-idle')
   ]);
   const won = raced.filter((r) => r.status === 'fulfilled');
   assert.equal(won.length, 1);
@@ -263,9 +254,12 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const idleDoc = await db.collection('riders').doc('test-idle').get();
   assert.equal(idleDoc.data().activeJobCount, 1);
   assert.equal(idleDoc.data().offersAccepted, 1);
-  const acceptedOffer = await db.collection('orders').doc('ord-accept').collection('dispatchOffers').doc(offer.offerId).get();
+  const acceptedOffer = await db.collection('orders').doc('ord-accept').collection('dispatchOffers').doc('test-idle').get();
   assert.equal(acceptedOffer.data().status, 'accepted');
   assert.equal(acceptedOffer.data().endReason, 'accepted');
+  const lostOffer = await db.collection('orders').doc('ord-accept').collection('dispatchOffers').doc('test-near').get();
+  assert.equal(lostOffer.data().status, 'expired');
+  assert.equal(lostOffer.data().endReason, 'taken');
 
   await db.collection('riders').doc('test-blank').set({
     name: 'test-blank',
@@ -291,8 +285,9 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
 
   await seedOrder('ord-second');
   const blocked = await D.offerNext(db, 'ord-second');
-  assert.notEqual(blocked.riderId, 'test-idle');
-  assert.notEqual(blocked.riderId, 'test-busy');
+  assert.ok(blocked.riderIds.indexOf('test-idle') === -1);
+  assert.ok(blocked.riderIds.indexOf('test-busy') === -1);
+  assert.ok(blocked.riderIds.indexOf('test-near') !== -1);
 
   await D.onOrderWritten(
     db,
@@ -324,9 +319,18 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     fromLng: FieldValue.delete()
   });
   const noPick = await D.offerNext(db, 'ord-nopick');
-  assert.equal(noPick.skipped, 'no-pickup');
+  assert.ok(noPick.riderIds.indexOf('test-near') !== -1);
   const noPickDoc = await db.collection('orders').doc('ord-nopick').get();
-  assert.equal(noPickDoc.data().dispatchManualReason, 'ร้านไม่มีพิกัด');
+  assert.equal(noPickDoc.data().dispatchState, 'offered');
+  assert.notEqual(noPickDoc.data().dispatchManualReason || '', 'ร้านไม่มีพิกัด');
+  const noPickOffers = await db.collection('orders').doc('ord-nopick').collection('dispatchOffers').get();
+  assert.ok(noPickOffers.size > 0);
+  await seedRider('test-late', pickup.lat, pickup.lng, { name: 'มาทีหลัง' });
+  await D.onGpsWritten(db, null, { online: true }, 'test-late');
+  const lateOffer = await db.collection('orders').doc('ord-nopick').collection('dispatchOffers').doc('test-late').get();
+  assert.equal(lateOffer.exists, true);
+  assert.equal(lateOffer.data().status, 'pending');
+  assert.equal(lateOffer.data().broadcast, true);
 
   await db.collection('admins').doc('admin-1').set({ role: 'active' });
   const isAdmin = await D.callerIsAdmin(db, { uid: 'admin-1', token: {} });
@@ -397,7 +401,10 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(freedFull.data().activeJobCount, 0);
   const shopStuck = await db.collection('orders').doc('ord-shop-stuck').get();
   assert.equal(shopStuck.data().dispatchState, 'offered');
-  assert.notEqual(shopStuck.data().dispatchOfferRiderId || '', '');
+  assert.equal(shopStuck.data().dispatchOfferRiderId || '', '');
+  const shopOffers = await db.collection('orders').doc('ord-shop-stuck').collection('dispatchOffers').get();
+  assert.ok(shopOffers.size > 0);
+  assert.ok(shopOffers.docs.every((doc) => doc.data().broadcast === true));
 
   // Transfer pickup ("รอลูกค้าโอนเงิน") is still an active job. A stored
   // count of 0 must not offer this rider a second order, and must not accept one.
@@ -672,6 +679,28 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     } catch (err) {
       throw new Error('offered claim: ' + (err && err.message));
     }
+
+    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+      const root = ctx.firestore();
+      await root.collection('orders').doc('open-broadcast').set({
+        type: 'ride', status: 'searching', userId: 'cust1', merchantId: '', merchantName: ''
+      });
+      await root.collection('orders').doc('open-broadcast').collection('dispatchOffers').doc('rider1').set({
+        riderId: 'rider1', status: 'pending', broadcast: true, orderId: 'open-broadcast'
+      });
+      await root.collection('orders').doc('open-other').set({
+        type: 'ride', status: 'searching', userId: 'cust1', merchantId: '', merchantName: ''
+      });
+      await root.collection('orders').doc('open-other').collection('dispatchOffers').doc('someone').set({
+        riderId: 'someone', status: 'pending', broadcast: true, orderId: 'open-other'
+      });
+    });
+    try {
+      await assertSucceeds(rdb.collection('orders').doc('open-broadcast').update(claim));
+    } catch (err) {
+      throw new Error('broadcast claim: ' + (err && err.message));
+    }
+    await assertFails(rdb.collection('orders').doc('open-other').update(claim));
 
     await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
       const root = ctx.firestore();

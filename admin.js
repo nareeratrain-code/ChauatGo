@@ -849,6 +849,7 @@ function orderDetail(id) {
 
     ${o.riderName ? `<div class="meta" style="margin-top:8px;color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • ' + esc(o.riderPhone) : ''}</div>` : ''}
     ${(o.dispatchState || o.dispatchManualReason) ? `<div class="meta">🎯 จ่ายงาน: ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}${o.dispatchOfferRiderId ? ' • เสนอ ' + esc(riderNameById(o.dispatchOfferRiderId)) : ''}</div>` : ''}
+    ${broadcastOfferLine(o)}
     ${o.cancelReason ? `<div class="meta">${esc(o.cancelReason)}</div>` : ''}
     ${o.adminFlagReason ? `<div class="meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
     ${dispatchSkipHtml(o)}
@@ -2285,7 +2286,8 @@ function offerEndText(h) {
     replaced: 'ถูกแทนที่',
     manual: 'แอดมินจ่ายมือ',
     unassigned_timeout: 'ยกเลิกเพราะไม่มีคนรับ',
-    stale_job: 'ยกเลิกเพราะไม่จบงาน'
+    stale_job: 'ยกเลิกเพราะไม่จบงาน',
+    taken: 'มีคนอื่นรับแล้ว'
   };
   let line = statusMap[h.status] || h.status || '';
   if (h.endReason) line += ' — ' + (why[h.endReason] || h.endReason);
@@ -2299,6 +2301,14 @@ function offerEndText(h) {
   if (h.distanceKm != null) line += ' • ' + h.distanceKm + ' กม.';
   if (h.wave != null) line += ' • รอบ ' + h.wave;
   return line;
+}
+
+function broadcastOfferLine(o) {
+  const ids = Array.isArray(o && o.dispatchOfferedIds) ? o.dispatchOfferedIds : [];
+  if (!ids.length) return '';
+  const names = ids.slice(0, 8).map(id => riderNameById(id)).filter(Boolean);
+  const more = ids.length > names.length ? ' +' + (ids.length - names.length) : '';
+  return `<div class="data-card-meta">เสนอพร้อมกัน ${ids.length} คน${names.length ? ' • ' + esc(names.join(', ')) + more : ''}</div>`;
 }
 
 function dispatchQueue() {
@@ -2339,7 +2349,7 @@ function dispatch() {
     </div>` : '';
   return `<div class="hero-card" style="margin-bottom:12px">
       <div class="hero-label">จ่ายงานไรเดอร์</div>
-      <div style="font-size:13px;font-weight:700;margin-top:6px">${mode === 'auto' ? 'โหมดอัตโนมัติ — ระบบเสนอทีละคน' : 'โหมดมือ — ไรเดอร์ยังกดรับจากรายการเอง'}</div>
+      <div style="font-size:13px;font-weight:700;margin-top:6px">${mode === 'auto' ? 'โหมดอัตโนมัติ — เสนอให้ไรเดอร์ที่ว่างทุกคนพร้อมกัน คนแรกที่กดรับได้งาน' : 'โหมดมือ — ไรเดอร์ยังกดรับจากรายการเอง'}</div>
     </div>
     <div class="data-card">
       <label class="meta">โหมด</label>
@@ -2382,6 +2392,7 @@ function dispatch() {
     ${rows.length ? rows.map(o => `<div class="data-card" style="margin-top:8px">
         <div class="data-card-name">${esc(o.title || 'ออเดอร์')} ${o.code ? '• ' + esc(o.code) : ''}</div>
         <div class="data-card-meta">${esc(o.merchantName || o.type || '')} • ${esc(o.status)} • ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}</div>
+        ${broadcastOfferLine(o)}
         ${o.adminFlagReason ? `<div class="data-card-meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
         ${dispatchSkipHtml(o)}
         <button type="button" class="btn-primary" style="margin-top:8px" data-dispatch-history="${esc(o.id)}">ดูประวัติข้อเสนอ</button>
@@ -2474,7 +2485,7 @@ async function saveDispatchSettings() {
 async function loadDispatchOffers(orderId) {
   try {
     const snap = await db.collection('orders').doc(orderId).collection('dispatchOffers')
-      .orderBy('createdAt', 'desc').limit(20).get();
+      .orderBy('createdAt', 'desc').limit(40).get();
     store.dispatchOffersOrder = orderId;
     store.dispatchOffers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
