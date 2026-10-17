@@ -58,8 +58,6 @@ const REASON_NO_PICKUP = 'ร้านไม่มีพิกัด';
 const REASON_WAIT_SHOP = 'รอร้านรับออเดอร์';
 const REASON_UNASSIGNED = 'ไม่มีไรเดอร์รับภายใน 1 ชม.';
 const REASON_STALE_JOB = 'ไม่จบงานภายใน 1 ชม.';
-const REASON_STALE_GOODS = 'ไม่จบงานภายใน 1 ชม. — ของอยู่กับไรเดอร์ ไม่ดึงงานคืน';
-const GOODS_STATUSES = ['picked_up', 'customer_paid', 'on_the_way'];
 const TIMEOUT_STATUSES = OPEN_STATUSES.concat(ACTIVE_STATUSES);
 
 function normalizeMode(mode) {
@@ -993,13 +991,6 @@ function createdMs(order) {
   return tsMillis(order && order.createdAt) || tsMillis(order && order.codeCreatedAt) || 0;
 }
 
-function statusAfterRelease(order) {
-  if (!needsKitchen(order)) return 'searching';
-  if (order.foodReady || order.readyAt || order.status === 'ready') return 'ready';
-  if (order.cookingAt || order.status === 'cooking') return 'cooking';
-  return 'searching';
-}
-
 async function writeRiderNotice(db, riderId, text) {
   if (!riderId || !text) return;
   try {
@@ -1056,51 +1047,57 @@ async function cancelUnassigned(db, ref, reason) {
   });
 }
 
-async function releaseStaleAssignment(db, ref, reason) {
+async function cancelStaleJob(db, ref, reason) {
+  const pending = await ref.collection('dispatchOffers').where('status', '==', 'pending').limit(20).get();
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists) return false;
+    if (!snap.exists) return '';
     const order = snap.data() || {};
-    if (!order.riderId || order.status !== 'accepted') return false;
-    const riderId = order.riderId;
-    const patch = {
-      riderId: FieldValue.delete(),
-      riderName: FieldValue.delete(),
-      riderPhone: FieldValue.delete(),
-      status: statusAfterRelease(order),
-      dispatchState: 'seeking',
-      dispatchMode: 'auto',
-      dispatchCounted: FieldValue.delete(),
+    if (!order.riderId || ACTIVE_STATUSES.indexOf(order.status) === -1) return '';
+    const offerSnaps = [];
+    for (let i = 0; i < pending.docs.length; i++) {
+      offerSnaps.push(await tx.get(pending.docs[i].ref));
+    }
+    offerSnaps.forEach((offerSnap) => {
+      if (!offerSnap.exists || offerSnap.data().status !== 'pending') return;
+      tx.update(offerSnap.ref, {
+        status: 'expired',
+        endReason: 'stale_job',
+        respondedAt: FieldValue.serverTimestamp()
+      });
+    });
+    tx.update(ref, {
+      status: 'cancelled',
+      cancelReason: reason,
+      cancelledBy: 'system',
+      cancelledAt: FieldValue.serverTimestamp(),
+      dispatchState: 'auto_cleared',
       dispatchManualReason: reason,
-      dispatchRadiusStep: 0,
       dispatchOfferRiderId: FieldValue.delete(),
       dispatchOfferExpiresAt: FieldValue.delete(),
-      adminFlag: 'released_stale',
-      adminFlagReason: reason,
+      dispatchUpdatedAt: FieldValue.serverTimestamp(),
+      adminFlag: 'auto_cleared',
+      adminFlagReason: reason + (order.code ? ' • ' + order.code : '') + (order.riderName ? ' • ' + order.riderName : ''),
       adminFlagAt: FieldValue.serverTimestamp(),
-      releasedRiderId: riderId,
-      releasedRiderName: order.riderName || '',
-      dispatchUpdatedAt: FieldValue.serverTimestamp()
-    };
-    patch['dispatchOfferedAt.' + riderId] = Timestamp.fromMillis(Date.now());
-    tx.update(ref, patch);
-    return true;
+      customerNotice: reason,
+      autoClearedRiderId: order.riderId,
+      autoClearedRiderName: order.riderName || ''
+    });
+    return order.riderId;
   });
 }
 
 async function sweepTimeouts(db) {
   const cfg = await loadConfig(db);
-  if (cfg.mode !== 'auto') return { cancelled: 0, released: 0, flagged: 0, mode: cfg.mode };
+  if (cfg.mode !== 'auto') return { cancelled: 0, cleared: 0, mode: cfg.mode };
   const nowMs = Date.now();
   const unassignedMs = cfg.unassignedTimeoutMin * 60 * 1000;
   const staleMs = cfg.staleAssignTimeoutMin * 60 * 1000;
   const unassignedReason = timeoutReason(cfg.unassignedTimeoutMin, REASON_UNASSIGNED);
   const staleReason = timeoutReason(cfg.staleAssignTimeoutMin, REASON_STALE_JOB);
-  const goodsReason = timeoutReason(cfg.staleAssignTimeoutMin, REASON_STALE_GOODS);
   const snap = await db.collection('orders').where('status', 'in', TIMEOUT_STATUSES).limit(200).get();
   let cancelled = 0;
-  let released = 0;
-  let flagged = 0;
+  let cleared = 0;
   for (const doc of snap.docs) {
     const order = doc.data() || {};
     if (!order.riderId && OPEN_STATUSES.indexOf(order.status) !== -1) {
@@ -1112,25 +1109,13 @@ async function sweepTimeouts(db) {
     if (!order.riderId || ACTIVE_STATUSES.indexOf(order.status) === -1) continue;
     const since = tsMillis(order.acceptedAt);
     if (!since || nowMs - since < staleMs) continue;
-    if (GOODS_STATUSES.indexOf(order.status) !== -1) {
-      if (order.adminFlag === 'stale_with_goods') continue;
-      await doc.ref.update({
-        adminFlag: 'stale_with_goods',
-        adminFlagReason: goodsReason,
-        adminFlagAt: FieldValue.serverTimestamp(),
-        dispatchUpdatedAt: FieldValue.serverTimestamp()
-      });
-      flagged += 1;
-      continue;
-    }
-    if (order.status !== 'accepted') continue;
-    if (await releaseStaleAssignment(db, doc.ref, staleReason)) {
-      released += 1;
-      const code = order.code ? order.code + ' • ' : '';
-      await writeRiderNotice(db, order.riderId, code + staleReason);
-    }
+    const riderId = await cancelStaleJob(db, doc.ref, staleReason);
+    if (!riderId) continue;
+    cleared += 1;
+    const code = order.code ? order.code + ' • ' : '';
+    await writeRiderNotice(db, riderId, code + staleReason);
   }
-  return { cancelled: cancelled, released: released, flagged: flagged };
+  return { cancelled: cancelled, cleared: cleared };
 }
 
 async function sweepStuck(db) {
@@ -1180,7 +1165,6 @@ module.exports = {
   REASON_WAIT_SHOP,
   REASON_UNASSIGNED,
   REASON_STALE_JOB,
-  REASON_STALE_GOODS,
   normalizeConfig,
   exhaustedReason,
   needsKitchen,

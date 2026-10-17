@@ -469,12 +469,18 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     code: 'OD-SLOW',
     acceptedAt: hourAgo,
     dispatchState: 'assigned',
-    dispatchCounted: true
+    dispatchCounted: true,
+    dispatchOfferId: 'live-slow'
+  });
+  await db.collection('orders').doc('ord-stale-accept').collection('dispatchOffers').doc('live-slow').set({
+    riderId: 'test-slow',
+    status: 'pending',
+    orderId: 'ord-stale-accept',
+    createdAt: hourAgo
   });
   const timed = await D.sweepTimeouts(db);
   assert.ok(timed.cancelled >= 1);
-  assert.ok(timed.released >= 1);
-  assert.equal(timed.flagged, 0);
+  assert.ok(timed.cleared >= 1);
   const oldOpen = await db.collection('orders').doc('ord-old-open').get();
   assert.equal(oldOpen.exists, true);
   assert.equal(oldOpen.data().status, 'cancelled');
@@ -484,10 +490,16 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const youngOpen = await db.collection('orders').doc('ord-young-open').get();
   assert.equal(youngOpen.data().status, 'searching');
   const staleAccept = await db.collection('orders').doc('ord-stale-accept').get();
-  assert.equal(staleAccept.data().riderId || '', '');
-  assert.equal(staleAccept.data().status, 'searching');
-  assert.equal(staleAccept.data().dispatchManualReason, 'ไม่จบงานภายใน 1 ชม.');
-  assert.equal(staleAccept.data().dispatchState, 'seeking');
+  assert.equal(staleAccept.exists, true);
+  assert.equal(staleAccept.data().riderId, 'test-slow');
+  assert.equal(staleAccept.data().status, 'cancelled');
+  assert.equal(staleAccept.data().cancelReason, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(staleAccept.data().dispatchState, 'auto_cleared');
+  assert.equal(staleAccept.data().adminFlag, 'auto_cleared');
+  assert.equal(staleAccept.data().customerNotice, 'ไม่จบงานภายใน 1 ชม.');
+  const closedOffer = await db.collection('orders').doc('ord-stale-accept').collection('dispatchOffers').doc('live-slow').get();
+  assert.equal(closedOffer.data().status, 'expired');
+  assert.equal(closedOffer.data().endReason, 'stale_job');
   await D.onOrderWritten(db, {
     riderId: 'test-slow', status: 'accepted', dispatchCounted: true, type: 'shopping'
   }, staleAccept.data(), 'ord-stale-accept');
@@ -503,18 +515,28 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     merchantName: '',
     code: 'OD-GOODS',
     acceptedAt: hourAgo,
-    dispatchState: 'assigned'
+    dispatchState: 'assigned',
+    dispatchOfferId: 'goods-offer'
+  });
+  await db.collection('orders').doc('ord-with-goods').collection('dispatchOffers').doc('goods-offer').set({
+    riderId: 'test-slow', status: 'pending', orderId: 'ord-with-goods'
   });
   await db.collection('riders').doc('test-slow').update({ activeJobCount: 1 });
-  const flagged = await D.sweepTimeouts(db);
-  assert.ok(flagged.flagged >= 1);
+  const clearedGoods = await D.sweepTimeouts(db);
+  assert.ok(clearedGoods.cleared >= 1);
   const goods = await db.collection('orders').doc('ord-with-goods').get();
   assert.equal(goods.exists, true);
   assert.equal(goods.data().riderId, 'test-slow');
-  assert.equal(goods.data().status, 'picked_up');
-  assert.equal(goods.data().adminFlag, 'stale_with_goods');
-  await db.collection('riders').doc('test-slow').update({ activeJobCount: 0 });
-  await db.collection('orders').doc('ord-with-goods').update({ riderId: 'test-gone', status: 'picked_up' });
+  assert.equal(goods.data().status, 'cancelled');
+  assert.equal(goods.data().cancelReason, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(goods.data().adminFlag, 'auto_cleared');
+  const goodsOffer = await db.collection('orders').doc('ord-with-goods').collection('dispatchOffers').doc('goods-offer').get();
+  assert.equal(goodsOffer.data().status, 'expired');
+  await D.onOrderWritten(db, {
+    riderId: 'test-slow', status: 'picked_up', type: 'express'
+  }, goods.data(), 'ord-with-goods');
+  const afterGoods = await db.collection('riders').doc('test-slow').get();
+  assert.equal(afterGoods.data().activeJobCount, 0);
 
   const coolCfg = await D.loadConfig(db);
   const cooled = await D.findCandidates(db, pickup, 8, ['test-slow'], coolCfg, Date.now(), [], new Map([['test-slow', 90]]));

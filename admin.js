@@ -2265,7 +2265,8 @@ function dispatchStateLabel(state) {
     offered: 'กำลังเสนอ',
     manual: 'ต้องจ่ายมือ',
     assigned: 'จ่ายแล้ว',
-    expired_unassigned: 'หมดเวลา ไม่มีคนรับ'
+    expired_unassigned: 'หมดเวลา ไม่มีคนรับ',
+    auto_cleared: 'ระบบยกเลิกเพราะไม่จบงาน'
   };
   return map[state] || state || 'ยังไม่เริ่ม';
 }
@@ -2283,7 +2284,8 @@ function offerEndText(h) {
     accepted: 'ไรเดอร์รับงาน',
     replaced: 'ถูกแทนที่',
     manual: 'แอดมินจ่ายมือ',
-    unassigned_timeout: 'ยกเลิกเพราะไม่มีคนรับ'
+    unassigned_timeout: 'ยกเลิกเพราะไม่มีคนรับ',
+    stale_job: 'ยกเลิกเพราะไม่จบงาน'
   };
   let line = statusMap[h.status] || h.status || '';
   if (h.endReason) line += ' — ' + (why[h.endReason] || h.endReason);
@@ -2302,10 +2304,23 @@ function offerEndText(h) {
 function dispatchQueue() {
   return store.orders.filter(o => {
     if (['done', 'delivered', 'cancelled'].includes(o.status)) return false;
-    if (o.adminFlag === 'stale_with_goods' || o.adminFlag === 'released_stale') return true;
     if (o.dispatchState === 'manual' || o.dispatchState === 'seeking' || o.dispatchState === 'offered' || o.dispatchState === 'waiting') return true;
     return !o.riderId && ['searching', 'pending', 'cooking', 'ready'].includes(o.status);
   });
+}
+
+function autoClearedOrders() {
+  return (store.orders || []).filter(o => o.adminFlag === 'auto_cleared' || o.dispatchState === 'auto_cleared');
+}
+
+function autoClearedHtml() {
+  const rows = autoClearedOrders();
+  if (!rows.length) return '';
+  return `<div style="margin-top:12px;font-weight:900">ระบบยกเลิกเพราะไม่จบงาน (${rows.length})</div>` + rows.map(o => `<div class="data-card" style="margin-top:8px">
+      <div class="data-card-name">${esc(orderCode(o) || o.title || 'ออเดอร์')}</div>
+      <div class="data-card-meta">${esc(o.cancelReason || o.adminFlagReason || '')}${o.autoClearedRiderName || o.riderName ? ' • ไรเดอร์ ' + esc(o.autoClearedRiderName || o.riderName) : ''}</div>
+      <div class="data-card-meta">${esc(fmtTime(o.cancelledAt || o.adminFlagAt))}</div>
+    </div>`).join('');
 }
 
 function dispatch() {
@@ -2340,7 +2355,7 @@ function dispatch() {
       <input id="dispatch-max" type="number" min="1" max="5" value="${esc(String(cfg.maxJobsPerRider || 1))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <label class="meta">ยกเลิกถ้าไม่มีไรเดอร์รับ (นาที)</label>
       <input id="dispatch-unassigned-min" type="number" min="5" max="1440" value="${esc(String(cfg.unassignedTimeoutMin || 60))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
-      <label class="meta">ดึงงานคืนถ้าไรเดอร์รับแล้วไม่จบ และยังไม่รับของ (นาที)</label>
+      <label class="meta">ยกเลิกงานที่ไรเดอร์รับแล้วไม่จบ รวมถึงรับของแล้ว (นาที)</label>
       <input id="dispatch-stale-min" type="number" min="5" max="1440" value="${esc(String(cfg.staleAssignTimeoutMin || 60))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <label class="meta">เสนอซ้ำให้คนเดิมได้หลัง (วินาที)</label>
       <input id="dispatch-reoffer-sec" type="number" min="30" max="3600" value="${esc(String(cfg.reofferCooldownSec || 180))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
@@ -2363,6 +2378,7 @@ function dispatch() {
       ${riderHintHtml()}
     </div>
     <div style="margin-top:12px;font-weight:900">ออเดอร์ที่อยู่ระหว่างจ่าย (${rows.length})</div>
+    ${autoClearedHtml()}
     ${rows.length ? rows.map(o => `<div class="data-card" style="margin-top:8px">
         <div class="data-card-name">${esc(o.title || 'ออเดอร์')} ${o.code ? '• ' + esc(o.code) : ''}</div>
         <div class="data-card-meta">${esc(o.merchantName || o.type || '')} • ${esc(o.status)} • ${esc(dispatchStateLabel(o.dispatchState))}${o.dispatchManualReason ? ' • ' + esc(o.dispatchManualReason) : ''}</div>
