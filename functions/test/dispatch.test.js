@@ -210,8 +210,20 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(again.skipped, 'live');
   const offers1 = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').get();
   assert.equal(offers1.size, 1);
+  const freshOffer = offers1.docs[0].data();
+  assert.equal(freshOffer.timeoutSec, 20);
+  assert.equal(freshOffer.status, 'pending');
+
+  const tooSoon = await D.expireOffer(db, 'ord-chain', first.offerId, 'expired');
+  assert.equal(tooSoon.early, true);
+  const stillPending = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').doc(first.offerId).get();
+  assert.equal(stillPending.data().status, 'pending');
+  assert.equal(stillPending.data().endReason || '', '');
 
   await D.expireOffer(db, 'ord-chain', first.offerId, 'skipped');
+  const skippedOffer = await db.collection('orders').doc('ord-chain').collection('dispatchOffers').doc(first.offerId).get();
+  assert.equal(skippedOffer.data().status, 'skipped');
+  assert.equal(skippedOffer.data().endReason, 'skipped');
   const second = await db.collection('orders').doc('ord-chain').get();
   assert.equal(second.data().dispatchOfferRiderId, 'test-near');
   assert.ok(second.data().dispatchOfferedIds.indexOf('test-idle') !== -1);
@@ -243,6 +255,31 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const idleDoc = await db.collection('riders').doc('test-idle').get();
   assert.equal(idleDoc.data().activeJobCount, 1);
   assert.equal(idleDoc.data().offersAccepted, 1);
+  const acceptedOffer = await db.collection('orders').doc('ord-accept').collection('dispatchOffers').doc(offer.offerId).get();
+  assert.equal(acceptedOffer.data().status, 'accepted');
+  assert.equal(acceptedOffer.data().endReason, 'accepted');
+
+  await db.collection('riders').doc('test-blank').set({
+    name: 'test-blank',
+    phone: '0800000001',
+    verified: true,
+    status: 'active',
+    rating: 5
+  });
+  await db.collection('gps_riders').doc('test-blank').set({
+    riderId: 'test-blank',
+    name: 'test-blank',
+    lat: pickup.lat,
+    lng: pickup.lng,
+    geohash: hash(pickup.lat, pickup.lng),
+    online: true,
+    updatedAt: Timestamp.fromDate(new Date())
+  });
+  const blankCfg = await D.loadConfig(db);
+  const blankFound = await D.findCandidates(db, pickup, 3, [], blankCfg, Date.now(), []);
+  const blank = blankFound.list.find((c) => c.riderId === 'test-blank');
+  assert.ok(blank);
+  assert.equal(blank.activeJobCount, 0);
 
   await seedOrder('ord-second');
   const blocked = await D.offerNext(db, 'ord-second');

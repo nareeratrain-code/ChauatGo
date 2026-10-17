@@ -432,6 +432,7 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
     if (oldSnap && oldSnap.exists && oldSnap.data().status === 'pending') {
       tx.update(oldRef, {
         status: 'expired',
+        endReason: 'timeout',
         respondedAt: FieldValue.serverTimestamp()
       });
       if (oldRiderSnap && oldRiderSnap.exists) {
@@ -455,6 +456,7 @@ async function offerNextOnce(db, orderId, cfg, extraSkip) {
       orderCode: order.code || order.orderCode || '',
       createdAt: FieldValue.serverTimestamp(),
       expiresAt: Timestamp.fromDate(expiresAt),
+      timeoutSec: cfg.offerTimeoutSec,
       respondedAt: null
     });
     tx.update(ref, Object.assign({
@@ -508,6 +510,7 @@ async function expireOffer(db, orderId, offerId, reason) {
     const order = orderSnap.data() || {};
     if (offer.status !== 'pending') return { acted: false };
     if (status === 'expired') {
+      // Server clock only. A phone that is ahead must not expire a live offer.
       const exp = tsMillis(offer.expiresAt);
       if (exp && exp > Date.now() + 1500) return { acted: false, early: true };
     }
@@ -515,6 +518,7 @@ async function expireOffer(db, orderId, offerId, reason) {
     const riderSnap = offer.riderId ? await tx.get(riderRef) : null;
     tx.update(offerRef, {
       status: status,
+      endReason: status === 'skipped' ? 'skipped' : 'timeout',
       respondedAt: FieldValue.serverTimestamp()
     });
     if (riderSnap && riderSnap.exists) {
@@ -581,6 +585,7 @@ async function acceptOffer(db, uid, orderId, offerId) {
     });
     tx.update(offerRef, {
       status: 'accepted',
+      endReason: 'accepted',
       respondedAt: FieldValue.serverTimestamp()
     });
     tx.update(riderRef, {
@@ -615,6 +620,7 @@ async function manualAssign(db, adminUid, orderId, riderId) {
     if (prevSnap && prevSnap.exists && prevSnap.data().status === 'pending') {
       tx.update(prevRef, {
         status: 'expired',
+        endReason: 'manual',
         respondedAt: FieldValue.serverTimestamp()
       });
     }
@@ -630,6 +636,7 @@ async function manualAssign(db, adminUid, orderId, riderId) {
       orderCode: order.code || order.orderCode || '',
       createdAt: FieldValue.serverTimestamp(),
       respondedAt: FieldValue.serverTimestamp(),
+      endReason: 'accepted',
       wave: Number(order.dispatchRadiusStep || 0)
     });
     tx.update(orderRef, Object.assign({
@@ -744,6 +751,7 @@ async function ensureAssigned(db, orderId) {
     if (offerSnap && offerSnap.exists && offerSnap.data().status === 'pending') {
       tx.update(offerRef, {
         status: 'accepted',
+        endReason: 'accepted',
         respondedAt: FieldValue.serverTimestamp()
       });
       patch.offersAccepted = FieldValue.increment(1);

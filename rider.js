@@ -61,6 +61,7 @@ let currentOffer = null;
 let offerTick = null;
 let acceptingOffer = false;
 const hiddenOfferIds = new Set();
+const offerDeadlines = new Map();
 let isOnline = false;
 let currentHistoryFilter = 'all';
 let cameraFile = null;
@@ -2517,6 +2518,7 @@ function subscribeDispatch() {
   }, () => {
     dispatchConfig = { mode: 'manual' };
     subscribeJobs();
+    subscribeOffers();
   });
 }
 
@@ -2526,22 +2528,50 @@ function stopDispatchSubs() {
   clearOffer(false);
 }
 
+function timestampMs(value) {
+  if (!value) return 0;
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+  return 0;
+}
+
+/* Countdown starts when this phone receives the offer. expiresAt - Date.now()
+   hides the card in about a second when the phone clock is ahead of the server. */
+function offerWindowMs(data) {
+  const sec = Number(data && data.timeoutSec);
+  if (Number.isFinite(sec) && sec >= 10 && sec <= 120) return Math.round(sec * 1000);
+  const exp = timestampMs(data && data.expiresAt);
+  const created = timestampMs(data && data.createdAt);
+  if (exp > created && created > 0) {
+    const diff = exp - created;
+    if (diff >= 10000 && diff <= 120000) return diff;
+  }
+  return 20000;
+}
+
+function ensureOfferDeadline(id, data) {
+  const known = offerDeadlines.get(id);
+  if (known) return known;
+  const deadline = Date.now() + offerWindowMs(data);
+  offerDeadlines.set(id, deadline);
+  return deadline;
+}
+
 function subscribeOffers() {
-  if (offerUnsub) { offerUnsub(); offerUnsub = null; }
   if (!currentUser || dispatchMode() !== 'auto') {
+    if (offerUnsub) { offerUnsub(); offerUnsub = null; }
     clearOffer(false);
     return;
   }
+  if (offerUnsub) return;
   offerUnsub = db.collectionGroup('dispatchOffers')
     .where('riderId', '==', currentUser.uid)
     .where('status', '==', 'pending')
     .limit(5)
     .onSnapshot((snap) => {
-      const now = Date.now();
+      if (snap.metadata && snap.metadata.fromCache && snap.empty && currentOffer) return;
       const rows = snap.docs.map((d) => {
         const data = d.data() || {};
-        const exp = data.expiresAt && typeof data.expiresAt.toDate === 'function'
-          ? data.expiresAt.toDate().getTime() : 0;
         const parent = d.ref.parent && d.ref.parent.parent;
         return {
           id: d.id,
@@ -2553,42 +2583,45 @@ function subscribeOffers() {
           fare: data.fare,
           orderCode: data.orderCode || '',
           distanceKm: data.distanceKm,
-          expiresAtMs: exp
+          deadlineMs: ensureOfferDeadline(d.id, data)
         };
-      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && (!o.expiresAtMs || o.expiresAtMs > now));
-      rows.sort((a, b) => (a.expiresAtMs || 0) - (b.expiresAtMs || 0));
+      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && Date.now() < o.deadlineMs);
+      rows.sort((a, b) => a.deadlineMs - b.deadlineMs);
       if (!rows.length) { clearOffer(true); return; }
       showOffer(rows[0]);
     }, (err) => console.warn('offers', err && err.code));
 }
 
 function showOffer(offer) {
-  const same = currentOffer && currentOffer.id === offer.id;
+  const same = currentOffer && currentOffer.id === offer.id && $('offer-seconds');
   currentOffer = offer;
   const el = $('dispatch-offer');
   if (!el) return;
-  const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
-  const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
-  el.className = 'new-job-popup show';
-  el.innerHTML = `
-    <div class="new-job-card">
-      <div class="popup-icon">🛵</div>
-      <h2>มีงานเสนอให้คุณ</h2>
-      <p>${esc(who)}</p>
-      <div class="detail">
-        <div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
-        <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>
-        <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
-        <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
-      </div>
-      <div class="job-actions two">
-        <button type="button" class="action-btn-big btn-green-big ripple" onclick="acceptDispatchOffer()">✅ รับงาน</button>
-        <button type="button" class="action-btn-big btn-gray-big ripple" onclick="skipDispatchOffer()">⏭️ ข้าม</button>
-      </div>
-    </div>`;
-  if (!same) startOfferAlert(offer.id, offer.expiresAtMs);
-  if (offerTick) clearInterval(offerTick);
-  offerTick = setInterval(tickOffer, 250);
+  if (!same) {
+    const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
+    const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
+    el.className = 'new-job-popup show';
+    el.innerHTML = `
+      <div class="new-job-card">
+        <div class="popup-icon">🛵</div>
+        <h2>มีงานเสนอให้คุณ</h2>
+        <p>${esc(who)}</p>
+        <div class="detail">
+          <div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>
+          <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
+          <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
+        </div>
+        <div class="job-actions two">
+          <button type="button" class="action-btn-big btn-green-big ripple" onclick="acceptDispatchOffer()">✅ รับงาน</button>
+          <button type="button" class="action-btn-big btn-gray-big ripple" onclick="skipDispatchOffer()">⏭️ ข้าม</button>
+        </div>
+      </div>`;
+    startOfferAlert(offer.id, offer.deadlineMs);
+  } else if (!el.classList.contains('show')) {
+    el.className = 'new-job-popup show';
+  }
+  if (!offerTick) offerTick = setInterval(tickOffer, 250);
   tickOffer();
 }
 
@@ -2602,13 +2635,13 @@ function clearOffer(stopSound) {
 
 function tickOffer() {
   if (!currentOffer) return;
-  const left = Math.max(0, Math.ceil((currentOffer.expiresAtMs - Date.now()) / 1000));
+  const deadline = currentOffer.deadlineMs || offerDeadlines.get(currentOffer.id) || 0;
+  const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
   const n = $('offer-seconds');
   if (n) n.textContent = String(left);
-  if (left <= 0 && currentOffer.expiresAtMs && Date.now() >= currentOffer.expiresAtMs) {
-    const o = currentOffer;
+  if (deadline && Date.now() >= deadline) {
+    hiddenOfferIds.add(currentOffer.id);
     clearOffer(true);
-    callDispatch('expireDispatchOffer', { orderId: o.orderId, offerId: o.id }).catch(() => {});
   }
 }
 
@@ -2668,7 +2701,7 @@ async function acceptDispatchOffer() {
   acceptingOffer = true;
   try {
     if (riderProfile && riderProfile.verified !== true) throw new Error('unverified');
-    if (o.expiresAtMs && Date.now() >= o.expiresAtMs) throw new Error('expired');
+    if (o.deadlineMs && Date.now() >= o.deadlineMs) throw new Error('expired');
     const cap = maxJobsPerRider();
     const mine = await db.collection('orders')
       .where('riderId', '==', currentUser.uid)
@@ -2689,9 +2722,6 @@ async function acceptDispatchOffer() {
       const offer = offerSnap.data() || {};
       if (offer.riderId !== currentUser.uid) throw new Error('permission');
       if (offer.status !== 'pending') throw new Error('closed');
-      const exp = offer.expiresAt && typeof offer.expiresAt.toDate === 'function'
-        ? offer.expiresAt.toDate().getTime() : 0;
-      if (exp && exp < Date.now()) throw new Error('expired');
       if (job.riderId) throw new Error('taken');
       if (job.dispatchOfferId && job.dispatchOfferId !== o.id) throw new Error('stale');
       if (job.dispatchOfferRiderId && job.dispatchOfferRiderId !== currentUser.uid) throw new Error('permission');
