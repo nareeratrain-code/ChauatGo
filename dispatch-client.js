@@ -30,7 +30,9 @@
         try { body = text ? JSON.parse(text) : {}; } catch (e) { body = {}; }
         if (!res.ok || (body && body.error)) {
           var msg = (body.error && (body.error.message || body.error.status)) || '';
-          if (!msg || res.status === 404 || res.status === 0) {
+          if (res.status === 401 || res.status === 403) {
+            if (!msg) msg = 'เรียกฟังก์ชันไม่ได้ — แอดมินต้องเปิดสิทธิ์ Cloud Run invoker (allUsers)';
+          } else if (!msg || res.status === 404 || res.status === 0) {
             msg = 'ระบบจ่ายงานยังไม่เปิด — แอดมินต้องติดตั้ง Cloud Functions';
           }
           var err = new Error(msg);
@@ -39,6 +41,13 @@
         }
         return body.result;
       });
+    }).catch(function (err) {
+      if (err && err.status) throw err;
+      var raw = (err && err.message) || '';
+      if (!raw || /failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
+        throw new Error('ติดต่อระบบจ่ายงานไม่ได้ — ตรวจเน็ต หรือแอดมินต้องเปิดสิทธิ์เรียกฟังก์ชัน (Cloud Run invoker)');
+      }
+      throw err;
     });
   }
 

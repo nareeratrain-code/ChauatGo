@@ -15,6 +15,9 @@ const DEFAULT_CONFIG = {
 
 const OPEN_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
 const KITCHEN_STATUSES = ['cooking', 'ready'];
+// picked_up still occupies a slot. The rider screen labels a transfer order
+// in this status "รอลูกค้าโอนเงิน": the rider already collected the goods and
+// has not pressed เริ่มส่ง. delivered and done are terminal and do not count.
 const ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
 const TERMINAL = ['done', 'delivered', 'cancelled'];
 const MASTER_EMAILS = [
@@ -272,6 +275,14 @@ async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen,
   let jobs = Number(r.activeJobCount || 0);
   if (jobs >= cfg.maxJobsPerRider) {
     jobs = await reconcileRiderJobs(db, doc.id);
+  } else {
+    // A counter that was never raised still looks free. Count the live
+    // orders (including รอลูกค้าโอนเงิน / picked_up) before offering another.
+    const live = await countActiveJobs(db, doc.id);
+    if (live > jobs) {
+      await raiseRiderJobCount(db, doc.id, live);
+      jobs = live;
+    }
   }
   if (jobs >= cfg.maxJobsPerRider) {
     skips.busy += 1;
@@ -530,6 +541,13 @@ async function acceptOffer(db, uid, orderId, offerId) {
   const offerRef = orderRef.collection('dispatchOffers').doc(offerId);
   const riderRef = db.collection('riders').doc(uid);
   const cfg = await loadConfig(db);
+  const liveJobs = await countActiveJobs(db, uid);
+  if (liveJobs >= cfg.maxJobsPerRider) {
+    const riderPre = await riderRef.get();
+    const stored = riderPre.exists ? Number((riderPre.data() || {}).activeJobCount || 0) : 0;
+    if (liveJobs > stored) await raiseRiderJobCount(db, uid, liveJobs);
+    throw new Error('busy');
+  }
   await db.runTransaction(async (tx) => {
     const offerSnap = await tx.get(offerRef);
     const orderSnap = await tx.get(orderRef);
@@ -664,6 +682,20 @@ async function countActiveJobs(db, riderId) {
     .limit(8)
     .get();
   return snap.size;
+}
+
+async function raiseRiderJobCount(db, riderId, live) {
+  if (!riderId) return;
+  const next = Number(live || 0);
+  if (next <= 0) return;
+  const ref = db.collection('riders').doc(riderId);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+    const current = Number((snap.data() || {}).activeJobCount || 0);
+    if (current >= next) return;
+    tx.update(ref, { activeJobCount: next, idleSince: null });
+  });
 }
 
 async function reconcileRiderJobs(db, riderId) {

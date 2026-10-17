@@ -59,6 +59,8 @@ let openJobs = [];
 let activeMine = [];
 let currentOffer = null;
 let offerTick = null;
+let acceptingOffer = false;
+const hiddenOfferIds = new Set();
 let isOnline = false;
 let currentHistoryFilter = 'all';
 let cameraFile = null;
@@ -81,6 +83,8 @@ if (window.ChauatCall) {
    เรียกรถ/ส่งด่วน/ฝากซื้อ: ไม่มีร้าน รับจาก searching ได้ */
 const RIDER_CLAIM_STATUSES = ['cooking', 'ready'];
 const RIDER_OPEN_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
+// picked_up counts. "รอลูกค้าโอนเงิน" is this status on a transfer order:
+// goods are in hand, delivery has not started. done/delivered do not count.
 const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
 
 function orderNeedsKitchen(j) {
@@ -2490,7 +2494,7 @@ function subscribeOffers() {
           distanceKm: data.distanceKm,
           expiresAtMs: exp
         };
-      }).filter((o) => o.orderId && (!o.expiresAtMs || o.expiresAtMs > now));
+      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && (!o.expiresAtMs || o.expiresAtMs > now));
       rows.sort((a, b) => (a.expiresAtMs || 0) - (b.expiresAtMs || 0));
       if (!rows.length) { clearOffer(true); return; }
       showOffer(rows[0]);
@@ -2547,28 +2551,119 @@ function tickOffer() {
   }
 }
 
+function maxJobsPerRider() {
+  const n = Math.round(Number(dispatchConfig && dispatchConfig.maxJobsPerRider));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(5, n);
+}
+
+function offerOrderIsOpen(job) {
+  if (!job || job.riderId) return false;
+  if (orderNeedsKitchen(job)) return job.status === 'cooking' || job.status === 'ready';
+  return job.status === 'searching' || job.status === 'pending' || job.status === 'cooking' || job.status === 'ready';
+}
+
+function holdingJobMessage(docs, cap) {
+  const first = docs[0] && typeof docs[0].data === 'function' ? (docs[0].data() || {}) : {};
+  const code = first.code || first.orderCode || '';
+  const who = code ? ' (' + code + ')' : '';
+  const waitingPay = docs.some((d) => {
+    const j = typeof d.data === 'function' ? (d.data() || {}) : {};
+    return j.status === 'picked_up' && !orderIsCash(j) && !j.customerPaidAt;
+  });
+  if (waitingPay) {
+    return 'ยังส่งงานไม่เสร็จ' + who + ' — รอลูกค้าโอนเงินคือรับของแล้ว ยังไม่ได้เริ่มส่ง จึงรับงานใหม่ไม่ได้ (สูงสุด ' + cap + ' งาน)';
+  }
+  return 'ยังมีงานค้างอยู่' + who + ' — รับพร้อมกันได้ ' + cap + ' งาน';
+}
+
+function acceptErrorText(err) {
+  const code = String((err && err.code) || '');
+  const msg = String((err && err.message) || '');
+  if (code.indexOf('permission-denied') !== -1 || msg === 'permission') {
+    return 'ไม่มีสิทธิ์รับงานนี้ — รับได้เฉพาะงานที่ระบบเสนอให้คุณ';
+  }
+  if (msg === 'taken') return 'งานนี้มีคนรับแล้ว';
+  if (msg === 'expired') return 'หมดเวลาเสนองานแล้ว';
+  if (msg === 'stale') return 'ข้อเสนอนี้ไม่ใช่รอบปัจจุบัน';
+  if (msg === 'closed') return 'ข้อเสนอนี้ปิดแล้ว';
+  if (msg === 'missing') return 'ไม่พบงานนี้';
+  if (msg === 'not-ready') return 'งานนี้ยังไม่พร้อมให้รับ';
+  if (msg === 'busy') return 'ยังมีงานค้างอยู่ — รับงานใหม่ไม่ได้';
+  if (msg === 'unverified') return 'บัญชียังไม่ได้รับการอนุมัติ';
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg) || code === 'unavailable') {
+    return 'ติดต่อระบบไม่ได้ — ตรวจสัญญาณเน็ตแล้วลองอีกครั้ง';
+  }
+  return 'รับงานไม่สำเร็จ';
+}
+
+/* Accept by writing the order. Rules already allow the offered rider to set
+   riderId/status/acceptedAt. That avoids the callable, whose Cloud Run
+   service often answers 403 without CORS and Chrome reports "Failed to fetch".
+   onOrderWritten then marks the offer accepted and raises the job count. */
 async function acceptDispatchOffer() {
   const o = currentOffer;
-  if (!o) return;
+  if (!o || !currentUser || acceptingOffer) return;
+  acceptingOffer = true;
   try {
-    await callDispatch('acceptDispatchOffer', { orderId: o.orderId, offerId: o.id });
+    if (riderProfile && riderProfile.verified !== true) throw new Error('unverified');
+    if (o.expiresAtMs && Date.now() >= o.expiresAtMs) throw new Error('expired');
+    const cap = maxJobsPerRider();
+    const mine = await db.collection('orders')
+      .where('riderId', '==', currentUser.uid)
+      .where('status', 'in', RIDER_ACTIVE_STATUSES)
+      .limit(8)
+      .get();
+    if (mine.size >= cap) {
+      showToast(holdingJobMessage(mine.docs, cap), 'warning', 7000);
+      return;
+    }
+    const orderRef = db.collection('orders').doc(o.orderId);
+    const offerRef = orderRef.collection('dispatchOffers').doc(o.id);
+    await db.runTransaction(async (tx) => {
+      const orderSnap = await tx.get(orderRef);
+      const offerSnap = await tx.get(offerRef);
+      if (!orderSnap.exists || !offerSnap.exists) throw new Error('missing');
+      const job = orderSnap.data() || {};
+      const offer = offerSnap.data() || {};
+      if (offer.riderId !== currentUser.uid) throw new Error('permission');
+      if (offer.status !== 'pending') throw new Error('closed');
+      const exp = offer.expiresAt && typeof offer.expiresAt.toDate === 'function'
+        ? offer.expiresAt.toDate().getTime() : 0;
+      if (exp && exp < Date.now()) throw new Error('expired');
+      if (job.riderId) throw new Error('taken');
+      if (job.dispatchOfferId && job.dispatchOfferId !== o.id) throw new Error('stale');
+      if (job.dispatchOfferRiderId && job.dispatchOfferRiderId !== currentUser.uid) throw new Error('permission');
+      if (!offerOrderIsOpen(job)) throw new Error('not-ready');
+      tx.update(orderRef, {
+        riderId: currentUser.uid,
+        riderName: (riderProfile && riderProfile.name) || offer.riderName || '',
+        riderPhone: (riderProfile && riderProfile.phone) || '',
+        status: 'accepted',
+        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    hiddenOfferIds.add(o.id);
     clearOffer(true);
     showToast('รับงานแล้ว');
     scheduleGPSIfActive();
   } catch (err) {
-    showToast((err && err.message) || 'รับงานไม่สำเร็จ', 'error');
+    showToast(acceptErrorText(err), 'error', 6000);
+  } finally {
+    acceptingOffer = false;
   }
 }
 
 async function skipDispatchOffer() {
   const o = currentOffer;
   if (!o) return;
+  hiddenOfferIds.add(o.id);
   clearOffer(true);
   try {
     await callDispatch('skipDispatchOffer', { orderId: o.orderId, offerId: o.id });
     showToast('ข้ามงานนี้', 'info');
   } catch (err) {
-    showToast((err && err.message) || 'ข้ามไม่สำเร็จ', 'error');
+    showToast((err && err.message) || 'ข้ามไม่สำเร็จ — งานจะหมดเวลาเอง', 'error', 6000);
   }
 }
 
