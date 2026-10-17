@@ -44,7 +44,7 @@ exports.onDispatchOfferCreated = onDocumentCreated({
   timeoutSeconds: 120
 }, async (event) => {
   const data = event.data && event.data.data();
-  if (!data || data.status !== 'pending' || !data.expiresAt) return;
+  if (!data || data.broadcast === true || data.status !== 'pending' || !data.expiresAt) return;
   const exp = typeof data.expiresAt.toMillis === 'function' ? data.expiresAt.toMillis() : 0;
   const wait = Math.min(90000, Math.max(0, exp - Date.now() + 500));
   await new Promise((resolve) => setTimeout(resolve, wait));

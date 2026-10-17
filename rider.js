@@ -2583,12 +2583,13 @@ function subscribeOffers() {
   offerUnsub = db.collectionGroup('dispatchOffers')
     .where('riderId', '==', currentUser.uid)
     .where('status', '==', 'pending')
-    .limit(5)
+    .limit(20)
     .onSnapshot((snap) => {
       if (snap.metadata && snap.metadata.fromCache && snap.empty && currentOffer) return;
       const rows = snap.docs.map((d) => {
         const data = d.data() || {};
         const parent = d.ref.parent && d.ref.parent.parent;
+        const broadcast = data.broadcast === true;
         return {
           id: d.id,
           orderId: data.orderId || (parent ? parent.id : ''),
@@ -2599,9 +2600,10 @@ function subscribeOffers() {
           fare: data.fare,
           orderCode: data.orderCode || '',
           distanceKm: data.distanceKm,
-          deadlineMs: ensureOfferDeadline(d.id, data)
+          broadcast: broadcast,
+          deadlineMs: broadcast ? 0 : ensureOfferDeadline(d.id, data)
         };
-      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && Date.now() < o.deadlineMs);
+      }).filter((o) => o.orderId && !hiddenOfferIds.has(o.id) && (o.broadcast || Date.now() < o.deadlineMs));
       rows.sort((a, b) => a.deadlineMs - b.deadlineMs);
       if (!rows.length) { clearOffer(true); return; }
       showOffer(rows[0]);
@@ -2616,6 +2618,11 @@ function showOffer(offer) {
   if (!same) {
     const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
     const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
+    const clock = offer.broadcast
+      ? `<div style="font-size:22px;font-weight:900;color:var(--brand)">เปิดรับอยู่</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-muted)">คนแรกที่กดรับได้งานนี้</div>`
+      : `<div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
+          <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>`;
     el.className = 'new-job-popup show';
     el.innerHTML = `
       <div class="new-job-card">
@@ -2623,8 +2630,7 @@ function showOffer(offer) {
         <h2>มีงานเสนอให้คุณ</h2>
         <p>${esc(who)}</p>
         <div class="detail">
-          <div style="font-size:42px;font-weight:900;color:var(--brand)" id="offer-seconds">--</div>
-          <div style="font-size:12px;font-weight:800;color:var(--text-muted)">วินาทีที่เหลือ</div>
+          ${clock}
           <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
           <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
         </div>
@@ -2633,7 +2639,7 @@ function showOffer(offer) {
           <button type="button" class="action-btn-big btn-gray-big ripple" onclick="skipDispatchOffer()">⏭️ ข้าม</button>
         </div>
       </div>`;
-    startOfferAlert(offer.id, offer.deadlineMs);
+    startOfferAlert(offer.id, offer.broadcast ? Date.now() + 20000 : offer.deadlineMs);
   } else if (!el.classList.contains('show')) {
     el.className = 'new-job-popup show';
   }
@@ -2651,6 +2657,7 @@ function clearOffer(stopSound) {
 
 function tickOffer() {
   if (!currentOffer) return;
+  if (currentOffer.broadcast) return;
   const deadline = currentOffer.deadlineMs || offerDeadlines.get(currentOffer.id) || 0;
   const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
   const n = $('offer-seconds');
@@ -2739,7 +2746,7 @@ async function acceptDispatchOffer() {
       if (offer.riderId !== currentUser.uid) throw new Error('permission');
       if (offer.status !== 'pending') throw new Error('closed');
       if (job.riderId) throw new Error('taken');
-      if (job.dispatchOfferId && job.dispatchOfferId !== o.id) throw new Error('stale');
+      if (job.dispatchOfferId && job.dispatchOfferId !== o.id && offer.broadcast !== true) throw new Error('stale');
       if (job.dispatchOfferRiderId && job.dispatchOfferRiderId !== currentUser.uid) throw new Error('permission');
       if (!offerOrderIsOpen(job)) throw new Error('not-ready');
       tx.update(orderRef, {

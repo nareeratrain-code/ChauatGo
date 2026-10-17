@@ -19,8 +19,9 @@ rules_version = '2';
 //   * orders read: customer, shop, assigned rider, admin/boss, or a rider
 //     reading an unassigned searching/pending/cooking/ready order.
 //   * auto dispatch: riders cannot write dispatch fields or dispatchOffers.
-//     While config/dispatch.mode is auto, a rider may claim only the order
-//     currently offered to them. config/dispatch is admin-write, auth-read.
+//     While config/dispatch.mode is auto, a rider may claim an order when it
+//     is offered to them alone, or when orders/{id}/dispatchOffers/{their uid}
+//     is still pending (broadcast). config/dispatch is admin-write, auth-read.
 //   * chats/messages: the order's customer, rider, or shop may read and send
 //     even when the chat doc has no userId/riderId (or does not exist yet).
 //     A missing chat can be read as "not found" by any signed-in user.
@@ -200,9 +201,18 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/config/dispatch).data.get('mode', 'manual') == 'auto';
     }
 
-    function riderMayTakeOpenJob() {
+    function myPendingOffer(orderId) {
+      return get(/databases/$(database)/documents/orders/$(orderId)/dispatchOffers/$(myUid()));
+    }
+
+    function riderMayTakeOpenJob(orderId) {
       return !autoDispatchOn()
-        || resource.data.get('dispatchOfferRiderId', '') == myUid();
+        || resource.data.get('dispatchOfferRiderId', '') == myUid()
+        || (
+          exists(/databases/$(database)/documents/orders/$(orderId)/dispatchOffers/$(myUid()))
+          && myPendingOffer(orderId).data.get('riderId', '') == myUid()
+          && myPendingOffer(orderId).data.get('status', '') == 'pending'
+        );
     }
 
     function canReadOrder() {
@@ -485,7 +495,7 @@ service cloud.firestore {
           && request.resource.data.riderId == myUid()
           && request.resource.data.status == 'accepted'
           && identityFrozen()
-          && riderMayTakeOpenJob()
+          && riderMayTakeOpenJob(orderId)
           && onlyChanged(['riderId', 'riderName', 'riderPhone', 'status', 'acceptedAt'])
           && (
             (needsKitchen() && resource.data.status in ['cooking', 'ready'])

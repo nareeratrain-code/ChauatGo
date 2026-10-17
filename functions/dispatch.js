@@ -156,6 +156,16 @@ function needsDispatch(order) {
   return OPEN_STATUSES.indexOf(order.status) !== -1;
 }
 
+function canBroadcast(order) {
+  if (!order || order.riderId) return false;
+  if (TERMINAL.indexOf(order.status) !== -1) return false;
+  if (order.dispatchState === 'assigned' || order.dispatchState === 'auto_cleared' || order.dispatchState === 'expired_unassigned') {
+    return false;
+  }
+  if (needsKitchen(order)) return KITCHEN_STATUSES.indexOf(order.status) !== -1;
+  return OPEN_STATUSES.indexOf(order.status) !== -1;
+}
+
 function pickupOf(order) {
   if (!order) return null;
   const lat = finiteOrNull(order.shopPlaceLat);
@@ -413,180 +423,173 @@ async function findCandidates(db, pickup, radiusKm, offeredIds, cfg, nowMs, extr
   return { list: out, skips: skips, notes: notes };
 }
 
-async function offerNextOnce(db, orderId, cfg, extraSkip) {
+function riderIsReady(status) {
+  return status === 'active' || status === 'available' || status === 'online';
+}
+
+async function jobCountForOffer(db, riderId, stored) {
+  let jobs = Number(stored || 0);
+  if (jobs > 0) return reconcileRiderJobs(db, riderId);
+  const live = await countActiveJobs(db, riderId);
+  if (live > 0) {
+    await raiseRiderJobCount(db, riderId, live);
+    return live;
+  }
+  return 0;
+}
+
+async function eligibleRiders(db) {
+  const riderSnap = await db.collection('riders').where('verified', '==', true).limit(100).get();
+  const gpsSnap = await db.collection('gps_riders').limit(100).get();
+  const gps = {};
+  gpsSnap.docs.forEach((doc) => { gps[doc.id] = doc.data() || {}; });
+  const out = [];
+  for (const doc of riderSnap.docs) {
+    const r = doc.data() || {};
+    if (!riderIsReady(r.status)) continue;
+    const g = gps[doc.id];
+    if (g && g.online !== true) continue;
+    const jobs = await jobCountForOffer(db, doc.id, r.activeJobCount);
+    if (jobs > 0) continue;
+    out.push({
+      riderId: doc.id,
+      riderName: r.name || (g && g.name) || '',
+      riderPhone: r.phone || '',
+      lat: g ? finiteOrNull(g.lat) : null,
+      lng: g ? finiteOrNull(g.lng) : null
+    });
+  }
+  return out;
+}
+
+function offerBody(orderId, order, rider, pickup, nowMs, holdMs) {
+  let distanceKm = null;
+  if (pickup && rider.lat != null && rider.lng != null) {
+    distanceKm = Math.round(distanceBetween([pickup.lat, pickup.lng], [rider.lat, rider.lng]) * 1000) / 1000;
+  }
+  const body = {
+    orderId: orderId,
+    riderId: rider.riderId,
+    riderName: rider.riderName,
+    status: 'pending',
+    broadcast: true,
+    title: order.title || '',
+    merchantName: order.merchantName || '',
+    pickupName: order.shopPlaceName || order.fromName || order.address || order.title || '',
+    fare: Number(order.fare || order.total || 0),
+    orderCode: order.code || order.orderCode || '',
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(nowMs + holdMs),
+    timeoutSec: 0,
+    respondedAt: null
+  };
+  if (distanceKm != null) body.distanceKm = distanceKm;
+  return body;
+}
+
+async function broadcastOrder(db, orderId, cfg) {
   const nowMs = Date.now();
   const ref = db.collection('orders').doc(orderId);
   const pre = await ref.get();
-  if (!pre.exists) return { skipped: 'missing' };
+  if (!pre.exists) return { skipped: 'missing', riderIds: [] };
   const preData = pre.data() || {};
-  if (preData.riderId) return { skipped: 'assigned' };
-  if (preData.dispatchState === 'manual' || preData.dispatchState === 'assigned') {
-    return { skipped: preData.dispatchState };
-  }
-  if (preData.dispatchState === 'offered') {
-    const live = tsMillis(preData.dispatchOfferExpiresAt);
-    if (preData.dispatchOfferRiderId && live > nowMs) return { skipped: 'live' };
-  }
-  if (!needsDispatch(Object.assign({}, preData, {
-    dispatchState: preData.dispatchState === 'offered' ? 'seeking' : preData.dispatchState
-  }))) {
-    return { skipped: 'not-ready' };
-  }
+  if (preData.riderId) return { skipped: 'assigned', riderIds: [] };
+  if (!canBroadcast(preData)) return { skipped: 'not-ready', riderIds: [] };
 
   const pickup = pickupOf(preData);
-  if (!pickup) {
-    await ref.update(Object.assign({
-      dispatchState: 'manual',
-      dispatchManualReason: REASON_NO_PICKUP,
-      dispatchUpdatedAt: FieldValue.serverTimestamp()
-    }, codePatch(preData)));
-    return { skipped: 'no-pickup' };
-  }
-
-  const cooldownLeft = await ridersOnCooldown(db, orderId, preData, nowMs, cfg.reofferCooldownSec * 1000);
-  const offered = Array.from(cooldownLeft.keys());
-  (extraSkip || []).forEach((id) => {
-    if (offered.indexOf(id) === -1) offered.push(id);
+  const riders = await eligibleRiders(db);
+  const existing = await ref.collection('dispatchOffers').limit(100).get();
+  const held = {};
+  existing.docs.forEach((doc) => {
+    const data = doc.data() || {};
+    const id = data.riderId || doc.id;
+    if (!held[id] || data.status === 'pending' || data.status === 'skipped' || data.status === 'accepted') {
+      held[id] = data.status || 'pending';
+    }
   });
-  let step = Number(preData.dispatchRadiusStep || 0);
-  if (step < 0) step = 0;
-  const steps = cfg.radiusStepsKm;
-  let chosen = null;
-  let radiusKm = steps[0];
-  let lastSkips = {};
-  let lastNotes = [];
-  while (step < steps.length) {
-    radiusKm = steps[step];
-    const found = await findCandidates(db, pickup, radiusKm, offered, cfg, nowMs, extraSkip, cooldownLeft);
-    lastSkips = found.skips || {};
-    lastNotes = found.notes || [];
-    const ranked = rankCandidates(found.list || [], cfg.weights, radiusKm);
-    if (ranked.length) {
-      chosen = ranked[0];
-      break;
+  const fresh = riders.filter((r) => {
+    const status = held[r.riderId];
+    return status !== 'pending' && status !== 'skipped' && status !== 'accepted';
+  });
+  const holdMs = Math.max(5, cfg.unassignedTimeoutMin || 60) * 60 * 1000;
+  if (!fresh.length) {
+    const pending = existing.docs.some((doc) => (doc.data() || {}).status === 'pending');
+    if (pending) {
+      if (preData.dispatchState !== 'offered') {
+        await ref.update(Object.assign({
+          dispatchMode: 'auto',
+          dispatchState: 'offered',
+          dispatchOfferRiderId: FieldValue.delete(),
+          dispatchManualReason: FieldValue.delete(),
+          dispatchUpdatedAt: FieldValue.serverTimestamp()
+        }, codePatch(preData)));
+      }
+      return { skipped: 'live', riderIds: [] };
     }
-    step += 1;
-  }
-  if (!chosen) {
-    const lastRadius = steps.length ? steps[steps.length - 1] : radiusKm;
+    if (preData.dispatchState === 'seeking' && preData.dispatchManualReason === 'ยังไม่มีไรเดอร์ออนไลน์ที่ว่าง') {
+      return { skipped: 'none', riderIds: [] };
+    }
     await ref.update(Object.assign({
-      dispatchState: 'manual',
-      dispatchRadiusStep: step,
-      dispatchManualReason: exhaustedReason(lastRadius, lastSkips),
-      dispatchSkip: lastNotes,
-      dispatchUpdatedAt: FieldValue.serverTimestamp()
-    }, codePatch(preData)));
-    return { skipped: 'exhausted', step: step };
-  }
-
-  const offerRef = ref.collection('dispatchOffers').doc();
-  const expiresAt = new Date(nowMs + cfg.offerTimeoutSec * 1000);
-  const score = Math.round(scoreCandidate(chosen, cfg.weights, radiusKm) * 1000) / 1000;
-  const created = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    if (!snap.exists) return { ok: false };
-    const order = snap.data() || {};
-    if (order.riderId) return { ok: false };
-    if (order.dispatchState === 'manual' || order.dispatchState === 'assigned') return { ok: false };
-    const riderRef = db.collection('riders').doc(chosen.riderId);
-    const reads = [tx.get(riderRef)];
-    let oldRef = null;
-    if (order.dispatchOfferId) {
-      oldRef = ref.collection('dispatchOffers').doc(order.dispatchOfferId);
-      reads.push(tx.get(oldRef));
-    }
-    const got = await Promise.all(reads);
-    const riderSnap = got[0];
-    const oldSnap = got[1];
-    if (!riderSnap.exists) return { retryRider: chosen.riderId };
-    const jobs = Number((riderSnap.data() || {}).activeJobCount || 0);
-    if (jobs >= cfg.maxJobsPerRider) return { retryRider: chosen.riderId };
-    if (order.dispatchState === 'offered' && order.dispatchOfferRiderId) {
-      const live = tsMillis(order.dispatchOfferExpiresAt);
-      if (live > nowMs) return { ok: false };
-    }
-    let oldRiderRef = null;
-    let oldRiderSnap = null;
-    if (oldSnap && oldSnap.exists && oldSnap.data().status === 'pending') {
-      const oldExp = tsMillis(oldSnap.data().expiresAt);
-      if (oldExp && oldExp > nowMs) return { ok: false };
-      const oldRiderId = oldSnap.data().riderId;
-      if (oldRiderId) {
-        oldRiderRef = db.collection('riders').doc(oldRiderId);
-        oldRiderSnap = await tx.get(oldRiderRef);
-      }
-    }
-    if (!needsDispatch(Object.assign({}, order, { dispatchState: 'seeking' }))) return { ok: false };
-
-    if (oldSnap && oldSnap.exists && oldSnap.data().status === 'pending') {
-      tx.update(oldRef, {
-        status: 'expired',
-        endReason: 'timeout',
-        respondedAt: FieldValue.serverTimestamp()
-      });
-      if (oldRiderSnap && oldRiderSnap.exists) {
-        tx.update(oldRiderRef, { offersTotal: FieldValue.increment(1) });
-      }
-    }
-
-    tx.set(offerRef, {
-      orderId: orderId,
-      riderId: chosen.riderId,
-      riderName: chosen.riderName,
-      status: 'pending',
-      distanceKm: Math.round(chosen.distanceKm * 1000) / 1000,
-      score: score,
-      radiusKm: radiusKm,
-      wave: step,
-      title: order.title || '',
-      merchantName: order.merchantName || '',
-      pickupName: order.shopPlaceName || order.fromName || order.merchantName || '',
-      fare: Number(order.fare || order.total || 0),
-      orderCode: order.code || order.orderCode || '',
-      createdAt: FieldValue.serverTimestamp(),
-      expiresAt: Timestamp.fromDate(expiresAt),
-      timeoutSec: cfg.offerTimeoutSec,
-      respondedAt: null
-    });
-    tx.update(ref, Object.assign({
       dispatchMode: 'auto',
-      dispatchState: 'offered',
-      dispatchOfferId: offerRef.id,
-      dispatchOfferRiderId: chosen.riderId,
-      dispatchOfferExpiresAt: Timestamp.fromDate(expiresAt),
-      dispatchRadiusStep: step,
-      dispatchOfferedIds: FieldValue.arrayUnion(chosen.riderId),
-      ['dispatchOfferedAt.' + chosen.riderId]: Timestamp.fromMillis(nowMs),
-      dispatchManualReason: FieldValue.delete(),
-      dispatchSkip: FieldValue.delete(),
+      dispatchState: 'seeking',
+      dispatchOfferRiderId: FieldValue.delete(),
+      dispatchManualReason: 'ยังไม่มีไรเดอร์ออนไลน์ที่ว่าง',
       dispatchUpdatedAt: FieldValue.serverTimestamp()
-    }, codePatch(order)));
-    return { ok: true, offerId: offerRef.id, riderId: chosen.riderId };
-  });
+    }, codePatch(preData)));
+    return { skipped: 'none', riderIds: [] };
+  }
 
-  if (created && created.retryRider) return created;
-  if (!created || !created.ok) return { skipped: 'race' };
-  await notifyRider(db, created.riderId, {
-    title: 'มีงานใหม่',
-    body: (preData.merchantName || preData.title || 'ออเดอร์') + ' • รับภายใน ' + cfg.offerTimeoutSec + ' วินาที',
-    data: { type: 'dispatch_offer', orderId: orderId, offerId: created.offerId }
+  const patch = codePatch(preData);
+  const orderForOffer = patch.code ? Object.assign({}, preData, { code: patch.code }) : preData;
+  const batch = db.batch();
+  const riderIds = [];
+  fresh.forEach((rider) => {
+    riderIds.push(rider.riderId);
+    batch.set(
+      ref.collection('dispatchOffers').doc(rider.riderId),
+      offerBody(orderId, orderForOffer, rider, pickup, nowMs, holdMs)
+    );
   });
-  return { ok: true, offerId: created.offerId, riderId: created.riderId, radiusKm: radiusKm, step: step };
+  batch.update(ref, Object.assign({
+    dispatchMode: 'auto',
+    dispatchState: 'offered',
+    dispatchOfferId: FieldValue.delete(),
+    dispatchOfferRiderId: FieldValue.delete(),
+    dispatchOfferExpiresAt: FieldValue.delete(),
+    dispatchOfferedIds: FieldValue.arrayUnion.apply(FieldValue, riderIds),
+    dispatchManualReason: FieldValue.delete(),
+    dispatchUpdatedAt: FieldValue.serverTimestamp()
+  }, patch));
+  await batch.commit();
+  const label = preData.code || preData.title || preData.merchantName || 'ออเดอร์';
+  await Promise.all(riderIds.map((id) => notifyRider(db, id, {
+    title: 'มีงานใหม่',
+    body: label + ' • คนแรกที่กดรับได้งานนี้',
+    data: { type: 'dispatch_offer', orderId: orderId, offerId: id }
+  })));
+  return { ok: true, riderIds: riderIds, offerIds: riderIds.slice(), riderId: riderIds[0], offerId: riderIds[0], count: riderIds.length };
 }
 
 async function offerNext(db, orderId) {
   const cfg = await loadConfig(db);
-  if (cfg.mode !== 'auto') return { skipped: 'manual' };
-  const extraSkip = [];
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const result = await offerNextOnce(db, orderId, cfg, extraSkip);
-    if (result && result.retryRider) {
-      extraSkip.push(result.retryRider);
-      continue;
-    }
-    return result;
+  if (cfg.mode !== 'auto') return { skipped: 'manual', riderIds: [] };
+  return broadcastOrder(db, orderId, cfg);
+}
+
+async function offerOpenOrdersToRider(db, riderId) {
+  const cfg = await loadConfig(db);
+  if (cfg.mode !== 'auto' || !riderId) return;
+  const riderSnap = await db.collection('riders').doc(riderId).get();
+  if (!riderSnap.exists) return;
+  const rider = riderSnap.data() || {};
+  if (rider.verified !== true || !riderIsReady(rider.status)) return;
+  const jobs = await jobCountForOffer(db, riderId, rider.activeJobCount);
+  if (jobs > 0) return;
+  const snap = await db.collection('orders').where('status', 'in', OPEN_STATUSES).limit(40).get();
+  for (const doc of snap.docs) {
+    if (!canBroadcast(doc.data() || {})) continue;
+    await broadcastOrder(db, doc.id, cfg);
   }
-  return { skipped: 'retry' };
 }
 
 async function expireOffer(db, orderId, offerId, reason) {
@@ -658,7 +661,9 @@ async function acceptOffer(db, uid, orderId, offerId) {
     const exp = tsMillis(offer.expiresAt);
     if (exp && exp < Date.now()) throw new Error('expired');
     if (order.riderId) throw new Error('taken');
-    if (order.dispatchOfferId !== offerId) throw new Error('stale');
+    if (order.dispatchOfferId && order.dispatchOfferId !== offerId && offer.broadcast !== true) {
+      throw new Error('stale');
+    }
     const jobs = Number(rider.activeJobCount || 0);
     if (jobs >= cfg.maxJobsPerRider) throw new Error('busy');
     if (rider.verified !== true) throw new Error('unverified');
@@ -686,13 +691,32 @@ async function acceptOffer(db, uid, orderId, offerId) {
       idleSince: null
     });
   });
+  await closeOtherOffers(db, orderRef, offerId);
   return { ok: true };
+}
+
+async function closeOtherOffers(db, orderRef, winnerOfferId) {
+  const snap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(40).get();
+  if (snap.empty) return;
+  const batch = db.batch();
+  let n = 0;
+  snap.docs.forEach((doc) => {
+    if (doc.id === winnerOfferId) return;
+    batch.update(doc.ref, {
+      status: 'expired',
+      endReason: 'taken',
+      respondedAt: FieldValue.serverTimestamp()
+    });
+    n += 1;
+  });
+  if (n) await batch.commit();
 }
 
 async function manualAssign(db, adminUid, orderId, riderId) {
   const orderRef = db.collection('orders').doc(orderId);
   const riderRef = db.collection('riders').doc(riderId);
   const offerRef = orderRef.collection('dispatchOffers').doc();
+  const pendingSnap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(40).get();
   await db.runTransaction(async (tx) => {
     const orderSnap = await tx.get(orderRef);
     const riderSnap = await tx.get(riderRef);
@@ -702,13 +726,25 @@ async function manualAssign(db, adminUid, orderId, riderId) {
     const rider = riderSnap.data() || {};
     if (order.riderId) throw new Error('taken');
     if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
-    let prevRef = null;
+    const pendingReads = [];
+    for (let i = 0; i < pendingSnap.docs.length; i++) pendingReads.push(tx.get(pendingSnap.docs[i].ref));
     let prevSnap = null;
+    let prevRef = null;
     if (order.dispatchOfferId) {
       prevRef = orderRef.collection('dispatchOffers').doc(order.dispatchOfferId);
       prevSnap = await tx.get(prevRef);
     }
-    if (prevSnap && prevSnap.exists && prevSnap.data().status === 'pending') {
+    const pendingDocs = await Promise.all(pendingReads);
+    pendingDocs.forEach((offerSnap) => {
+      if (!offerSnap.exists || offerSnap.data().status !== 'pending') return;
+      tx.update(offerSnap.ref, {
+        status: 'expired',
+        endReason: 'manual',
+        respondedAt: FieldValue.serverTimestamp()
+      });
+    });
+    if (prevSnap && prevSnap.exists && prevSnap.data().status === 'pending'
+      && !pendingDocs.some((d) => d.ref.path === prevSnap.ref.path)) {
       tx.update(prevRef, {
         status: 'expired',
         endReason: 'manual',
@@ -822,32 +858,57 @@ async function reconcileBusyRiders(db) {
 
 async function ensureAssigned(db, orderId) {
   const orderRef = db.collection('orders').doc(orderId);
+  const pre = await orderRef.get();
+  if (!pre.exists) return;
+  const preOrder = pre.data() || {};
+  if (!preOrder.riderId || preOrder.dispatchCounted === true) return;
+  const pendingSnap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(40).get();
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(orderRef);
     if (!snap.exists) return;
     const order = snap.data() || {};
     if (!order.riderId || order.dispatchCounted === true) return;
     const riderRef = db.collection('riders').doc(order.riderId);
-    const riderSnap = await tx.get(riderRef);
-    let offerSnap = null;
-    let offerRef = null;
-    if (order.dispatchOfferId) {
-      offerRef = orderRef.collection('dispatchOffers').doc(order.dispatchOfferId);
-      offerSnap = await tx.get(offerRef);
+    const refs = [];
+    const seen = {};
+    function addRef(ref) {
+      if (!ref || seen[ref.path]) return;
+      seen[ref.path] = true;
+      refs.push(ref);
     }
+    pendingSnap.docs.forEach((doc) => addRef(doc.ref));
+    addRef(orderRef.collection('dispatchOffers').doc(order.riderId));
+    if (order.dispatchOfferId) addRef(orderRef.collection('dispatchOffers').doc(order.dispatchOfferId));
+    const reads = [tx.get(riderRef)];
+    for (let i = 0; i < refs.length; i++) reads.push(tx.get(refs[i]));
+    const got = await Promise.all(reads);
+    const riderSnap = got[0];
+    const offerSnaps = got.slice(1);
     const patch = {
       activeJobCount: FieldValue.increment(1),
       idleSince: null
     };
-    if (offerSnap && offerSnap.exists && offerSnap.data().status === 'pending') {
-      tx.update(offerRef, {
-        status: 'accepted',
-        endReason: 'accepted',
+    let countedWin = false;
+    offerSnaps.forEach((offerSnap) => {
+      if (!offerSnap.exists || offerSnap.data().status !== 'pending') return;
+      const mine = offerSnap.id === order.riderId || offerSnap.data().riderId === order.riderId;
+      if (mine && !countedWin) {
+        tx.update(offerSnap.ref, {
+          status: 'accepted',
+          endReason: 'accepted',
+          respondedAt: FieldValue.serverTimestamp()
+        });
+        patch.offersAccepted = FieldValue.increment(1);
+        patch.offersTotal = FieldValue.increment(1);
+        countedWin = true;
+        return;
+      }
+      tx.update(offerSnap.ref, {
+        status: 'expired',
+        endReason: 'taken',
         respondedAt: FieldValue.serverTimestamp()
       });
-      patch.offersAccepted = FieldValue.increment(1);
-      patch.offersTotal = FieldValue.increment(1);
-    }
+    });
     if (riderSnap.exists) tx.update(riderRef, patch);
     tx.update(orderRef, {
       dispatchState: 'assigned',
@@ -924,15 +985,8 @@ async function onOrderWritten(db, before, after, orderId) {
     if (stamped) after = Object.assign({}, after, { code: stamped });
   }
   if (!after || after.riderId) return;
-  if (after.dispatchState === 'manual' || after.dispatchState === 'assigned') return;
-  if (after.dispatchState === 'offered') {
-    const exp = tsMillis(after.dispatchOfferExpiresAt);
-    if (after.dispatchOfferRiderId && exp > Date.now()) return;
-  }
-  const ready = needsDispatch(Object.assign({}, after, {
-    dispatchState: after.dispatchState === 'offered' ? 'seeking' : after.dispatchState
-  }));
-  if (!ready) {
+  if (after.dispatchState === 'assigned' || after.dispatchState === 'auto_cleared' || after.dispatchState === 'expired_unassigned') return;
+  if (!canBroadcast(after)) {
     await noteWaitingForShop(db, orderId, after);
     return;
   }
@@ -956,6 +1010,7 @@ async function onGpsWritten(db, before, after, riderId) {
       idleSince: FieldValue.serverTimestamp()
     }, { merge: true });
   }
+  await offerOpenOrdersToRider(db, riderId);
 }
 
 async function sweepExpired(db) {
@@ -982,9 +1037,7 @@ function offerStillLive(order, nowMs) {
 }
 
 function canRetryManual(order) {
-  if (!order || order.dispatchState !== 'manual') return false;
-  if (order.dispatchManualReason === REASON_NO_PICKUP) return false;
-  return true;
+  return !!(order && order.dispatchState === 'manual');
 }
 
 function createdMs(order) {
