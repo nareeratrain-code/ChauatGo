@@ -132,8 +132,10 @@ async function main() {
   }
 
   const env = fs.readFileSync(path.join(DIST, 'config/env.js'), 'utf8');
-  if (!env.includes('REPLACE_WITH_RECAPTCHA_V3_SITE_KEY') || !env.includes('Phone steps')) {
-    throw new Error('config/env.js was minified or dropped');
+  const keyMatch = env.match(/appCheckSiteKey:\s*'([^']*)'/);
+  if (!env.includes('Phone steps') || !env.includes('appCheckEnforce: false') ||
+      !keyMatch || keyMatch[1].indexOf('REPLACE_') === 0 || keyMatch[1].length < 20) {
+    throw new Error('config/env.js was minified, dropped, or still has a placeholder site key');
   }
   for (const [file, name] of KEEP_NAMES) {
     const text = fs.readFileSync(path.join(DIST, file), 'utf8');
