@@ -1314,7 +1314,8 @@ function renderRestaurantDirectory() {
   var maxDistance = state.maxDistance === 'all' ? null : Number(state.maxDistance);
   var needsLocation = maxDistance !== null && !userLocation;
   var items = PLACES.filter(function(p) {
-    if (p.category !== 'r' || !hasRealImage(p.image)) return false;
+    // Search/filter must use the complete restaurant catalog, not only cards with images.
+    if (p.category !== 'r') return false;
     if (q && String(p.name || '').toLowerCase().indexOf(q) === -1) return false;
     if (state.type !== 'all' && restaurantType(p) !== state.type) return false;
     if (maxDistance !== null && userLocation && haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) > maxDistance) return false;
@@ -1323,7 +1324,13 @@ function renderRestaurantDirectory() {
   if (userLocation) items.sort(function(a, b) {
     return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
   });
-  var visibleItems = (q || state.type !== 'all' || maxDistance !== null) ? items : items.slice(0, 6);
+  var visibleItems;
+  if (q || state.type !== 'all' || maxDistance !== null) {
+    visibleItems = items;
+  } else {
+    // Keep the home page compact, while filtered/search results include every matching restaurant.
+    visibleItems = items.filter(function(p){ return hasRealImage(p.image); }).slice(0, 6);
+  }
   if (!visibleItems.length) {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-light)">ไม่พบร้านอาหารตามเงื่อนไขที่เลือก</div>';
   } else {
