@@ -2094,11 +2094,24 @@ function _refreshCartViews() {
   if (merchantMode === 'food' && merchantTab === 'cart' && $('merchant-view') && $('merchant-view').classList.contains('show')) renderMerchantCart();
 }
 
+function calculateFoodDeliveryFee(dropoff) {
+  var baseFee = 20;
+  if (!userLocation || !dropoff || !isFinite(dropoff.lat) || !isFinite(dropoff.lng)) {
+    return { fee: baseFee, distance: null, base: baseFee, extra: 0, estimated: false };
+  }
+  var straightKm = haversine(userLocation.lat, userLocation.lng, dropoff.lat, dropoff.lng);
+  var routeKm = straightKm * 1.3;
+  var extraKm = Math.max(0, routeKm - 2);
+  var extraFee = Math.ceil(extraKm) * 5;
+  var fee = Math.min(150, baseFee + extraFee);
+  return { fee: fee, distance: routeKm, base: baseFee, extra: extraFee, estimated: true };
+}
+
 window.openCart = function() {
   if (!cart.length) return;
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
-  var deliveryFee = 20; var netTotal = subtotal - discountTotal + deliveryFee;
+  var deliveryInfo = calculateFoodDeliveryFee(foodDropoff); var deliveryFee = deliveryInfo.fee; var netTotal = subtotal - discountTotal + deliveryFee;
   var itemsHtml = cart.map(function(c, i) {
     var orig = c.originalPrice || c.price; var final = c.finalPrice || c.price; var disc = c.discount || 0;
     var lineTotal = final * c.qty; var lineOriginal = orig * c.qty; var lineDiscount = disc * c.qty;
@@ -2126,7 +2139,7 @@ window.openCart = function() {
   var summaryHtml = '<div class="cart-summary">' +
     '<div class="cart-summary-row"><span>ค่าอาหาร</span><span>฿' + fmt(subtotal) + '</span></div>' +
     (discountTotal > 0 ? '<div class="cart-summary-row discount"><span>🔥 ส่วนลดรวม</span><span>-฿' + fmt(discountTotal) + '</span></div>' : '') +
-    '<div class="cart-summary-row"><span>ค่าส่ง</span><span>฿' + fmt(deliveryFee) + '</span></div>' +
+    '<div class="cart-summary-row"><span>ค่าส่ง' + (deliveryInfo.distance !== null ? ' (' + deliveryInfo.distance.toFixed(1) + ' กม.)' : '') + '</span><span>฿' + fmt(deliveryFee) + '</span></div>' +
     '<div class="cart-summary-row total"><span>สุทธิ</span><span>฿' + fmt(netTotal) + '</span></div>' +
   '</div>';
   $('modal-body').innerHTML =
@@ -2198,7 +2211,7 @@ window.checkout = async function() {
 
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
-  var deliveryFee = 20; var cashTip = 5;
+  var deliveryFee = calculateFoodDeliveryFee(foodDropoff).fee; var cashTip = 5;
   selectedPaymentMode = 'transfer';
   $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip);
   openModal();
@@ -2208,6 +2221,7 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
   var isCash = selectedPaymentMode === 'cash';
   var netAfterDiscount = subtotal - discountTotal;
   var grandTotal = netAfterDiscount + deliveryFee + (isCash ? cashTip : 0);
+  var deliveryInfo = calculateFoodDeliveryFee(foodDropoff);
   var dropAddr = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '';
   var dropPin = foodDropoff && isFinite(foodDropoff.lat) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:6px">✓ ' + foodDropoff.lat.toFixed(4) + ', ' + foodDropoff.lng.toFixed(4) + '</div>' : '';
   return '' +
@@ -2221,7 +2235,8 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
     '<div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:12px;font-size:13px;font-weight:700">' +
       '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าอาหาร</span><span>฿' + fmt(subtotal) + '</span></div>' +
       (discountTotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--promo-red);font-weight:900"><span>🔥 ส่วนลดรวม</span><span>-฿' + fmt(discountTotal) + '</span></div>' : '') +
-      '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าส่ง</span><span>฿' + fmt(deliveryFee) + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าส่ง' + (deliveryInfo.distance !== null ? ' (' + deliveryInfo.distance.toFixed(1) + ' กม.)' : '') + '</span><span>฿' + fmt(deliveryFee) + '</span></div>' +
+      '<div style="font-size:11px;color:var(--text-muted);padding:2px 0 4px">' + (deliveryInfo.estimated ? 'คำนวณจากพิกัด GPS ถึงหมุดปลายทาง (เผื่อระยะถนนแล้ว)' : 'ค่าส่งเริ่มต้น • เปิด GPS เพื่อคำนวณตามระยะทาง') + '</div>' +
       (isCash ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--orange)"><span>ค่าบริการพิเศษ (เงินสด)</span><span>฿' + fmt(cashTip) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px;font-size:18px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fmt(grandTotal) + '</span></div>' +
     '</div>' +
@@ -2235,7 +2250,7 @@ window.setPaymentMode = function(mode) {
   selectedPaymentMode = mode;
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
-  $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, 20, 5);
+  $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, calculateFoodDeliveryFee(foodDropoff).fee, 5);
 };
 
 /* ⭐ v3.9.0: confirmCheckout → status = "searching" */
@@ -2245,7 +2260,7 @@ window.confirmCheckout = async function(grandTotal) {
   });
   var subtotal = 0, discountTotal = 0;
   items.forEach(function(i) { subtotal += i.originalPrice * i.qty; discountTotal += i.discount * i.qty; });
-  var deliveryFee = 20; var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
+  var deliveryFee = calculateFoodDeliveryFee(foodDropoff).fee; var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
 
   var merchantData = {};
   try {
@@ -3734,7 +3749,7 @@ function reopenFoodCheckout() {
   if (!cart.length) return;
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
-  if ($('modal-body')) $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, 20, 5);
+  if ($('modal-body')) $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, calculateFoodDeliveryFee(foodDropoff).fee, 5);
   openModal();
 }
 
@@ -3997,7 +4012,7 @@ function renderMerchantCart(){
   if (!cart.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)"><div style="font-size:40px">🛒</div><div style="font-weight:900;margin-top:8px">ตะกร้าว่าง</div></div>'; return; }
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
-  var deliveryFee = 20; var netTotal = subtotal - discountTotal + deliveryFee;
+  var deliveryInfo = calculateFoodDeliveryFee(foodDropoff); var deliveryFee = deliveryInfo.fee; var netTotal = subtotal - discountTotal + deliveryFee;
   var itemsHtml = cart.map(function(c, i) {
     var orig = c.originalPrice || c.price; var final = c.finalPrice || c.price; var disc = c.discount || 0;
     var lineTotal = final * c.qty; var lineDiscount = disc * c.qty;
@@ -4017,7 +4032,7 @@ function renderMerchantCart(){
   }).join('');
   var summaryHtml = '<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าอาหาร</span><span>฿'+fmt(subtotal)+'</span></div>' +
     (discountTotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:900;color:var(--promo-red)"><span>🔥 ส่วนลดรวม</span><span>-฿'+fmt(discountTotal)+'</span></div>' : '') +
-    '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าส่ง</span><span>฿'+deliveryFee+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าส่ง' + (deliveryInfo.distance !== null ? ' (' + deliveryInfo.distance.toFixed(1) + ' กม.)' : '') + '</span><span>฿'+deliveryFee+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:14px 0 0;font-size:18px;font-weight:900;border-top:2px solid var(--green);margin-top:8px"><span>รวม</span><span style="color:var(--green)">฿'+fmt(netTotal)+'</span></div>';
   list.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow-sm)">' +
     '<div style="font-size:12px;font-weight:900;color:var(--text-muted);margin-bottom:10px">🏪 ' + esc(cart[0].merchantName) + '</div>' +
@@ -4419,6 +4434,15 @@ function updateDestEstimate() {
   var el = $('dest-estimate');
   if (!el) return;
   if (!selectedDestination) { el.innerHTML = ''; return; }
+  if (mapPickerMode === 'food') {
+    var foodFee = calculateFoodDeliveryFee({ lat: selectedDestination.lat, lng: selectedDestination.lng });
+    if (foodFee.distance !== null) {
+      el.innerHTML = '<span>ค่าส่งอาหาร • ' + esc(foodFee.distance.toFixed(1)) + ' กม.</span><b>ประมาณ ฿' + esc(String(foodFee.fee)) + '</b>';
+    } else {
+      el.innerHTML = '<span>เปิด GPS เพื่อคำนวณระยะทาง</span><b>เริ่มต้น ฿' + esc(String(foodFee.base)) + '</b>';
+    }
+    return;
+  }
   var fare = calculateFare({ type: 'motorcycle', price: 30 }, selectedDestination.lat, selectedDestination.lng);
   if (userLocation && fare.distance >= 0.05) {
     el.innerHTML = '<span>จากจุดรับ ' + esc(fmtDistance(fare.distance)) + '</span><b>มอเตอร์ไซค์ประมาณ ฿' + esc(String(fare.total)) + '</b>';
