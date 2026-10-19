@@ -161,6 +161,21 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .m-tab { flex: 1; padding: 10px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; font-family: inherit; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .m-tab.active { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; border-color: var(--brand); }
+.merchant-source-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 14px 10px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
+.merchant-source-tab { min-height: 52px; padding: 7px 6px; border: 0; border-radius: 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; line-height: 1.25; font-weight: 900; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
+.merchant-source-tab small { display: block; margin-top: 2px; font-size: 10px; font-weight: 700; }
+.merchant-source-tab.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
+.merchant-source-note { margin: 0 14px 12px; padding: 10px 12px; border-left: 4px solid var(--brand); border-radius: 10px; background: var(--brand-light); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 700; }
+.merchant-location-btn { margin-top: 8px; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px; background: var(--surface); color: var(--green); font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
+.local-place-card { display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-sm); }
+.local-place-icon { width: 54px; height: 54px; flex-shrink: 0; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--surface-2); font-size: 25px; }
+.local-place-icon img { width: 100%; height: 100%; object-fit: cover; }
+.local-place-info { flex: 1; min-width: 0; }
+.local-place-name { color: var(--text); font-size: 14px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.local-place-meta { margin-top: 4px; color: var(--text-muted); font-size: 11px; font-weight: 700; line-height: 1.45; }
+.local-place-distance { color: var(--green); font-weight: 900; }
+.local-place-pin { flex-shrink: 0; min-height: 40px; padding: 7px 10px; border: 0; border-radius: 10px; background: var(--brand); color: #fff; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
+.local-place-pin:active { transform: scale(.97); }
 
 .place-card-shop { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface); border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow-sm); cursor: pointer; }
 .place-card-shop-icon { width: 50px; height: 50px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; background: #E3F2FD; }
@@ -203,19 +218,43 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .place-directory-note { margin: -2px 14px 12px; padding: 10px 12px; border-radius: 12px; background: var(--brand-light); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 700; }
 .food-service-warning { margin: 0 0 14px; padding: 12px 14px; border-left: 4px solid var(--orange); border-radius: 10px; background: #FFF3E0; color: #8A4B08; font-size: 12px; line-height: 1.55; font-weight: 700; }
 [data-theme="dark"] .food-service-warning { background: #3A2F1F; color: #FFD28A; }
+.restaurant-filters { margin: 0 14px 12px; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm); }
+.restaurant-filter-row { display: flex; gap: 8px; align-items: center; }
+.restaurant-filter-row + .restaurant-filter-row { margin-top: 10px; }
+.restaurant-search-wrap { position: relative; flex: 1; min-width: 0; }
+.restaurant-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 16px; pointer-events: none; }
+.restaurant-search-input, .restaurant-filter-select { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px; font-weight: 700; outline: none; transition: border-color .2s, box-shadow .2s, background .2s; }
+.restaurant-search-input { width: 100%; padding: 0 38px 0 36px; }
+.restaurant-search-input:focus, .restaurant-filter-select:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(118,184,42,.14); background: var(--surface); }
+.restaurant-search-clear { position: absolute; right: 6px; top: 50%; width: 32px; height: 32px; transform: translateY(-50%); border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+.restaurant-search-clear:active { background: var(--border); }
+.restaurant-filter-select { flex: 1; min-width: 0; padding: 0 8px; }
+.restaurant-location-btn { width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--brand-light); color: var(--green); font: inherit; font-size: 12px; font-weight: 900; white-space: nowrap; cursor: pointer; transition: filter .2s, transform .15s; }
+.restaurant-location-btn:disabled { opacity: .65; cursor: wait; }
+.restaurant-location-btn:active { transform: scale(.98); filter: brightness(.96); }
+.restaurant-filter-label { color: var(--text-muted); font-size: 10px; font-weight: 900; letter-spacing: .1px; }
+.restaurant-filter-hint { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700; line-height: 1.4; }
 
-.nearby-section { margin-bottom: 14px; }
-.nearby-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.nearby-title { background: linear-gradient(135deg, #FFF3E0, #FFE0B2); color: #E65100; padding: 12px 16px; border-radius: 14px; font-weight: 900; font-size: 13px; display: flex; align-items: center; gap: 8px; border-left: 4px solid #FFA500; flex: 1; }
+.nearby-section { margin-bottom: 18px; }
+.nearby-header { margin-bottom: 12px; }
+.nearby-title { position: relative; overflow: hidden; background: linear-gradient(135deg, #FF6B35 0%, #E53935 52%, #B71C1C 100%); color: #fff; padding: 15px 16px 14px; border-radius: 18px; font-weight: 900; font-size: 16px; line-height: 1.2; display: flex; align-items: flex-start; gap: 10px; box-shadow: 0 8px 20px rgba(229,57,53,.24); border: 0; }
+.nearby-title::after { content: ''; position: absolute; width: 120px; height: 120px; right: -32px; top: -48px; border-radius: 50%; background: rgba(255,255,255,.14); }
+.nearby-title-icon { position: relative; z-index: 1; font-size: 24px; line-height: 1; }
+.nearby-title-copy { position: relative; z-index: 1; flex: 1; }
+.nearby-title-main { display: block; letter-spacing: -.2px; }
+.nearby-title-sub { display: block; margin-top: 5px; color: rgba(255,255,255,.9); font-size: 11px; line-height: 1.45; font-weight: 700; }
 .nearby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.nearby-shop-card { background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm); cursor: pointer; }
+.nearby-shop-card { position: relative; background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform .18s, box-shadow .18s; }
+.nearby-shop-card:active { transform: scale(.98); box-shadow: var(--shadow-xs); }
 .nearby-shop-img { width: 100%; height: 110px; background: var(--surface-2); overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .nearby-shop-img img { width: 100%; height: 100%; object-fit: cover; }
 .nearby-shop-img-fallback { width: 100%; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 40px; background: linear-gradient(135deg, #E8F5E9, #C8E6C9); }
 .nearby-shop-info { padding: 10px 12px; }
 .nearby-shop-name { font-size: 13px; font-weight: 900; color: var(--text); }
-.nearby-shop-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nearby-shop-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .nearby-shop-dist { color: var(--green); font-weight: 900; }
+.nearby-shop-open { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: 7px; background: var(--brand-light); color: var(--green); font-size: 10px; font-weight: 900; }
+.nearby-shop-cta { margin-top: 8px; color: var(--promo-red); font-size: 11px; font-weight: 900; }
 .nearby-blank { background: var(--surface-2); border: 2px dashed var(--border); border-radius: 16px; padding: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 160px; opacity: .7; }
 .nearby-blank-ico { font-size: 32px; margin-bottom: 8px; opacity: .5; }
 .nearby-blank-text { font-size: 11px; font-weight: 800; color: var(--text-muted); }
@@ -564,7 +603,9 @@ button.chat-list-item:active { filter: brightness(.97); }
   .travel-map-btn span { display: none; }
   .travel-vehicle-name { font-size: 14px; }
   .travel-vehicle-price { font-size: 15px; }
-  .nearby-title { font-size: 12px; padding: 10px 12px; }
+  .nearby-title { font-size: 14px; padding: 13px 13px 12px; }
+  .nearby-title-icon { font-size: 21px; }
+  .nearby-title-sub { font-size: 10px; }
 }
 </style>
 </head>
@@ -896,6 +937,11 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="section-title" id="merchant-view-title">🏪 เลือกร้านอาหาร</div>
       <div class="section-more press-scale" onclick="closeMerchantView()">✕ ปิด</div>
     </div>
+    <div class="merchant-source-tabs" id="merchant-source-tabs">
+      <button class="merchant-source-tab active" data-source="partner" onclick="switchMerchantSource('partner')">🤝 ร้านพาร์ทเนอร์<small>สั่งได้ทันที</small></button>
+      <button class="merchant-source-tab" data-source="local" onclick="switchMerchantSource('local')">📍 ร้านอาหารในพื้นที่<small>ปักหมุดให้ไรเดอร์</small></button>
+    </div>
+    <div class="merchant-source-note" id="merchant-source-note">ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย</div>
     <div class="merchant-search">
       <div class="search-bar" style="background:var(--surface);min-height:48px">
         <span style="font-size:16px;opacity:.5">🔍</span>
@@ -937,7 +983,13 @@ button.chat-list-item:active { filter: brightness(.97); }
 
     <div class="nearby-section">
       <div class="nearby-header">
-        <div class="nearby-title">🍽️ ร้านอาหารใกล้ฉัน ส่งด่วนเดลิเวอรี่</div>
+        <div class="nearby-title">
+          <span class="nearby-title-icon">🔥</span>
+          <span class="nearby-title-copy">
+            <span class="nearby-title-main">ร้านพาร์ทเนอร์ ChauatGo พร้อมรับออเดอร์</span>
+            <span class="nearby-title-sub">เปิดอยู่ พร้อมส่ง ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย</span>
+          </span>
+        </div>
       </div>
       <div class="nearby-grid" id="nearby-grid">
         <div class="nearby-blank"><div class="nearby-blank-ico">🏪</div><div class="nearby-blank-text">COMING SOON</div></div>
@@ -952,6 +1004,39 @@ button.chat-list-item:active { filter: brightness(.97); }
 
     <div class="section-header"><div class="section-title">🍽️ ร้านอาหารในพื้นที่</div><div class="section-more press-scale" onclick="showAllCategories('restaurant')">ดูร้านทั้งหมด →</div></div>
     <div class="place-directory-note">ข้อมูลร้านอาหารในพื้นที่สำหรับค้นหาและปักหมุดเป็นปลายทางให้ไรเดอร์ ไม่ได้หมายความว่าร้านเข้าร่วม Chauat Go หรือเปิดให้บริการอยู่ในขณะนี้</div>
+    <div class="restaurant-filters" aria-label="ค้นหาและกรองร้านอาหาร">
+      <div class="restaurant-filter-row">
+        <div class="restaurant-search-wrap">
+          <span class="restaurant-search-icon" aria-hidden="true">⌕</span>
+          <input id="restaurant-search" class="restaurant-search-input" type="search" placeholder="ค้นหาชื่อร้านอาหาร..." autocomplete="off" aria-label="ค้นหาชื่อร้านอาหาร">
+          <button type="button" class="restaurant-search-clear" onclick="clearRestaurantSearch()" aria-label="ล้างคำค้น">×</button>
+        </div>
+      </div>
+      <div class="restaurant-filter-row">
+        <select id="restaurant-type-filter" class="restaurant-filter-select" aria-label="กรองตามประเภทอาหาร">
+          <option value="all">🍽️ ทุกประเภทอาหาร</option>
+          <option value="noodle">🍜 ก๋วยเตี๋ยว / ขนมจีน</option>
+          <option value="local">🍛 อาหารใต้ / ข้าวแกง</option>
+          <option value="isan">🌶️ ส้มตำ / อาหารอีสาน</option>
+          <option value="grill">🍲 หมูกระทะ / ชาบู</option>
+          <option value="dimsum">🥟 ติ่มซำ / ซูชิ</option>
+          <option value="made-to-order">🍳 อาหารตามสั่ง</option>
+          <option value="rice-porridge">🍚 ข้าวต้ม</option>
+          <option value="drink">🥤 ของหวาน / เครื่องดื่ม</option>
+          <option value="general">🍽️ อาหารทั่วไป</option>
+        </select>
+        <select id="restaurant-distance-filter" class="restaurant-filter-select" aria-label="กรองตามระยะทาง">
+          <option value="all">📍 ทุกระยะทาง</option>
+          <option value="2">ไม่เกิน 2 กม.</option>
+          <option value="5">ไม่เกิน 5 กม.</option>
+          <option value="10">ไม่เกิน 10 กม.</option>
+        </select>
+      </div>
+      <div class="restaurant-filter-row">
+        <button type="button" id="restaurant-location-btn" class="restaurant-location-btn" onclick="useRestaurantLocation()">📍 ใช้ตำแหน่งฉันเพื่อคำนวณระยะทาง</button>
+      </div>
+      <div id="restaurant-filter-hint" class="restaurant-filter-hint">เลือกประเภทหรือระยะทางเพื่อค้นหาร้านที่ตรงกับความต้องการ</div>
+    </div>
     <div class="food-grid" id="restaurant-grid"></div>
 
     <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more press-scale" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div></div>
@@ -1110,6 +1195,7 @@ var merchantsCache = [];
 var currentMerchantFilter = 'all';
 var currentMerchantSearch = '';
 var merchantMode = 'food';
+var merchantSource = 'partner';
 var merchantTab = 'popular';
 var shopSearchTimer = null;
 var currentShopSearch = '';
@@ -1160,6 +1246,7 @@ var nearbyShopsCache = [];
 var nearbyShopsLoaded = false;
 var riderGpsUnsubs = {};
 var _cachedOrders = [];
+var restaurantFilterState = { query: '', type: 'all', maxDistance: 'all' };
 
 /* ⭐ v3.9.0: 4-level proximity */
 var NEAR_LEVELS = {
@@ -1205,6 +1292,79 @@ function haversine(lat1,lng1,lat2,lng2){
 }
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
+
+function restaurantType(place) {
+  var name = String(place && place.name || '').toLowerCase();
+  if (/ก๋วยเตี๋ยว|ขนมจีน|เตี๋ยว|จั๊บ/.test(name)) return 'noodle';
+  if (/ส้มตำ|อีสาน|ลาบ|หมูพวง/.test(name)) return 'isan';
+  if (/หมูกะทะ|หมูกระทะ|ชาบู|กระทะทอง/.test(name)) return 'grill';
+  if (/ติ่มซำ|ซูชิ|sushi|เกี๊ยว/.test(name)) return 'dimsum';
+  if (/ตามสั่ง|ผัดไทย|กระเพรา|กะเพรา|ราดหน้า|ผัดซีอิ๊ว/.test(name)) return 'made-to-order';
+  if (/ข้าวต้ม/.test(name)) return 'rice-porridge';
+  if (/กาแฟ|คาเฟ่|coffee|cafe|ชา|นม|ไอติม|ไอศกรีม|ของหวาน|พิซซ่า|เค้ก|เค้ก|น้ำปั่น|น้ำอ้อย/.test(name)) return 'drink';
+  if (/ข้าวแกง|แกงใต้|ขนมไทย|อาหารใต้|ข้าวมันไก่|ข้าวขาหมู|ข้าวต้ม|ผัดไทย/.test(name)) return 'local';
+  return 'general';
+}
+
+function renderRestaurantDirectory() {
+  var grid = $('restaurant-grid');
+  if (!grid) return;
+  var state = restaurantFilterState;
+  var q = String(state.query || '').trim().toLowerCase();
+  var maxDistance = state.maxDistance === 'all' ? null : Number(state.maxDistance);
+  var needsLocation = maxDistance !== null && !userLocation;
+  var items = PLACES.filter(function(p) {
+    if (p.category !== 'r' || !hasRealImage(p.image)) return false;
+    if (q && String(p.name || '').toLowerCase().indexOf(q) === -1) return false;
+    if (state.type !== 'all' && restaurantType(p) !== state.type) return false;
+    if (maxDistance !== null && userLocation && haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) > maxDistance) return false;
+    return true;
+  });
+  if (userLocation) items.sort(function(a, b) {
+    return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+  });
+  var visibleItems = (q || state.type !== 'all' || maxDistance !== null) ? items : items.slice(0, 6);
+  if (!visibleItems.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-light)">ไม่พบร้านอาหารตามเงื่อนไขที่เลือก</div>';
+  } else {
+    grid.innerHTML = visibleItems.map(renderPlaceCardHTML).join('');
+  }
+  var hint = $('restaurant-filter-hint');
+  if (hint) {
+    if (needsLocation) hint.textContent = 'กรุณากด “ใช้ตำแหน่งฉัน” ก่อนกรองตามระยะทาง';
+    else if (state.type !== 'all' || maxDistance !== null || q) hint.textContent = 'พบ ' + items.length + ' ร้าน' + (userLocation && (maxDistance !== null) ? ' • เรียงจากใกล้ไปไกล' : '');
+    else hint.textContent = 'เลือกประเภทหรือระยะทางเพื่อค้นหาร้านที่ตรงกับความต้องการ';
+  }
+}
+
+window.applyRestaurantFilters = function() {
+  restaurantFilterState.query = $('restaurant-search') ? $('restaurant-search').value : '';
+  restaurantFilterState.type = $('restaurant-type-filter') ? $('restaurant-type-filter').value : 'all';
+  restaurantFilterState.maxDistance = $('restaurant-distance-filter') ? $('restaurant-distance-filter').value : 'all';
+  renderRestaurantDirectory();
+};
+
+window.clearRestaurantSearch = function() {
+  if ($('restaurant-search')) $('restaurant-search').value = '';
+  applyRestaurantFilters();
+  if ($('restaurant-search')) $('restaurant-search').focus();
+};
+
+window.useRestaurantLocation = function() {
+  if (!navigator.geolocation) return showToast('อุปกรณ์นี้ไม่รองรับ GPS', 'error');
+  var locationBtn = $('restaurant-location-btn');
+  if (locationBtn) { locationBtn.disabled = true; locationBtn.textContent = '⏳ กำลังค้นหาตำแหน่ง...'; }
+  showToast('📡 กำลังค้นหาตำแหน่ง...', 'info');
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    userLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+    renderRestaurantDirectory();
+    if (locationBtn) { locationBtn.disabled = false; locationBtn.textContent = '✅ ใช้ตำแหน่งปัจจุบันแล้ว'; }
+    showToast('✅ ใช้ตำแหน่งปัจจุบันแล้ว');
+  }, function() {
+    if (locationBtn) { locationBtn.disabled = false; locationBtn.textContent = '📍 ใช้ตำแหน่งฉันเพื่อคำนวณระยะทาง'; }
+    showToast('ไม่สามารถเข้าถึงตำแหน่งได้', 'error');
+  }, {enableHighAccuracy:true, timeout:10000});
+};
 
 /* ⭐ v3.9.0: Order Code Generator */
 function generateOrderCode() {
@@ -1351,6 +1511,12 @@ document.addEventListener('DOMContentLoaded', function(){
   checkPDPA();
   updateCartBar();
   bindSearchInput();
+  var restaurantSearch = $('restaurant-search');
+  if (restaurantSearch) restaurantSearch.addEventListener('input', applyRestaurantFilters);
+  var restaurantTypeFilter = $('restaurant-type-filter');
+  if (restaurantTypeFilter) restaurantTypeFilter.addEventListener('change', applyRestaurantFilters);
+  var restaurantDistanceFilter = $('restaurant-distance-filter');
+  if (restaurantDistanceFilter) restaurantDistanceFilter.addEventListener('change', applyRestaurantFilters);
   document.addEventListener('click', globalClickHandler);
 });
 
@@ -1374,7 +1540,7 @@ function updateStatsBar(){
   if($('stat-rest')) $('stat-rest').textContent = rest;
   if($('stat-cafe')) $('stat-cafe').textContent = cafe;
   if($('stat-shop')) $('stat-shop').textContent = shop;
-  renderGrid('restaurant-grid',PLACES.filter(function(p){return p.category==='r'&&hasRealImage(p.image);}).slice(0,6));
+  renderRestaurantDirectory();
   renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,6));
   renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,6));
   renderGrid('tourist-grid',PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,6));
@@ -1391,13 +1557,14 @@ function renderGrid(gridId, items){
 function renderPlaceCardHTML(p){
   var hasImg = hasRealImage(p.image);
   var cat = CATS[p.category]||{name:'',icon:'📍'};
+  var distance = (p.category === 'r' && userLocation && isFinite(p.lat) && isFinite(p.lng)) ? ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
   var imgHtml = hasImg
     ? '<img src="'+esc(p.image)+'" loading="lazy" onerror="this.parentElement.innerHTML=\'<div class=&quot;food-img-fallback&quot;>'+cat.icon+'</div>\'">'
     : '<div class="food-img-fallback">'+cat.icon+'</div>';
   return '<div class="food-card" data-place-id="'+esc(p.id)+'">' +
     '<div class="food-img">'+imgHtml+'</div>' +
     '<div class="food-info"><div class="food-name">'+esc(p.name)+'</div>' +
-    '<div class="food-meta">'+cat.icon+' '+esc(cat.name)+(p.rating?' ⭐ '+p.rating:'')+'</div>' +
+    '<div class="food-meta">'+cat.icon+' '+esc(cat.name)+(p.rating?' ⭐ '+p.rating:'')+distance+'</div>' +
     (p.price?'<div class="food-price">'+esc(p.price)+'</div>':'')+'</div></div>';
 }
 
@@ -1685,7 +1852,8 @@ function renderNearbyShops() {
   var grid = $('nearby-grid');
   if (!grid) return;
   var sorted = sortShopsByDistance(nearbyShopsCache);
-  var display = sorted.slice(0, 6);
+  var openShops = sorted.filter(function(shop) { return shop.isOpen !== false; });
+  var display = (openShops.length ? openShops : sorted).slice(0, 6);
   var html = '';
   for (var i = 0; i < 6; i++) {
     if (display[i]) html += renderNearbyShopCard(display[i]);
@@ -1712,13 +1880,14 @@ function renderNearbyShopCard(shop) {
     : '<div class="nearby-shop-img-fallback">' + cat.icon + '</div>';
   var distHtml = (dist != null) ? '<span class="nearby-shop-dist">📍 ' + fmtDistance(dist) + '</span>' : '';
   var openHtml = isOpen
-    ? '<span style="color:var(--green)">🟢 เปิด</span>'
-    : '<span style="color:#999">⚫ ปิด</span>';
+    ? '<span class="nearby-shop-open">🟢 เปิด • รับออเดอร์</span>'
+    : '<span style="color:#999">⚫ ปิดชั่วคราว</span>';
   return '<div class="nearby-shop-card" onclick="openMerchantDetail(\'' + esc(shop.id) + '\')">' +
     '<div class="nearby-shop-img">' + imgHtml + '</div>' +
     '<div class="nearby-shop-info">' +
       '<div class="nearby-shop-name">' + esc(shop.name || 'ร้านค้า') + '</div>' +
       '<div class="nearby-shop-meta">' + distHtml + openHtml + '</div>' +
+      (isOpen ? '<div class="nearby-shop-cta">ดูเมนูและโปร →</div>' : '') +
     '</div>' +
   '</div>';
 }
@@ -3663,7 +3832,15 @@ window.openMerchantView = async function(type){
   if ($('category-view')) $('category-view').classList.remove('show');
   if ($('merchant-view')) $('merchant-view').classList.add('show');
   var titleEl = $('merchant-view-title');
-  if (titleEl) titleEl.textContent = merchantMode === 'food' ? '🍽️ เลือกร้านอาหาร' : '🛒 เลือกสถานที่ฝากซื้อ';
+  if (titleEl) titleEl.textContent = merchantMode === 'food' ? '🍽️ สั่งอาหาร' : '🛒 เลือกสถานที่ฝากซื้อ';
+  if (merchantMode === 'food') merchantSource = 'partner';
+  var sourceTabs = $('merchant-source-tabs');
+  if (sourceTabs) sourceTabs.style.display = merchantMode === 'food' ? 'grid' : 'none';
+  document.querySelectorAll('.merchant-source-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.source === merchantSource); });
+  var sourceNote = $('merchant-source-note');
+  if (sourceNote) sourceNote.textContent = merchantMode === 'food'
+    ? 'ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
+    : '';
   if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantMode === 'food' ? 'flex' : 'none';
   if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
 
@@ -3685,14 +3862,49 @@ window.openMerchantView = async function(type){
     var all = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
     all = all.filter(function(m){ return ['restaurant','cafe'].indexOf(m.category) !== -1; });
     merchantsCache = all;
-    if (!merchantsCache.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ยังไม่มีร้านค้า</div>'; return; }
-    renderMerchantList(merchantsCache);
+    renderActiveMerchantSource();
   } catch(err){
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ยังไม่มีร้านค้า</div>';
+    merchantsCache = [];
+    renderActiveMerchantSource();
   }
 };
 
+function renderActiveMerchantSource() {
+  if (merchantSource === 'local') renderLocalRestaurantList();
+  else renderMerchantList(merchantsCache);
+}
+
+window.switchMerchantSource = function(source) {
+  if (merchantMode !== 'food') return;
+  merchantSource = source === 'local' ? 'local' : 'partner';
+  document.querySelectorAll('.merchant-source-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.source === merchantSource); });
+  var sourceNote = $('merchant-source-note');
+  if (sourceNote) sourceNote.textContent = merchantSource === 'partner'
+    ? 'ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
+    : 'ร้านอาหารในพื้นที่ที่ยังไม่เข้าร่วม ChauatGo ใช้เป็นจุดหมายให้ไรเดอร์ไปซื้อได้';
+  if (sourceNote && merchantSource === 'local') sourceNote.innerHTML += '<br><button type="button" class="merchant-location-btn" onclick="useMerchantLocation()">📍 ใช้ตำแหน่งฉันเพื่อเรียงใกล้ที่สุด</button>';
+  if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantSource === 'partner' ? 'flex' : 'none';
+  if (merchantSource === 'local') {
+    if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = 'none';
+    if ($('merchant-search-input')) $('merchant-search-input').placeholder = 'ค้นหาร้านอาหารในพื้นที่...';
+  } else {
+    if ($('merchant-search-input')) $('merchant-search-input').placeholder = 'ค้นหาร้านพาร์ทเนอร์...';
+  }
+  renderActiveMerchantSource();
+};
+
+window.useMerchantLocation = function() {
+  if (!navigator.geolocation) return showToast('อุปกรณ์นี้ไม่รองรับ GPS', 'error');
+  showToast('📡 กำลังค้นหาตำแหน่ง...', 'info');
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    userLocation = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+    renderLocalRestaurantList();
+    showToast('✅ เรียงร้านจากใกล้ที่สุดแล้ว');
+  }, function() { showToast('ไม่สามารถเข้าถึงตำแหน่งได้', 'error'); }, {enableHighAccuracy:true, timeout:10000});
+};
+
 window.switchMerchantTab = function(tab){
+  if (merchantSource !== 'partner') return;
   merchantTab = tab;
   document.querySelectorAll('.m-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.mtab === tab); });
   if (tab === 'cart') renderMerchantCart(); else renderMerchantList(merchantsCache);
@@ -3735,6 +3947,40 @@ function renderMerchantList(merchants){
         '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">' + ratingHtml + distHtml + '</div>' +
       '</div>' +
       '<div style="color:var(--text-light);font-size:20px">›</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderLocalRestaurantList() {
+  var list = $('merchant-list'); if (!list) return;
+  if (!PLACES.length && typeof ensurePlaceData === 'function') {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลดร้านอาหารในพื้นที่...</div>';
+    ensurePlaceData(function(){ renderLocalRestaurantList(); });
+    return;
+  }
+  var q = (currentMerchantSearch || '').trim().toLowerCase();
+  var places = PLACES.filter(function(p) {
+    return p.category === 'r' && (!q || String(p.name || '').toLowerCase().indexOf(q) !== -1);
+  });
+  if (userLocation) places.sort(function(a, b) {
+    return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+  });
+  if (!places.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ไม่พบร้านอาหารในพื้นที่</div>';
+    return;
+  }
+  list.innerHTML = places.map(function(p) {
+    var cat = CATS[p.category] || {icon:'🍽️', name:'ร้านอาหาร'};
+    var distance = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : null;
+    var image = hasRealImage(p.image) ? '<img src="' + esc(p.image) + '" alt="">' : cat.icon;
+    return '<div class="local-place-card">' +
+      '<div class="local-place-icon">' + image + '</div>' +
+      '<div class="local-place-info">' +
+        '<div class="local-place-name">' + esc(p.name) + '</div>' +
+        '<div class="local-place-meta">' + cat.icon + ' ' + esc(cat.name) + (p.rating ? ' • ⭐ ' + p.rating : '') + '</div>' +
+        (distance != null ? '<div class="local-place-meta local-place-distance">📍 ' + fmtDistance(distance) + ' จากตำแหน่งคุณ</div>' : '<div class="local-place-meta">📍 เปิดใช้ GPS เพื่อเรียงตามระยะทาง</div>') +
+      '</div>' +
+      '<button type="button" class="local-place-pin" data-local-pin="' + esc(p.id) + '">ปักหมุด<br>ปลายทาง</button>' +
     '</div>';
   }).join('');
 }
@@ -3797,7 +4043,7 @@ if (msi) {
     } else {
       currentMerchantSearch = e.target.value;
       clearTimeout(msiTimer);
-      msiTimer = setTimeout(function(){ renderMerchantList(merchantsCache); }, 150);
+      msiTimer = setTimeout(function(){ renderActiveMerchantSource(); }, 150);
     }
   });
 }
@@ -3995,6 +4241,11 @@ function globalClickHandler(e){
   }
   var pc = e.target.closest('[data-place-id]');
   if (pc && pc.dataset.placeId && !e.target.closest('.travel-place-item') && !e.target.closest('.search-item')) { showPlaceDetail(pc.dataset.placeId); return; }
+  var localPin = e.target.closest('[data-local-pin]');
+  if (localPin && localPin.dataset.localPin) {
+    var localPlace = PLACES.find(function(p){ return p.id === localPin.dataset.localPin; });
+    if (localPlace) { openExpressForm({lat:localPlace.lat, lng:localPlace.lng, address:localPlace.name}); return; }
+  }
   var mc = e.target.closest('[data-merchant-id]');
   if (mc && mc.dataset.merchantId) { openMerchantDetail(mc.dataset.merchantId); return; }
   if (!e.target.closest('.search-bar') && !e.target.closest('.search-results')) { var sr = $('search-results'); if (sr) { sr.classList.remove('show'); sr.style.display = 'none'; } }
