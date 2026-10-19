@@ -396,7 +396,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .map-center-pin-tip { position: absolute; left: 50%; bottom: 0; width: 1px; height: 1px; }
 .map-float-controls { position: absolute; right: 14px; bottom: calc(var(--dest-sheet-h) + 16px); display: flex; flex-direction: column; gap: 8px; z-index: 500; transition: bottom .25s ease; }
 .map-fab { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); border: none; box-shadow: var(--shadow-md); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; color: var(--text); }
-.map-place-count { position: absolute; left: 14px; bottom: calc(var(--dest-sheet-h) + 16px); z-index: 500; padding: 8px 11px; border-radius: 999px; background: rgba(255,255,255,.94); color: var(--text); box-shadow: var(--shadow-md); font-size: 11px; font-weight: 900; pointer-events: none; }
 .dest-sheet { position: absolute; left: 0; right: 0; bottom: 0; height: var(--dest-sheet-h); max-height: 78%; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.16); z-index: 600; display: flex; flex-direction: column; transition: height .25s ease; }
 .dest-sheet.expanded { --dest-sheet-h: 72%; height: 72%; }
 #map-page:has(.dest-sheet.expanded) { --dest-sheet-h: 72%; }
@@ -860,7 +859,6 @@ button.chat-list-item:active { filter: brightness(.97); }
       <button class="map-fab press-scale" onclick="centerToUser()" aria-label="ตำแหน่งของฉัน">🎯</button>
       <button class="map-fab press-scale" onclick="clearMap()" aria-label="ล้างการค้นหา">🗑️</button>
     </div>
-    <div class="map-place-count" id="map-place-count">📍 กำลังโหลดสถานที่...</div>
     <div class="dest-sheet" id="dest-sheet">
       <button type="button" class="dest-sheet-handle" id="dest-sheet-handle" aria-expanded="false" aria-label="ขยายหรือย่อรายละเอียด"></button>
       <div class="dest-sheet-body">
@@ -1139,9 +1137,6 @@ button.chat-list-item:active { filter: brightness(.97); }
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="map-tiles.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-check-compat.js"></script>
@@ -1209,8 +1204,6 @@ try { cart = JSON.parse(localStorage.getItem('chauat_cart') || '[]'); } catch(e)
 var cartShop = localStorage.getItem('chauat_cart_shop') || '';
 var userLocation = null;
 var map = null;
-var mapPlaceCluster = null;
-var mapPlaceMarkers = {};
 var currentLocationMarker = null;
 var destinationMarker = null;
 var destinationCircle = null;
@@ -1540,60 +1533,9 @@ function loadPlaces(){
       return {id:'LOC-'+String(i+1).padStart(3,'0'),name:p[0],lat:p[1],lng:p[2],category:p[3],price:p[4],image:p[5],rating:p[6]};
     });
     window.PLACES = PLACES;
-    refreshMapPlaceCluster();
     updateStatsBar();
   } else { setTimeout(loadPlaces, 300); }
 }
-
-function mapPlacePopupHtml(p) {
-  var cat = CATS[p.category] || {name:'สถานที่', icon:'📍'};
-  var distance = userLocation ? ' • ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
-  return '<div style="min-width:180px">' +
-    '<div style="font-weight:900;font-size:14px">' + cat.icon + ' ' + esc(p.name) + '</div>' +
-    '<div style="font-size:11px;color:#68707A;margin-top:4px">' + esc(cat.name) + distance + '</div>' +
-    '<button type="button" onclick="chooseMapPlace(\'' + esc(p.id) + '\')" style="margin-top:8px;width:100%;padding:8px;border:0;border-radius:9px;background:#76B82A;color:#fff;font-weight:900;font-family:inherit;cursor:pointer">🎯 ใช้เป็นปลายทาง</button>' +
-  '</div>';
-}
-
-function refreshMapPlaceCluster() {
-  if (!map || typeof L === 'undefined' || typeof L.markerClusterGroup !== 'function') return;
-  if (mapPlaceCluster) { try { map.removeLayer(mapPlaceCluster); } catch (e) {} }
-  mapPlaceMarkers = {};
-  mapPlaceCluster = L.markerClusterGroup({
-    chunkedLoading: true,
-    showCoverageOnHover: false,
-    maxClusterRadius: 46,
-    disableClusteringAtZoom: 17,
-    spiderfyOnMaxZoom: true,
-    animate: true
-  });
-  var valid = (PLACES || []).filter(function(p){ return p && p.name && isFinite(p.lat) && isFinite(p.lng); });
-  valid.forEach(function(p) {
-    var cat = CATS[p.category] || {icon:'📍'};
-    var icon = window.ChauatMap ? ChauatMap.pin(cat.icon, ChauatMap.COLORS.place) : undefined;
-    var marker = L.marker([p.lat, p.lng], icon ? {icon:icon} : {}).bindPopup(mapPlacePopupHtml(p));
-    mapPlaceMarkers[p.id] = marker;
-    mapPlaceCluster.addLayer(marker);
-  });
-  map.addLayer(mapPlaceCluster);
-  var count = $('map-place-count');
-  if (count) count.textContent = '📍 ' + valid.length + ' สถานที่';
-}
-
-window.chooseMapPlace = function(placeId) {
-  var p = (PLACES || []).find(function(item){ return item.id === placeId; });
-  if (!p || !map) return;
-  destHoldAddress = p.name;
-  selectedDestination = {lat:p.lat, lng:p.lng, address:p.name};
-  if ($('dest-search-input')) $('dest-search-input').value = p.name;
-  hideDestSearchResults();
-  panPinTo(p.lat, p.lng, 17);
-  showDestAddress(p.name, p);
-  updateConfirmBtnState();
-  updateDestEstimate();
-  var marker = mapPlaceMarkers[p.id];
-  if (marker) setTimeout(function(){ marker.openPopup(); }, 250);
-};
 
 function updateStatsBar(){
   if(!PLACES.length) return;
@@ -4418,19 +4360,22 @@ function showDestAddress(text, ll) {
 
 function shortNominatimAddress(data) {
   if (!data) return '';
+  var a = data.address || {};
+  var street = a.road || a.pedestrian || a.footway || a.path || a.neighbourhood || a.quarter || a.suburb || '';
+  var soi = a.house_number || a.residential || '';
+  var area = a.village || a.town || a.city || a.municipality || a.county || a.state_district || '';
+  var province = a.state || '';
+  var precise = [data.name, soi, street, area, province].filter(function(part, idx, arr) {
+    return part && arr.indexOf(part) === idx;
+  }).slice(0, 4).join(', ');
+  if (precise) return precise;
   if (data.display_name) {
     var bits = data.display_name.split(',').map(function(s) { return s.trim(); }).filter(function(s) {
       return s && s !== 'ประเทศไทย' && s !== 'Thailand';
     });
-    if (bits.length) return bits.slice(0, 3).join(', ');
+    if (bits.length) return bits.slice(0, 4).join(', ');
   }
-  var a = data.address || {};
-  var road = a.road || a.pedestrian || a.neighbourhood || a.village || a.suburb || '';
-  var town = a.town || a.city || a.municipality || a.county || '';
-  var state = a.state || '';
-  return [data.name, road, town, state].filter(function(part, idx, arr) {
-    return part && arr.indexOf(part) === idx;
-  }).slice(0, 3).join(', ');
+  return '';
 }
 
 function scheduleReverseGeocode(lat, lng) {
@@ -4931,7 +4876,6 @@ window.openMapPage = function(keepPickerMode){
       if(!map){
         map = L.map('main-map',{zoomControl:true}).setView([seed ? seed.lat : CHAUAT_CENTER.lat, seed ? seed.lng : CHAUAT_CENTER.lng], 16);
         if (window.ChauatMap) ChauatMap.addBaseTiles(map);
-        refreshMapPlaceCluster();
         map.on('click', function(e){ destHoldAddress = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
         map.on('movestart', function(){ var pin = $('map-center-pin'); if (pin) pin.classList.add('lift'); });
         map.on('moveend', onDestMapMoveEnd);
