@@ -288,7 +288,19 @@ REFERENCE_TAMBONS = [
 ]
 
 
+PRIVATE_PLACE_NAMES = {
+    "บ้านคุณากร เรืองศรี",
+    "บ้านซัลซีต้าร์ ดาราไกย",
+    "บ้านปวีณา อินปัน",
+    "บ้านพงศกร นุ่นมัน",
+    "บ้านรัตนพงษ์ คงช่วย",
+    "บ้านอดิศักดิ์ บุญทอง",
+}
+
+
 def classify(tags, name):
+    if name.strip() in PRIVATE_PLACE_NAMES:
+        return None
     amenity = tags.get("amenity") or ""
     shop = tags.get("shop") or ""
     tourism = tags.get("tourism") or ""
