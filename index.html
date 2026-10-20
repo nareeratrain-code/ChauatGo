@@ -1301,6 +1301,7 @@ var nearNotifiedOrderIds = new Set();
 var currentTrackingOrder = null;
 var lastTrackedPositions = {};
 var nearbyShopsCache = [];
+var hotelPartnersCache = [];
 var nearbyShopsLoaded = false;
 var riderGpsUnsubs = {};
 var _cachedOrders = [];
@@ -1657,14 +1658,15 @@ function hotelBookingUrl(p){
   return 'https://www.agoda.com/search?text=' + encodeURIComponent(p.name || 'โรงแรม ชะอวด');
 }
 function hotelPhone(p){ return String(p.phone || '').trim(); }
+function findHotelById(id){ return PLACES.find(function(x){ return x.id === id; }) || hotelPartnersCache.find(function(x){ return x.id === id; }); }
 function callHotelById(id){
-  var p = PLACES.find(function(x){ return x.id === id; });
+  var p = findHotelById(id);
   var phone = p && hotelPhone(p);
   if (phone) window.location.href = 'tel:' + phone;
   else showToast('ยังไม่มีเบอร์โทรของที่พักนี้','info');
 }
 function openHotelBooking(id){
-  var p = PLACES.find(function(x){ return x.id === id; });
+  var p = findHotelById(id);
   if (p) window.open(hotelBookingUrl(p), '_blank', 'noopener');
 }
 function renderHotelCardHTML(p){
@@ -1683,7 +1685,17 @@ function renderHotelCardHTML(p){
 function renderHotelDirectory(){
   var grid = $('category-grid'); if(!grid) return;
   var q = (hotelSearchQuery || '').trim().toLowerCase();
-  var hotels = PLACES.filter(function(p){ return p.category === 'h' && (!q || String(p.name || '').toLowerCase().indexOf(q) !== -1); });
+  var hotelIds = {};
+  var hotels = PLACES.filter(function(p){ return p.category === 'h'; });
+  hotelPartnersCache.forEach(function(partner){
+    var duplicate = hotels.some(function(p){ return String(p.name || '').trim().toLowerCase() === String(partner.name || '').trim().toLowerCase(); });
+    if (!duplicate) hotels.push(partner);
+  });
+  hotels = hotels.filter(function(p){
+    if (hotelIds[p.id]) return false;
+    hotelIds[p.id] = true;
+    return !q || String(p.name || '').toLowerCase().indexOf(q) !== -1;
+  });
   grid.className = 'food-grid hotel-directory';
   if (!hotels.length) { grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">ไม่พบที่พักที่ค้นหา</div>'; return; }
   grid.innerHTML = hotels.map(renderHotelCardHTML).join('');
@@ -1952,10 +1964,20 @@ async function loadNearbyShops() {
     nearbyShopsCache = snap.docs.map(function(d) {
       return Object.assign({ id: d.id }, d.data());
     });
+    hotelPartnersCache = nearbyShopsCache.filter(function(shop){ return shop.category === 'hotel' && shop.verified === true; }).map(function(shop){
+      return {
+        id: 'HOTEL-' + shop.id, merchantId: shop.id, name: shop.name || 'ที่พัก',
+        lat: Number(shop.lat), lng: Number(shop.lng), category: 'h',
+        price: shop.priceRange || shop.price || '', image: shop.image || shop.imageUrl || '',
+        rating: shop.ratingAvg || 0, phone: shop.phone || '', address: shop.address || '',
+        agodaUrl: shop.agodaUrl || ''
+      };
+    });
     console.log('📍 Nearby shops loaded:', nearbyShopsCache.length);
     nearbyShopsLoaded = true;
     renderNearbyShops();
     renderAllShopsModal();
+    if ($('category-title') && $('category-title').textContent.indexOf('ที่พัก') !== -1) renderHotelDirectory();
   } catch (e) {
     console.warn('loadNearbyShops error:', e.code || e.message);
     nearbyShopsLoaded = true;
@@ -5304,7 +5326,7 @@ function openHotelDetail(p){
   openModal();
 }
 window.showPlaceDetail = function(placeId){
-  var p = PLACES.find(function(x){return x.id===placeId;});
+  var p = findHotelById(placeId);
   if (!p) return;
   if (p.category === 'h') { openHotelDetail(p); return; }
   var cat = CATS[p.category]||{name:'',icon:'📍'};
