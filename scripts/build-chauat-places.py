@@ -41,6 +41,7 @@ CAT_LABELS = {
     "i": "ตำรวจ",
     "r": "ร้านอาหาร",
     "f": "คาเฟ่",
+    "q": "ร้านขายยา/คลินิก",
     "c": "สะดวกซื้อ",
     "m": "ตลาด",
     "s": "ร้านค้า",
@@ -309,7 +310,9 @@ def classify(tags, name):
     if amenity in ("hospital", "clinic", "doctors", "pharmacy", "dentist") or healthcare or any(
         token in name for token in ("รพ.สต", "โรงพยาบาลส่งเสริม", "สถานีอนามัย", "โรงพยาบาล", "ศูนย์สุขภาพ", "สาธารณสุข")
     ):
-        return "l"
+        if amenity == "hospital" or any(token in name for token in ("รพ.สต", "โรงพยาบาลส่งเสริม", "สถานีอนามัย", "โรงพยาบาล", "ศูนย์สุขภาพ", "สาธารณสุข")):
+            return "l"
+        return "q"
     if amenity in ("school", "kindergarten", "college", "university") or tags.get("building") == "school" or name.startswith("โรงเรียน") or name.startswith("ศูนย์พัฒนาเด็ก"):
         return "e"
     if amenity == "place_of_worship" or tags.get("building") == "temple" or name.startswith("วัด") or name.startswith("สำนักสงฆ์"):
@@ -320,6 +323,10 @@ def classify(tags, name):
         return "b"
     if amenity == "marketplace" or "ตลาด" in name:
         return "m"
+    if name.strip().lower() == "sod station":
+        return "f"
+    if name == "ร้านเจริญ":
+        return "r"
     if amenity == "cafe" or shop in ("coffee", "tea") or "คาเฟ่" in name or "กาแฟ" in name:
         return "f"
     if amenity in ("restaurant", "fast_food", "food_court") or shop == "food":
