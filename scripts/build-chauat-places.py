@@ -343,7 +343,7 @@ def classify(tags, name):
         return "o"
     if amenity == "post_office" or "ไปรษณีย์" in name:
         return "p"
-    if shop == "convenience" or "7-eleven" in low or "7 eleven" in low or "เซเว่น" in name:
+    if shop == "convenience" or "7-eleven" in low or "7 eleven" in low or "เซเว่น" in name or "มินิมาร์ท" in name or "freshmart" in low:
         return "c"
     if tourism in ("attraction", "museum", "gallery", "artwork", "picnic_site", "theme_park", "zoo") or leisure in (
         "park",
