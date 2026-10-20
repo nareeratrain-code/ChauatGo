@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.28-theme-20261020-001';
+  var VERSION = 'v3.9.29-near-alert-20261020-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -890,6 +890,7 @@ button.chat-list-item:active { filter: brightness(.97); }
     <div class="near-alert-icon" id="near-alert-icon">🔔</div>
     <h2 id="near-alert-title">ไรเดอร์ใกล้ถึง!</h2>
     <p id="near-alert-sub">อีก 100 เมตร — เตรียมรับอาหาร</p>
+    <button class="btn-full btn-gray press-scale" id="near-alert-enable-btn" onclick="enableNearAlerts()" style="margin-bottom:8px">🔔 เปิดเสียงและการสั่นแจ้งเตือน</button>
     <div class="near-alert-btns">
       <button class="btn-full btn-gray press-scale" onclick="closeNearAlert()">ปิด</button>
       <button class="btn-full btn-green press-scale" onclick="viewTrackingFromAlert()">📍 ดูแผนที่</button>
@@ -1256,6 +1257,8 @@ var NEAR_LEVELS = {
   ARRIVED: 50
 };
 var nearNotifiedLevels = {};
+var nearAlertsEnabled = localStorage.getItem('chauat_near_alerts') !== 'off';
+var nearAlertsPermissionRequested = false;
 
 var CATS = {
   r:{name:'ร้านอาหาร',icon:'🍽️'}, f:{name:'คาเฟ่',icon:'☕'},
@@ -1450,6 +1453,35 @@ function playNearAlertSound(level) {
     playTone([1318, 1568, 1318, 1568], 0.08, 0.12, 0.9);
     setTimeout(function() { playTone([1318, 1568, 1318, 1568], 0.08, 0.12, 0.9); }, 400);
     setTimeout(function() { playTone([1318, 1568, 1318, 1568], 0.08, 0.12, 0.9); }, 800);
+  }
+}
+
+async function enableNearAlerts() {
+  nearAlertsEnabled = true;
+  try { localStorage.setItem('chauat_near_alerts', 'on'); } catch(e) {}
+  try {
+    var ctx = getAudioCtx();
+    if (ctx && ctx.state === 'suspended') await ctx.resume();
+    playTone([880, 1175], 0.08, 0.12, 0.22);
+  } catch(e) {}
+  if ('Notification' in window && Notification.permission === 'default' && !nearAlertsPermissionRequested) {
+    nearAlertsPermissionRequested = true;
+    try { await Notification.requestPermission(); } catch(e) {}
+  }
+  var btn = $('near-alert-enable-btn');
+  if (btn) btn.textContent = '✅ เปิดเสียงและการสั่นแล้ว';
+  showToast('เปิดเสียงและการสั่นแจ้งเตือนแล้ว', 'success');
+}
+
+function updateNearAlertSettingsButton() {
+  var btn = $('near-alert-enable-btn');
+  if (!btn) return;
+  if (!nearAlertsEnabled) {
+    btn.textContent = '🔔 เปิดเสียงและการสั่นแจ้งเตือน';
+  } else if ('Notification' in window && Notification.permission === 'denied') {
+    btn.textContent = '✅ เสียงและการสั่นเปิดแล้ว (เปิดสิทธิ์แจ้งเตือนในการตั้งค่าเบราว์เซอร์)';
+  } else {
+    btn.textContent = '✅ เสียงและการสั่นเปิดแล้ว';
   }
 }
 
@@ -2359,10 +2391,11 @@ function showNearAlertByLevel(order, level, distMeters) {
 
   var pop = $('nearAlertPopup');
   if (pop) pop.classList.add('show');
+  updateNearAlertSettingsButton();
 
-  playNearAlertSound(config.sound);
+  if (nearAlertsEnabled) playNearAlertSound(config.sound);
 
-  if (navigator.vibrate) {
+  if (nearAlertsEnabled && navigator.vibrate) {
     var vib = {
       soft: [100], medium: [200, 100, 200],
       loud: [300, 100, 300, 100, 300],
@@ -2371,7 +2404,7 @@ function showNearAlertByLevel(order, level, distMeters) {
     navigator.vibrate(vib);
   }
 
-  if ('Notification' in window && Notification.permission === 'granted') {
+  if (nearAlertsEnabled && 'Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification(config.icon + ' ' + config.title, {
         body: nearLabel + ' • ' + config.sub,
