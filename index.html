@@ -147,7 +147,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .section-header { display: flex; align-items: center; justify-content: space-between; padding: 14px; margin-bottom: 8px; }
 .section-title { font-size: 15px; font-weight: 900; color: var(--text); }
 .section-more { background: var(--brand-light); color: var(--green); padding: 8px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; cursor: pointer; min-height: 40px; display: flex; align-items: center; }
-.merchant-search { padding: 0 14px 10px; }
+.merchant-search { padding: 0 14px 10px; display: flex; gap: 8px; align-items: stretch; }
+.merchant-search > .search-bar { flex: 1; min-width: 0; }
 .merchant-filter-bar { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 12px; }
 .m-filter-chip { padding: 10px 16px; border-radius: 16px; font-size: 12px; font-weight: 900; background: var(--surface); color: var(--text-muted); cursor: pointer; white-space: nowrap; border: 1px solid var(--border); min-height: 40px; display: flex; align-items: center; font-family: inherit; }
 .m-filter-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
@@ -573,7 +574,9 @@ button.chat-list-item:active { filter: brightness(.97); }
 .travel-search-row { padding: 12px 14px; display: flex; gap: 8px; background: var(--bg); flex-shrink: 0; }
 .travel-search-bar { flex: 1; background: var(--surface); border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm); border: 2px solid var(--border); }
 .travel-search-bar input { flex: 1; border: none; outline: none; background: transparent; font-size: 15px; font-weight: 700; font-family: inherit; color: var(--text); }
-.travel-map-btn { background: var(--surface); border: 2px solid var(--brand); color: var(--brand); padding: 10px 14px; border-radius: 14px; font-weight: 900; font-size: 13px; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.travel-map-btn, .merchant-map-btn { background: var(--surface); border: 2px solid var(--brand); color: var(--brand); padding: 12px 16px; border-radius: 14px; font-weight: 900; font-size: 14px; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
+.travel-map-btn { min-width: 108px; }
+.merchant-map-btn { min-width: 96px; flex-shrink: 0; }
 .travel-body { flex: 1; overflow-y: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
 .travel-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); padding: 14px 16px 10px; text-transform: uppercase; }
 .travel-suggest-list, .travel-vehicle-list { padding: 0 14px; }
@@ -611,7 +614,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   .pay-mode-row { grid-template-columns: 1fr; }
   .nearby-shop-name { font-size: 12px; }
   .nearby-blank { min-height: 140px; padding: 16px; }
-  .travel-map-btn span { display: none; }
+  .travel-map-btn span { display: inline; }
   .travel-vehicle-name { font-size: 14px; }
   .travel-vehicle-price { font-size: 15px; }
   .nearby-title { font-size: 14px; padding: 13px 13px 12px; }
@@ -959,6 +962,7 @@ button.chat-list-item:active { filter: brightness(.97); }
         <span style="font-size:16px;opacity:.5">🔍</span>
         <input type="text" id="merchant-search-input" placeholder="ค้นหาร้านค้า...">
       </div>
+      <button type="button" id="merchant-map-btn" class="merchant-map-btn press-scale" onclick="openMapPicker('shopping')" style="display:none">🗺️ แผนที่</button>
     </div>
     <div class="merchant-tabs" id="merchant-tabs">
       <button class="m-tab active" data-mtab="popular" onclick="switchMerchantTab('popular')">🏆 ยอดนิยม</button>
@@ -1248,6 +1252,7 @@ var expressSuggestRows = { from: [], to: [] };
 var activeChatRole = 'user';
 var foodDropoff = null;
 var mapPickerMode = null;
+var shoppingMapSelection = null;
 var _shoppingPlacesCache = [];
 var trackingOrderId = null;
 var trackingMap = null;
@@ -3997,6 +4002,7 @@ window.openMerchantView = async function(type){
     : '';
   if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantMode === 'food' ? 'flex' : 'none';
   if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
+  if ($('merchant-map-btn')) $('merchant-map-btn').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
 
   if (merchantMode === 'food') {
     merchantTab = 'popular';
@@ -4210,12 +4216,14 @@ function renderShoppingPlaces(){
   if (currentMerchantFilter !== 'all') places = places.filter(function(p){ return p.category === currentMerchantFilter; });
   var q = (currentShopSearch || '').trim().toLowerCase();
   if (q) places = places.filter(function(p){ return p.name.toLowerCase().indexOf(q) !== -1; });
-  if (userLocation) places = places.slice().sort(function(a, b){ return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng); });
+  var shopOrigin = shoppingMapSelection || userLocation;
+  if (shopOrigin) places = places.slice().sort(function(a, b){ return haversine(shopOrigin.lat, shopOrigin.lng, a.lat, a.lng) - haversine(shopOrigin.lat, shopOrigin.lng, b.lat, b.lng); });
   if (!places.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ไม่พบสถานที่</div>'; return; }
   _shoppingPlacesCache = places.slice(0, 50);
-  list.innerHTML = _shoppingPlacesCache.map(function(p, i){
+  var mapHint = shoppingMapSelection ? '<div style="background:var(--brand-light);color:var(--green);border:1px solid var(--green);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;font-weight:900">🗺️ แสดงร้านใกล้จุดที่เลือกจากแผนที่</div>' : '';
+  list.innerHTML = mapHint + _shoppingPlacesCache.map(function(p, i){
     var cat = CATS[p.category] || {icon:'📍', name:''};
-    var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : null;
+    var dist = shopOrigin ? haversine(shopOrigin.lat, shopOrigin.lng, p.lat, p.lng) : null;
     var distHtml = dist != null ? '<span style="color:var(--green)">📍 ' + fmtDistance(dist) + '</span>' : '';
     return '<div class="place-card-shop" data-shop-index="' + i + '">' +
       '<div class="place-card-shop-icon">' + cat.icon + '</div>' +
@@ -4995,6 +5003,7 @@ function mapPickerSeed() {
   if (mapPickerMode === 'exp-destination' && expDestination && isFinite(expDestination.lat)) return expDestination;
   if (mapPickerMode === 'travel' && selectedDestination && isFinite(selectedDestination.lat)) return selectedDestination;
   if (mapPickerMode === 'food' && foodDropoff && isFinite(foodDropoff.lat)) return foodDropoff;
+  if (mapPickerMode === 'shopping' && shoppingMapSelection && isFinite(shoppingMapSelection.lat)) return shoppingMapSelection;
   return null;
 }
 
@@ -5010,6 +5019,7 @@ function syncMapTitle() {
   if (mode === 'exp-origin') title.textContent = '🗺️ เลือกจุดรับ';
   else if (mode === 'exp-destination') title.textContent = '🗺️ เลือกจุดส่ง';
   else if (mode === 'food') title.textContent = '🗺️ ที่อยู่จัดส่ง';
+  else if (mode === 'shopping') title.textContent = '🗺️ เลือกพื้นที่ร้านของใช้';
   else title.textContent = '🗺️ เลือกตำแหน่งปลายทาง';
 }
 
@@ -5148,6 +5158,12 @@ window.confirmMapLocation = function(){
     showToast('📍 ' + (picked.address || 'เลือกปลายทางแล้ว'));
     var body = document.querySelector('#travel-view .travel-body');
     if (body) setTimeout(function(){ body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 250);
+    return;
+  }
+  if (mode === 'shopping') {
+    shoppingMapSelection = picked;
+    openMerchantView('shopping');
+    showToast('🗺️ จัดเรียงร้านของใช้ใกล้จุดที่เลือกแล้ว');
     return;
   }
   if (mode === 'exp-origin' || mode === 'exp-destination') {
