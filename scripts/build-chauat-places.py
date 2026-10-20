@@ -297,10 +297,40 @@ PRIVATE_PLACE_NAMES = {
     "บ้านอดิศักดิ์ บุญทอง",
 }
 
+FOOD_NAME_OVERRIDES = {
+    "ก๋วยเตี๋ยวทุ่งค่าย",
+    "ก๋วยเตี๋ยวโบราณป้าแบน",
+    "ดาว อาหารตามสั่ง(ชะอวด)",
+    "ร้านก๋วยจั๊บรสเด็ด ตามสั่ง",
+    "ร้านก๋วยเตี๋ยวบนเนินที่มีรูปปั้นวัวชน",
+    "ร้านหมูกระทะป้าเจิม ชะอวดเมืองใหญ่",
+    "ร้านอาหารตามสั่ง-ก๋วยเตี๋ยว",
+    "ร้านอาหารนั่งเล่นชะอวด",
+    "ร้านแกงน้องรัตน์",
+}
+
+CAFE_NAME_OVERRIDES = {
+    "A Coffee Bar",
+    "Mesa Coffee Roasters",
+    "กาแฟบ้านสวนพ่อ",
+    "ณ บ้านเรา'Cafe @ชะอวด",
+    "บาร์น้ำชา",
+    "ยุพา เบอเกอรี่ (YUPA Bakery)",
+    "ร้านน้ำชาจ่าหมาย",
+    "เมษา กาแฟ (สาขา2)",
+    "ฮ็อป ชาเฟ่ สาขา โรงเรียนบ้านศาลาตะเคียน",
+    "ฮ็อป ชาเฟ่ สาขา ไม้เสียบ",
+}
+
 
 def classify(tags, name):
-    if name.strip() in PRIVATE_PLACE_NAMES:
+    name = name.strip()
+    if name in PRIVATE_PLACE_NAMES:
         return None
+    if name in FOOD_NAME_OVERRIDES:
+        return "r"
+    if name in CAFE_NAME_OVERRIDES:
+        return "f"
     amenity = tags.get("amenity") or ""
     shop = tags.get("shop") or ""
     tourism = tags.get("tourism") or ""
