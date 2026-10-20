@@ -590,6 +590,10 @@ button.chat-list-item:active { filter: brightness(.97); }
 .travel-vehicle-desc { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 3px; }
 .travel-vehicle-price { font-size: 17px; font-weight: 900; color: var(--green); text-align: right; line-height: 1.2; }
 .travel-vehicle-price span { display: block; font-size: 10px; font-weight: 700; color: var(--text-light); margin-top: 2px; }
+.express-parcel-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.express-parcel-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 10px 13px; font: 800 12px/1.2 inherit; cursor: pointer; white-space: nowrap; }
+.express-parcel-chip.active { background: var(--brand-light); color: var(--green); border-color: var(--green); box-shadow: 0 0 0 2px rgba(78,159,45,.12); }
+.express-parcel-chip:active { transform: scale(.97); }
 
 @media (max-width: 360px) {
   .brand-hero .t { font-size: 14px; }
@@ -1222,6 +1226,16 @@ var chatListUnsub = null;
 var expOrigin = null;
 var expDestination = null;
 var expressDraft = null;
+var EXPRESS_PARCEL_TYPES = [
+  { id: 'document', label: 'เอกสาร', icon: '📄', note: 'เอกสารทั่วไป สัญญา หรือใบสำคัญ' },
+  { id: 'fruit', label: 'ผลไม้', icon: '🍎', note: 'ควรแพ็กให้แน่นหนา ป้องกันการกระแทก' },
+  { id: 'food', label: 'อาหาร', icon: '🍱', note: 'อาหารและของสดที่พร้อมส่ง' },
+  { id: 'clothes', label: 'เสื้อผ้า', icon: '👕', note: 'เสื้อผ้าและของใช้ส่วนตัว' },
+  { id: 'electronics', label: 'เครื่องใช้ไฟฟ้า', icon: '📱', note: 'ควรแพ็กกันกระแทก' },
+  { id: 'fragile', label: 'วัสดุแตกง่าย', icon: '🥂', note: 'ต้องแจ้งไรเดอร์และแพ็กอย่างเหมาะสม' },
+  { id: 'medicine', label: 'ยา', icon: '💊', note: 'ยาที่ถูกต้องตามกฎหมายและมีฉลาก' },
+  { id: 'other', label: 'อื่นๆ', icon: '📦', note: 'พัสดุประเภทอื่น' }
+];
 var expressCompose = { from: '', to: '' };
 var expressSuggestRows = { from: [], to: [] };
 var activeChatRole = 'user';
@@ -3636,9 +3650,19 @@ function captureExpressDraft() {
     from: $('order-from') ? $('order-from').value : '',
     to: $('order-to') ? $('order-to').value : '',
     note: $('order-note') ? $('order-note').value : '',
-    phone: $('order-phone') ? $('order-phone').value : ''
+    phone: $('order-phone') ? $('order-phone').value : '',
+    parcelType: $('express-parcel-type') ? $('express-parcel-type').value : ((expressDraft && expressDraft.parcelType) || 'document')
   };
 }
+
+window.selectExpressParcelType = function(type) {
+  var found = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === type; })[0];
+  if (!found) return;
+  captureExpressDraft();
+  if (!expressDraft) expressDraft = {};
+  expressDraft.parcelType = found.id;
+  renderExpressForm();
+};
 
 function expressFieldText(id) {
   var el = $(id);
@@ -3756,13 +3780,20 @@ function renderExpressForm() {
   var toVal = (expressDraft && expressDraft.to != null) ? expressDraft.to : (expDestination ? expDestination.address : '');
   var noteVal = (expressDraft && expressDraft.note != null) ? expressDraft.note : '';
   var phoneVal = (expressDraft && expressDraft.phone != null) ? expressDraft.phone : ((userProfile && userProfile.phone) || '');
+  var parcelTypeVal = (expressDraft && expressDraft.parcelType) || 'document';
+  var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeVal; })[0] || EXPRESS_PARCEL_TYPES[0];
+  var parcelTypesHtml = EXPRESS_PARCEL_TYPES.map(function(item) {
+    var active = item.id === parcelType.id;
+    return '<button type="button" class="express-parcel-chip' + (active ? ' active' : '') + '" onclick="selectExpressParcelType(\'' + item.id + '\')" aria-pressed="' + active + '">' + item.icon + ' ' + item.label + '</button>';
+  }).join('');
   var originBadge = (expOrigin && isFinite(expOrigin.lat)) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ จุดรับ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '';
   var destBadge = (expDestination && isFinite(expDestination.lat)) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ จุดส่ง ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '';
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">📦</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2><div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿30 เริ่มต้น</div></div>' +
     '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button type="button" class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่</button></div>' + originBadge + '</div>' +
     '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-destination">🗺️ เลือกจุดส่งจากแผนที่</button></div>' + destBadge + '</div>' +
-    '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">' + esc(noteVal) + '</textarea></div>' +
+    '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType.id) + '"><div class="express-parcel-scroll" aria-label="เลือกประเภทพัสดุ">' + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + parcelType.icon + ' ' + esc(parcelType.note) + '</div></div>' +
+    '<div class="form-group"><label>📝 รายละเอียดเพิ่มเติม</label><textarea id="order-note" rows="2" placeholder="เช่น จำนวน กล่อง วิธีดูแล หรือข้อควรระวัง">' + esc(noteVal) + '</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc(phoneVal) + '"></div>' +
     '<button type="button" class="btn-full btn-green press-scale" data-exp-submit="1" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
     '<button type="button" class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
@@ -3829,6 +3860,8 @@ window.submitExpressOrder = async function(){
   var toText = toAddr || (expDestination && expDestination.address) || '';
   if (!fromText) return showToast('กรอกต้นทาง','error');
   if (!toText) return showToast('กรอกปลายทาง','error');
+  var parcelTypeId = ($('express-parcel-type') && $('express-parcel-type').value) || (expressDraft && expressDraft.parcelType) || 'document';
+  var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeId; })[0] || EXPRESS_PARCEL_TYPES[0];
   var baseFare = 30, distanceKm = 0;
   if (expOrigin && expDestination && isFinite(expOrigin.lat) && isFinite(expDestination.lat)) distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
   var total = Math.round(baseFare + (distanceKm * 5));
@@ -3837,7 +3870,9 @@ window.submitExpressOrder = async function(){
       type: 'express', userId: currentUser.uid,
       userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
       userPhone: $('order-phone').value.trim(),
-      title: '📦 ส่งด่วน',
+      title: '📦 ส่งด่วน • ' + parcelType.label,
+      parcelType: parcelType.id,
+      parcelTypeLabel: parcelType.label,
       from: fromText,
       to: toText,
       address: toText,
