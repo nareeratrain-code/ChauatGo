@@ -975,6 +975,26 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="hotel-directory-note">ค้นหาที่พักในชะอวด ดูรูปและรายละเอียดเบื้องต้นได้จาก ChauatGo แล้วกดจองต่อบน Agoda โดยตรง</div>
       <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="hotel-search-input" type="search" placeholder="ค้นหาชื่อโรงแรมหรือรีสอร์ท..."></div>
     </div>
+    <div id="restaurant-tools" style="display:none">
+      <div class="place-directory-note">ข้อมูลร้านอาหารในพื้นที่สำหรับค้นหาและปักหมุดเป็นปลายทางให้ไรเดอร์ ไม่ได้หมายความว่าร้านเข้าร่วม ChauatGo หรือเปิดให้บริการอยู่ในขณะนี้</div>
+      <div class="restaurant-filters" aria-label="ค้นหาและกรองร้านอาหาร">
+        <div class="restaurant-filter-row">
+          <div class="restaurant-search-wrap">
+            <span class="restaurant-search-icon" aria-hidden="true">⌕</span>
+            <input id="restaurant-search" class="restaurant-search-input" type="search" placeholder="ค้นหาชื่อร้านอาหาร..." autocomplete="off" aria-label="ค้นหาชื่อร้านอาหาร">
+            <button type="button" class="restaurant-search-clear" onclick="clearRestaurantSearch()" aria-label="ล้างคำค้น">×</button>
+          </div>
+        </div>
+        <div class="restaurant-filter-row">
+          <select id="restaurant-type-filter" class="restaurant-filter-select" aria-label="กรองตามประเภทอาหาร">
+            <option value="all">🍽️ ทุกประเภทอาหาร</option><option value="noodle">🍜 ก๋วยเตี๋ยว / ขนมจีน</option><option value="local">🍛 อาหารใต้ / ข้าวแกง</option><option value="isan">🌶️ ส้มตำ / อาหารอีสาน</option><option value="grill">🍲 หมูกระทะ / ชาบู</option><option value="dimsum">🥟 ติ่มซำ / ซูชิ</option><option value="made-to-order">🍳 อาหารตามสั่ง</option><option value="rice-porridge">🍚 ข้าวต้ม</option><option value="drink">🥤 ของหวาน / เครื่องดื่ม</option><option value="general">🍽️ อาหารทั่วไป</option>
+          </select>
+          <select id="restaurant-distance-filter" class="restaurant-filter-select" aria-label="กรองตามระยะทาง"><option value="all">📍 ทุกระยะทาง</option><option value="2">ไม่เกิน 2 กม.</option><option value="5">ไม่เกิน 5 กม.</option><option value="10">ไม่เกิน 10 กม.</option></select>
+        </div>
+        <div class="restaurant-filter-row"><button type="button" id="restaurant-location-btn" class="restaurant-location-btn" onclick="useRestaurantLocation()">📍 ใช้ตำแหน่งฉันเพื่อคำนวณระยะทาง</button></div>
+        <div id="restaurant-filter-hint" class="restaurant-filter-hint">เลือกประเภทหรือระยะทางเพื่อค้นหาร้านที่ตรงกับความต้องการ</div>
+      </div>
+    </div>
     <div class="food-grid" id="category-grid" style="padding:0"></div>
   </div>
 
@@ -1050,40 +1070,7 @@ button.chat-list-item:active { filter: brightness(.97); }
     </div>
 
     <div class="section-header"><div class="section-title">🍽️ ร้านอาหารในพื้นที่</div><div class="section-more press-scale" onclick="showAllCategories('restaurant')">ดูร้านทั้งหมด →</div></div>
-    <div class="place-directory-note">ข้อมูลร้านอาหารในพื้นที่สำหรับค้นหาและปักหมุดเป็นปลายทางให้ไรเดอร์ ไม่ได้หมายความว่าร้านเข้าร่วม Chauat Go หรือเปิดให้บริการอยู่ในขณะนี้</div>
-    <div class="restaurant-filters" aria-label="ค้นหาและกรองร้านอาหาร">
-      <div class="restaurant-filter-row">
-        <div class="restaurant-search-wrap">
-          <span class="restaurant-search-icon" aria-hidden="true">⌕</span>
-          <input id="restaurant-search" class="restaurant-search-input" type="search" placeholder="ค้นหาชื่อร้านอาหาร..." autocomplete="off" aria-label="ค้นหาชื่อร้านอาหาร">
-          <button type="button" class="restaurant-search-clear" onclick="clearRestaurantSearch()" aria-label="ล้างคำค้น">×</button>
-        </div>
-      </div>
-      <div class="restaurant-filter-row">
-        <select id="restaurant-type-filter" class="restaurant-filter-select" aria-label="กรองตามประเภทอาหาร">
-          <option value="all">🍽️ ทุกประเภทอาหาร</option>
-          <option value="noodle">🍜 ก๋วยเตี๋ยว / ขนมจีน</option>
-          <option value="local">🍛 อาหารใต้ / ข้าวแกง</option>
-          <option value="isan">🌶️ ส้มตำ / อาหารอีสาน</option>
-          <option value="grill">🍲 หมูกระทะ / ชาบู</option>
-          <option value="dimsum">🥟 ติ่มซำ / ซูชิ</option>
-          <option value="made-to-order">🍳 อาหารตามสั่ง</option>
-          <option value="rice-porridge">🍚 ข้าวต้ม</option>
-          <option value="drink">🥤 ของหวาน / เครื่องดื่ม</option>
-          <option value="general">🍽️ อาหารทั่วไป</option>
-        </select>
-        <select id="restaurant-distance-filter" class="restaurant-filter-select" aria-label="กรองตามระยะทาง">
-          <option value="all">📍 ทุกระยะทาง</option>
-          <option value="2">ไม่เกิน 2 กม.</option>
-          <option value="5">ไม่เกิน 5 กม.</option>
-          <option value="10">ไม่เกิน 10 กม.</option>
-        </select>
-      </div>
-      <div class="restaurant-filter-row">
-        <button type="button" id="restaurant-location-btn" class="restaurant-location-btn" onclick="useRestaurantLocation()">📍 ใช้ตำแหน่งฉันเพื่อคำนวณระยะทาง</button>
-      </div>
-      <div id="restaurant-filter-hint" class="restaurant-filter-hint">เลือกประเภทหรือระยะทางเพื่อค้นหาร้านที่ตรงกับความต้องการ</div>
-    </div>
+    <div class="place-directory-note">แสดงร้านใกล้ที่สุด 2 ร้าน • กด “ดูร้านทั้งหมด” เพื่อค้นหาและดูรายการทั้งหมด</div>
     <div class="food-grid" id="restaurant-grid"></div>
 
     <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more press-scale" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div></div>
@@ -1286,6 +1273,7 @@ var mapPickerMode = null;
 var shoppingMapSelection = null;
 var _shoppingPlacesCache = [];
 var hotelSearchQuery = '';
+var currentCategoryCode = '';
 var trackingOrderId = null;
 var trackingMap = null;
 var trackingRiderMarker = null;
@@ -1353,6 +1341,18 @@ function haversine(lat1,lng1,lat2,lng2){
 }
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
+function normalizePlaceName(value){return String(value || '').toLowerCase().replace(/[\s\-_.&'’“”"()]+/g,'').replace(/ร้านอาหาร|ร้าน|สาขา/g,'');}
+function isPartnerRestaurant(place){
+  var placeKey = normalizePlaceName(place && place.name);
+  if (!placeKey) return false;
+  return nearbyShopsCache.some(function(shop){
+    if (!shop || ['restaurant','cafe'].indexOf(String(shop.category || '').toLowerCase()) === -1) return false;
+    if (shop.placeId && String(shop.placeId) === String(place.id)) return true;
+    if (isFinite(Number(shop.lat)) && isFinite(Number(shop.lng)) && isFinite(Number(place.lat)) && isFinite(Number(place.lng)) && haversine(Number(shop.lat), Number(shop.lng), Number(place.lat), Number(place.lng)) <= 0.15) return true;
+    var shopKey = normalizePlaceName(shop.name);
+    return shopKey && (shopKey === placeKey || shopKey.indexOf(placeKey) !== -1 || placeKey.indexOf(shopKey) !== -1);
+  });
+}
 
 function restaurantType(place) {
   var name = String(place && place.name || '').toLowerCase();
@@ -1368,7 +1368,8 @@ function restaurantType(place) {
 }
 
 function renderRestaurantDirectory() {
-  var grid = $('restaurant-grid');
+  var inCategory = currentCategoryCode === 'r' && $('category-view') && $('category-view').classList.contains('show');
+  var grid = $(inCategory ? 'category-grid' : 'restaurant-grid');
   if (!grid) return;
   var state = restaurantFilterState;
   var q = String(state.query || '').trim().toLowerCase();
@@ -1376,7 +1377,7 @@ function renderRestaurantDirectory() {
   var needsLocation = maxDistance !== null && !userLocation;
   var items = PLACES.filter(function(p) {
     // Search/filter must use the complete restaurant catalog, not only cards with images.
-    if (p.category !== 'r') return false;
+    if (p.category !== 'r' || isPartnerRestaurant(p)) return false;
     if (q && String(p.name || '').toLowerCase().indexOf(q) === -1) return false;
     if (state.type !== 'all' && restaurantType(p) !== state.type) return false;
     if (maxDistance !== null && userLocation && haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) > maxDistance) return false;
@@ -1386,11 +1387,11 @@ function renderRestaurantDirectory() {
     return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
   });
   var visibleItems;
-  if (q || state.type !== 'all' || maxDistance !== null) {
+  if (inCategory || q || state.type !== 'all' || maxDistance !== null) {
     visibleItems = items;
   } else {
-    // Keep the home page compact, while filtered/search results include every matching restaurant.
-    visibleItems = items.filter(function(p){ return hasRealImage(p.image); }).slice(0, 6);
+    // Keep the home page compact: show only two nearby restaurants.
+    visibleItems = items.filter(function(p){ return hasRealImage(p.image); }).slice(0, 2);
   }
   if (!visibleItems.length) {
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px 20px;color:var(--text-light)">ไม่พบร้านอาหารตามเงื่อนไขที่เลือก</div>';
@@ -1400,8 +1401,8 @@ function renderRestaurantDirectory() {
   var hint = $('restaurant-filter-hint');
   if (hint) {
     if (needsLocation) hint.textContent = 'กรุณากด “ใช้ตำแหน่งฉัน” ก่อนกรองตามระยะทาง';
-    else if (state.type !== 'all' || maxDistance !== null || q) hint.textContent = 'พบ ' + items.length + ' ร้าน' + (userLocation && (maxDistance !== null) ? ' • เรียงจากใกล้ไปไกล' : '');
-    else hint.textContent = 'เลือกประเภทหรือระยะทางเพื่อค้นหาร้านที่ตรงกับความต้องการ';
+    else if (state.type !== 'all' || maxDistance !== null || q || inCategory) hint.textContent = 'พบ ' + items.length + ' ร้าน' + (userLocation ? ' • เรียงจากใกล้ไปไกล' : '');
+    else hint.textContent = 'แสดงร้านใกล้ที่สุด 2 ร้าน • กด “ดูร้านทั้งหมด” เพื่อค้นหา';
   }
 }
 
@@ -1642,10 +1643,10 @@ function updateStatsBar(){
   if($('stat-cafe')) $('stat-cafe').textContent = cafe;
   if($('stat-shop')) $('stat-shop').textContent = shop;
   renderRestaurantDirectory();
-  renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('tourist-grid',PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,6));
-  renderGrid('hotel-grid',PLACES.filter(function(p){return p.category==='h'&&hasRealImage(p.image);}).slice(0,6));
+  renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,2));
+  renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,2));
+  renderGrid('tourist-grid',PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,2));
+  renderGrid('hotel-grid',PLACES.filter(function(p){return p.category==='h'&&hasRealImage(p.image);}).slice(0,2));
   loadNearbyShops();
 }
 
@@ -1972,6 +1973,7 @@ async function loadNearbyShops() {
     nearbyShopsLoaded = true;
     renderNearbyShops();
     renderAllShopsModal();
+    renderRestaurantDirectory();
   } catch (e) {
     console.warn('loadNearbyShops error:', e.code || e.message);
     nearbyShopsLoaded = true;
@@ -4053,17 +4055,20 @@ window.submitExpressOrder = async function(){
 window.showCategory = function(cat){
   var map2 = {hotel:'h',tourist:'t',restaurant:'r',cafe:'f',convenience:'c',shop:'s',market:'m'};
   var code = map2[cat]||cat;
+  currentCategoryCode = code;
   if($('home-content')) $('home-content').style.display='none';
   if($('merchant-view')) $('merchant-view').classList.remove('show');
   if($('category-view')) $('category-view').classList.add('show');
   var catInfo = CATS[code]||{name:cat,icon:'📍'};
   if($('category-title')) $('category-title').textContent = catInfo.icon+' '+catInfo.name;
   if($('hotel-tools')) $('hotel-tools').style.display = cat === 'hotel' ? 'block' : 'none';
+  if($('restaurant-tools')) $('restaurant-tools').style.display = cat === 'restaurant' ? 'block' : 'none';
   if (cat !== 'hotel' && $('category-grid')) $('category-grid').className = 'food-grid';
   if (cat === 'hotel') { hotelSearchQuery = ''; if ($('hotel-search-input')) $('hotel-search-input').value = ''; }
   var filtered = PLACES.filter(function(p){return p.category===code;});
   var grid = $('category-grid'); if(!grid) return;
   if (cat === 'hotel') { renderHotelDirectory(); return; }
+  if (cat === 'restaurant') { renderRestaurantDirectory(); return; }
   if(!filtered.length){ grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light)">ไม่มีข้อมูล</div>'; return; }
   grid.innerHTML = filtered.map(renderPlaceCardHTML).join('');
 };
@@ -4071,6 +4076,8 @@ window.showAllCategories = function(cat){ showCategory(cat); };
 window.closeCategoryView = function(){
   if($('category-view')) $('category-view').classList.remove('show');
   if($('home-content')) $('home-content').style.display='block';
+  currentCategoryCode = '';
+  renderRestaurantDirectory();
 };
 
 /* ═══ MERCHANT VIEW ═══ */
@@ -4210,7 +4217,7 @@ function renderLocalRestaurantList() {
   }
   var q = (currentMerchantSearch || '').trim().toLowerCase();
   var places = PLACES.filter(function(p) {
-    return p.category === 'r' && (!q || String(p.name || '').toLowerCase().indexOf(q) !== -1);
+    return p.category === 'r' && !isPartnerRestaurant(p) && (!q || String(p.name || '').toLowerCase().indexOf(q) !== -1);
   });
   if (userLocation) places.sort(function(a, b) {
     return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
