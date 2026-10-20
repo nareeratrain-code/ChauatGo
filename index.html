@@ -632,7 +632,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .express-photo-name { color: var(--text-muted); font-size: 11px; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ═══ HOME V2 — category-led mobile layout ═══ */
-.header { padding: 14px 14px 16px; transition: padding .22s ease, box-shadow .22s ease, border-radius .22s ease; }
+.header { padding: 14px 14px 16px; transition: box-shadow .22s ease, border-radius .22s ease; contain: layout paint; backface-visibility: hidden; }
 .header .cg-brand { flex: 0 0 100%; padding: 2px 4px 14px; gap: 12px; justify-content: flex-start; }
 .header .cg-logo { width: 92px; height: 92px; border: 5px solid #fff; border-radius: 25px; box-shadow: 0 10px 24px rgba(0,0,0,.22); animation: none; }
 .header .cg-brand-name { font-size: 34px; letter-spacing: .2px; }
@@ -1696,8 +1696,23 @@ function initTheme(){
 function initHeaderScroll(){
   var header = $('main-header');
   if (!header) return;
-  var update = function(){ header.classList.toggle('compact', window.scrollY > 36); };
-  window.addEventListener('scroll', update, {passive:true});
+  var compact = false;
+  var ticking = false;
+  var update = function(){
+    ticking = false;
+    var y = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0);
+    /* Hysteresis prevents the sticky header from toggling repeatedly around one threshold. */
+    var next = compact ? y > 20 : y > 72;
+    if (next === compact) return;
+    compact = next;
+    header.classList.toggle('compact', compact);
+  };
+  var onScroll = function(){
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(update);
+  };
+  window.addEventListener('scroll', onScroll, {passive:true});
   update();
 }
 
