@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.25</title>
-<meta name="theme-color" content="#76B82A">
+<meta name="theme-color" content="#4E9F2D">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.27-20261017-005';
+  var VERSION = 'v3.9.28-theme-20261020-001';
   var saved = localStorage.getItem('chauat_ver_index');
   var lastReload = localStorage.getItem('chauat_last_reload');
   var now = Date.now();
@@ -61,12 +61,12 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
 
 :root {
-  --brand: #76B82A; --brand-dark: #5A8E1F; --brand-light: #EDF6DC;
-  --accent: #FF6B35; --green: #00A651; --red: #E53935; --blue: #2196F3;
-  --orange: #FF9800;
-  --bg: #F5F7F2; --surface: #FFFFFF; --surface-2: #F8F9FA;
+  --brand: #4E9F2D; --brand-dark: #34751E; --brand-light: #EAF6DF;
+  --accent: #F36B21; --green: #168A45; --red: #E53935; --blue: #2196F3;
+  --orange: #F28C28;
+  --bg: #FFF4EA; --surface: #FFFFFF; --surface-2: #FFF9F4;
   --text: #1A1A1A; --text-muted: #6B7280; --text-light: #9CA3AF;
-  --border: #E5E7EB; --header-grad: linear-gradient(135deg, #76B82A, #5A8E1F);
+  --border: #F0DED0; --header-grad: linear-gradient(135deg, #62B331, #34751E);
   --shadow-xs: 0 1px 2px rgba(0,0,0,.04);
   --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
   --shadow-md: 0 4px 16px rgba(0,0,0,.08);
@@ -75,27 +75,27 @@
   --input-bg: #fafafa;
   --promo-red: #E53935;
   --promo-red-light: #FFEBEE;
-  --promo-grad: linear-gradient(135deg, #E53935, #C62828);
-  --status-available: #00A651;
-  --status-out: #FF9800;
+  --promo-grad: linear-gradient(135deg, #F36B21, #D9471E);
+  --status-available: #168A45;
+  --status-out: #F28C28;
   --status-hidden: #6B7280;
 }
 [data-theme="dark"] {
-  --brand: #8FD334; --brand-dark: #76B82A; --brand-light: #2A3A1F;
-  --accent: #FF8055; --green: #22C55E; --red: #EF4444; --blue: #60A5FA;
-  --orange: #FBBF24;
-  --bg: #0F1419; --surface: #1A1F26; --surface-2: #232830;
+  --brand: #72C447; --brand-dark: #4E9F2D; --brand-light: #18351D;
+  --accent: #FF7A2F; --green: #35C46A; --red: #EF4444; --blue: #60A5FA;
+  --orange: #F6A33B;
+  --bg: #070B09; --surface: #101713; --surface-2: #17221A;
   --text: #F5F5F5; --text-muted: #9CA3AF; --text-light: #6B7280;
-  --border: #2D333B; --header-grad: linear-gradient(135deg, #1F3A0F, #0F1A08);
+  --border: #26372A; --header-grad: linear-gradient(135deg, #12351D, #050806);
   --shadow-xs: 0 1px 2px rgba(0,0,0,.3);
   --shadow-sm: 0 2px 8px rgba(0,0,0,.4);
   --shadow-md: 0 4px 16px rgba(0,0,0,.5);
   --shadow-lg: 0 12px 32px rgba(0,0,0,.6);
   --overlay-bg: rgba(0,0,0,.8);
-  --input-bg: #232830;
+  --input-bg: #17221A;
   --promo-red: #EF4444;
   --promo-red-light: #3F1F1F;
-  --promo-grad: linear-gradient(135deg, #EF4444, #B91C1C);
+  --promo-grad: linear-gradient(135deg, #F36B21, #A92E19);
 }
 
 html { height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }
@@ -111,7 +111,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 @keyframes logoPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @keyframes cardSlideIn { from { opacity: 0; transform: translateY(30px) scale(.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(118,184,42,.7); } 50% { box-shadow: 0 0 0 12px rgba(118,184,42,0); } }
+@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(78,159,45,.7); } 50% { box-shadow: 0 0 0 12px rgba(78,159,45,0); } }
 @keyframes bellShake { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
 @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
@@ -124,7 +124,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .splash-loader-bar { height: 100%; width: 0%; border-radius: 2px; background: linear-gradient(90deg, #8FD334, #FFFFFF, #8FD334); background-size: 200% 100%; animation: gradientShift 2s ease infinite; transition: width .3s ease; }
 .splash-footer { position: absolute; bottom: 40px; color: rgba(255,255,255,.7); font-size: 11px; font-weight: 700; }
 
-.header { background: var(--header-grad); color: #fff; padding: 16px 14px 18px; border-radius: 0 0 24px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(118,184,42,.25); }
+.header { background: var(--header-grad); color: #fff; padding: 16px 14px 18px; border-radius: 0 0 24px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 20px rgba(78,159,45,.25); }
 .header-top { display: flex; align-items: center; gap: 10px; }
 .search-bar { flex: 1; background: var(--surface); border-radius: 14px; padding: 12px 16px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-md); }
 .search-bar input { flex: 1; border: none; outline: none; background: transparent; font-size: 14px; font-weight: 600; font-family: inherit; color: var(--text); }
@@ -160,7 +160,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 .merchant-tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .m-tab { flex: 1; padding: 10px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; font-family: inherit; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; }
-.m-tab.active { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; border-color: var(--brand); }
+.m-tab.active { background: linear-gradient(135deg, #4E9F2D, #34751E); color: #fff; border-color: var(--brand); }
 .merchant-source-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 14px 10px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
 .merchant-source-tab { min-height: 52px; padding: 7px 6px; border: 0; border-radius: 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; line-height: 1.25; font-weight: 900; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
 .merchant-source-tab small { display: block; margin-top: 2px; font-size: 10px; font-weight: 700; }
@@ -182,10 +182,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .place-card-shop-info { flex: 1; min-width: 0; }
 .place-card-shop-name { font-weight: 900; font-size: 14px; color: var(--text); }
 .place-card-shop-meta { font-size: 11px; color: var(--text-muted); margin-top: 3px; font-weight: 700; }
-.place-card-shop-btn { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; font-family: inherit; cursor: pointer; }
+.place-card-shop-btn { background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-size: 11px; font-family: inherit; cursor: pointer; }
 
 #home-content { padding: 14px; }
-.brand-hero { background: var(--header-grad); color: #fff; border-radius: 20px; padding: 20px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 14px; box-shadow: 0 8px 24px rgba(118,184,42,.25); }
+.brand-hero { background: var(--header-grad); color: #fff; border-radius: 20px; padding: 20px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 14px; box-shadow: 0 8px 24px rgba(78,159,45,.25); }
 .brand-hero img { width: 70px; height: 70px; border-radius: 18px; flex-shrink: 0; }
 .brand-hero .t { font-size: 16px; font-weight: 900; margin-bottom: 4px; }
 .brand-hero .s { font-size: 12px; opacity: .9; font-weight: 700; }
@@ -225,7 +225,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .restaurant-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 16px; pointer-events: none; }
 .restaurant-search-input, .restaurant-filter-select { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px; font-weight: 700; outline: none; transition: border-color .2s, box-shadow .2s, background .2s; }
 .restaurant-search-input { width: 100%; padding: 0 38px 0 36px; }
-.restaurant-search-input:focus, .restaurant-filter-select:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(118,184,42,.14); background: var(--surface); }
+.restaurant-search-input:focus, .restaurant-filter-select:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(78,159,45,.14); background: var(--surface); }
 .restaurant-search-clear { position: absolute; right: 6px; top: 50%; width: 32px; height: 32px; transform: translateY(-50%); border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 18px; cursor: pointer; }
 .restaurant-search-clear:active { background: var(--border); }
 .restaurant-filter-select { flex: 1; min-width: 0; padding: 0 8px; }
@@ -280,7 +280,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .menu-detail-price-normal { font-size: 16px; font-weight: 900; color: var(--green); }
 .menu-detail-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 .menu-promo-badge { display: inline-flex; align-items: center; gap: 3px; background: var(--promo-grad); color: #fff; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 8px; }
-.menu-add-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; font-size: 22px; font-weight: 900; cursor: pointer; flex-shrink: 0; }
+.menu-add-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; border: none; font-size: 22px; font-weight: 900; cursor: pointer; flex-shrink: 0; }
 
 .cart-item-block { background: var(--surface-2); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
 .cart-item-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -299,7 +299,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; max-width: 90%; text-align: center; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-.toast.success { background: linear-gradient(135deg, #00A651, #008C45); }
+.toast.success { background: linear-gradient(135deg, #168A45, #0D6D35); }
 .toast.error { background: linear-gradient(135deg, #E53935, #C62828); }
 .toast.warning { background: linear-gradient(135deg, #FF6B35, #E55A2B); }
 .toast.info { background: linear-gradient(135deg, #2196F3, #1976D2); }
@@ -310,7 +310,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .nav-icon-wrap { font-size: 22px !important; line-height: 1 !important; margin-bottom: 3px !important; }
 .nav-label { font-size: 10px !important; font-weight: 800 !important; }
 
-.cart-bar { position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s cubic-bezier(.32,.72,0,1); visibility: hidden; pointer-events: none; }
+.cart-bar { position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(120px); max-width: 560px; width: calc(100% - 20px); background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 24px rgba(0,166,81,.4); z-index: 8500; transition: transform .3s cubic-bezier(.32,.72,0,1); visibility: hidden; pointer-events: none; }
 .cart-bar.show { transform: translateX(-50%) translateY(0); visibility: visible; pointer-events: auto; }
 
 .profile-sheet { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9500; display: none; justify-content: flex-end; backdrop-filter: blur(4px); }
@@ -360,7 +360,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .exp-suggest-item small { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
 .exp-suggest-item:last-child { border-bottom: none; }
 .btn-full { width: 100%; padding: 14px; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-top: 8px; }
-.btn-green { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
+.btn-green { background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; box-shadow: 0 4px 12px rgba(0,166,81,.3); }
 .btn-gray { background: var(--surface-2); color: var(--text); }
 .btn-blue { background: linear-gradient(135deg, #2196F3, #1976D2); color: #fff; box-shadow: 0 4px 12px rgba(33,150,243,.3); }
 .auth-tabs-row { display: flex; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
@@ -433,7 +433,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 #dest-rider-note { width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); border-radius: 12px; padding: 10px 12px; font-family: inherit; font-size: 14px; font-weight: 700; resize: none; margin-bottom: 8px; }
 .dest-save-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .dest-save-btn { flex: 1; border: 1px dashed var(--border); background: transparent; color: var(--text-muted); border-radius: 12px; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
-.map-confirm-btn { margin: 4px 16px calc(12px + env(safe-area-inset-bottom)); padding: 16px; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border: none; border-radius: 16px; font-weight: 900; font-size: 15px; cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(0,166,81,.35); flex-shrink: 0; }
+.map-confirm-btn { margin: 4px 16px calc(12px + env(safe-area-inset-bottom)); padding: 16px; background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; border: none; border-radius: 16px; font-weight: 900; font-size: 15px; cursor: pointer; font-family: inherit; box-shadow: 0 8px 24px rgba(0,166,81,.35); flex-shrink: 0; }
 .map-confirm-btn:disabled { opacity: .5; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .dest-sheet, .map-center-pin, .map-float-controls { transition: none; }
@@ -452,7 +452,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .pdpa-content h3, .loc-popup-content h3 { font-size: 20px; font-weight: 900; margin-bottom: 12px; }
 .pdpa-content p, .loc-popup-content p { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; font-weight: 600; }
 .pdpa-btn, .loc-popup-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-bottom: 8px; }
-.pdpa-accept, .loc-allow { background: linear-gradient(135deg, #00A651, #008C45); color: #fff; }
+.pdpa-accept, .loc-allow { background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; }
 .loc-skip { background: var(--surface-2); color: var(--text-muted); }
 
 .offline-banner { position: fixed; top: 0; left: 0; right: 0; background: #E53935; color: #fff; text-align: center; padding: 8px; font-size: 12px; font-weight: 800; z-index: 99999; display: none; }
@@ -486,14 +486,14 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .chat-empty { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 13px; font-weight: 700; }
 .chat-day-divider { text-align: center; font-size: 11px; color: var(--text-muted); font-weight: 800; margin: 12px 0 4px; padding: 4px 12px; background: var(--surface-2); border-radius: 10px; align-self: center; }
 .chat-bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; font-size: 14px; font-weight: 600; line-height: 1.4; word-break: break-word; }
-.chat-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; border-bottom-right-radius: 6px; }
+.chat-bubble.mine { align-self: flex-end; background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; border-bottom-right-radius: 6px; }
 .chat-bubble.theirs { align-self: flex-start; background: var(--surface); color: var(--text); border-bottom-left-radius: 6px; box-shadow: var(--shadow-sm); }
 .chat-bubble-meta { font-size: 10px; font-weight: 700; opacity: .7; margin-top: 4px; }
 .chat-bubble .msg-image { max-width: 100%; border-radius: 12px; margin-bottom: 6px; cursor: pointer; display: block; }
 .chat-input-bar { display: flex !important; gap: 8px; padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); align-items: center; }
 .chat-input-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 24px; font-size: 14px; outline: none; font-family: inherit; font-weight: 600; background: var(--input-bg); color: var(--text); min-width: 0; }
 .chat-img-btn { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); color: var(--text); font-size: 20px; cursor: pointer; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.chat-send-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: linear-gradient(135deg, #00A651, #008C45); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.chat-send-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; font-size: 18px; font-weight: 900; cursor: pointer; font-family: inherit; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
 #tracking-page { position: fixed; inset: 0; background: var(--bg); z-index: 9400; display: none; flex-direction: column; }
 #tracking-page.show { display: flex !important; }
@@ -523,7 +523,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .order-track-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
 .order-track-title { font-size: 14px; font-weight: 900; color: var(--text); }
 .order-track-sub { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
-.order-track-cta { background: linear-gradient(135deg, #76B82A, #5A8E1F); color: #fff; border: none; padding: 10px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.order-track-cta { background: linear-gradient(135deg, #4E9F2D, #34751E); color: #fff; border: none; padding: 10px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap; }
 .order-track-progress { display: flex; align-items: center; gap: 3px; margin-top: 12px; }
 .order-track-progress .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
 .order-track-progress .dot.done { background: var(--green); }
@@ -629,7 +629,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div style="font-size:28px">📱</div>
   <div style="flex:1"><div style="font-size:13px;font-weight:900;color:var(--text)">ติดตั้ง Chauat Go</div><div style="font-size:11px;color:var(--text-muted);font-weight:600">เพิ่มลงหน้าจอหลัก</div></div>
-  <button style="background:#76B82A;color:#fff;padding:8px 14px;border:none;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit" onclick="installPWA()">ติดตั้ง</button>
+  <button style="background:#4E9F2D;color:#fff;padding:8px 14px;border:none;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;font-family:inherit" onclick="installPWA()">ติดตั้ง</button>
   <button style="background:var(--surface-2);color:var(--text-muted);width:32px;height:32px;border-radius:50%;border:none;cursor:pointer;font-family:inherit" onclick="dismissPWA()">✕</button>
 </div>
 
@@ -1497,7 +1497,7 @@ window.toggleTheme = function(){
   var fab = $('theme-fab');
   if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
   var meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = next === 'dark' ? '#0F1419' : '#76B82A';
+  if (meta) meta.content = next === 'dark' ? '#070B09' : '#4E9F2D';
   showToast(next === 'dark' ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง', 'info');
 };
 function initTheme(){
@@ -2325,7 +2325,7 @@ function showNearAlertByLevel(order, level, distMeters) {
     APPROACHING: {
       icon: '🟢', title: 'ไรเดอร์กำลังมา',
       sub: 'อีกประมาณ ' + Math.round(distMeters) + ' ม.',
-      color: '#00A651', sound: 'soft'
+      color: '#168A45', sound: 'soft'
     },
     CLOSE: {
       icon: '🟡', title: 'ไรเดอร์ใกล้ถึง',
@@ -2440,7 +2440,7 @@ function orderPrepNote(o) {
   var ready = !!(o.foodReady || o.readyAt);
   var mins = Number(o.prepMinutes || 0);
   if (ready && ['cooking', 'accepted', 'ready'].indexOf(o.status) !== -1) {
-    return '<div style="font-size:12px;font-weight:900;color:#00A651;margin-top:4px">✅ อาหารพร้อมแล้ว</div>';
+    return '<div style="font-size:12px;font-weight:900;color:#168A45;margin-top:4px">✅ อาหารพร้อมแล้ว</div>';
   }
   if (mins && (o.status === 'cooking' || o.status === 'accepted')) {
     return '<div style="font-size:12px;font-weight:900;color:#E65100;margin-top:4px">⏱️ ร้านใช้เวลาทำประมาณ ' + mins + ' นาที</div>';
@@ -2457,7 +2457,7 @@ function renderOrderCard(o){
     on_the_way:'🚀 กำลังส่ง', delivered:'✅ ส่งถึง',
     done:'✅ สำเร็จ', cancelled:'❌ ยกเลิก'
   };
-  var color = o.status==='cancelled'?'#999':(['done','delivered'].indexOf(o.status)!==-1?'#00A651':'#FF6B35');
+  var color = o.status==='cancelled'?'#999':(['done','delivered'].indexOf(o.status)!==-1?'#168A45':'#FF6B35');
   var isDone = ['done','delivered'].indexOf(o.status) !== -1;
   var canRate = isDone && !o.rated;
   var canChat = !!o.riderId && ['cancelled'].indexOf(o.status) === -1;
@@ -2511,7 +2511,7 @@ function renderOrderCard(o){
     discountHtml +
     '<div class="order-track-progress">' + progressDots + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
-      '<button class="rate-btn" style="background:linear-gradient(135deg,#76B82A,#5A8E1F);margin:0" onclick="showOrderBill(\''+esc(o.id)+'\')">🧾 ดูบิล</button>' +
+      '<button class="rate-btn" style="background:linear-gradient(135deg,#4E9F2D,#34751E);margin:0" onclick="showOrderBill(\''+esc(o.id)+'\')">🧾 ดูบิล</button>' +
       (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท</button>':'') +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
@@ -2884,7 +2884,7 @@ window.showOrderBill = async function(orderId) {
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;font-size:14px;font-weight:900">' +
         esc(statusMap[o.status] || o.status) +
-        (['done','delivered','cancelled'].indexOf(o.status) !== -1 ? '' : ((o.foodReady || o.readyAt) ? '<div style="font-size:12px;color:#00A651;margin-top:6px">✅ อาหารพร้อมแล้ว</div>' : (o.prepMinutes ? '<div style="font-size:12px;color:#E65100;margin-top:6px">⏱️ เวลาทำประมาณ ' + Number(o.prepMinutes) + ' นาที</div>' : ''))) +
+        (['done','delivered','cancelled'].indexOf(o.status) !== -1 ? '' : ((o.foodReady || o.readyAt) ? '<div style="font-size:12px;color:#168A45;margin-top:6px">✅ อาหารพร้อมแล้ว</div>' : (o.prepMinutes ? '<div style="font-size:12px;color:#E65100;margin-top:6px">⏱️ เวลาทำประมาณ ' + Number(o.prepMinutes) + ' นาที</div>' : ''))) +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px">' +
         '<div style="font-size:11px;color:var(--text-muted);font-weight:800;margin-bottom:6px">👤 ลูกค้า</div>' +
@@ -5126,7 +5126,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-console.log('%c🚀 Chauat Go v3.9.25 — Ready!', 'color:#76B82A;font-weight:900;font-size:14px');
+console.log('%c🚀 Chauat Go v3.9.25 — Ready!', 'color:#4E9F2D;font-weight:900;font-size:14px');
 console.log('%c⭐ Flow: searching → cooking (ร้านรับ+เวลาทำ, ไรเดอร์รับได้) → accepted → readyAt แจ้งไรเดอร์ → picked_up → customer_paid → on_the_way → done', 'color:#FF6B35;font-weight:800;font-size:12px');
 console.log('%c📦 Bill + Order Code + 4-level Notification', 'color:#2196F3;font-weight:700;font-size:11px');
 </script>
