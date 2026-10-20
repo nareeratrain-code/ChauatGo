@@ -1342,15 +1342,23 @@ function haversine(lat1,lng1,lat2,lng2){
 function fmtDistance(km){if(!km&&km!==0)return'';if(km<1)return Math.round(km*1000)+' ม.';return km.toFixed(1)+' กม.';}
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 function normalizePlaceName(value){return String(value || '').toLowerCase().replace(/[\s\-_.&'’“”"()]+/g,'').replace(/ร้านอาหาร|ร้าน|สาขา/g,'');}
+var PARTNER_COORDINATE_MATCH_KM = 0.03; // 30 เมตร: ใช้เป็นตัวช่วยยืนยัน ไม่ใช้ระยะ 150 ม. แบบกว้าง
+function hasValidCoordinates(item){
+  return item && isFinite(Number(item.lat)) && isFinite(Number(item.lng)) && Math.abs(Number(item.lat)) <= 90 && Math.abs(Number(item.lng)) <= 180;
+}
 function isPartnerRestaurant(place){
-  var placeKey = normalizePlaceName(place && place.name);
-  if (!placeKey) return false;
+  if (!place) return false;
   return nearbyShopsCache.some(function(shop){
     if (!shop || ['restaurant','cafe'].indexOf(String(shop.category || '').toLowerCase()) === -1) return false;
+    // Primary key: a shared placeId is the strongest and safest match.
     if (shop.placeId && String(shop.placeId) === String(place.id)) return true;
-    if (isFinite(Number(shop.lat)) && isFinite(Number(shop.lng)) && isFinite(Number(place.lat)) && isFinite(Number(place.lng)) && haversine(Number(shop.lat), Number(shop.lng), Number(place.lat), Number(place.lng)) <= 0.15) return true;
+    // Fallback: require exact normalized names AND precise coordinates.
+    // Never hide a place from distance alone or from substring/similar-name matching.
+    var placeKey = normalizePlaceName(place.name);
     var shopKey = normalizePlaceName(shop.name);
-    return shopKey && (shopKey === placeKey || shopKey.indexOf(placeKey) !== -1 || placeKey.indexOf(shopKey) !== -1);
+    if (!placeKey || !shopKey || placeKey !== shopKey) return false;
+    if (!hasValidCoordinates(shop) || !hasValidCoordinates(place)) return false;
+    return haversine(Number(shop.lat), Number(shop.lng), Number(place.lat), Number(place.lng)) <= PARTNER_COORDINATE_MATCH_KM;
   });
 }
 
