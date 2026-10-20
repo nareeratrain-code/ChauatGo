@@ -594,6 +594,8 @@ button.chat-list-item:active { filter: brightness(.97); }
 .express-parcel-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 10px 13px; font: 800 12px/1.2 inherit; cursor: pointer; white-space: nowrap; }
 .express-parcel-chip.active { background: var(--brand-light); color: var(--green); border-color: var(--green); box-shadow: 0 0 0 2px rgba(78,159,45,.12); }
 .express-parcel-chip:active { transform: scale(.97); }
+.express-swap-btn { width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--green); border-radius: 12px; padding: 10px 12px; font: 900 13px/1.2 inherit; cursor: pointer; margin: -2px 0 12px; }
+.express-swap-btn:active { transform: scale(.98); filter: brightness(.96); }
 
 @media (max-width: 360px) {
   .brand-hero .t { font-size: 14px; }
@@ -3664,6 +3666,22 @@ window.selectExpressParcelType = function(type) {
   renderExpressForm();
 };
 
+window.swapExpressLocations = function() {
+  captureExpressDraft();
+  var oldOrigin = expOrigin;
+  expOrigin = expDestination;
+  expDestination = oldOrigin;
+  if (!expressDraft) expressDraft = {};
+  var oldFrom = expressDraft.from || '';
+  expressDraft.from = expressDraft.to || '';
+  expressDraft.to = oldFrom;
+  var oldCompose = expressCompose.from || '';
+  expressCompose.from = expressCompose.to || '';
+  expressCompose.to = oldCompose;
+  renderExpressForm();
+  showToast('⇅ สลับต้นทางและปลายทางแล้ว', 'success');
+};
+
 function expressFieldText(id) {
   var el = $(id);
   var live = el ? String(el.value || '').trim() : '';
@@ -3791,6 +3809,7 @@ function renderExpressForm() {
   $('modal-body').innerHTML =
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">📦</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2><div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿30 เริ่มต้น</div></div>' +
     '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button type="button" class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่</button></div>' + originBadge + '</div>' +
+    '<button type="button" class="express-swap-btn press-scale" onclick="swapExpressLocations()">⇅ สลับต้นทางและปลายทาง</button>' +
     '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-destination">🗺️ เลือกจุดส่งจากแผนที่</button></div>' + destBadge + '</div>' +
     '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType.id) + '"><div class="express-parcel-scroll" aria-label="เลือกประเภทพัสดุ">' + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + parcelType.icon + ' ' + esc(parcelType.note) + '</div></div>' +
     '<div class="form-group"><label>📝 รายละเอียดเพิ่มเติม</label><textarea id="order-note" rows="2" placeholder="เช่น จำนวน กล่อง วิธีดูแล หรือข้อควรระวัง">' + esc(noteVal) + '</textarea></div>' +
