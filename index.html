@@ -631,6 +631,74 @@ button.chat-list-item:active { filter: brightness(.97); }
 .express-photo-box input { display: none; }
 .express-photo-name { color: var(--text-muted); font-size: 11px; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ═══ HOME V2 — category-led mobile layout ═══ */
+.header { padding: 14px 14px 16px; transition: padding .22s ease, box-shadow .22s ease, border-radius .22s ease; }
+.header .cg-brand { flex: 0 0 100%; padding: 2px 4px 14px; gap: 12px; justify-content: flex-start; }
+.header .cg-logo { width: 92px; height: 92px; border: 5px solid #fff; border-radius: 25px; box-shadow: 0 10px 24px rgba(0,0,0,.22); animation: none; }
+.header .cg-brand-name { font-size: 34px; letter-spacing: .2px; }
+.header .cg-brand-tag { margin-top: 5px; color: #DFFF8C; font-size: 15px; font-weight: 800; }
+.header-top { gap: 8px; }
+.header-top .search-bar { min-height: 52px; border-radius: 18px; padding: 0 15px; }
+.header-top .search-bar input { font-size: 14px; }
+.header-theme-btn { width: 46px; height: 46px; flex: 0 0 46px; border: 0; border-radius: 50%; background: rgba(255,255,255,.18); color: #fff; font-size: 22px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.header-theme-btn:active { transform: scale(.94); }
+.header.compact { padding: 8px 12px 10px; border-radius: 0 0 18px 18px; }
+.header.compact .cg-brand { flex: 1 1 auto; padding: 0; gap: 8px; }
+.header.compact .cg-logo { width: 46px; height: 46px; border-width: 3px; border-radius: 14px; }
+.header.compact .cg-brand-name { font-size: 22px; }
+.header.compact .cg-brand-tag { font-size: 10px; margin-top: 1px; }
+.header.compact .header-top { flex: 0 0 auto; }
+.header.compact .header-top .search-bar { display: none; }
+.header.compact .profile-avatar, .header.compact .header-theme-btn { width: 38px; height: 38px; flex-basis: 38px; font-size: 18px; }
+.theme-fab { display: none !important; }
+#home-content { padding: 14px 12px 22px; }
+.brand-hero { min-height: 70px; margin: 0 2px 16px; padding: 14px 16px; border-radius: 22px; background: linear-gradient(135deg,#DFFF8C,#B8EA42); color: #204D16; box-shadow: 0 8px 18px rgba(120,170,20,.18); }
+.brand-hero::before { content: '🛵'; font-size: 38px; line-height: 1; flex: 0 0 auto; }
+.brand-hero .t { font-size: 16px; color: #173D12; }
+.brand-hero .s { font-size: 11px; color: #3F641F; }
+.menu-grid { gap: 12px; margin: 0 2px 18px; }
+.menu-item { background: transparent; box-shadow: none; padding: 0 0 2px; }
+.menu-icon { width: 100%; height: 74px; border-radius: 22px; font-size: 32px; margin-bottom: 6px; box-shadow: inset 0 -5px 0 rgba(0,0,0,.08); }
+.menu-icon.food { background: #FFE9DE; }
+.menu-icon.shopping { background: #E2ECFF; }
+.menu-icon.travel { background: #FFE4EA; }
+.menu-icon.express { background: #FFE5F1; }
+.menu-icon.hotel { background: #FFF1C9; }
+.menu-icon.map { background: #DDF4ED; }
+.menu-label { font-size: 12px; }
+.home-section { margin: 0 0 16px; padding: 4px 0 2px; border: 2px solid var(--section-border); border-radius: 26px; background: var(--section-bg); overflow: hidden; }
+.home-section .section-header { padding: 12px 14px 8px; margin: 0; }
+.home-section .section-title { color: var(--section); font-size: 18px; display: flex; align-items: center; gap: 8px; }
+.home-section .section-title::first-letter { font-size: 25px; }
+.home-section .section-more { background: var(--section); color: #fff; border-radius: 999px; padding: 9px 13px; min-height: 38px; font-size: 11px; }
+.home-section .place-directory-note { margin: 0 14px 10px; background: rgba(255,255,255,.76); color: var(--section-dark); border: 0; }
+.home-section .food-grid { padding: 0 12px 12px; gap: 10px; }
+.home-section .food-card { border-radius: 20px; box-shadow: 0 5px 14px rgba(0,0,0,.07); }
+.home-section .food-img, .home-section .food-img-fallback { height: 126px; }
+.home-section .food-info { padding: 9px 11px 11px; }
+.home-section .food-name { font-size: 13px; }
+.home-section .food-meta { color: var(--section); background: color-mix(in srgb, var(--section-bg) 65%, white); display: inline-block; padding: 4px 7px; border-radius: 999px; margin-top: 5px; }
+.home-section .food-price { color: var(--section); }
+.section-restaurant { --section: #E85B2A; --section-dark: #873517; --section-bg: #FFF0E8; --section-border: #F5C2AD; }
+.section-convenience { --section: #2F6DE1; --section-dark: #1E438D; --section-bg: #EAF1FF; --section-border: #B8CBF6; }
+.section-cafe { --section: #9A46CF; --section-dark: #64258D; --section-bg: #F6EAFF; --section-border: #DDBBEE; }
+.section-tourist { --section: #159BA7; --section-dark: #11636B; --section-bg: #E4F8F8; --section-border: #B5E0E2; }
+.section-hotel { --section: #DEA800; --section-dark: #806100; --section-bg: #FFF7D9; --section-border: #F0D98A; }
+.partner-cta { margin: 2px 2px 16px; padding: 15px 16px; border-radius: 22px; background: linear-gradient(135deg,#10261C,#07120D); color: #fff; display: flex; align-items: center; gap: 10px; box-shadow: 0 8px 18px rgba(0,0,0,.18); }
+.partner-cta-icon { font-size: 28px; }
+.partner-cta-copy { flex: 1; min-width: 0; }
+.partner-cta-title { font-size: 16px; font-weight: 900; }
+.partner-cta-sub { margin-top: 3px; font-size: 11px; color: rgba(255,255,255,.72); font-weight: 700; }
+.partner-cta-btn { flex: 0 0 auto; border: 0; border-radius: 999px; background: #DFFF69; color: #173D12; padding: 10px 15px; font: 900 12px inherit; cursor: pointer; }
+[data-theme="dark"] .home-section { filter: saturate(.85); }
+[data-theme="dark"] .home-section .place-directory-note { background: rgba(20,30,22,.72); }
+@media (max-width: 480px) {
+  .header .cg-logo { width: 78px; height: 78px; border-radius: 22px; }
+  .header .cg-brand-name { font-size: 30px; }
+  .header .cg-brand-tag { font-size: 13px; }
+  .header-theme-btn { display: flex; align-items: center; justify-content: center; }
+}
+
 @media (max-width: 360px) {
   .express-two-col { grid-template-columns: 1fr; gap: 0; }
   .brand-hero .t { font-size: 14px; }
@@ -664,8 +732,6 @@ button.chat-list-item:active { filter: brightness(.97); }
   <div class="splash-loader"><div class="splash-loader-bar" id="splash-bar"></div></div>
   <div class="splash-footer">© 2024 Chauat Go</div>
 </div>
-
-<button class="theme-fab" onclick="toggleTheme()" id="theme-fab">🌙</button>
 
 <div id="pwa-install-banner" class="pwa-banner hidden">
   <div style="font-size:28px">📱</div>
@@ -960,6 +1026,7 @@ button.chat-list-item:active { filter: brightness(.97); }
     <div class="profile-avatar press-scale" onclick="openProfileSheet()">
       <span id="profile-avatar-emoji">🧑</span>
     </div>
+    <button class="header-theme-btn press-scale" onclick="toggleTheme()" id="theme-fab" aria-label="สลับโหมดสี">🌙</button>
   </div>
 </div>
 
@@ -1069,21 +1136,37 @@ button.chat-list-item:active { filter: brightness(.97); }
       <button type="button" class="nearby-more-btn" id="nearby-more-btn" style="display:none" onclick="openAllShopsModal()">ดูทั้งหมด →</button>
     </div>
 
-    <div class="section-header"><div class="section-title">🍽️ ร้านอาหารในพื้นที่</div><div class="section-more press-scale" onclick="showAllCategories('restaurant')">ดูร้านทั้งหมด →</div></div>
-    <div class="place-directory-note">แสดงร้านใกล้ที่สุด 2 ร้าน • กด “ดูร้านทั้งหมด” เพื่อค้นหาและดูรายการทั้งหมด</div>
-    <div class="food-grid" id="restaurant-grid"></div>
+    <section class="home-section section-restaurant">
+      <div class="section-header"><div class="section-title">🍽️ ร้านอาหารในพื้นที่</div><div class="section-more press-scale" onclick="showAllCategories('restaurant')">ดูร้านทั้งหมด →</div></div>
+      <div class="place-directory-note">แสดงร้านใกล้ที่สุด 2 ร้าน • กด “ดูทั้งหมด” เพื่อค้นหาและดูรายการทั้งหมด</div>
+      <div class="food-grid" id="restaurant-grid"></div>
+    </section>
 
-    <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more press-scale" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div></div>
-    <div class="food-grid" id="convenience-grid"></div>
+    <section class="home-section section-convenience">
+      <div class="section-header"><div class="section-title">🏪 ร้านสะดวกซื้อ</div><div class="section-more press-scale" onclick="showAllCategories('convenience')">ดูทั้งหมด →</div></div>
+      <div class="food-grid" id="convenience-grid"></div>
+    </section>
 
-    <div class="section-header"><div class="section-title">☕ คาเฟ่</div><div class="section-more press-scale" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div></div>
-    <div class="food-grid" id="cafe-grid"></div>
+    <section class="home-section section-cafe">
+      <div class="section-header"><div class="section-title">☕ คาเฟ่</div><div class="section-more press-scale" onclick="showAllCategories('cafe')">ดูทั้งหมด →</div></div>
+      <div class="food-grid" id="cafe-grid"></div>
+    </section>
 
-    <div class="section-header"><div class="section-title">🌴 สถานที่ท่องเที่ยว</div><div class="section-more press-scale" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div></div>
-    <div class="food-grid" id="tourist-grid"></div>
+    <section class="home-section section-tourist">
+      <div class="section-header"><div class="section-title">🌴 สถานที่ท่องเที่ยว</div><div class="section-more press-scale" onclick="showAllCategories('tourist')">ดูทั้งหมด →</div></div>
+      <div class="food-grid" id="tourist-grid"></div>
+    </section>
 
-    <div class="section-header"><div class="section-title">🏨 โรงแรม/ที่พัก</div><div class="section-more press-scale" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div></div>
-    <div class="food-grid" id="hotel-grid"></div>
+    <section class="home-section section-hotel">
+      <div class="section-header"><div class="section-title">🏨 โรงแรม/ที่พัก</div><div class="section-more press-scale" onclick="showAllCategories('hotel')">ดูทั้งหมด →</div></div>
+      <div class="food-grid" id="hotel-grid"></div>
+    </section>
+
+    <div class="partner-cta">
+      <div class="partner-cta-icon">🤝</div>
+      <div class="partner-cta-copy"><div class="partner-cta-title">เปิดร้านกับ ChauatGo</div><div class="partner-cta-sub">สมัครเป็นร้านพาร์ทเนอร์ รับออเดอร์ได้ทันที</div></div>
+      <button class="partner-cta-btn press-scale" type="button" onclick="window.location.href='merchant.html'">สมัคร</button>
+    </div>
   </div>
 </div>
 
@@ -1610,10 +1693,18 @@ function initTheme(){
   var fab = $('theme-fab');
   if (fab) fab.textContent = theme === 'dark' ? '☀️' : '🌙';
 }
+function initHeaderScroll(){
+  var header = $('main-header');
+  if (!header) return;
+  var update = function(){ header.classList.toggle('compact', window.scrollY > 36); };
+  window.addEventListener('scroll', update, {passive:true});
+  update();
+}
 
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded', function(){
   initTheme();
+  initHeaderScroll();
   runSplash();
   loadPlaces();
   initAuth();
