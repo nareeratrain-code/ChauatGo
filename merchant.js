@@ -1721,43 +1721,7 @@ function openShopProfile() {
   if (!merchantProfile) return;
   loadShopAvatarPreview();
   renderShopProfileInfo();
-  loadMerchantProfileEdit();
   openSheet('shop-profile-sheet');
-}
-
-function loadMerchantProfileEdit() {
-  const m = merchantProfile || {};
-  if ($('profile-phone')) $('profile-phone').value = m.phone || '';
-  if ($('profile-address')) $('profile-address').value = m.address || '';
-  if ($('profile-open-time')) $('profile-open-time').value = m.openTime || '';
-  if ($('profile-close-time')) $('profile-close-time').value = m.closeTime || '';
-  const title = document.querySelector('#merchant-profile-edit .menu-section-title');
-  if (title) title.textContent = m.category === 'hotel' ? '✏️ แก้ไขข้อมูลที่พักที่แสดงต่อลูกค้า' : '✏️ แก้ไขข้อมูลที่แสดงต่อลูกค้า';
-}
-
-async function saveMerchantProfile() {
-  if (!currentUser) return;
-  const phone = ($('profile-phone')?.value || '').trim();
-  const address = ($('profile-address')?.value || '').trim();
-  const openTime = $('profile-open-time')?.value || '';
-  const closeTime = $('profile-close-time')?.value || '';
-  if (phone.replace(/\D/g, '').length < 9) return showToast('กรุณากรอกเบอร์โทรให้ถูกต้อง', 'error');
-  const btn = $('btn-save-merchant-profile');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
-  try {
-    await db.collection('merchants').doc(currentUser.uid).update({
-      phone, address, openTime, closeTime,
-      profileUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    merchantProfile = { ...merchantProfile, phone, address, openTime, closeTime };
-    renderShopProfileInfo();
-    showToast('✅ บันทึกข้อมูลที่พักแล้ว');
-  } catch (err) {
-    console.error('saveMerchantProfile error:', err);
-    showToast('บันทึกไม่สำเร็จ: ' + (err.code || err.message), 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกข้อมูล'; }
-  }
 }
 
 function renderShopProfileInfo() {
@@ -2481,8 +2445,6 @@ function dismissPWA() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   runSplash();
-  const signupCategory = $('su-category');
-  if (signupCategory) signupCategory.addEventListener('change', updateSignupCategoryUi);
 
   document.body.addEventListener('click', () => {
     if (!isAudioUnlocked) {
@@ -2494,18 +2456,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, { once: false });
 });
-
-function updateSignupCategoryUi() {
-  const isHotel = $('su-category')?.value === 'hotel';
-  const nameLabel = document.querySelector('label[for="su-shop-name"]') || $('su-shop-name')?.parentElement?.querySelector('label');
-  if (nameLabel) nameLabel.textContent = isHotel ? '🏨 ชื่อโรงแรม / ที่พัก *' : '🏪 ชื่อร้านหรือที่พัก *';
-  const consent = $('signup-consent-text');
-  if (consent) consent.innerHTML = isHotel
-    ? 'ข้าพเจ้ายอมรับเงื่อนไขการเข้าร่วม ChauatGo และยินยอมให้แสดงชื่อ เบอร์โทร รูปภาพ และข้อมูลที่พักต่อลูกค้า<br><b>📌 หลังแอดมินอนุมัติ ที่พักจะแสดงในเมนูโรงแรม/ที่พัก</b>'
-    : 'ข้าพเจ้ายอมรับเงื่อนไข <b>GP ร้าน 3% ของยอดอาหาร</b><br>แบ่งให้ไรเดอร์ 2% และแพลตฟอร์ม 1% (คนละส่วนกับค่าส่ง: ไรเดอร์ 80% / แพลตฟอร์ม 20%)<br><b>🎉 โปรโมชั่น: 2 เดือนแรกไม่คิด GP ร้าน</b>';
-  const btn = $('btn-signup');
-  if (btn) btn.textContent = isHotel ? '🏨 สมัครที่พัก' : '🏪 สมัครร้านค้า';
-}
 
 window.addEventListener('beforeunload', () => { stopOrderLoop(); });
 
@@ -2542,7 +2492,6 @@ window.filterHistory = filterHistory;
 window.openGpTransferForm = openGpTransferForm;
 window.submitGpTransfer = submitGpTransfer;
 window.openShopProfile = openShopProfile;
-window.saveMerchantProfile = saveMerchantProfile;
 window.uploadShopAvatar = uploadShopAvatar;
 window.saveShopAvatar = saveShopAvatar;
 window.openChatWithCustomer = openChatWithCustomer;

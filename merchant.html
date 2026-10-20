@@ -659,11 +659,10 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
     </form>
 
     <form id="form-signup" style="display:none" onsubmit="handleSignup(event)">
-      <div class="form-field"><label>🏪 ชื่อร้านหรือที่พัก *</label><input type="text" id="su-shop-name" placeholder="เช่น โรงแรมเฟื่องฟ้ารีสอร์ท" required maxlength="100"></div>
-      <div class="form-field"><label>📂 ประเภทธุรกิจ *</label>
+      <div class="form-field"><label>🏪 ชื่อร้าน *</label><input type="text" id="su-shop-name" placeholder="เช่น ร้านข้าวแกงป้าสมร" required maxlength="100"></div>
+      <div class="form-field"><label>📂 ประเภทร้าน *</label>
         <select id="su-category" required>
           <option value="">-- เลือกประเภท --</option>
-          <option value="hotel">🏨 โรงแรม / รีสอร์ท / โฮมสเตย์</option>
           <option value="restaurant">🍽️ ร้านอาหาร</option>
           <option value="cafe">☕ คาเฟ่ / เครื่องดื่ม</option>
           <option value="convenience">🏪 ร้านสะดวกซื้อ</option>
@@ -687,7 +686,7 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
       <div class="gp-consent">
         <label>
           <input type="checkbox" id="gp-consent-check" required>
-          <span id="signup-consent-text">ข้าพเจ้ายอมรับเงื่อนไขการเข้าร่วม ChauatGo และยินยอมให้แสดงข้อมูลธุรกิจต่อลูกค้า</span>
+          <span>ข้าพเจ้ายอมรับเงื่อนไข <b>GP ร้าน 3% ของยอดอาหาร</b><br>แบ่งให้ไรเดอร์ 2% และแพลตฟอร์ม 1% (คนละส่วนกับค่าส่ง: ไรเดอร์ 80% / แพลตฟอร์ม 20%)<br><b>🎉 โปรโมชั่น: 2 เดือนแรกไม่คิด GP ร้าน</b></span>
         </label>
       </div>
       <button type="submit" class="btn-primary ripple" id="btn-signup">🏪 สมัครร้านค้า</button>
@@ -1007,16 +1006,6 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
       <button type="button" id="shop-avatar-save-btn" class="shop-avatar-save-btn ripple" onclick="saveShopAvatar()" style="display:none">💾 บันทึกรูปโปรไฟล์</button>
     </div>
     <div class="shop-info-block" id="shop-profile-info"></div>
-    <div id="merchant-profile-edit" class="menu-section-box" style="margin-top:14px">
-      <div class="menu-section-title">✏️ แก้ไขข้อมูลที่แสดงต่อลูกค้า</div>
-      <div class="form-field"><label>📞 เบอร์โทรศัพท์</label><input type="tel" id="profile-phone" placeholder="08X-XXX-XXXX" maxlength="20"></div>
-      <div class="form-field"><label>📍 ที่อยู่ / ทำเล</label><input type="text" id="profile-address" placeholder="ที่อยู่ที่พัก"></div>
-      <div class="form-row">
-        <div class="form-field"><label>⏰ เวลาเปิด</label><input type="time" id="profile-open-time"></div>
-        <div class="form-field"><label>⏰ เวลาปิด</label><input type="time" id="profile-close-time"></div>
-      </div>
-      <button type="button" class="btn-primary ripple" id="btn-save-merchant-profile" onclick="saveMerchantProfile()">💾 บันทึกข้อมูล</button>
-    </div>
     <button class="sheet-close ripple" onclick="closeSheet('shop-profile-sheet')">ปิด</button>
   </div>
 </div>

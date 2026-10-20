@@ -229,9 +229,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .hotel-card-name { font-size: 15px; line-height: 1.3; font-weight: 900; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hotel-card-meta { margin-top: 5px; color: var(--text-muted); font-size: 11px; font-weight: 700; line-height: 1.4; }
 .hotel-card-price { margin-top: 3px; color: var(--green); font-size: 12px; font-weight: 900; }
-.hotel-card-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 6px; margin-top: 10px; }
+.hotel-card-actions { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 6px; margin-top: 10px; }
 .hotel-action { min-height: 40px; border: 0; border-radius: 11px; padding: 0 8px; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
 .hotel-action.call { background: var(--brand-light); color: var(--green); border: 1px solid rgba(78,159,45,.25); }
+.hotel-action.destination { background: #E8F5E9; color: #2E7D32; border: 1px solid rgba(46,125,50,.2); }
 .hotel-action.book { background: linear-gradient(135deg,#F28C28,#D96B12); color: #fff; box-shadow: 0 5px 12px rgba(217,107,18,.2); }
 .hotel-action:active { transform: scale(.97); }
 .hotel-detail-hero { width: 100%; height: 190px; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg,#FFF3E0,#FFE0B2); display: flex; align-items: center; justify-content: center; font-size: 58px; margin-bottom: 14px; }
@@ -1301,7 +1302,6 @@ var nearNotifiedOrderIds = new Set();
 var currentTrackingOrder = null;
 var lastTrackedPositions = {};
 var nearbyShopsCache = [];
-var hotelPartnersCache = [];
 var nearbyShopsLoaded = false;
 var riderGpsUnsubs = {};
 var _cachedOrders = [];
@@ -1658,7 +1658,11 @@ function hotelBookingUrl(p){
   return 'https://www.agoda.com/search?text=' + encodeURIComponent(p.name || 'โรงแรม ชะอวด');
 }
 function hotelPhone(p){ return String(p.phone || '').trim(); }
-function findHotelById(id){ return PLACES.find(function(x){ return x.id === id; }) || hotelPartnersCache.find(function(x){ return x.id === id; }); }
+function findHotelById(id){ return PLACES.find(function(x){ return x.id === id; }); }
+function hotelMapsUrl(p){
+  var query = p && p.name ? p.name + (p.address ? ', ' + p.address : ', ชะอวด นครศรีธรรมราช') : 'โรงแรม ชะอวด นครศรีธรรมราช';
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query);
+}
 function callHotelById(id){
   var p = findHotelById(id);
   var phone = p && hotelPhone(p);
@@ -1680,17 +1684,14 @@ function renderHotelCardHTML(p){
     '<div class="hotel-card-meta">'+cat.icon+' '+esc(cat.name)+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
     (p.price?'<div class="hotel-card-price">เริ่มต้นประมาณ '+esc(p.price)+'</div>':'') +
     '<div class="hotel-card-actions"><button type="button" class="hotel-action call" onclick="event.stopPropagation();callHotelById(\''+esc(p.id)+'\')">📞 โทร</button>' +
-    '<button type="button" class="hotel-action book" onclick="event.stopPropagation();openHotelBooking(\''+esc(p.id)+'\')">จอง Agoda</button></div></div></article>';
+    '<button type="button" class="hotel-action destination" onclick="event.stopPropagation();setDestFromPlace(\''+esc(p.id)+'\')">🎯 ปลายทาง</button>' +
+    '<button type="button" class="hotel-action book" onclick="event.stopPropagation();openHotelBooking(\''+esc(p.id)+'\')">ค้นหา Agoda</button></div></div></article>';
 }
 function renderHotelDirectory(){
   var grid = $('category-grid'); if(!grid) return;
   var q = (hotelSearchQuery || '').trim().toLowerCase();
   var hotelIds = {};
   var hotels = PLACES.filter(function(p){ return p.category === 'h'; });
-  hotelPartnersCache.forEach(function(partner){
-    var duplicate = hotels.some(function(p){ return String(p.name || '').trim().toLowerCase() === String(partner.name || '').trim().toLowerCase(); });
-    if (!duplicate) hotels.push(partner);
-  });
   hotels = hotels.filter(function(p){
     if (hotelIds[p.id]) return false;
     hotelIds[p.id] = true;
@@ -1964,20 +1965,10 @@ async function loadNearbyShops() {
     nearbyShopsCache = snap.docs.map(function(d) {
       return Object.assign({ id: d.id }, d.data());
     });
-    hotelPartnersCache = nearbyShopsCache.filter(function(shop){ return shop.category === 'hotel' && shop.verified === true; }).map(function(shop){
-      return {
-        id: 'HOTEL-' + shop.id, merchantId: shop.id, name: shop.name || 'ที่พัก',
-        lat: Number(shop.lat), lng: Number(shop.lng), category: 'h',
-        price: shop.priceRange || shop.price || '', image: shop.image || shop.imageUrl || '',
-        rating: shop.ratingAvg || 0, phone: shop.phone || '', address: shop.address || '',
-        agodaUrl: shop.agodaUrl || ''
-      };
-    });
     console.log('📍 Nearby shops loaded:', nearbyShopsCache.length);
     nearbyShopsLoaded = true;
     renderNearbyShops();
     renderAllShopsModal();
-    if ($('category-title') && $('category-title').textContent.indexOf('ที่พัก') !== -1) renderHotelDirectory();
   } catch (e) {
     console.warn('loadNearbyShops error:', e.code || e.message);
     nearbyShopsLoaded = true;
@@ -5319,9 +5310,11 @@ function openHotelDetail(p){
     '<div class="hotel-detail-kicker">🏨 ที่พัก'+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
     '<div style="margin-top:12px;color:var(--text-muted);font-size:13px;line-height:1.6">📍 '+esc(p.address || 'ที่พักในอำเภอชะอวด จังหวัดนครศรีธรรมราช')+'</div>' +
     (p.price ? '<div style="margin-top:8px;color:var(--green);font-weight:900">เริ่มต้นประมาณ '+esc(p.price)+'</div>' : '') +
-    '<div class="hotel-detail-actions"><button class="hotel-detail-call" type="button" onclick="callHotelById(\''+esc(p.id)+'\')">📞 '+(phone?'โทรหาโรงแรม':'ขอเบอร์โทร')+'</button>' +
-    '<button class="hotel-detail-book" type="button" onclick="openHotelBooking(\''+esc(p.id)+'\')">ดูราคาและจอง Agoda</button></div>' +
-    '<div class="hotel-detail-disclaimer">ChauatGo เป็นแพลตฟอร์มแนะนำที่พัก การค้นหาราคา ห้องว่าง การจอง และการชำระเงินจะดำเนินการต่อบน Agoda</div>' +
+    '<div class="hotel-detail-actions"><button class="hotel-detail-call" type="button" onclick="callHotelById(\''+esc(p.id)+'\')">📞 '+(phone?'โทรหาโรงแรม':'ดูเบอร์ใน Maps')+'</button>' +
+    '<button class="hotel-detail-book" type="button" onclick="window.open(hotelMapsUrl(findHotelById(\''+esc(p.id)+'\')),\'_blank\',\'noopener\')">🗺️ ดูข้อมูล Maps</button></div>' +
+    '<button class="btn-full btn-green press-scale" type="button" onclick="setDestFromPlace(\''+esc(p.id)+'\')">🎯 เพิ่มที่พักเป็นปลายทางให้ไรเดอร์</button>' +
+    '<button class="btn-full btn-gray press-scale" type="button" onclick="openHotelBooking(\''+esc(p.id)+'\')" style="margin-top:8px">ค้นหาที่พักต่อบน Agoda</button>' +
+    '<div class="hotel-detail-disclaimer">ข้อมูลรูปภาพและเบอร์โทรอาจมาจากแคตตาล็อกสถานที่หรือแหล่งข้อมูลสาธารณะ ควรตรวจสอบกับโรงแรมก่อนใช้บริการ ส่วน Agoda เป็นลิงก์ภายนอก ยังไม่ได้เชื่อมระบบจองของ ChauatGo</div>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()" style="margin-top:10px">ปิด</button>';
   openModal();
 }
@@ -5357,7 +5350,7 @@ window.showPlaceDetail = function(placeId){
   }, 60);
 };
 window.setDestFromPlace = function(placeId){
-  var p = PLACES.find(function(x){return x.id===placeId;});
+  var p = findHotelById(placeId);
   if (!p) return;
   closeModal(); openMapPage();
   setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name); }, 500);
