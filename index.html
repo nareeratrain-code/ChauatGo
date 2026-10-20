@@ -596,8 +596,13 @@ button.chat-list-item:active { filter: brightness(.97); }
 .express-parcel-chip:active { transform: scale(.97); }
 .express-swap-btn { width: 100%; border: 1px solid var(--border); background: var(--surface-2); color: var(--green); border-radius: 12px; padding: 10px 12px; font: 900 13px/1.2 inherit; cursor: pointer; margin: -2px 0 12px; }
 .express-swap-btn:active { transform: scale(.98); filter: brightness(.96); }
+.express-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.express-photo-box { min-height: 76px; border: 2px dashed var(--border); border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--green); font-weight: 900; cursor: pointer; background: var(--surface-2); text-align: center; padding: 10px; }
+.express-photo-box input { display: none; }
+.express-photo-name { color: var(--text-muted); font-size: 11px; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 360px) {
+  .express-two-col { grid-template-columns: 1fr; gap: 0; }
   .brand-hero .t { font-size: 14px; }
   .brand-hero img { width: 60px; height: 60px; }
   .nearby-shop-img { height: 95px; }
@@ -3653,9 +3658,19 @@ function captureExpressDraft() {
     to: $('order-to') ? $('order-to').value : '',
     note: $('order-note') ? $('order-note').value : '',
     phone: $('order-phone') ? $('order-phone').value : '',
+    arrivalBy: $('express-arrival-by') ? $('express-arrival-by').value : ((expressDraft && expressDraft.arrivalBy) || ''),
+    weightKg: $('express-weight-kg') ? $('express-weight-kg').value : ((expressDraft && expressDraft.weightKg) || ''),
+    itemDescription: $('express-item-description') ? $('express-item-description').value : ((expressDraft && expressDraft.itemDescription) || ''),
     parcelType: $('express-parcel-type') ? $('express-parcel-type').value : ((expressDraft && expressDraft.parcelType) || 'document')
   };
 }
+
+window.previewExpressParcelPhoto = function(input) {
+  var preview = $('express-photo-name');
+  if (!preview) return;
+  var file = input && input.files && input.files[0];
+  preview.textContent = file ? '📷 ' + file.name : 'ยังไม่ได้เลือกรูป (ไม่บังคับ)';
+};
 
 window.selectExpressParcelType = function(type) {
   var found = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === type; })[0];
@@ -3737,7 +3752,7 @@ function renderExpressSuggest(which) {
 }
 
 function bindExpressFields() {
-  ['order-from', 'order-to', 'order-note', 'order-phone'].forEach(function(id) {
+  ['order-from', 'order-to', 'order-note', 'order-phone', 'express-arrival-by', 'express-weight-kg', 'express-item-description'].forEach(function(id) {
     var el = $(id);
     if (!el || el.dataset.bound) return;
     el.dataset.bound = '1';
@@ -3798,6 +3813,9 @@ function renderExpressForm() {
   var toVal = (expressDraft && expressDraft.to != null) ? expressDraft.to : (expDestination ? expDestination.address : '');
   var noteVal = (expressDraft && expressDraft.note != null) ? expressDraft.note : '';
   var phoneVal = (expressDraft && expressDraft.phone != null) ? expressDraft.phone : ((userProfile && userProfile.phone) || '');
+  var arrivalByVal = (expressDraft && expressDraft.arrivalBy) || '';
+  var weightVal = (expressDraft && expressDraft.weightKg) || '';
+  var itemDescriptionVal = (expressDraft && expressDraft.itemDescription) || '';
   var parcelTypeVal = (expressDraft && expressDraft.parcelType) || 'document';
   var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeVal; })[0] || EXPRESS_PARCEL_TYPES[0];
   var parcelTypesHtml = EXPRESS_PARCEL_TYPES.map(function(item) {
@@ -3812,7 +3830,10 @@ function renderExpressForm() {
     '<button type="button" class="express-swap-btn press-scale" onclick="swapExpressLocations()">⇅ สลับต้นทางและปลายทาง</button>' +
     '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-destination">🗺️ เลือกจุดส่งจากแผนที่</button></div>' + destBadge + '</div>' +
     '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType.id) + '"><div class="express-parcel-scroll" aria-label="เลือกประเภทพัสดุ">' + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + parcelType.icon + ' ' + esc(parcelType.note) + '</div></div>' +
-    '<div class="form-group"><label>📝 รายละเอียดเพิ่มเติม</label><textarea id="order-note" rows="2" placeholder="เช่น จำนวน กล่อง วิธีดูแล หรือข้อควรระวัง">' + esc(noteVal) + '</textarea></div>' +
+    '<div class="express-two-col"><div class="form-group"><label>⚖️ น้ำหนักโดยประมาณ (กก.)</label><input type="number" id="express-weight-kg" min="0" max="1000" step="0.1" value="' + esc(weightVal) + '" placeholder="เช่น 2.5"></div><div class="form-group"><label>⏰ ต้องการให้ถึง</label><input type="datetime-local" id="express-arrival-by" value="' + esc(arrivalByVal) + '"></div></div>' +
+    '<div class="form-group"><label>🧾 ลักษณะสิ่งของ</label><textarea id="express-item-description" rows="2" placeholder="เช่น กล่องเอกสาร 1 กล่อง, ผลไม้ 3 กก., ต้องระวังแตก">' + esc(itemDescriptionVal) + '</textarea></div>' +
+    '<div class="form-group"><label>📷 รูปถ่ายสิ่งของ <span style="font-size:11px;color:var(--text-muted);font-weight:700">(ไม่บังคับ)</span></label><label class="express-photo-box"><span style="font-size:25px">📷</span><span>ถ่ายรูปหรือเลือกรูปสิ่งของ</span><input type="file" id="express-parcel-photo" accept="image/*" capture="environment" onchange="previewExpressParcelPhoto(this)"></label><div id="express-photo-name" class="express-photo-name">ยังไม่ได้เลือกรูป (ไม่บังคับ)</div></div>' +
+    '<div class="form-group"><label>📝 หมายเหตุถึงไรเดอร์</label><textarea id="order-note" rows="2" placeholder="เช่น ให้โทรก่อนถึง หรือวางไว้หน้าบ้าน">' + esc(noteVal) + '</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc(phoneVal) + '"></div>' +
     '<button type="button" class="btn-full btn-green press-scale" data-exp-submit="1" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
     '<button type="button" class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
@@ -3861,6 +3882,17 @@ window.setExpDestinationFromPlace = function(placeId){
   showToast('🎯 ' + p.name);
 };
 
+async function uploadExpressParcelPhoto(file) {
+  if (!file) return null;
+  if (file.size > 5 * 1024 * 1024) throw new Error('รูปสิ่งของต้องมีขนาดไม่เกิน 5MB');
+  if (!file.type || file.type.indexOf('image/') !== 0) throw new Error('ไฟล์รูปสิ่งของไม่ถูกต้อง');
+  var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  if (['jpg','jpeg','png','webp','heic'].indexOf(ext) === -1) ext = 'jpg';
+  var path = 'express/' + currentUser.uid + '/parcel_' + Date.now() + '.' + ext;
+  var snap = await storage.ref(path).put(file, { contentType: file.type });
+  return { url: await snap.ref.getDownloadURL(), path: path };
+}
+
 window.submitExpressOrder = async function(){
   if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ','warning'); }
   var active = document.activeElement;
@@ -3881,10 +3913,18 @@ window.submitExpressOrder = async function(){
   if (!toText) return showToast('กรอกปลายทาง','error');
   var parcelTypeId = ($('express-parcel-type') && $('express-parcel-type').value) || (expressDraft && expressDraft.parcelType) || 'document';
   var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeId; })[0] || EXPRESS_PARCEL_TYPES[0];
+  var arrivalBy = ($('express-arrival-by') && $('express-arrival-by').value) || '';
+  var weightKg = ($('express-weight-kg') && $('express-weight-kg').value) || '';
+  var itemDescription = ($('express-item-description') && $('express-item-description').value.trim()) || '';
+  var photoFile = $('express-parcel-photo') && $('express-parcel-photo').files && $('express-parcel-photo').files[0];
+  if (!arrivalBy) return showToast('กรุณาระบุเวลาที่ต้องการให้ถึง','warning');
+  if (!weightKg || Number(weightKg) <= 0) return showToast('กรุณาระบุน้ำหนักพัสดุ','warning');
+  if (!itemDescription) return showToast('กรุณาระบุลักษณะสิ่งของ','warning');
   var baseFare = 30, distanceKm = 0;
   if (expOrigin && expDestination && isFinite(expOrigin.lat) && isFinite(expDestination.lat)) distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
   var total = Math.round(baseFare + (distanceKm * 5));
   try{
+    var photo = await uploadExpressParcelPhoto(photoFile);
     await db.collection('orders').add({
       type: 'express', userId: currentUser.uid,
       userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
@@ -3892,6 +3932,11 @@ window.submitExpressOrder = async function(){
       title: '📦 ส่งด่วน • ' + parcelType.label,
       parcelType: parcelType.id,
       parcelTypeLabel: parcelType.label,
+      requestedArrivalBy: arrivalBy,
+      weightKg: weightKg ? Number(weightKg) : null,
+      itemDescription: itemDescription,
+      parcelPhotoUrl: photo ? photo.url : '',
+      parcelPhotoPath: photo ? photo.path : '',
       from: fromText,
       to: toText,
       address: toText,
@@ -3910,7 +3955,7 @@ window.submitExpressOrder = async function(){
     closeModal();
     expOrigin = null; expDestination = null;
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
-  }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
+  }catch(e){ showToast(e && e.message ? e.message : 'ส่งไม่สำเร็จ','error'); }
 };
 
 /* ═══ CATEGORY ═══ */
