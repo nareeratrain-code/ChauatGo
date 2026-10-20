@@ -1622,7 +1622,9 @@ document.addEventListener('DOMContentLoaded', function(){
 function loadPlaces(){
   if (typeof window.PLACES_RAW !== 'undefined' && Array.isArray(window.PLACES_RAW)) {
     PLACES = window.PLACES_RAW.map(function(p,i){
-      return {id:'LOC-'+String(i+1).padStart(3,'0'),name:p[0],lat:p[1],lng:p[2],category:p[3],price:p[4],image:p[5],rating:p[6]};
+      var id = 'LOC-' + String(i+1).padStart(3,'0');
+      var meta = (window.LOCATION_METADATA_BY_ID && window.LOCATION_METADATA_BY_ID[id]) || {};
+      return {id:id,name:p[0],lat:p[1],lng:p[2],category:p[3],price:p[4],image:p[5],rating:p[6],phone:meta.phone || p[7] || '',website:meta.website || p[8] || '',mapsUrl:meta.mapsUrl || (window.buildGoogleMapsSearchUrl ? window.buildGoogleMapsSearchUrl(p[0],p[1],p[2]) : '') ,contactSource:meta.source || '',contactVerifiedAt:meta.verifiedAt || ''};
     });
     window.PLACES = PLACES;
     updateStatsBar();
@@ -1660,6 +1662,7 @@ function hotelBookingUrl(p){
 function hotelPhone(p){ return String(p.phone || '').trim(); }
 function findHotelById(id){ return PLACES.find(function(x){ return x.id === id; }); }
 function hotelMapsUrl(p){
+  if (p && p.mapsUrl) return p.mapsUrl;
   var query = p && p.name ? p.name + (p.address ? ', ' + p.address : ', ชะอวด นครศรีธรรมราช') : 'โรงแรม ชะอวด นครศรีธรรมราช';
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query);
 }
