@@ -1651,10 +1651,11 @@ function updateStatsBar(){
   if($('stat-cafe')) $('stat-cafe').textContent = cafe;
   if($('stat-shop')) $('stat-shop').textContent = shop;
   renderRestaurantDirectory();
-  renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c'&&hasRealImage(p.image);}).slice(0,2));
-  renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f'&&hasRealImage(p.image);}).slice(0,2));
+  // แสดง 2 รายการเสมอ แม้รายการที่สองยังไม่มีรูปจริง จะใช้ภาพสำรองตามหมวดแทน
+  renderGrid('convenience-grid',PLACES.filter(function(p){return p.category==='c';}).slice(0,2));
+  renderGrid('cafe-grid',PLACES.filter(function(p){return p.category==='f';}).slice(0,2));
   renderGrid('tourist-grid',PLACES.filter(function(p){return p.category==='t'&&hasRealImage(p.image);}).slice(0,2));
-  renderGrid('hotel-grid',PLACES.filter(function(p){return p.category==='h'&&hasRealImage(p.image);}).slice(0,2));
+  renderGrid('hotel-grid',PLACES.filter(function(p){return p.category==='h';}).slice(0,2));
   loadNearbyShops();
 }
 
