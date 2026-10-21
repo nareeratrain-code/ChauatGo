@@ -994,15 +994,34 @@ function updateOnlineToggle() {
   if (!btn || !lbl || !st) return;
 
   const ONLINE_VALUES = ['active', 'available', 'online'];
-  isOnline = riderProfile?.verified === true && ONLINE_VALUES.includes(riderProfile?.status);
+  const verified = riderProfile?.verified === true;
+  isOnline = verified && ONLINE_VALUES.includes(riderProfile?.status);
 
   btn.classList.toggle('online', isOnline);
-  btn.disabled = riderProfile?.verified !== true;
+  // Keep the control clickable even while pending so the rider receives an
+  // explanation instead of a dead/disabled button.
+  btn.disabled = false;
+  btn.setAttribute('aria-disabled', verified ? 'false' : 'true');
+  btn.title = verified
+    ? (isOnline ? 'กดเพื่อหยุดรับงาน' : 'กดเพื่อพร้อมรับงาน')
+    : 'บัญชียังรอการอนุมัติจากแอดมิน';
   btn.setAttribute('aria-pressed', isOnline ? 'true' : 'false');
   lbl.textContent = isOnline ? 'ออนไลน์' : 'ออฟไลน์';
-  st.textContent = riderProfile?.verified !== true
+  st.textContent = !riderProfile
+    ? 'กำลังโหลดบัญชี'
+    : !verified
     ? 'รอการอนุมัติ'
     : (isOnline ? 'พร้อมรับงาน' : 'ออฟไลน์');
+  const guide = $('rider-work-guide');
+  if (guide) {
+    guide.innerHTML = !riderProfile
+      ? 'กำลังตรวจสอบข้อมูลไรเดอร์ กรุณารอสักครู่'
+      : !verified
+        ? '⏳ บัญชียังรอการอนุมัติจากแอดมิน<br><span style="font-size:11px;opacity:.8">ปุ่มกดได้เพื่อดูสถานะ แต่จะเริ่มรับงานได้หลังอนุมัติ</span>'
+        : isOnline
+          ? '🟢 สถานะพร้อมรับงานแล้ว<br>🍽️ อาหาร Partner จะแสดงหลังร้านกดรับออเดอร์ • 📦 งานส่งด่วนแสดงได้ทันที'
+          : '🔘 กดปุ่ม “ออฟไลน์” ด้านบนเพื่อเปลี่ยนเป็น “พร้อมรับงาน”<br>🍽️ อาหาร Partner จะแสดงหลังร้านกดรับออเดอร์ • 📦 งานส่งด่วนแสดงได้ทันที';
+  }
   renderJobs();
   updatePushBanner();
   syncLocationUpload();
