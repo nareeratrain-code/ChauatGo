@@ -191,6 +191,61 @@ test('merges bracket variants within 500 m and keeps identical names farther apa
   assert.ok(lib.haversineKm(8.4, 99.9, 8.4036, 99.9) < 0.5);
 });
 
+test('classifies apartments, resorts, artwork, and historic sites', () => {
+  assert.equal(lib.classify({ tourism: 'apartment' }, 'อพาร์ตเมนต์สวน'), 'h');
+  assert.equal(lib.classify({ leisure: 'resort' }, 'รีสอร์ทเขา'), 'h');
+  assert.equal(lib.classify({ building: 'hotel' }, 'โรงแรมทดสอบ'), 'h');
+  assert.equal(lib.classify({ tourism: 'artwork' }, 'ประติมากรรมหาด'), 't');
+  assert.equal(lib.classify({ tourism: 'picnic_site' }, 'ลานปิกนิก'), 't');
+  assert.equal(lib.classify({ historic: 'ruins' }, 'เมืองเก่า'), 't');
+  assert.equal(lib.classify({ boundary: 'national_park' }, 'อุทยานแห่งชาติเขาหลวง'), 't');
+  const row = lib.finalizePlaces([lib.compactPlace(el({ name: 'อพาร์ตเมนต์สวน', tourism: 'apartment' }, { id: 301 }), 'เมืองนครศรีธรรมราช')])[0];
+  assert.equal(row.src, 'osm');
+  assert.equal(row.lic, 'ODbL');
+});
+
+test('tambon centroid stays inside the polygon', () => {
+  const area = lib.prepareDistrict({
+    type: 'relation',
+    id: 9,
+    tags: { name: 'ตำบลทดสอบ' },
+    members: [{
+      type: 'way',
+      role: 'outer',
+      geometry: [
+        { lon: 99, lat: 8 }, { lon: 100, lat: 8 }, { lon: 100, lat: 9 }, { lon: 99, lat: 9 }, { lon: 99, lat: 8 }
+      ]
+    }]
+  }, /^ตำบล/);
+  assert.equal(area.name, 'ทดสอบ');
+  const point = lib.interiorPoint(area);
+  assert.equal(lib.containsDistrict(area, point.lng, point.lat), true);
+});
+
+test('merges the same stay within 300 m and prefers a precise pin', () => {
+  const osm = { n: 'บ้านสวนรีสอร์ท', c: 'h', lat: 8.4, lng: 99.9, i: 'n1', d: 'สิชล', src: 'osm', lic: 'ODbL', t: 'เสาเถา', q: 'บ้านสวนรีสอร์ท' };
+  const approx = { n: 'บ้านสวนรีสอร์ท', c: 'h', lat: 8.45, lng: 99.95, i: 'tat1', d: 'สิชล', src: 'tat', lic: 'ODC', ax: 1, t: 'เสาเถา', ph: '0812345678', q: 'บ้านสวนรีสอร์ท' };
+  const merged = lib.mergeIncoming([Object.assign({}, osm)], [approx]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].lat, 8.4);
+  assert.equal(merged[0].src, 'osm');
+  assert.equal(merged[0].ph, '0812345678');
+  assert.equal(merged[0].ax, undefined);
+  const alone = lib.mergeIncoming([], [Object.assign({}, approx)]);
+  assert.equal(alone.length, 1);
+  assert.equal(alone[0].ax, 1);
+  const twoApprox = lib.mergeIncoming(
+    [Object.assign({}, approx, { i: 'tat1', t: 'เสาเถา' })],
+    [Object.assign({}, approx, { i: 'tat2', t: 'สิชล', lat: 8.52, lng: 99.9 })]
+  );
+  assert.equal(twoApprox.length, 2);
+  const far = lib.mergeIncoming(
+    [Object.assign({}, osm)],
+    [Object.assign({}, approx, { n: 'รีสอร์ทคนละชื่อ', lat: 8.401, lng: 99.901, ax: undefined })]
+  );
+  assert.equal(far.length, 2);
+});
+
 test('point in polygon assigns the smaller district', () => {
   const big = {
     type: 'relation',
@@ -229,12 +284,23 @@ test('committed province files match the split catalog shape', () => {
   assert.equal(fs.existsSync(legacy), false);
   assert.equal(fs.existsSync(indexPath), true, 'run node scripts/fetch-osm-places.js');
   const doc = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-  assert.equal(doc.license, 'ODbL-1.0');
-  assert.equal(doc.attribution, '© OpenStreetMap contributors');
+  assert.equal(doc.license, 'mixed');
+  assert.ok(/OpenStreetMap contributors/.test(doc.attribution));
+  assert.ok(/Wikidata/.test(doc.attribution));
+  assert.ok(/Open Data Common/.test(doc.attribution));
+  assert.ok(/COD-AB/.test(doc.attribution));
+  assert.ok(doc.attributions.some((row) => row.src === 'osm' && row.lic === 'ODbL'));
+  assert.ok(doc.attributions.some((row) => row.src === 'wd' && row.lic === 'CC0'));
+  assert.ok(doc.attributions.some((row) => row.src === 'tat' && row.lic === 'ODC'));
   assert.equal(doc.area, 'จังหวัดนครศรีธรรมราช');
   assert.equal(doc.provinceRelation, 1908792);
   assert.ok(doc.districts.length >= 23);
   assert.ok(Array.isArray(doc.missingFromOsm));
+  assert.ok(doc.coverage.tambons >= 140);
+  assert.equal(
+    doc.coverage.tambonsWithAccommodation + doc.coverage.tambonsWithoutAccommodation.length,
+    doc.coverage.tambons
+  );
   const allowed = new Set('r f c m q t h s u a d n j z w g b e o x l p y i k v tr ml'.split(' '));
   const places = [];
   const ids = new Set();
@@ -249,10 +315,20 @@ test('committed province files match the split catalog shape', () => {
     if (bytes > largest) largest = bytes;
     const body = JSON.parse(fs.readFileSync(full, 'utf8'));
     assert.equal(body.d, meta.n);
-    assert.equal(body.attribution, '© OpenStreetMap contributors');
+    assert.ok(/OpenStreetMap contributors/.test(body.attribution));
+    assert.ok(Array.isArray(meta.tambons) && meta.tambons.length > 0);
     assert.equal(body.places.length, meta.count);
     body.places.forEach((place) => {
       assert.equal(place.d, meta.n);
+      assert.ok(place.src === 'osm' || place.src === 'wd' || place.src === 'tat');
+      assert.ok(place.lic === 'ODbL' || place.lic === 'CC0' || place.lic === 'ODC');
+      if (place.ax) {
+        assert.equal(place.ax, 1);
+        assert.equal(typeof place.t, 'string');
+        assert.ok(place.t.length > 0);
+      } else {
+        assert.equal(place.ax, undefined);
+      }
       assert.equal(typeof place.n, 'string');
       assert.ok(place.n.trim().length >= 2);
       assert.equal(/[\u200B-\u200D\uFEFF\u2060]/.test(place.n), false);
@@ -285,6 +361,9 @@ test('committed province files match the split catalog shape', () => {
   assert.equal(airport.c, 'tr');
   assert.ok(places.some((p) => p.d === 'ขนอม' && (p.c === 't' || p.c === 'h' || p.c === 'v')));
   assert.ok(places.some((p) => p.d === 'ชะอวด'));
+  assert.ok(places.filter((p) => p.c === 'h').length > 122);
+  assert.ok(places.some((p) => p.src === 'tat'));
+  assert.equal(doc.coverage.approximate, places.filter((p) => p.ax === 1).length);
   assert.ok(largest < 2500000, 'largest district file should stay under 2.5MB, got ' + largest);
   assert.ok(totalBytes < 12000000, 'province catalog should stay under 12MB, got ' + totalBytes);
   const chauat = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'data', 'chauat-places.json'), 'utf8'));
@@ -294,5 +373,5 @@ test('committed province files match the split catalog shape', () => {
   const assets = sw.slice(sw.indexOf('const ASSETS'), sw.indexOf('];'));
   assert.equal(assets.includes('/data/nst/'), false);
   assert.equal(assets.includes('/data/chauat-places.json'), true);
-  assert.equal(sw.includes('chauat-app-v3.9.29'), true);
+  assert.equal(sw.includes('chauat-app-v3.9.30'), true);
 });

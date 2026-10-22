@@ -288,10 +288,10 @@ function classify(tags, name) {
   if (
     tourism === 'hotel' || tourism === 'guest_house' || tourism === 'hostel' ||
     tourism === 'motel' || tourism === 'chalet' || tourism === 'resort' ||
-    (tourism === 'apartment' && LODGING_WORD.test(name)) ||
+    tourism === 'apartment' || leisure === 'resort' || t.building === 'hotel' ||
     LODGING_WORD.test(name)
   ) {
-    if (/เสริมสวย|คลินิก|ร้านยา/.test(name) && !LODGING_WORD.test(name)) return null;
+    if (/เสริมสวย|คลินิก|ร้านยา/.test(name) && !LODGING_WORD.test(name) && tourism !== 'apartment' && t.building !== 'hotel' && leisure !== 'resort') return null;
     return 'h';
   }
   if (tourism === 'viewpoint' || /จุดชม|จุดถ่าย|เช็คอิน|เช็ค อิน|จุดเช็ค|จุดเช็ก/.test(name)) return 'v';
@@ -311,18 +311,18 @@ function classify(tags, name) {
   if (
     tourism === 'attraction' || tourism === 'museum' || tourism === 'gallery' ||
     tourism === 'theme_park' || tourism === 'zoo' || tourism === 'aquarium' ||
+    tourism === 'artwork' || tourism === 'picnic_site' ||
     leisure === 'nature_reserve' || leisure === 'park' || leisure === 'garden' ||
     t.boundary === 'protected_area' || t.boundary === 'national_park' ||
-    historic === 'archaeological_site' || historic === 'ruins' || historic === 'monument' ||
-    historic === 'memorial' || historic === 'fort' || historic === 'castle' || historic === 'temple' ||
+    (historic && historic !== 'yes' && historic !== 'no' && historic !== 'boundary') ||
     natural === 'beach' || natural === 'waterfall' || natural === 'peak' ||
     natural === 'cave_entrance' || natural === 'hot_spring' || natural === 'cape' ||
-    natural === 'cliff' || natural === 'spring' || t.waterway === 'waterfall'
+    natural === 'cliff' || natural === 'spring' || natural === 'bay' || t.waterway === 'waterfall'
   ) {
-    if (tourism === 'information' || tourism === 'yes' || tourism === 'artwork') return null;
+    if (tourism === 'information' || tourism === 'yes') return null;
     return 't';
   }
-  if (tourism === 'information' || tourism === 'yes' || tourism === 'artwork') return null;
+  if (tourism === 'information' || tourism === 'yes') return null;
   return null;
 }
 
@@ -399,6 +399,12 @@ function absorbPlace(keep, extra) {
   if (!keep.oh && extra.oh) keep.oh = extra.oh;
   if (!keep.k && extra.k) keep.k = extra.k;
   if (!keep.iata && extra.iata) keep.iata = extra.iata;
+  if (!keep.t && extra.t) keep.t = extra.t;
+  if (keep.ax && !extra.ax) {
+    keep.lat = extra.lat;
+    keep.lng = extra.lng;
+    delete keep.ax;
+  }
   keep.q = searchKey((keep.q || '') + ' ' + (extra.q || '') + ' ' + (extra.n || ''));
 }
 
@@ -452,17 +458,96 @@ function finalizePlaces(places) {
     if (hl.size) place.hl = Array.from(hl).join('');
     else delete place.hl;
     place.q = searchKey(place.n + ' ' + (place.q || ''));
+    if (!place.src) place.src = 'osm';
+    if (!place.lic) place.lic = 'ODbL';
   });
   kept.sort((a, b) => a.d.localeCompare(b.d, 'th') || a.c.localeCompare(b.c) || a.n.localeCompare(b.n, 'th'));
   return kept.map((place) => {
-    const row = { n: place.n, q: place.q, c: place.c, lat: place.lat, lng: place.lng, i: place.i, d: place.d };
+    const row = { n: place.n, q: place.q, c: place.c, lat: place.lat, lng: place.lng, i: place.i, d: place.d, src: place.src, lic: place.lic };
+    if (place.t) row.t = place.t;
     if (place.k) row.k = place.k;
     if (place.hl) row.hl = place.hl;
     if (place.ph) row.ph = place.ph;
     if (place.web) row.web = place.web;
     if (place.oh) row.oh = place.oh;
+    if (place.ax) row.ax = 1;
     return row;
   });
+}
+
+function mergeIncoming(places, extras) {
+  const kept = places.slice();
+  extras.forEach((place) => {
+    const key = searchKey(place.n);
+    let twin = null;
+    for (let i = 0; i < kept.length; i++) {
+      const other = kept[i];
+      if (searchKey(other.n) !== key) continue;
+      const dist = haversineKm(other.lat, other.lng, place.lat, place.lng);
+      if (dist < 0.3) { twin = other; break; }
+      if (!!place.ax !== !!other.ax && other.d === place.d && dist < 25) {
+        twin = other;
+        break;
+      }
+    }
+    if (!twin) {
+      kept.push(place);
+      return;
+    }
+    if (twin.ax && !place.ax) {
+      twin.lat = place.lat;
+      twin.lng = place.lng;
+      delete twin.ax;
+      if (place.t) twin.t = place.t;
+    }
+    absorbPlace(twin, place);
+  });
+  return kept;
+}
+
+function polygonCentroid(ring) {
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < ring.length - 1; i++) {
+    const x1 = ring[i][0];
+    const y1 = ring[i][1];
+    const x2 = ring[i + 1][0];
+    const y2 = ring[i + 1][1];
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  }
+  if (Math.abs(area) < 1e-12) {
+    let sx = 0;
+    let sy = 0;
+    ring.forEach((pt) => { sx += pt[0]; sy += pt[1]; });
+    return [sx / ring.length, sy / ring.length];
+  }
+  return [cx / (3 * area), cy / (3 * area)];
+}
+
+function interiorPoint(area) {
+  let best = null;
+  let bestLen = 0;
+  (area.outers || []).forEach((ring) => {
+    if (ring.length > bestLen) { best = ring; bestLen = ring.length; }
+  });
+  if (!best) return null;
+  const centroid = polygonCentroid(best);
+  if (containsDistrict(area, centroid[0], centroid[1])) return { lng: centroid[0], lat: centroid[1] };
+  const box = area.bbox;
+  for (let step = 4; step <= 14; step += 2) {
+    for (let iy = 1; iy < step; iy++) {
+      for (let ix = 1; ix < step; ix++) {
+        const lng = box[0] + (box[2] - box[0]) * ix / step;
+        const lat = box[1] + (box[3] - box[1]) * iy / step;
+        if (containsDistrict(area, lng, lat)) return { lng: lng, lat: lat };
+      }
+    }
+  }
+  return null;
 }
 
 function countPlaces(places) {
@@ -556,9 +641,9 @@ function relationPolygons(element) {
   return { outers: stitch(outers), inners: stitch(inners) };
 }
 
-function prepareDistrict(element) {
+function prepareDistrict(element, prefix) {
   const tags = element.tags || {};
-  const name = String(tags['name:th'] || tags.name || '').replace(/^อำเภอ/, '').trim();
+  const name = String(tags['name:th'] || tags.name || '').replace(prefix || /^อำเภอ/, '').trim();
   const poly = relationPolygons(element);
   const bbox = poly.outers.length
     ? poly.outers.reduce((acc, ring) => {
@@ -602,6 +687,7 @@ module.exports = {
   searchKey,
   cleanName,
   canonicalName,
+  highlightCodes,
   placeName,
   isPrivateOrUnnamed,
   isRoute,
@@ -610,6 +696,9 @@ module.exports = {
   compactPlace,
   dedupePlaces,
   finalizePlaces,
+  mergeIncoming,
+  polygonCentroid,
+  interiorPoint,
   countPlaces,
   haversineKm,
   stitch,
