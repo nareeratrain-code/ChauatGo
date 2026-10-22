@@ -1453,7 +1453,8 @@ var CATS = {
   x:{name:'อื่นๆ',icon:'📌'}, l:{name:'สาธารณสุข',icon:'🏥'},
   p:{name:'ไปรษณีย์',icon:'📦'}, y:{name:'ชุมชน',icon:'🏘️'},
   i:{name:'ตำรวจ',icon:'🚓'}, k:{name:'แคมป์ปิ้ง',icon:'⛺'},
-  v:{name:'จุดเช็กอิน',icon:'📷'}
+  v:{name:'จุดเช็กอิน',icon:'📷'},
+  tr:{name:'สถานี',icon:'🚉'}, ml:{name:'ห้างสรรพสินค้า',icon:'🏬'}
 };
 
 /* ═══ HELPERS ═══ */
@@ -1870,18 +1871,30 @@ function fillDistrictSelect(id, current) {
   if (!el) return;
   el.innerHTML = districtOptions(current);
 }
+function provincePlaceMatches(p, cats) {
+  if (!p) return false;
+  if (cats.indexOf(p.c) !== -1) return true;
+  if (!p.hl) return false;
+  for (var i = 0; i < cats.length; i++) {
+    if (cats[i].length === 1 && p.hl.indexOf(cats[i]) !== -1) return true;
+  }
+  return false;
+}
 function provincePlacesFor(cats) {
   var list = (provincePlaces && provincePlaces.places) || [];
   var out = [];
   list.forEach(function(p) {
-    if (cats.indexOf(p.c) === -1) return;
+    if (!provincePlaceMatches(p, cats)) return;
     var id = 'osm-' + p.i;
     var place = {
       id: id,
       name: p.n,
+      q: p.q || '',
       lat: p.lat,
       lng: p.lng,
       category: p.c,
+      hl: p.hl || '',
+      kind: p.k || '',
       price: '',
       image: '',
       rating: '',
@@ -1915,11 +1928,13 @@ function mergeDirectoryPlaces(curated, extra) {
   return kept;
 }
 function filterDirectoryPlaces(list, query, district) {
-  var q = (query || '').trim().toLowerCase();
+  var q = foldSearchQuery(query);
   var rows = list.filter(function(p) {
     if (district && (p.district || 'ชะอวด') !== district) return false;
     if (!q) return true;
-    return (String(p.name || '') + ' ' + (p.district || '')).toLowerCase().indexOf(q) !== -1;
+    var key = p.q || foldSearchQuery(p.name);
+    if (key.indexOf(q) !== -1) return true;
+    return foldSearchQuery((p.name || '') + ' ' + (p.district || '')).indexOf(q) !== -1;
   });
   var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
   rows.sort(function(a, b) {
@@ -1946,10 +1961,10 @@ window.setTouristDistrict = function(value) {
 function renderHotelDirectory(){
   var grid = $('category-grid'); if(!grid) return;
   fillDistrictSelect('hotel-district', hotelDistrictFilter);
-  if (!provincePlaces) {
+  if (!provinceDataReady(hotelDistrictFilter)) {
     grid.className = 'food-grid hotel-directory';
     grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">กำลังโหลดที่พักทั้งจังหวัด...</div>';
-    ensurePlaceData(function(){ renderHotelDirectory(); });
+    ensurePlaceData(function(){ renderHotelDirectory(); }, hotelDistrictFilter);
     return;
   }
   var curated = PLACES.filter(function(p){ return p.category === 'h'; });
@@ -1964,10 +1979,10 @@ function renderHotelDirectory(){
 function renderTouristDirectory(){
   var grid = $('category-grid'); if(!grid) return;
   fillDistrictSelect('tourist-district', touristDistrictFilter);
-  if (!provincePlaces) {
+  if (!provinceDataReady(touristDistrictFilter)) {
     grid.className = 'food-grid';
     grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">กำลังโหลดสถานที่ท่องเที่ยว...</div>';
-    ensurePlaceData(function(){ renderTouristDirectory(); });
+    ensurePlaceData(function(){ renderTouristDirectory(); }, touristDistrictFilter);
     return;
   }
   var curated = PLACES.filter(function(p){ return p.category === 't' || p.category === 'v' || p.category === 'k'; });
@@ -2184,12 +2199,10 @@ function bindSearchInput(){
   var input = $('search-input'); if(!input) return;
   input.removeAttribute('oninput');
   input.addEventListener('input',function(e){doSearch(e.target.value);});
-  input.addEventListener('focus',function(){
-    ensurePlaceData(function(){ if (document.activeElement === input) doSearch(input.value); });
-  });
+  input.addEventListener('focus',function(){ doSearch(input.value); });
 }
 
-var HOME_CATS = ['w','e','o','l','r','f','c','m','h','t','v','k','g','b','y','x','u','a','d','n','j','z'];
+var HOME_CATS = ['w','e','o','l','r','f','c','m','ml','h','t','v','k','g','tr','b','y','x','u','a','d','n','j','z'];
 var homeCatFilter = '';
 
 function homeCatHtml() {
@@ -2212,14 +2225,23 @@ window.doSearch = function(q){
     results.style.display = 'block';
     results.classList.add('show');
     results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">เลือกหมวดหรืออำเภอ หรือพิมพ์ชื่อสถานที่ในจังหวัดนครศรีธรรมราช</div><div class="dest-osm-credit">© OpenStreetMap contributors</div>';
+    if (!provinceIndex) {
+      loadProvinceIndex().then(function() {
+        var now = ($('search-input') && $('search-input').value) || '';
+        if (!String(now).trim() && !homeCatFilter && !homeDistrictFilter && document.activeElement === $('search-input')) doSearch('');
+      });
+    }
     return;
   }
-  if (!chauatPlaces || !provincePlaces) {
+  if (!chauatPlaces || !provinceDataReady(homeDistrictFilter)) {
+    results.style.display = 'block';
+    results.classList.add('show');
+    results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">กำลังโหลดสถานที่...</div><div class="dest-osm-credit">© OpenStreetMap contributors</div>';
     ensurePlaceData(function() {
       var now = ($('search-input') && $('search-input').value) || '';
       if (now === (q || '')) doSearch(q);
-    });
-    if (!chauatPlaces && !provincePlaces) return;
+    }, homeDistrictFilter);
+    return;
   }
   var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
   var matches = searchPlaceCatalog(query, homeCatFilter, origin, 24, homeDistrictFilter);
@@ -4163,7 +4185,13 @@ window.doTravelSearch = function(q) {
   var box = $('travel-search-results'); if (!box) return;
   var query = (q || '').trim().toLowerCase();
   if (query.length < 1) { box.classList.remove('show'); return; }
-  ensurePlaceData();
+  if (!provinceDataReady('')) {
+    ensurePlaceData(function() {
+      var now = ($('travel-dest-input') && $('travel-dest-input').value) || '';
+      if (now === (q || '')) doTravelSearch(q);
+    }, '');
+    return;
+  }
   var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
   var matches = searchPlaceCatalog(query, '', origin, 12);
   if (!matches.length) { box.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "' + esc(q) + '"</div>'; box.classList.add('show'); return; }
@@ -4420,6 +4448,10 @@ function renderExpressSuggest(which) {
   if (!box || !input) return;
   var q = String(input.value || expressCompose[which] || '').trim();
   if (q.length < 1) { box.innerHTML = ''; box.classList.remove('show'); expressSuggestRows[which] = []; return; }
+  if (!provinceDataReady('')) {
+    ensurePlaceData(function() { renderExpressSuggest(which); }, '');
+    return;
+  }
   var origin = userLocation || CHAUAT_CENTER;
   var rows = [];
   try { rows = searchPlaceCatalog(q, '', origin, 6); } catch (e) { rows = []; }
@@ -4458,7 +4490,9 @@ function bindExpressFields() {
       if (which) renderExpressSuggest(which);
     });
     el.addEventListener('focus', function() {
-      if (which) ensurePlaceData(function() { renderExpressSuggest(which); });
+      if (!which) return;
+      if (String(el.value || '').trim()) ensurePlaceData(function() { renderExpressSuggest(which); }, '');
+      else loadProvinceIndex();
     });
   });
 }
@@ -4526,7 +4560,7 @@ function renderExpressForm() {
     '<button type="button" class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
   bindExpressFields();
-  ensurePlaceData(function(){});
+  loadProvinceIndex();
 }
 
 function openExpressForm(dest){
@@ -5147,7 +5181,7 @@ var chauatPlaces = null;
 var chauatPlacesPromise = null;
 var placeOverrides = {};
 var placeOverridesPromise = null;
-var DEST_CATS = ['w','e','o','l','i','r','f','c','m','s','h','t','v','k','g','b','p','y','x','u','a','d','n','j','z'];
+var DEST_CATS = ['w','e','o','l','i','r','f','c','m','ml','s','h','t','v','k','g','tr','b','p','y','x','u','a','d','n','j','z'];
 var destGeocodeTimer = null;
 var destGeocodeToken = 0;
 var nominatimReadyAt = 0;
@@ -5387,25 +5421,80 @@ function loadChauatPlaces() {
   return chauatPlacesPromise;
 }
 
-function loadProvincePlaces() {
-  if (provincePlaces) return Promise.resolve(provincePlaces);
-  if (provincePlacesPromise) return provincePlacesPromise;
-  provincePlacesPromise = fetch('/data/nst-places.json').then(function(res) {
-    if (!res.ok) throw new Error('province places ' + res.status);
+var provinceIndex = null;
+var provinceIndexPromise = null;
+var provinceFileState = {};
+
+function loadProvinceIndex() {
+  if (provinceIndex) return Promise.resolve(provinceIndex);
+  if (provinceIndexPromise) return provinceIndexPromise;
+  provinceIndexPromise = fetch('/data/nst/index.json').then(function(res) {
+    if (!res.ok) throw new Error('province index ' + res.status);
     return res.json();
   }).then(function(data) {
-    provincePlaces = data || { places: [], districts: [] };
-    catalogCache = null;
+    provinceIndex = data || { districts: [] };
+    if (!provincePlaces) provincePlaces = { places: [], districts: [] };
+    provincePlaces.districts = provinceIndex.districts || [];
+    provincePlaces.attribution = provinceIndex.attribution || '© OpenStreetMap contributors';
     fillDistrictSelect('dest-district', destDistrictFilter);
     fillDistrictSelect('hotel-district', hotelDistrictFilter);
     fillDistrictSelect('tourist-district', touristDistrictFilter);
-    return provincePlaces;
+    return provinceIndex;
   }).catch(function() {
+    provinceIndexPromise = null;
+    provinceIndex = provinceIndex || { districts: [] };
     provincePlaces = provincePlaces || { places: [], districts: [] };
-    provincePlacesPromise = null;
+    return provinceIndex;
+  });
+  return provinceIndexPromise;
+}
+
+function provinceFilesFor(districtName) {
+  var rows = (provinceIndex && provinceIndex.districts) || [];
+  if (!districtName) return rows;
+  return rows.filter(function(row) { return row.n === districtName; });
+}
+
+function provinceDataReady(districtName) {
+  if (!provinceIndex) return false;
+  return provinceFilesFor(districtName).every(function(row) {
+    return provinceFileState[row.file] === 'loaded' || provinceFileState[row.file] === 'failed';
+  });
+}
+
+function loadProvinceFile(meta) {
+  var file = meta && meta.file;
+  if (!file || !/^[a-z0-9-]+\.json$/.test(file)) return Promise.resolve();
+  var state = provinceFileState[file];
+  if (state === 'loaded' || state === 'failed') return Promise.resolve();
+  if (state && typeof state.then === 'function') return state;
+  var pending = fetch('/data/nst/' + file).then(function(res) {
+    if (!res.ok) throw new Error(file + ' ' + res.status);
+    return res.json();
+  }).then(function(data) {
+    var list = (data && data.places) || [];
+    if (!provincePlaces) provincePlaces = { places: [], districts: (provinceIndex && provinceIndex.districts) || [] };
+    var have = {};
+    provincePlaces.places.forEach(function(p) { if (p && p.i) have[p.i] = true; });
+    list.forEach(function(p) {
+      if (!p || (p.i && have[p.i])) return;
+      provincePlaces.places.push(p);
+    });
+    provinceFileState[file] = 'loaded';
+    catalogCache = null;
+  }).catch(function() {
+    provinceFileState[file] = 'failed';
+  });
+  provinceFileState[file] = pending;
+  return pending;
+}
+
+function loadProvincePlaces(districtName) {
+  return loadProvinceIndex().then(function() {
+    return Promise.all(provinceFilesFor(districtName).map(loadProvinceFile));
+  }).then(function() {
     return provincePlaces;
   });
-  return provincePlacesPromise;
 }
 
 function loadPlaceOverrides() {
@@ -5423,10 +5512,10 @@ function loadPlaceOverrides() {
   return placeOverridesPromise;
 }
 
-function ensurePlaceData(cb) {
-  Promise.all([loadChauatPlaces(), loadProvincePlaces(), loadPlaceOverrides()]).then(function() {
+function ensurePlaceData(cb, districtName) {
+  Promise.all([loadChauatPlaces(), loadProvincePlaces(districtName), loadPlaceOverrides()]).then(function() {
     catalogCache = null;
-    if (cb && (chauatPlaces || provincePlaces)) cb();
+    if (cb) cb();
   });
 }
 
@@ -5434,7 +5523,24 @@ function foldPlaceName(value) {
   return String(value || '').toLowerCase().replace(/[\s.'’\-]+/g, '').replace(/^(ร้านอาหาร|ร้านกาแฟ|ร้าน|วัด)/, '');
 }
 
+function foldSearchQuery(value) {
+  return String(value || '')
+    .replace(/[\u200B-\u200D\uFEFF\u2060\u00AD\u180E]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[\s.'’"“”()[\]{}<>/\\,;:!?&+#_*=~|–—\-]+/g, '')
+    .replace(/[\u0E47-\u0E4C]/g, '');
+}
+
 function placeCatInfo(row) {
+  if (row && row.k === 'airport') return { name: 'ท่าอากาศยาน', icon: '✈️' };
+  if (row && row.k === 'ev') return { name: 'สถานีชาร์จ', icon: '🔌' };
+  if (row && row.k === 'rail') return { name: 'สถานีรถไฟ', icon: '🚆' };
+  if (row && row.k === 'bus') return { name: 'สถานีขนส่ง', icon: '🚌' };
+  if (row && row.k === 'pier') return { name: 'ท่าเรือ', icon: '⛴️' };
   if (row && row.cat === 'y' && row.label && row.label.indexOf('บ้าน') === 0) return { name: 'หมู่บ้าน', icon: '🏘️' };
   return (CATS[row && row.cat]) || { name: 'สถานที่', icon: '📍' };
 }
@@ -5456,6 +5562,9 @@ function pushOsmPlace(rows, p, source, districtFallback) {
     phone: p.ph || '',
     website: p.web || '',
     hours: p.oh || '',
+    q: p.q || '',
+    hl: p.hl || '',
+    k: p.k || '',
     source: source
   });
 }
@@ -5517,17 +5626,24 @@ function catalogRows() {
   return kept;
 }
 
+function rowHasCat(row, cat) {
+  if (!cat) return true;
+  if (row.cat === cat) return true;
+  return !!(cat.length === 1 && row.hl && row.hl.indexOf(cat) !== -1);
+}
+
 function searchPlaceCatalog(query, cat, origin, limit, district) {
-  var q = (query || '').trim().toLowerCase();
+  var q = foldSearchQuery(query);
   var want = district || '';
   if (!q && !cat && !want) return [];
   var rows = catalogRows().filter(function(row) {
-    if (cat && row.cat !== cat) return false;
+    if (!rowHasCat(row, cat)) return false;
     if (want && (row.district || 'ชะอวด') !== want) return false;
     if (!q) return true;
+    var key = row.q || foldSearchQuery(row.label);
+    if (key.indexOf(q) !== -1) return true;
     var info = placeCatInfo(row);
-    var blob = (row.label + ' ' + (row.tambon || '') + ' ' + (row.district || '') + ' ' + (info.name || '')).toLowerCase();
-    return blob.indexOf(q) !== -1;
+    return foldSearchQuery((row.label || '') + ' ' + (row.tambon || '') + ' ' + (row.district || '') + ' ' + (info.name || '')).indexOf(q) !== -1;
   });
   var o = origin || CHAUAT_CENTER;
   function dist(row) { return haversine(o.lat, o.lng, row.lat, row.lng); }
@@ -5704,7 +5820,7 @@ function onDestSearchInput() {
       searchNominatim(q, local);
     }, 700);
   };
-  if (!chauatPlaces || !provincePlaces) ensurePlaceData(draw);
+  if (!chauatPlaces || !provinceDataReady(destDistrictFilter)) ensurePlaceData(draw, destDistrictFilter);
   else draw();
 }
 
@@ -5767,7 +5883,7 @@ function bindDestSheet() {
     input.addEventListener('input', onDestSearchInput);
     input.addEventListener('focus', function() {
       setDestSheetExpanded(true);
-      ensurePlaceData(function() { renderDestCatFilters(); fillDistrictSelect('dest-district', destDistrictFilter); });
+      loadProvinceIndex().then(function() { renderDestCatFilters(); fillDistrictSelect('dest-district', destDistrictFilter); });
     });
   }
   var destDistrict = $('dest-district');
@@ -5790,7 +5906,7 @@ function bindDestSheet() {
     });
   }
   renderDestCatFilters();
-  ensurePlaceData(function() { renderDestCatFilters(); });
+  loadProvinceIndex().then(function() { renderDestCatFilters(); fillDistrictSelect('dest-district', destDistrictFilter); });
   if (note && !note.dataset.bound) {
     note.dataset.bound = '1';
     note.addEventListener('input', function() {

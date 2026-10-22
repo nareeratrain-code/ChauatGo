@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build data/nst-places.json from OpenStreetMap via the Overpass API (ODbL).
+ * Build data/nst/*.json from OpenStreetMap via the Overpass API (ODbL).
  *
  * Coverage is จังหวัดนครศรีธรรมราช (relation 1908792), not only อำเภอชะอวด.
  * Existing data/chauat-places.json is left untouched.
@@ -31,7 +31,33 @@ const UA = 'ChauatGo-places/1.0 (ODbL place dataset; https://github.com/nareerat
 const PROVINCE_RELATION = 1908792;
 const PROVINCE_AREA = 3600000000 + PROVINCE_RELATION;
 const ROOT = path.join(__dirname, '..');
-const OUT_PATH = path.join(ROOT, 'data', 'nst-places.json');
+const OUT_DIR = path.join(ROOT, 'data', 'nst');
+const LEGACY_PATH = path.join(ROOT, 'data', 'nst-places.json');
+const SLUGS = {
+  'ขนอม': 'khanom',
+  'จุฬาภรณ์': 'chulabhorn',
+  'ฉวาง': 'chawang',
+  'เฉลิมพระเกียรติ': 'chaloem-phra-kiat',
+  'ชะอวด': 'cha-uat',
+  'ช้างกลาง': 'chang-klang',
+  'เชียรใหญ่': 'chian-yai',
+  'ถ้ำพรรณรา': 'tham-phannara',
+  'ท่าศาลา': 'tha-sala',
+  'ทุ่งสง': 'thung-song',
+  'ทุ่งใหญ่': 'thung-yai',
+  'นบพิตำ': 'nopphitam',
+  'นาบอน': 'na-bon',
+  'บางขัน': 'bang-khan',
+  'ปากพนัง': 'pak-phanang',
+  'พรหมคีรี': 'phrom-khiri',
+  'พระพรหม': 'phra-phrom',
+  'พิปูน': 'phipun',
+  'เมืองนครศรีธรรมราช': 'mueang',
+  'ร่อนพิบูลย์': 'ron-phibun',
+  'ลานสกา': 'lan-saka',
+  'สิชล': 'sichon',
+  'หัวไทร': 'hua-sai'
+};
 
 function argValue(flag, fallback) {
   const idx = process.argv.indexOf(flag);
@@ -111,33 +137,49 @@ function poiQuery(body) {
   return '[out:json][timeout:180];area(' + PROVINCE_AREA + ')->.a;(' + body + ');out center tags;';
 }
 
+const SHOP_RE = '^(mall|department_store|supermarket|hypermarket|convenience|chemist|pharmacy|electronics|mobile_phone|computer|hardware|doityourself|clothes|fashion|beauty|hairdresser|car|car_repair|car_parts|bicycle|motorcycle|tyres|general|kiosk|greengrocer|bakery|butcher|seafood|coffee|tea|books|gift|jewelry|shoes|sports|furniture|florist|garden_centre|variety_store|houseware|electrical|hifi|camera|photo|optician|medical_supply|herbalist|beverages|alcohol|confectionery|pastry|deli|farm|agrarian|trade|wholesale|outdoor|toys|stationery|laundry|dry_cleaning|travel_agency|ice_cream|cosmetics|perfumery|watches|bag|fabric|tailor|music|musical_instrument|video_games|pet|newsagent|copyshop|paint|lighting|kitchen|appliance|telecommunication|baby_goods|boutique)$';
+
 const POI_BATCHES = [
   [
-    'landmarks',
-    'nwr["amenity"="place_of_worship"]["name"](area.a);' +
-    'nwr["building"="temple"]["name"](area.a);' +
-    'nwr["historic"]["name"](area.a);' +
+    'v2-food',
+    'nwr["amenity"~"^(restaurant|fast_food|food_court|cafe|bar|pub|biergarten)$"]["name"](area.a);'
+  ],
+  [
+    'v2-civic',
+    'nwr["amenity"~"^(school|kindergarten|college|university|hospital|clinic|doctors|dentist|pharmacy|police|post_office|bank|atm|fuel|charging_station|townhall|courthouse|marketplace|bus_station|ferry_terminal|community_centre|library|fire_station|place_of_worship)$"]["name"](area.a);' +
+    'nwr["healthcare"~"^(hospital|clinic)$"]["name"](area.a);' +
+    'nwr["office"~"^(government|administrative)$"]["name"](area.a);' +
+    'nwr["building"="temple"]["name"](area.a);'
+  ],
+  [
+    'v2-shops',
+    'nwr["shop"~"' + SHOP_RE + '"]["name"](area.a);'
+  ],
+  [
+    'v2-places',
     'nwr["tourism"]["name"](area.a);' +
+    'nwr["historic"]["name"](area.a);' +
     'nwr["natural"~"^(beach|waterfall|peak|cave_entrance|hot_spring|cape|cliff|spring)$"]["name"](area.a);' +
     'nwr["waterway"="waterfall"]["name"](area.a);' +
     'nwr["leisure"~"^(nature_reserve|park|garden)$"]["name"](area.a);' +
     'nwr["boundary"="protected_area"]["name"](area.a);' +
-    'nwr["railway"~"^(station|halt)$"]["name"](area.a);'
+    'nwr["railway"~"^(station|halt)$"]["name"](area.a);' +
+    'nwr["aeroway"="aerodrome"](area.a);' +
+    'nwr["man_made"="pier"]["name"](area.a);' +
+    'nwr["iata"="NST"](area.a);'
   ],
   [
-    'services',
-    'nwr["amenity"~"^(hospital|marketplace|townhall|courthouse|police|fuel|bank|university|college|bus_station|ferry_terminal|post_office)$"](area.a);' +
-    'nwr["healthcare"="hospital"]["name"](area.a);' +
-    'nwr["office"="government"]["name"](area.a);' +
-    'nwr["name"~"โรงพยาบาล|รพ\\\\.สต"](area.a);'
+    'v2-names-th',
+    'nwr["name"~"พรายดำ|แสงจันทร์|ครัวนายหนัง|ท่าอากาศยาน"](area.a);' +
+    'nwr["name:th"~"พรายดำ|แสงจันทร์|ครัวนายหนัง|ท่าอากาศยาน"](area.a);' +
+    'nwr["alt_name"~"พรายดำ|แสงจันทร์|Phrai Dam|Saeng Chan",i](area.a);' +
+    'nwr["name:en"~"Phrai Dam|Saeng Chan|Saengchan|Nakhon Si Thammarat Airport",i](area.a);'
   ],
   [
-    'food',
-    'nwr["amenity"~"^(restaurant|fast_food|cafe)$"]["name"](area.a);'
-  ],
-  [
-    'named-temples',
-    'nwr["name"~"^วัด|^สำนักสงฆ์"](area.a);'
+    'v2-branded',
+    'nwr["amenity"~"^(atm|charging_station)$"](area.a);' +
+    'nwr["amenity"="fuel"][!"name"](area.a);' +
+    'nwr["amenity"="bank"][!"name"](area.a);'
   ]
 ];
 
@@ -195,24 +237,65 @@ async function main() {
 
   const finalPlaces = lib.finalizePlaces(places);
   const counts = lib.countPlaces(finalPlaces);
-  const doc = {
+  const watched = [
+    { name: 'เขาพรายดำ', re: /พรายดำ|phrai.?dam|khao phrai/i },
+    { name: 'ร้านแสงจันทร์', re: /แสงจันทร์|saengchan|saeng chan/i }
+  ];
+  const missingFromOsm = watched.filter((item) => !finalPlaces.some((place) => item.re.test(place.n) || item.re.test(place.q || ''))).map((item) => item.name);
+  const airport = finalPlaces.find((place) => place.k === 'airport' && /นครศรี|nakhon|NST/i.test(place.n + ' ' + (place.q || '')));
+  if (!airport) throw new Error('Nakhon Si Thammarat Airport was not found in OSM aerodromes');
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  if (fs.existsSync(LEGACY_PATH)) fs.unlinkSync(LEGACY_PATH);
+  const byDistrict = new Map();
+  finalPlaces.forEach((place) => {
+    if (!byDistrict.has(place.d)) byDistrict.set(place.d, []);
+    byDistrict.get(place.d).push(place);
+  });
+  const districtMeta = [];
+  let largest = { file: '', bytes: 0 };
+  let totalBytes = 0;
+  byDistrict.forEach((rows, name) => {
+    const slug = SLUGS[name] || lib.foldName(name) || 'district';
+    const file = slug + '.json';
+    const body = {
+      license: 'ODbL-1.0',
+      attribution: '© OpenStreetMap contributors',
+      d: name,
+      places: rows
+    };
+    const full = path.join(OUT_DIR, file);
+    fs.writeFileSync(full, JSON.stringify(body));
+    const bytes = fs.statSync(full).size;
+    totalBytes += bytes;
+    if (bytes > largest.bytes) largest = { file: file, bytes: bytes };
+    districtMeta.push({ n: name, file: file, count: rows.length });
+  });
+  districtMeta.sort((a, b) => a.n.localeCompare(b.n, 'th'));
+  const indexDoc = {
     license: 'ODbL-1.0',
     attribution: '© OpenStreetMap contributors',
     area: 'จังหวัดนครศรีธรรมราช',
     generated: new Date().toISOString().slice(0, 10),
     source: 'OpenStreetMap via Overpass API',
     provinceRelation: PROVINCE_RELATION,
-    note: 'Named public places for the whole province. Restaurants and cafes are limited to notable OSM entries (wikidata, website, brand, extra tags) and capped per district. Unnamed and private/residential rows are omitted. Chauat curated rows stay in locations-data.js and data/chauat-places.json.',
-    districts: districts
-      .map((d) => ({ n: d.name, i: d.id }))
-      .sort((a, b) => a.n.localeCompare(b.n, 'th')),
+    note: 'Named public places for the whole province, one file per district. Unnamed, private/residential, and route relations are omitted. Search keys are prebuilt in q. Chauat curated rows stay in locations-data.js and data/chauat-places.json.',
+    missingFromOsm: missingFromOsm,
     counts: counts,
-    places: finalPlaces
+    districts: districtMeta
   };
-  fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
-  fs.writeFileSync(OUT_PATH, JSON.stringify(doc));
-  const bytes = fs.statSync(OUT_PATH).size;
-  console.log(JSON.stringify({ bytes: bytes, outside: outside, dropped: dropped, counts: counts }, null, 2));
+  const indexPath = path.join(OUT_DIR, 'index.json');
+  fs.writeFileSync(indexPath, JSON.stringify(indexDoc));
+  totalBytes += fs.statSync(indexPath).size;
+  console.log(JSON.stringify({
+    places: finalPlaces.length,
+    outside: outside,
+    dropped: dropped,
+    totalBytes: totalBytes,
+    largest: largest,
+    missingFromOsm: missingFromOsm,
+    airport: airport,
+    counts: counts
+  }, null, 2));
   if (!finalPlaces.length) throw new Error('No places written');
 }
 

@@ -30,20 +30,98 @@ const HOUSE_PERSON = /^บ้าน(นาย|นางสาว|นาง|ค�
 const LODGING_WORD = /โรงแรม|รีสอร์[ทต]|โฮมสเตย์|โฮมสเต|เกสต์เฮาส์|เกสท์เฮาส์|เกสต์เฮาส|ที่พัก|โฮสเทล|hostel|resort|hotel|guesthouse|homestay/i;
 const PUBLIC_WORD = /วัด|สำนักสงฆ์|มัสยิด|โบสถ์|โรงพยาบาล|รพ\.|ตลาด|เทศบาล|อบต|ศาลากลาง|ที่ว่าการ|อุทยาน|น้ำตก|หาด|เขา|ถ้ำ|จุดชม|จุดเช็?ก|สถานี|โรงเรียน|มหาวิทยาลัย/;
 
-const FOOD_CAP = { r: 20, f: 12 };
-const FOOD_SCORE_MIN = 3;
+const FOOD_SCORE_MIN = 1;
+
+const SHOP_CAT = {
+  mall: 'ml',
+  department_store: 'ml',
+  convenience: 'c',
+  supermarket: 's',
+  hypermarket: 's',
+  chemist: 'q',
+  pharmacy: 'q',
+  electronics: 'n',
+  mobile_phone: 'n',
+  computer: 'n',
+  hifi: 'n',
+  camera: 'n',
+  telecommunication: 'n',
+  hardware: 'd',
+  doityourself: 'd',
+  electrical: 'd',
+  paint: 'd',
+  trade: 'd',
+  car: 'u',
+  car_repair: 'u',
+  car_parts: 'u',
+  motorcycle: 'u',
+  bicycle: 'u',
+  tyres: 'u',
+  clothes: 'j',
+  fashion: 'j',
+  beauty: 'j',
+  hairdresser: 'j',
+  cosmetics: 'j',
+  jewelry: 'j',
+  shoes: 'j',
+  watches: 'j',
+  bag: 'j',
+  tailor: 'j',
+  fabric: 'j',
+  agrarian: 'a',
+  farm: 'a',
+  florist: 'a',
+  garden_centre: 'a',
+  bakery: 'r',
+  butcher: 'r',
+  seafood: 'r',
+  pastry: 'r',
+  confectionery: 'r',
+  deli: 'r',
+  ice_cream: 'f',
+  coffee: 'f',
+  tea: 'f'
+};
+
+const BIG_BOX = /central|robinson|lotus|big\s*c|makro|เซ็นทรัล|โรบินสัน|โลตัส|บิ๊ก\s*ซี|แม็คโคร|เทสโก้|tesco/i;
+
+const INVISIBLE = /[\u200B-\u200D\uFEFF\u2060\u00AD\u180E]/g;
+const TONE_MARKS = /[\u0E47-\u0E4C]/g;
+
+function cleanName(value) {
+  return String(value || '')
+    .replace(INVISIBLE, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 function foldName(value) {
-  return String(value || '')
+  return cleanName(value)
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[\s.\-_'’"“”/]+/g, '');
+    .replace(/[\s.'’"“”()[\]{}<>/\\,;:!?&+#_*=~|–—\-]+/g, '');
+}
+
+function searchKey(value) {
+  return foldName(value).replace(TONE_MARKS, '');
 }
 
 function placeName(tags) {
   const t = tags || {};
-  return String(t['name:th'] || t.name || t['name:en'] || t.official_name || t.brand || '').trim();
+  let name = cleanName(t['name:th'] || t.name || t['name:en'] || t.official_name || t.brand || '');
+  if (!name && (t.amenity === 'atm' || t.amenity === 'charging_station' || t.amenity === 'fuel' || t.amenity === 'bank')) {
+    name = cleanName(t['brand:th'] || t.operator || t.network || '');
+  }
+  if (name && t.amenity === 'atm' && !/เอทีเอ็ม|\batm\b/i.test(name)) name = 'ตู้เอทีเอ็ม ' + name;
+  if (name && t.amenity === 'charging_station' && !/ชาร์จ|charging/i.test(name)) name = 'สถานีชาร์จ ' + name;
+  return name;
+}
+
+function isRoute(tags) {
+  const t = tags || {};
+  if (t.type === 'route' || t.route) return true;
+  return false;
 }
 
 function hasPublicTag(tags) {
@@ -116,9 +194,61 @@ function keepGovernment(name, tags) {
   return true;
 }
 
+function isPublicAerodrome(tags) {
+  const t = tags || {};
+  const kind = String(t.aerodrome || t['aerodrome:type'] || '').toLowerCase();
+  if (kind === 'private' || kind === 'military') return false;
+  if (t.military && t.military !== 'no') return false;
+  if ((t.access === 'private' || t.access === 'no') && !t.iata && !t.icao) return false;
+  return t.aeroway === 'aerodrome' || !!(t.iata || t.icao);
+}
+
+function isBigBox(name, tags) {
+  const blob = (name || '') + ' ' + ((tags && (tags.brand || tags.operator)) || '');
+  return BIG_BOX.test(blob);
+}
+
+function placeKind(tags) {
+  const t = tags || {};
+  if (isPublicAerodrome(t)) return 'airport';
+  if (t.amenity === 'charging_station') return 'ev';
+  if (t.railway === 'station' || t.railway === 'halt') return 'rail';
+  if (t.amenity === 'bus_station') return 'bus';
+  if (t.amenity === 'ferry_terminal' || t.man_made === 'pier') return 'pier';
+  return '';
+}
+
+function highlightCodes(name) {
+  const folded = foldName(name);
+  const codes = [];
+  if (folded.indexOf('วัดเจดีย์') !== -1 && (folded.indexOf('ไอ้ไข่') !== -1 || folded.indexOf('ไอไข่') !== -1)) {
+    codes.push('t', 'v');
+  }
+  if (folded.indexOf('พระมหาธาตุ') !== -1 && folded.indexOf('วรมหาวิหาร') !== -1) codes.push('t');
+  return codes;
+}
+
+function canonicalName(name) {
+  const folded = foldName(name);
+  const key = searchKey(name);
+  const thai = folded.indexOf('วัดเจดีย์') !== -1 && (folded.indexOf('ไอ้ไข่') !== -1 || key.indexOf('ไอไข่') !== -1);
+  const english = key.indexOf('watchedi') !== -1 && (key.indexOf('aikai') !== -1 || key.indexOf('aikhai') !== -1);
+  if (thai || english) return 'วัดเจดีย์ (ไอ้ไข่)';
+  return cleanName(name);
+}
+
+const CHAIN_NAME = /ปตท|พีที|7.?eleven|เซเว่น|เซเวน|lotus|โลตัส|bigc|บิ๊กซี|makro|แม็คโคร|tesco|เทสโก้|robinson|โรบินสัน|central|เซ็นทรัล|shell|เชลล์|bangchak|บางจาก|esso|เอสโซ่|caltex|susco|ซัสโก้|amazon|อเมซอน|starbucks|อินทนิล|familymart|แฟมิลี่|^ptt$|^pt$/i;
+
+function dedupeLimitKm(name) {
+  const cleaned = cleanName(name).toLowerCase();
+  if (CHAIN_NAME.test(cleaned) || CHAIN_NAME.test(foldName(name))) return 0.15;
+  return 0.5;
+}
+
 function classify(tags, name) {
   const t = tags || {};
   const amenity = t.amenity || '';
+  const shop = t.shop || '';
   const tourism = t.tourism || '';
   const office = t.office || '';
   const leisure = t.leisure || '';
@@ -126,23 +256,34 @@ function classify(tags, name) {
   const natural = t.natural || '';
   const healthcare = t.healthcare || '';
 
-  if (t.boundary === 'administrative' && !amenity && !office && !tourism) return null;
-  if (t.highway && !hasPublicTag(t) && !historic && !natural) return null;
+  if (isRoute(t)) return null;
+  if (/\bto\b.+\bvia\b/i.test(name)) return null;
+  if (t.boundary === 'administrative' && !amenity && !office && !tourism && !shop) return null;
+  if (t.highway && !hasPublicTag(t) && !historic && !natural && t.aeroway !== 'aerodrome') return null;
 
+  if (isPublicAerodrome(t)) return 'tr';
+  if (t.railway === 'station' || t.railway === 'halt') return 'tr';
+  if (amenity === 'bus_station' || amenity === 'ferry_terminal' || t.man_made === 'pier') return 'tr';
+  if (amenity === 'charging_station') return 'g';
+  if (amenity === 'fuel') return 'g';
   if (amenity === 'police' || /สถานีตำรวจ|ป้อมตำรวจ/.test(name)) return 'i';
   if (
     amenity === 'hospital' ||
     healthcare === 'hospital' ||
-    /โรงพยาบาล|รพ\.สต|โรงพยาบาลส่งเสริม/.test(name)
+    (/โรงพยาบาล|รพ\.สต|โรงพยาบาลส่งเสริม/.test(name) && !/^บ้านพัก/.test(name))
   ) return 'l';
+  if (amenity === 'clinic' || amenity === 'doctors' || amenity === 'dentist' || amenity === 'pharmacy' || shop === 'chemist' || shop === 'pharmacy') {
+    return 'q';
+  }
   if (amenity === 'place_of_worship' || t.building === 'temple' || historic === 'temple' || /^วัด|^สำนักสงฆ์/.test(name)) {
     return 'w';
   }
-  if (amenity === 'fuel') return 'g';
-  if (amenity === 'bank' || /^ธนาคาร/.test(name)) return 'b';
+  if (amenity === 'bank' || amenity === 'atm' || /^ธนาคาร/.test(name)) return 'b';
   if (amenity === 'marketplace' || /^ตลาด/.test(name)) return 'm';
-  if (amenity === 'cafe' || /คาเฟ่|กาแฟ/.test(name)) return 'f';
-  if (amenity === 'restaurant' || amenity === 'fast_food' || amenity === 'food_court') return 'r';
+  if (amenity === 'cafe' || shop === 'coffee' || shop === 'tea' || shop === 'ice_cream') return 'f';
+  if (amenity === 'restaurant' || amenity === 'fast_food' || amenity === 'food_court' || amenity === 'bar' || amenity === 'pub' || amenity === 'biergarten') {
+    return 'r';
+  }
   if (tourism === 'camp_site' || tourism === 'caravan_site' || /แคมป์|กางเต็นท์|ลานกาง/.test(name)) return 'k';
   if (
     tourism === 'hotel' || tourism === 'guest_house' || tourism === 'hostel' ||
@@ -154,32 +295,32 @@ function classify(tags, name) {
     return 'h';
   }
   if (tourism === 'viewpoint' || /จุดชม|จุดถ่าย|เช็คอิน|เช็ค อิน|จุดเช็ค|จุดเช็ก/.test(name)) return 'v';
-  if (amenity === 'university' || amenity === 'college') return 'e';
-  if (office === 'government' || amenity === 'townhall') {
-    return keepGovernment(name, t) ? 'o' : null;
+  if (amenity === 'school' || amenity === 'kindergarten' || amenity === 'college' || amenity === 'university' || /^โรงเรียน|^มหาวิทยาลัย|^วิทยาลัย/.test(name)) {
+    return 'e';
+  }
+  if (shop === 'mall' || shop === 'department_store' || ((shop === 'supermarket' || shop === 'hypermarket') && isBigBox(name, t))) {
+    return 'ml';
+  }
+  if (SHOP_CAT[shop]) return SHOP_CAT[shop];
+  if (shop && shop !== 'vacant' && shop !== 'yes') return 's';
+  if (office === 'government' || office === 'administrative' || amenity === 'townhall' || amenity === 'courthouse') {
+    return 'o';
   }
   if (/อบต|เทศบาล|องค์การบริหาร|ที่ว่าการ|ศาลากลาง/.test(name)) return 'o';
   if (amenity === 'post_office' || /ไปรษณีย์/.test(name)) return 'p';
-  if (amenity === 'bus_station' || amenity === 'ferry_terminal') return 'o';
-  if (t.railway === 'station' || t.railway === 'halt' || /^สถานีรถไฟ|^สถานีรถ/.test(name)) return 'x';
   if (
     tourism === 'attraction' || tourism === 'museum' || tourism === 'gallery' ||
     tourism === 'theme_park' || tourism === 'zoo' || tourism === 'aquarium' ||
-    leisure === 'nature_reserve' || t.boundary === 'protected_area' || t.boundary === 'national_park' ||
+    leisure === 'nature_reserve' || leisure === 'park' || leisure === 'garden' ||
+    t.boundary === 'protected_area' || t.boundary === 'national_park' ||
     historic === 'archaeological_site' || historic === 'ruins' || historic === 'monument' ||
-    historic === 'memorial' || historic === 'fort' || historic === 'castle' ||
+    historic === 'memorial' || historic === 'fort' || historic === 'castle' || historic === 'temple' ||
     natural === 'beach' || natural === 'waterfall' || natural === 'peak' ||
     natural === 'cave_entrance' || natural === 'hot_spring' || natural === 'cape' ||
     natural === 'cliff' || natural === 'spring' || t.waterway === 'waterfall'
   ) {
-    if (leisure === 'park' || leisure === 'garden') {
-      if (!t.wikidata && !t.tourism && !/สวน|อุทยาน|น้ำตก|หาด/.test(name)) return null;
-    }
+    if (tourism === 'information' || tourism === 'yes' || tourism === 'artwork') return null;
     return 't';
-  }
-  if (leisure === 'park' || leisure === 'garden') {
-    if (t.wikidata || /อุทยาน|สวนสาธารณะ|น้ำตก|หาด/.test(name)) return 't';
-    return null;
   }
   if (tourism === 'information' || tourism === 'yes' || tourism === 'artwork') return null;
   return null;
@@ -195,7 +336,8 @@ function firstContact(tags, keys) {
 
 function compactPlace(element, district) {
   const tags = (element && element.tags) || {};
-  const name = placeName(tags);
+  if (isRoute(tags)) return null;
+  const name = canonicalName(placeName(tags));
   if (isClosed(tags) || isPrivateOrUnnamed(tags, name)) return null;
   const cat = classify(tags, name);
   if (!cat) return null;
@@ -206,10 +348,13 @@ function compactPlace(element, district) {
     lng = element.center.lon;
   }
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  const score = foodScore(tags);
-  if ((cat === 'r' || cat === 'f') && /^(food stalls?|restaurant|cafe|fast food|ร้านอาหาร|ร้านกาแฟ)$/i.test(name)) {
+  const score = foodScore(tags) + Object.keys(tags).length;
+  if ((cat === 'r' || cat === 'f') && /^(food stalls?|restaurant|cafe|fast food|bar|pub|ร้านอาหาร|ร้านกาแฟ)$/i.test(name)) {
     return null;
   }
+  const extras = [tags.iata, tags.icao, tags['name:en'], tags.alt_name, tags.brand, tags.operator]
+    .filter(Boolean)
+    .join(' ');
   const row = {
     n: name,
     c: cat,
@@ -217,8 +362,14 @@ function compactPlace(element, district) {
     lng: Math.round(lng * 1e5) / 1e5,
     i: (element.type === 'way' ? 'w' : element.type === 'relation' ? 'r' : 'n') + element.id,
     d: district,
-    score: score
+    score: score,
+    q: searchKey(extras)
   };
+  const kind = placeKind(tags);
+  const hl = highlightCodes(name);
+  if (kind) row.k = kind;
+  if (hl.length) row.hl = hl.join('');
+  if (tags.iata) row.iata = String(tags.iata).trim().toUpperCase();
   const phone = firstContact(tags, ['phone', 'contact:phone', 'contact:mobile', 'phone:mobile']);
   const web = firstContact(tags, ['website', 'contact:website', 'contact:facebook']);
   const hours = String(tags.opening_hours || '').trim();
@@ -237,55 +388,76 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function limitFood(places) {
-  const other = [];
-  const groups = new Map();
-  places.forEach((place) => {
-    if (place.c !== 'r' && place.c !== 'f') {
-      other.push(place);
-      return;
-    }
-    const key = place.d + '|' + place.c;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(place);
-  });
-  groups.forEach((list, key) => {
-    const cat = key.endsWith('|f') ? 'f' : 'r';
-    list.sort((a, b) => (b.score - a.score) || a.n.localeCompare(b.n, 'th'));
-    const cap = FOOD_CAP[cat];
-    const strong = list.filter((place) => place.score >= FOOD_SCORE_MIN);
-    const weak = list.filter((place) => place.score < FOOD_SCORE_MIN);
-    const picked = (strong.length >= cap ? strong : strong.concat(weak)).slice(0, cap);
-    other.push(...picked);
-  });
-  return other;
+function absorbPlace(keep, extra) {
+  const hl = new Set(((keep.hl || '') + (extra.hl || '')).split('').filter(Boolean));
+  if (extra.c === 't' || extra.c === 'v') hl.add(extra.c);
+  if (keep.c === 't' || keep.c === 'v') hl.add(keep.c);
+  if (hl.size) keep.hl = Array.from(hl).join('');
+  keep.n = canonicalName(keep.n);
+  if (!keep.ph && extra.ph) keep.ph = extra.ph;
+  if (!keep.web && extra.web) keep.web = extra.web;
+  if (!keep.oh && extra.oh) keep.oh = extra.oh;
+  if (!keep.k && extra.k) keep.k = extra.k;
+  if (!keep.iata && extra.iata) keep.iata = extra.iata;
+  keep.q = searchKey((keep.q || '') + ' ' + (extra.q || '') + ' ' + (extra.n || ''));
 }
 
 function dedupePlaces(places) {
   const ranked = places.slice().sort((a, b) => (b.score - a.score) || a.n.localeCompare(b.n, 'th'));
   const kept = [];
-  const byId = new Set();
+  const cells = new Map();
   ranked.forEach((place) => {
-    if (byId.has(place.i)) return;
     const folded = foldName(place.n);
-    const dup = kept.some((other) => {
-      if (other.i === place.i) return true;
-      if (other.c !== place.c) return false;
-      if (foldName(other.n) !== folded) return false;
-      return haversineKm(other.lat, other.lng, place.lat, place.lng) < 0.15;
-    });
-    if (dup) return;
-    byId.add(place.i);
+    const limit = dedupeLimitKm(place.n);
+    const cx = Math.round(place.lat / 0.003);
+    const cy = Math.round(place.lng / 0.003);
+    const span = place.iata ? 8 : 2;
+    let twin = null;
+    for (let dx = -span; dx <= span && !twin; dx++) {
+      for (let dy = -span; dy <= span && !twin; dy++) {
+        const bucket = cells.get((cx + dx) + ':' + (cy + dy)) || [];
+        for (let i = 0; i < bucket.length; i++) {
+          const other = bucket[i];
+          const dist = haversineKm(other.lat, other.lng, place.lat, place.lng);
+          if (other.i === place.i) { twin = other; break; }
+          if (place.iata && other.iata && place.iata === other.iata && dist < 2) {
+            twin = other;
+            break;
+          }
+          if (foldName(other.n) !== folded) continue;
+          if (dist < limit) {
+            twin = other;
+            break;
+          }
+        }
+      }
+    }
+    if (twin) {
+      absorbPlace(twin, place);
+      return;
+    }
     kept.push(place);
+    const id = cx + ':' + cy;
+    if (!cells.has(id)) cells.set(id, []);
+    cells.get(id).push(place);
   });
   return kept;
 }
 
 function finalizePlaces(places) {
-  const limited = limitFood(dedupePlaces(places));
-  limited.sort((a, b) => a.d.localeCompare(b.d, 'th') || a.c.localeCompare(b.c) || a.n.localeCompare(b.n, 'th'));
-  return limited.map((place) => {
-    const row = { n: place.n, c: place.c, lat: place.lat, lng: place.lng, i: place.i, d: place.d };
+  const kept = dedupePlaces(places);
+  kept.forEach((place) => {
+    place.n = canonicalName(place.n);
+    const hl = new Set(((place.hl || '') + highlightCodes(place.n).join('')).split('').filter(Boolean));
+    if (hl.size) place.hl = Array.from(hl).join('');
+    else delete place.hl;
+    place.q = searchKey(place.n + ' ' + (place.q || ''));
+  });
+  kept.sort((a, b) => a.d.localeCompare(b.d, 'th') || a.c.localeCompare(b.c) || a.n.localeCompare(b.n, 'th'));
+  return kept.map((place) => {
+    const row = { n: place.n, q: place.q, c: place.c, lat: place.lat, lng: place.lng, i: place.i, d: place.d };
+    if (place.k) row.k = place.k;
+    if (place.hl) row.hl = place.hl;
     if (place.ph) row.ph = place.ph;
     if (place.web) row.web = place.web;
     if (place.oh) row.oh = place.oh;
@@ -425,16 +597,18 @@ function assignDistrict(lat, lng, districts) {
 }
 
 module.exports = {
-  FOOD_CAP,
   FOOD_SCORE_MIN,
   foldName,
+  searchKey,
+  cleanName,
+  canonicalName,
   placeName,
   isPrivateOrUnnamed,
+  isRoute,
   foodScore,
   classify,
   compactPlace,
   dedupePlaces,
-  limitFood,
   finalizePlaces,
   countPlaces,
   haversineKm,
