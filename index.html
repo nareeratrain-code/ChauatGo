@@ -1338,6 +1338,7 @@ var chatListUnsub = null;
 var expOrigin = null;
 var expDestination = null;
 var expressDraft = null;
+var expressParcelPhotoFile = null;
 var EXPRESS_PARCEL_TYPES = [
   { id: 'document', label: 'เอกสาร', icon: '📄', note: 'เอกสารทั่วไป สัญญา หรือใบสำคัญ' },
   { id: 'fruit', label: 'ผลไม้', icon: '🍎', note: 'ควรแพ็กให้แน่นหนา ป้องกันการกระแทก' },
@@ -2230,7 +2231,12 @@ window.openMerchantDetail = async function(merchantId) {
     var m = Object.assign({ id: snap.id }, snap.data());
     var menuSnap = await db.collection('menus').where('merchantId', '==', merchantId).get();
     var menus = menuSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }).filter(function(menu){ return !isMenuHidden(menu); });
-    window._currentMerchant = { id: merchantId, name: m.name || '' };
+    window._currentMerchant = {
+      id: merchantId,
+      name: m.name || '',
+      lat: Number(m.lat),
+      lng: Number(m.lng)
+    };
     window._menus = menus;
 
     var headerRating = (m.ratingAvg && m.ratingCount)
@@ -2323,6 +2329,7 @@ window.addToCartById = function(menuId) {
 window.addToCart = function(merchantId, merchantName, menuId, menuName, originalPrice, finalPrice, discountPerUnit, promoLabel, hasPromo) {
   if (cartShop && cartShop !== merchantId) { if (!confirm('เปลี่ยนร้าน? ตะกร้าปัจจุบันจะถูกล้าง')) return; cart = []; }
   cartShop = merchantId;
+  var shopPoint = (window._currentMerchant && window._currentMerchant.id === merchantId) ? window._currentMerchant : null;
   var existing = cart.find(function(c) { return c.menuId === menuId; });
   if (existing) existing.qty++;
   else {
@@ -2331,7 +2338,9 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, original
       menuId: menuId, menuName: menuName,
       price: originalPrice, originalPrice: originalPrice,
       finalPrice: finalPrice, discount: discountPerUnit,
-      promoLabel: promoLabel || '', hasPromo: !!hasPromo, qty: 1
+      promoLabel: promoLabel || '', hasPromo: !!hasPromo, qty: 1,
+      shopLat: shopPoint ? shopPoint.lat : null,
+      shopLng: shopPoint ? shopPoint.lng : null
     });
   }
   localStorage.setItem('chauat_cart', JSON.stringify(cart));
@@ -2360,12 +2369,37 @@ function _refreshCartViews() {
   if (merchantMode === 'food' && merchantTab === 'cart' && $('merchant-view') && $('merchant-view').classList.contains('show')) renderMerchantCart();
 }
 
-function calculateFoodDeliveryFee(dropoff) {
+function feePoint(item) {
+  if (!item) return null;
+  var lat = Number(item.lat != null ? item.lat : item.shopLat);
+  var lng = Number(item.lng != null ? item.lng : item.shopLng);
+  if (!isFinite(lat) || !isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) return null;
+  return { lat: lat, lng: lng };
+}
+
+function foodShopPoint() {
+  var id = cartShop || (cart[0] && cart[0].merchantId) || '';
+  var lists = [];
+  if (window._currentMerchant && window._currentMerchant.id === id) lists.push(window._currentMerchant);
+  if (cart[0] && cart[0].merchantId === id) lists.push(cart[0]);
+  (nearbyShopsCache || []).forEach(function(shop) { if (shop && shop.id === id) lists.push(shop); });
+  (merchantsCache || []).forEach(function(shop) { if (shop && shop.id === id) lists.push(shop); });
+  for (var i = 0; i < lists.length; i++) {
+    var point = feePoint(lists[i]);
+    if (point) return point;
+  }
+  return null;
+}
+
+function calculateFoodDeliveryFee(dropoff, shopOverride) {
   var baseFee = 20;
-  if (!userLocation || !dropoff || !isFinite(dropoff.lat) || !isFinite(dropoff.lng)) {
+  var shop = feePoint(shopOverride) || foodShopPoint();
+  var dest = feePoint(dropoff) || feePoint(userLocation);
+  if (!shop || !dest) {
     return { fee: baseFee, distance: null, base: baseFee, extra: 0, estimated: false };
   }
-  var straightKm = haversine(userLocation.lat, userLocation.lng, dropoff.lat, dropoff.lng);
+  var straightKm = haversine(shop.lat, shop.lng, dest.lat, dest.lng);
   var routeKm = straightKm * 1.3;
   var extraKm = Math.max(0, routeKm - 2);
   var extraFee = Math.ceil(extraKm) * 5;
@@ -2502,7 +2536,7 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
       '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าอาหาร</span><span>฿' + fmt(subtotal) + '</span></div>' +
       (discountTotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--promo-red);font-weight:900"><span>🔥 ส่วนลดรวม</span><span>-฿' + fmt(discountTotal) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าส่ง' + (deliveryInfo.distance !== null ? ' (' + deliveryInfo.distance.toFixed(1) + ' กม.)' : '') + '</span><span>฿' + fmt(deliveryFee) + '</span></div>' +
-      '<div style="font-size:11px;color:var(--text-muted);padding:2px 0 4px">' + (deliveryInfo.estimated ? 'คำนวณจากพิกัด GPS ถึงหมุดปลายทาง (เผื่อระยะถนนแล้ว)' : 'ค่าส่งเริ่มต้น • เปิด GPS เพื่อคำนวณตามระยะทาง') + '</div>' +
+      '<div style="font-size:11px;color:var(--text-muted);padding:2px 0 4px">' + (deliveryInfo.estimated ? 'คำนวณจากร้านถึงจุดส่ง (เผื่อระยะถนนแล้ว)' : 'ค่าส่งเริ่มต้น • ร้านยังไม่มีพิกัด') + '</div>' +
       (isCash ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--orange)"><span>ค่าบริการพิเศษ (เงินสด)</span><span>฿' + fmt(cashTip) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px;font-size:18px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fmt(grandTotal) + '</span></div>' +
     '</div>' +
@@ -2526,7 +2560,6 @@ window.confirmCheckout = async function(grandTotal) {
   });
   var subtotal = 0, discountTotal = 0;
   items.forEach(function(i) { subtotal += i.originalPrice * i.qty; discountTotal += i.discount * i.qty; });
-  var deliveryFee = calculateFoodDeliveryFee(foodDropoff).fee; var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
 
   var merchantData = {};
   try {
@@ -2535,6 +2568,10 @@ window.confirmCheckout = async function(grandTotal) {
       if (mSnap.exists) merchantData = mSnap.data();
     }
   } catch (e) { console.warn('Cannot fetch merchant:', e); }
+  var deliveryInfo = calculateFoodDeliveryFee(foodDropoff, merchantData);
+  var deliveryFee = deliveryInfo.fee;
+  var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
+  grandTotal = (subtotal - discountTotal) + deliveryFee + cashTip;
 
   try {
     await db.collection('orders').add({
@@ -3879,10 +3916,10 @@ function captureExpressDraft() {
 }
 
 window.previewExpressParcelPhoto = function(input) {
-  var preview = $('express-photo-name');
-  if (!preview) return;
   var file = input && input.files && input.files[0];
-  preview.textContent = file ? '📷 ' + file.name : 'ยังไม่ได้เลือกรูป (ไม่บังคับ)';
+  expressParcelPhotoFile = file || null;
+  var preview = $('express-photo-name');
+  if (preview) preview.textContent = file ? '📷 ' + file.name : 'ยังไม่ได้เลือกรูป (ไม่บังคับ)';
 };
 
 window.selectExpressParcelType = function(type) {
@@ -4045,7 +4082,7 @@ function renderExpressForm() {
     '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType.id) + '"><div class="express-parcel-scroll" aria-label="เลือกประเภทพัสดุ">' + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + parcelType.icon + ' ' + esc(parcelType.note) + '</div></div>' +
     '<div class="express-two-col"><div class="form-group"><label>⚖️ น้ำหนักโดยประมาณ (กก.)</label><input type="number" id="express-weight-kg" min="0" max="1000" step="0.1" value="' + esc(weightVal) + '" placeholder="เช่น 2.5"></div><div class="form-group"><label>⏰ ต้องการให้ถึง</label><input type="datetime-local" id="express-arrival-by" value="' + esc(arrivalByVal) + '"></div></div>' +
     '<div class="form-group"><label>🧾 ลักษณะสิ่งของ</label><textarea id="express-item-description" rows="2" placeholder="เช่น กล่องเอกสาร 1 กล่อง, ผลไม้ 3 กก., ต้องระวังแตก">' + esc(itemDescriptionVal) + '</textarea></div>' +
-    '<div class="form-group"><label>📷 รูปถ่ายสิ่งของ <span style="font-size:11px;color:var(--text-muted);font-weight:700">(ไม่บังคับ)</span></label><label class="express-photo-box"><span style="font-size:25px">📷</span><span>ถ่ายรูปหรือเลือกรูปสิ่งของ</span><input type="file" id="express-parcel-photo" accept="image/*" capture="environment" onchange="previewExpressParcelPhoto(this)"></label><div id="express-photo-name" class="express-photo-name">ยังไม่ได้เลือกรูป (ไม่บังคับ)</div></div>' +
+    '<div class="form-group"><label>📷 รูปถ่ายสิ่งของ <span style="font-size:11px;color:var(--text-muted);font-weight:700">(ไม่บังคับ)</span></label><div style="display:flex;gap:8px"><label class="express-photo-box" style="flex:1"><span style="font-size:22px">📷</span><span>ถ่ายรูป</span><input type="file" id="express-parcel-photo-camera" accept="image/*" capture="environment" onchange="previewExpressParcelPhoto(this)"></label><label class="express-photo-box" style="flex:1"><span style="font-size:22px">🖼️</span><span>คลังภาพ</span><input type="file" id="express-parcel-photo-gallery" accept="image/*" onchange="previewExpressParcelPhoto(this)"></label></div><div id="express-photo-name" class="express-photo-name">' + (expressParcelPhotoFile ? ('📷 ' + esc(expressParcelPhotoFile.name)) : 'ยังไม่ได้เลือกรูป (ไม่บังคับ)') + '</div></div>' +
     '<div class="form-group"><label>📝 หมายเหตุถึงไรเดอร์</label><textarea id="order-note" rows="2" placeholder="เช่น ให้โทรก่อนถึง หรือวางไว้หน้าบ้าน">' + esc(noteVal) + '</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="' + esc(phoneVal) + '"></div>' +
     '<button type="button" class="btn-full btn-green press-scale" data-exp-submit="1" onclick="submitExpressOrder()">✅ ยืนยันส่งด่วน</button>' +
@@ -4059,6 +4096,7 @@ function openExpressForm(dest){
   expOrigin = userLocation ? {lat:userLocation.lat, lng:userLocation.lng, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'} : null;
   expDestination = (dest && isFinite(dest.lat) && isFinite(dest.lng)) ? {lat:dest.lat, lng:dest.lng, address: dest.address || dest.name || ''} : null;
   expressDraft = null;
+  expressParcelPhotoFile = null;
   renderExpressForm();
 }
 
@@ -4101,7 +4139,9 @@ async function uploadExpressParcelPhoto(file) {
   if (!file.type || file.type.indexOf('image/') !== 0) throw new Error('ไฟล์รูปสิ่งของไม่ถูกต้อง');
   var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   if (['jpg','jpeg','png','webp','heic'].indexOf(ext) === -1) ext = 'jpg';
-  var path = 'express/' + currentUser.uid + '/parcel_' + Date.now() + '.' + ext;
+  // No storage.rules file is deployed from this repo. Customer chat photos
+  // already upload under chats/{id}/images/, so the parcel photo uses that prefix.
+  var path = 'chats/' + currentUser.uid + '/images/parcel_' + Date.now() + '.' + ext;
   var snap = await storage.ref(path).put(file, { contentType: file.type });
   return { url: await snap.ref.getDownloadURL(), path: path };
 }
@@ -4129,15 +4169,23 @@ window.submitExpressOrder = async function(){
   var arrivalBy = ($('express-arrival-by') && $('express-arrival-by').value) || '';
   var weightKg = ($('express-weight-kg') && $('express-weight-kg').value) || '';
   var itemDescription = ($('express-item-description') && $('express-item-description').value.trim()) || '';
-  var photoFile = $('express-parcel-photo') && $('express-parcel-photo').files && $('express-parcel-photo').files[0];
   if (!arrivalBy) return showToast('กรุณาระบุเวลาที่ต้องการให้ถึง','warning');
   if (!weightKg || Number(weightKg) <= 0) return showToast('กรุณาระบุน้ำหนักพัสดุ','warning');
   if (!itemDescription) return showToast('กรุณาระบุลักษณะสิ่งของ','warning');
   var baseFare = 30, distanceKm = 0;
   if (expOrigin && expDestination && isFinite(expOrigin.lat) && isFinite(expDestination.lat)) distanceKm = haversine(expOrigin.lat, expOrigin.lng, expDestination.lat, expDestination.lng) * 1.3;
   var total = Math.round(baseFare + (distanceKm * 5));
+  var photo = null;
+  if (expressParcelPhotoFile) {
+    try {
+      photo = await uploadExpressParcelPhoto(expressParcelPhotoFile);
+    } catch (photoErr) {
+      console.warn('express photo', photoErr && (photoErr.code || photoErr.message));
+      showToast('อัปโหลดรูปไม่สำเร็จ จะส่งงานโดยไม่มีรูป', 'warning');
+      photo = null;
+    }
+  }
   try{
-    var photo = await uploadExpressParcelPhoto(photoFile);
     await db.collection('orders').add({
       type: 'express', userId: currentUser.uid,
       userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
@@ -4167,6 +4215,7 @@ window.submitExpressOrder = async function(){
     showToast('✅ ส่งออเดอร์แล้ว ฿' + total);
     closeModal();
     expOrigin = null; expDestination = null;
+    expressParcelPhotoFile = null;
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){ showToast(e && e.message ? e.message : 'ส่งไม่สำเร็จ','error'); }
 };
@@ -4796,7 +4845,7 @@ function updateDestEstimate() {
     if (foodFee.distance !== null) {
       el.innerHTML = '<span>ค่าส่งอาหาร • ' + esc(foodFee.distance.toFixed(1)) + ' กม.</span><b>ประมาณ ฿' + esc(String(foodFee.fee)) + '</b>';
     } else {
-      el.innerHTML = '<span>เปิด GPS เพื่อคำนวณระยะทาง</span><b>เริ่มต้น ฿' + esc(String(foodFee.base)) + '</b>';
+      el.innerHTML = '<span>ค่าส่งเริ่มต้น • ร้านยังไม่มีพิกัด</span><b>฿' + esc(String(foodFee.base)) + '</b>';
     }
     return;
   }

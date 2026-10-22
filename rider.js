@@ -68,6 +68,8 @@ let currentHistoryFilter = 'all';
 let cameraFile = null;
 let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
+let arrivedCustomerNotifiedOrderIds = new Set();
+const autoChatSent = new Set();
 let isSigningUp = false;
 let authEpoch = 0;
 let activeChatCallRole = 'customer';
@@ -762,6 +764,8 @@ async function handleLogout() {
   foodReadySeen = null;
   nearNotifiedOrderIds.clear();
   arrivedShopNotifiedOrderIds.clear();
+  arrivedCustomerNotifiedOrderIds.clear();
+  autoChatSent.clear();
   if (window.ChauatCall) ChauatCall.reset();
   await auth.signOut();
 }
@@ -1227,6 +1231,9 @@ function renderJobCard(j, type) {
 
 async function sendAutomatedChat(orderId, key, text) {
   if (!orderId || !text || !currentUser) return;
+  const token = orderId + ':' + key;
+  if (autoChatSent.has(token)) return;
+  autoChatSent.add(token);
   try {
     const body = await ensureRiderChat(orderId);
     const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_' + key);
@@ -2117,9 +2124,10 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
       }
     }
 
-    if (job.status === 'on_the_way' && job.lat && job.lng && !job.riderArrivedCustomerChatAt) {
+    if (job.status === 'on_the_way' && job.lat && job.lng && !arrivedCustomerNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.lat, job.lng) * 1000;
       if (dist <= CUSTOMER_ARRIVAL_RADIUS_M) {
+        arrivedCustomerNotifiedOrderIds.add(job.id);
         await db.collection('orders').doc(job.id).update({
           riderArrivedCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
