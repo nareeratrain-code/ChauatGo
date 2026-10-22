@@ -25,8 +25,11 @@ rules_version = '2';
 //   * chats/messages: the order's customer, rider, or shop may read and send
 //     even when the chat doc has no userId/riderId (or does not exist yet).
 //     A missing chat can be read as "not found" by any signed-in user.
-//     Message keys are only senderId, senderRole, senderName, text, imageUrl,
-//     imagePath, createdAt, systemMessage — no phone fields.
+//     Message keys are senderId, senderRole, senderName, text, imageUrl,
+//     imagePath, createdAt, systemMessage, plus automated (bool) and
+//     automationKey (short string) for rider status notes — no phone fields.
+//   * An assigned rider on an on_the_way order may set riderNearCustomerAt,
+//     riderNearCustomerChatAt, and riderArrivedCustomerChatAt.
 // Every other collection keeps the v3.8.4 access shape.
 
 service cloud.firestore {
@@ -97,6 +100,11 @@ service cloud.firestore {
 
     function unchanged(field) {
       return request.resource.data.get(field, null) == resource.data.get(field, null);
+    }
+
+    function changedToTimestamp(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
+        || request.resource.data.get(field, null) is timestamp;
     }
 
     function isValidString(value, minLen, maxLen) {
@@ -275,7 +283,8 @@ service cloud.firestore {
     function messageOk() {
       let data = request.resource.data;
       return data.keys().hasOnly([
-          'senderId', 'senderRole', 'senderName', 'text', 'imageUrl', 'imagePath', 'createdAt', 'systemMessage'
+          'senderId', 'senderRole', 'senderName', 'text', 'imageUrl', 'imagePath', 'createdAt', 'systemMessage',
+          'automated', 'automationKey'
         ])
         && data.keys().hasAll(['senderId', 'senderRole', 'createdAt'])
         && data.senderId is string
@@ -287,6 +296,8 @@ service cloud.firestore {
         && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 2000))
         && (!('imagePath' in data) || (data.imagePath is string && data.imagePath.size() <= 400))
         && (!('systemMessage' in data) || data.systemMessage is bool)
+        && (!('automated' in data) || data.automated is bool)
+        && (!('automationKey' in data) || (data.automationKey is string && data.automationKey.size() > 0 && data.automationKey.size() <= 40))
         && (
           (('text' in data) && (data.text is string) && data.text.size() > 0)
           || (('imageUrl' in data) && (data.imageUrl is string) && data.imageUrl.size() > 0)
@@ -552,10 +563,14 @@ service cloud.firestore {
         )
         || (
           isAssignedRider()
+          && resource.data.status == 'on_the_way'
           && unchanged('status')
           && unchanged('riderId')
           && identityFrozen()
-          && onlyChanged(['riderNearCustomerAt'])
+          && onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
+          && changedToTimestamp('riderNearCustomerAt')
+          && changedToTimestamp('riderNearCustomerChatAt')
+          && changedToTimestamp('riderArrivedCustomerChatAt')
         )
         // [E] merchant accept / cancel / mark ready (including after rider accepted)
         || (

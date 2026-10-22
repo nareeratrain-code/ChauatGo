@@ -614,6 +614,12 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('orders').doc('open1').collection('dispatchOffers').doc('of1').set({
         riderId: 'rider1', status: 'pending', orderId: 'open1'
       });
+      await root.collection('orders').doc('near1').set({
+        type: 'food', status: 'on_the_way', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1'
+      });
+      await root.collection('orders').doc('acc1').set({
+        type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1'
+      });
     });
 
     const rider = rulesEnv.authenticatedContext('rider1');
@@ -768,6 +774,23 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['customer message on legacy chat', () => assertSucceeds(cdb.collection('chats').doc('chat1').collection('messages').add(msg('cust1', 'user', 'ถึงไหนแล้ว')))],
       ['rider message on legacy chat', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(msg('rider1', 'rider', 'กำลังไป')))],
       ['shop system message', () => assertSucceeds(sdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'ยกเลิก'), { systemMessage: true })))],
+      ['rider automated status note', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('rider1', 'rider', 'ใกล้ถึงแล้ว'), {
+        systemMessage: true, automated: true, automationKey: 'near_customer'
+      })))],
+      ['long automation key denied', () => assertFails(rdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('rider1', 'rider', 'ยาวไป'), {
+        automated: true, automationKey: 'x'.repeat(41)
+      })))],
+      ['rider stamps near and arrival', () => assertSucceeds(rdb.collection('orders').doc('near1').update({
+        riderNearCustomerAt: serverTimestamp(),
+        riderNearCustomerChatAt: serverTimestamp(),
+        riderArrivedCustomerChatAt: serverTimestamp()
+      }))],
+      ['customer cannot stamp arrival', () => assertFails(cdb.collection('orders').doc('near1').update({
+        riderArrivedCustomerChatAt: serverTimestamp()
+      }))],
+      ['rider cannot stamp arrival before on_the_way', () => assertFails(rdb.collection('orders').doc('acc1').update({
+        riderNearCustomerAt: serverTimestamp()
+      }))],
       ['customer image message', () => assertSucceeds(cdb.collection('chats').doc('chat1').collection('messages').add({
         senderId: 'cust1', senderRole: 'user', senderName: 'ลูกค้า', text: '', imageUrl: 'https://example.com/a.jpg', createdAt: serverTimestamp()
       }))],
