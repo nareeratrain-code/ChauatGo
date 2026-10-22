@@ -1338,6 +1338,9 @@ var chatListUnsub = null;
 var expOrigin = null;
 var expDestination = null;
 var expressDraft = null;
+var shoppingPrefill = null;
+var shoppingDropoff = null;
+var foodReorderNotice = '';
 var expressParcelPhotoFile = null;
 var EXPRESS_PARCEL_TYPES = [
   { id: 'document', label: 'เอกสาร', icon: '📄', note: 'เอกสารทั่วไป สัญญา หรือใบสำคัญ' },
@@ -2444,6 +2447,7 @@ window.openCart = function() {
     '<div class="cart-summary-row total"><span>สุทธิ</span><span>฿' + fmt(netTotal) + '</span></div>' +
   '</div>';
   $('modal-body').innerHTML =
+    (foodReorderNotice || '') +
     '<div style="text-align:center;margin-bottom:16px">' +
       '<div style="font-size:44px;margin-bottom:8px">🛒</div>' +
       '<h2 style="font-size:20px;font-weight:900;color:var(--text)">ตะกร้าของคุณ</h2>' +
@@ -2467,13 +2471,13 @@ window.removeCartItem = function(index) {
   updateCartBar(); if (cart.length) _refreshCartViews(); else { closeModal(); _refreshCartViews(); showToast('ลบรายการแล้ว'); }
 };
 
-window.clearCart = function() { cart = []; cartShop = ''; localStorage.removeItem('chauat_cart'); localStorage.removeItem('chauat_cart_shop'); updateCartBar(); closeModal(); _refreshCartViews(); showToast('🗑️ ล้างตะกร้าแล้ว'); };
+window.clearCart = function() { cart = []; cartShop = ''; foodReorderNotice = ''; localStorage.removeItem('chauat_cart'); localStorage.removeItem('chauat_cart_shop'); updateCartBar(); closeModal(); _refreshCartViews(); showToast('🗑️ ล้างตะกร้าแล้ว'); };
 
 /* ═══ CHECKOUT — ⭐ v3.9.0: status = "searching" ═══ */
 window.checkout = async function() {
   if (!currentUser) { closeModal(); showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ', 'warning'); }
   if (!cart.length) return showToast('ตะกร้าว่าง', 'error');
-  var address = (userProfile && userProfile.address) || '';
+  var address = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '';
   if (!address.trim()) {
     showToast('⚠️ กรุณากรอกที่อยู่ก่อนสั่งซื้อ', 'warning');
     closeModal();
@@ -2525,9 +2529,12 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
   var deliveryInfo = calculateFoodDeliveryFee(foodDropoff);
   var dropAddr = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '';
   var dropPin = foodDropoff && isFinite(foodDropoff.lat) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:6px">✓ ' + foodDropoff.lat.toFixed(4) + ', ' + foodDropoff.lng.toFixed(4) + '</div>' : '';
+  var noteVal = (foodDropoff && foodDropoff.note) || '';
   return '' +
+    (foodReorderNotice || '') +
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">💳</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ยืนยันออเดอร์</h2></div>' +
     '<div class="form-group"><label>🏠 ที่อยู่จัดส่ง</label><div style="font-size:13px;font-weight:800;color:var(--text);line-height:1.4">' + esc(dropAddr || 'ยังไม่มีที่อยู่') + '</div>' + dropPin +
+      '<div class="form-group" style="margin-top:10px"><label>📝 โน้ตถึงไรเดอร์</label><textarea id="food-rider-note" rows="2" placeholder="เช่น สีบ้าน จุดสังเกต">' + esc(noteVal) + '</textarea></div>' +
       '<button type="button" class="btn-full btn-gray press-scale" style="margin-top:8px" onclick="openMapPicker(\'food\')">🗺️ เลือกที่อยู่จากแผนที่</button></div>' +
     '<div class="form-group"><label>💳 เลือกวิธีชำระ</label><div class="pay-mode-row">' +
       '<button class="pay-mode-btn ' + (isCash ? '' : 'active') + '" onclick="setPaymentMode(\'transfer\')"><span class="emoji">💳</span><span>โอนเงิน</span><span class="sub">โอนให้ไรเดอร์</span></button>' +
@@ -2547,7 +2554,15 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
 }
 
+function captureFoodCheckoutDraft() {
+  var noteEl = $('food-rider-note');
+  if (!noteEl) return;
+  if (!foodDropoff) foodDropoff = { address: (userProfile && userProfile.address) || '', note: '' };
+  foodDropoff.note = noteEl.value.trim();
+}
+
 window.setPaymentMode = function(mode) {
+  captureFoodCheckoutDraft();
   selectedPaymentMode = mode;
   var subtotal = 0, discountTotal = 0;
   cart.forEach(function(c) { subtotal += (c.originalPrice || c.price) * c.qty; discountTotal += (c.discount || 0) * c.qty; });
@@ -2556,8 +2571,9 @@ window.setPaymentMode = function(mode) {
 
 /* ⭐ v3.9.0: confirmCheckout → status = "searching" */
 window.confirmCheckout = async function(grandTotal) {
+  captureFoodCheckoutDraft();
   var items = cart.map(function(c) {
-    return { name: c.menuName, qty: c.qty, price: c.originalPrice || c.price, originalPrice: c.originalPrice || c.price, finalPrice: c.finalPrice || c.price, discount: c.discount || 0, promoLabel: c.promoLabel || '' };
+    return { menuId: c.menuId || '', name: c.menuName, qty: c.qty, price: c.originalPrice || c.price, originalPrice: c.originalPrice || c.price, finalPrice: c.finalPrice || c.price, discount: c.discount || 0, promoLabel: c.promoLabel || '' };
   });
   var subtotal = 0, discountTotal = 0;
   items.forEach(function(i) { subtotal += i.originalPrice * i.qty; discountTotal += i.discount * i.qty; });
@@ -2597,6 +2613,7 @@ window.confirmCheckout = async function(grandTotal) {
       status: 'searching',                   /* ⭐ v3.9.0 */
       riderId: null,                          /* ⭐ v3.9.0 */
       address: (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '',
+      note: (foodDropoff && foodDropoff.note) || '',
       lat: (foodDropoff && isFinite(foodDropoff.lat)) ? foodDropoff.lat : (userLocation ? userLocation.lat : null),
       lng: (foodDropoff && isFinite(foodDropoff.lng)) ? foodDropoff.lng : (userLocation ? userLocation.lng : null),
       paymentMode: selectedPaymentMode,
@@ -2605,7 +2622,7 @@ window.confirmCheckout = async function(grandTotal) {
       codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    cart = []; cartShop = ''; selectedPaymentMode = 'transfer'; foodDropoff = null;
+    cart = []; cartShop = ''; selectedPaymentMode = 'transfer'; foodDropoff = null; foodReorderNotice = '';
     try {
       localStorage.removeItem('chauat_cart');
       localStorage.removeItem('chauat_cart_shop');
@@ -2753,6 +2770,256 @@ function orderPrepNote(o) {
   return '';
 }
 
+/* REORDER_HELPERS_START */
+function canReorderCompleted(order) {
+  return !!order && ['done', 'delivered'].indexOf(order.status) !== -1 && ['food', 'express', 'shopping'].indexOf(order.type) !== -1;
+}
+
+function reorderPoint(lat, lng, address) {
+  lat = Number(lat);
+  lng = Number(lng);
+  if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) {
+    return address ? { address: String(address) } : null;
+  }
+  return { lat: lat, lng: lng, address: address ? String(address) : '' };
+}
+
+function reorderNameKey(value) {
+  return String(value || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function planFoodReorderItems(orderItems, menus) {
+  var byId = {};
+  var byName = {};
+  (menus || []).forEach(function(menu) {
+    if (!menu || !menu.id) return;
+    byId[menu.id] = menu;
+    if (isMenuHidden(menu)) return;
+    var key = reorderNameKey(menu.name);
+    if (key && !byName[key]) byName[key] = menu;
+  });
+  var lines = [];
+  var skipped = [];
+  var priceChanges = [];
+  (Array.isArray(orderItems) ? orderItems : []).forEach(function(item) {
+    var label = (item && (item.name || item.menuName)) || 'เมนู';
+    var qty = Math.round(Number(item && item.qty) || 0);
+    if (qty < 1) {
+      skipped.push({ name: label, reason: 'ไม่มีจำนวน' });
+      return;
+    }
+    var menu = item && item.menuId && byId[item.menuId];
+    if (menu && isMenuHidden(menu)) {
+      skipped.push({ name: menu.name || label, reason: 'ไม่มีในร้านแล้ว' });
+      return;
+    }
+    if (!menu) menu = byName[reorderNameKey(label)];
+    if (!menu) {
+      skipped.push({ name: label, reason: 'ไม่มีในร้านแล้ว' });
+      return;
+    }
+    if (isMenuOutOfStock(menu)) {
+      skipped.push({ name: menu.name || label, reason: 'หมดชั่วคราว' });
+      return;
+    }
+    var originalPrice = Number(menu.price || 0);
+    var finalPrice = calcFinalPrice(menu);
+    var oldPrice = Number(item.finalPrice != null ? item.finalPrice : item.price);
+    if (isFinite(oldPrice) && Math.abs(oldPrice - finalPrice) > 0.009) {
+      priceChanges.push({ name: menu.name || label, from: oldPrice, to: finalPrice });
+    }
+    var discount = Math.max(0, originalPrice - finalPrice);
+    lines.push({
+      menuId: menu.id,
+      menuName: menu.name || label,
+      qty: qty,
+      originalPrice: originalPrice,
+      finalPrice: finalPrice,
+      discount: discount,
+      promoLabel: getPromoLabel(menu) || '',
+      hasPromo: discount > 0
+    });
+  });
+  return { lines: lines, skipped: skipped, priceChanges: priceChanges };
+}
+
+function foodReorderDropoff(order) {
+  var point = reorderPoint(order && order.lat, order && order.lng, order && order.address);
+  if (!point && order && order.note) point = { address: '' };
+  if (!point) return null;
+  point.note = order.note || '';
+  return point;
+}
+
+function expressReorderDraft(order) {
+  order = order || {};
+  return {
+    origin: reorderPoint(order.fromLat, order.fromLng, order.from),
+    destination: reorderPoint(order.lat, order.lng, order.to || order.address),
+    draft: {
+      from: order.from || '',
+      to: order.to || order.address || '',
+      note: order.note || '',
+      phone: order.userPhone || '',
+      contactName: order.userName || '',
+      arrivalBy: '',
+      weightKg: order.weightKg != null && order.weightKg !== '' ? String(order.weightKg) : '',
+      itemDescription: order.itemDescription || '',
+      parcelType: order.parcelType || 'document',
+      reorder: true
+    }
+  };
+}
+
+function shoppingListText(order) {
+  if (!order) return '';
+  if (typeof order.items === 'string') return order.items;
+  if (typeof order.itemsText === 'string') return order.itemsText;
+  if (Array.isArray(order.items)) {
+    return order.items.map(function(item) {
+      return (item.name || item.menuName || '') + (item.qty ? ' x' + item.qty : '');
+    }).filter(Boolean).join('\n');
+  }
+  return '';
+}
+
+function resolveShoppingPlace(order, places) {
+  order = order || {};
+  var list = places || [];
+  var found = list.filter(function(place) { return place && order.shopPlaceId && place.id === order.shopPlaceId; })[0];
+  if (!found && order.shopPlaceName) {
+    var key = reorderNameKey(order.shopPlaceName);
+    found = list.filter(function(place) { return place && reorderNameKey(place.name) === key; })[0];
+  }
+  if (found) return { id: found.id, name: found.name, lat: Number(found.lat), lng: Number(found.lng), category: found.category || 's' };
+  var pin = reorderPoint(order.shopPlaceLat, order.shopPlaceLng, order.shopPlaceName);
+  if (!pin || !isFinite(pin.lat)) return null;
+  return { id: order.shopPlaceId || 'reorder-shop', name: order.shopPlaceName || 'ร้านเดิม', lat: pin.lat, lng: pin.lng, category: 's' };
+}
+
+function shoppingReorderPrefill(order, places) {
+  var place = resolveShoppingPlace(order, places);
+  var drop = reorderPoint(order && order.lat, order && order.lng, (order && (order.address || order.to)) || '');
+  if (drop) drop.note = (order && order.note) || '';
+  return {
+    place: place,
+    items: shoppingListText(order),
+    note: (order && order.note) || '',
+    phone: (order && order.userPhone) || '',
+    contactName: (order && order.userName) || '',
+    dropoff: drop
+  };
+}
+/* REORDER_HELPERS_END */
+
+function reorderFoodNotice(plan) {
+  var rows = ['<div style="font-weight:900;margin-bottom:4px">สั่งซ้ำ • ราคาและค่าส่งคำนวณใหม่</div>'];
+  (plan.priceChanges || []).forEach(function(row) {
+    rows.push('<div>⚠️ ' + esc(row.name) + ' ราคาเปลี่ยน ฿' + fmt(row.from) + ' → ฿' + fmt(row.to) + '</div>');
+  });
+  (plan.skipped || []).forEach(function(row) {
+    rows.push('<div>🚫 ' + esc(row.name) + ' • ' + esc(row.reason) + '</div>');
+  });
+  return '<div style="background:#FFF8E1;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:12px;font-weight:700;color:#8A5A00;line-height:1.5">' + rows.join('') + '</div>';
+}
+
+function applyFoodReorderCart(order, merchant, plan) {
+  cart = plan.lines.map(function(line) {
+    return {
+      merchantId: merchant.id,
+      merchantName: merchant.name || order.merchantName || '',
+      menuId: line.menuId,
+      menuName: line.menuName,
+      price: line.originalPrice,
+      originalPrice: line.originalPrice,
+      finalPrice: line.finalPrice,
+      discount: line.discount,
+      promoLabel: line.promoLabel,
+      hasPromo: line.hasPromo,
+      qty: line.qty,
+      shopLat: isFinite(Number(merchant.lat)) ? Number(merchant.lat) : null,
+      shopLng: isFinite(Number(merchant.lng)) ? Number(merchant.lng) : null
+    };
+  });
+  cartShop = merchant.id;
+  window._currentMerchant = {
+    id: merchant.id,
+    name: merchant.name || '',
+    lat: Number(merchant.lat),
+    lng: Number(merchant.lng)
+  };
+  foodDropoff = foodReorderDropoff(order);
+  foodReorderNotice = reorderFoodNotice(plan);
+  selectedPaymentMode = order.paymentMode === 'cash' ? 'cash' : 'transfer';
+  try {
+    localStorage.setItem('chauat_cart', JSON.stringify(cart));
+    localStorage.setItem('chauat_cart_shop', cartShop);
+  } catch (err) {}
+  updateCartBar();
+}
+
+async function reorderFood(order) {
+  if (!order.merchantId) return showToast('ไม่พบร้านจากออเดอร์เดิม', 'error');
+  showToast('กำลังเตรียมรายการ...', 'info');
+  var merchantSnap;
+  var menuSnap;
+  try {
+    merchantSnap = await db.collection('merchants').doc(order.merchantId).get();
+    menuSnap = await db.collection('menus').where('merchantId', '==', order.merchantId).get();
+  } catch (err) {
+    return showToast('โหลดร้านไม่สำเร็จ', 'error');
+  }
+  if (!merchantSnap.exists) return showToast('ร้านนี้ไม่มีในระบบแล้ว', 'error');
+  var merchant = Object.assign({ id: merchantSnap.id }, merchantSnap.data());
+  var menus = menuSnap.docs.map(function(doc) { return Object.assign({ id: doc.id }, doc.data()); });
+  window._menus = menus.filter(function(menu) { return !isMenuHidden(menu); });
+  var plan = planFoodReorderItems(order.items, menus);
+  if (!plan.lines.length) {
+    $('modal-body').innerHTML = reorderFoodNotice(plan) +
+      '<div style="font-size:14px;font-weight:900;margin:8px 0 12px">ไม่มีรายการที่สั่งซ้ำได้</div>' +
+      '<button class="btn-full btn-green press-scale" onclick="closeModal();openMerchantDetail(\'' + esc(merchant.id) + '\')">ดูเมนูร้าน</button>' +
+      '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
+    openModal();
+    return;
+  }
+  if (cart.length && !confirm('แทนที่ตะกร้าด้วยรายการสั่งซ้ำ?')) return;
+  applyFoodReorderCart(order, merchant, plan);
+  checkout();
+}
+
+function reorderExpress(order) {
+  var packed = expressReorderDraft(order);
+  expOrigin = packed.origin && isFinite(packed.origin.lat) ? packed.origin : null;
+  expDestination = packed.destination && isFinite(packed.destination.lat) ? packed.destination : null;
+  expressDraft = packed.draft;
+  expressParcelPhotoFile = null;
+  renderExpressForm();
+  showToast('ตรวจสอบส่งด่วนก่อนยืนยัน • เลือกเวลาถึงใหม่', 'info');
+}
+
+function reorderShopping(order) {
+  var open = function() {
+    var prefill = shoppingReorderPrefill(order, PLACES);
+    if (!prefill.place) return showToast('ไม่พบร้านเดิม', 'error');
+    shoppingPrefill = prefill;
+    openShopOrderForm(prefill.place.id, true);
+  };
+  if (PLACES && PLACES.length) open();
+  else ensurePlaceData(open);
+}
+
+window.reorderCompletedOrder = async function(orderId) {
+  if (!currentUser) { showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ', 'warning'); }
+  var order = (window._cachedOrders || []).filter(function(item) { return item.id === orderId; })[0];
+  if (!order || order.userId !== currentUser.uid || !canReorderCompleted(order)) {
+    return showToast('สั่งซ้ำได้เฉพาะงานที่เสร็จแล้ว', 'warning');
+  }
+  if (order.type === 'food') return reorderFood(order);
+  if (order.type === 'express') return reorderExpress(order);
+  if (order.type === 'shopping') return reorderShopping(order);
+};
+
+
 function renderOrderCard(o){
   var statusMap = {
     searching:'⏳ หาไรเดอร์', pending:'🔔 รอร้านรับ',
@@ -2765,6 +3032,7 @@ function renderOrderCard(o){
   var color = o.status==='cancelled'?'#999':(['done','delivered'].indexOf(o.status)!==-1?'#168A45':'#FF6B35');
   var isDone = ['done','delivered'].indexOf(o.status) !== -1;
   var canRate = isDone && !o.rated;
+  var canReorder = isDone && canReorderCompleted(o);
   var canChat = !!o.riderId && ['cancelled'].indexOf(o.status) === -1;
   var canTrack = !!o.riderId && ['accepted','picked_up','customer_paid','on_the_way'].indexOf(o.status) !== -1;
   var isCash = o.paymentMode === 'cash';
@@ -2819,6 +3087,7 @@ function renderOrderCard(o){
       '<button class="rate-btn" style="background:linear-gradient(135deg,#4E9F2D,#34751E);margin:0" onclick="showOrderBill(\''+esc(o.id)+'\')">🧾 ดูบิล</button>' +
       (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท</button>':'') +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
+      (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
     '</div>' +
     payBtnHtml +
@@ -3904,15 +4173,18 @@ window.submitOrder = async function(type){
 /* ═══ EXPRESS ═══ */
 function captureExpressDraft() {
   if (!$('order-from') && !$('order-to') && !$('order-note') && !$('order-phone')) return;
+  var previous = expressDraft || {};
   expressDraft = {
     from: $('order-from') ? $('order-from').value : '',
     to: $('order-to') ? $('order-to').value : '',
     note: $('order-note') ? $('order-note').value : '',
     phone: $('order-phone') ? $('order-phone').value : '',
-    arrivalBy: $('express-arrival-by') ? $('express-arrival-by').value : ((expressDraft && expressDraft.arrivalBy) || ''),
-    weightKg: $('express-weight-kg') ? $('express-weight-kg').value : ((expressDraft && expressDraft.weightKg) || ''),
-    itemDescription: $('express-item-description') ? $('express-item-description').value : ((expressDraft && expressDraft.itemDescription) || ''),
-    parcelType: $('express-parcel-type') ? $('express-parcel-type').value : ((expressDraft && expressDraft.parcelType) || 'document')
+    arrivalBy: $('express-arrival-by') ? $('express-arrival-by').value : (previous.arrivalBy || ''),
+    weightKg: $('express-weight-kg') ? $('express-weight-kg').value : (previous.weightKg || ''),
+    itemDescription: $('express-item-description') ? $('express-item-description').value : (previous.itemDescription || ''),
+    parcelType: $('express-parcel-type') ? $('express-parcel-type').value : (previous.parcelType || 'document'),
+    contactName: previous.contactName || '',
+    reorder: !!previous.reorder
   };
 }
 
@@ -4075,7 +4347,13 @@ function renderExpressForm() {
   }).join('');
   var originBadge = (expOrigin && isFinite(expOrigin.lat)) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ จุดรับ ' + expOrigin.lat.toFixed(4) + ', ' + expOrigin.lng.toFixed(4) + '</div>' : '';
   var destBadge = (expDestination && isFinite(expDestination.lat)) ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:4px">✓ จุดส่ง ' + expDestination.lat.toFixed(4) + ', ' + expDestination.lng.toFixed(4) + '</div>' : '';
+  var contactLabel = String((expressDraft && expressDraft.contactName) || '').trim();
+  if (/^[0-9+\-\s()]{8,}$/.test(contactLabel)) contactLabel = '';
+  var reorderBanner = (expressDraft && expressDraft.reorder)
+    ? '<div style="background:#FFF8E1;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:12px;font-weight:700;color:#8A5A00;line-height:1.5">สั่งซ้ำ • ตรวจจุดรับ จุดส่ง และรายละเอียดก่อนยืนยัน<br>ไม่ได้นำรูปเดิมมา • เลือกเวลาที่ต้องการให้ถึงใหม่ • ค่าส่งคำนวณใหม่' + (contactLabel ? '<br>ผู้ติดต่อ ' + esc(contactLabel) : '') + '</div>'
+    : '';
   $('modal-body').innerHTML =
+    reorderBanner +
     '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">📦</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2><div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">฿30 เริ่มต้น</div></div>' +
     '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><div style="display:flex;gap:8px;margin-top:6px"><button type="button" class="btn-full btn-green press-scale" style="flex:1;font-size:12px;padding:10px" onclick="useCurrentLocationForExp()">🎯 ใช้ตำแหน่งฉัน</button><button type="button" class="btn-full btn-gray press-scale" style="flex:1;font-size:12px;padding:10px" data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่</button></div>' + originBadge + '</div>' +
     '<button type="button" class="express-swap-btn press-scale" onclick="swapExpressLocations()">⇅ สลับต้นทางและปลายทาง</button>' +
@@ -4511,22 +4789,31 @@ function renderShoppingPlaces(){
   });
 }
 
-window.openShopOrderForm = function(placeId){
-  var p = PLACES.find(function(x){return x.id===placeId;});
+window.openShopOrderForm = function(placeId, keepPrefill){
+  if (!keepPrefill) shoppingPrefill = null;
+  var pre = (keepPrefill && shoppingPrefill) || {};
+  var p = (pre.place && pre.place.id === placeId) ? pre.place : PLACES.find(function(x){return x.id===placeId;});
   if (!p) return showToast('ไม่พบสถานที่','error');
   if (!currentUser) { showLoginModal(); return showToast('กรุณาเข้าสู่ระบบ','warning'); }
+  shoppingDropoff = pre.dropoff && isFinite(Number(pre.dropoff.lat)) ? pre.dropoff : null;
+  var dropText = (pre.dropoff && pre.dropoff.address) || (userProfile && userProfile.address) || '';
+  var dropPin = shoppingDropoff ? '<div style="display:inline-block;font-size:10px;font-weight:800;color:var(--green);background:#E8F5E9;padding:3px 8px;border-radius:8px;margin-top:6px">✓ จุดส่ง ' + Number(shoppingDropoff.lat).toFixed(4) + ', ' + Number(shoppingDropoff.lng).toFixed(4) + '</div>' : '';
+  var contactLabel = String(pre.contactName || '').trim();
+  if (/^[0-9+\-\s()]{8,}$/.test(contactLabel)) contactLabel = '';
+  var reorderBanner = keepPrefill ? '<div style="background:#FFF8E1;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:12px;font-weight:700;color:#8A5A00;line-height:1.5">สั่งซ้ำ • ตรวจร้าน รายการซื้อ และจุดส่งก่อนยืนยัน • ค่าส่งคำนวณใหม่' + (contactLabel ? '<br>ผู้ติดต่อ ' + esc(contactLabel) : '') + '</div>' : '';
   var cat = CATS[p.category] || {icon:'📍', name:''};
   var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : null;
   var baseFare = 30, perKm = 5;
   var fare = Math.round(baseFare + ((dist||0) * 1.3 * perKm));
   var quickItems = ['น้ำแข็ง', 'โซดา', 'น้ำเปล่า', 'เบียร์', 'บุหรี่', 'ขนม', 'นม', 'ไข่', 'ข้าวสาร', 'น้ำมันพืช'];
   $('modal-body').innerHTML =
+    reorderBanner +
     '<div style="text-align:center;margin-bottom:16px">' +
       '<div style="font-size:44px;margin-bottom:8px">' + cat.icon + '</div>' +
       '<h2 style="font-size:18px;font-weight:900;color:var(--text)">' + esc(p.name) + '</h2>' +
     '</div>' +
     '<div class="form-group"><label>🛒 รายการที่ให้ซื้อ</label>' +
-      '<textarea id="shop-items" class="shop-items-input" placeholder="เช่น&#10;- โซดา 2 ขวด&#10;- น้ำแข็ง 1 ถุง"></textarea>' +
+      '<textarea id="shop-items" class="shop-items-input" placeholder="เช่น&#10;- โซดา 2 ขวด&#10;- น้ำแข็ง 1 ถุง">' + esc(pre.items || '') + '</textarea>' +
       '<div class="shop-quick-chips">' + quickItems.map(function(item){
         return '<button type="button" class="shop-quick-chip" onclick="addQuickItem(\'' + esc(item) + '\')">+ ' + esc(item) + '</button>';
       }).join('') + '</div>' +
@@ -4536,8 +4823,9 @@ window.openShopOrderForm = function(placeId){
       (dist != null ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>ระยะทาง ' + (dist*1.3).toFixed(1) + ' กม. × ฿' + perKm + '</span><span>฿' + Math.round(dist*1.3*perKm) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--border);margin-top:6px;font-size:15px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fare + '</span></div>' +
     '</div>' +
-    '<div class="form-group"><label>📝 หมายเหตุ</label><textarea id="shop-note" rows="2"></textarea></div>' +
-    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="shop-phone" value="' + esc((userProfile&&userProfile.phone)||'') + '"></div>' +
+    '<div class="form-group"><label>🏠 จุดส่ง</label><input id="shop-dropoff" value="' + esc(dropText) + '" placeholder="ที่อยู่จัดส่ง">' + dropPin + '</div>' +
+    '<div class="form-group"><label>📝 หมายเหตุ</label><textarea id="shop-note" rows="2">' + esc(pre.note || '') + '</textarea></div>' +
+    '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="shop-phone" value="' + esc(pre.phone || (userProfile&&userProfile.phone)||'') + '"></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitShopOrder(\'' + esc(p.id) + '\')">✅ เรียกรถไปซื้อ (฿' + fare + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
@@ -4553,12 +4841,16 @@ window.addQuickItem = function(item){
 
 window.submitShopOrder = async function(placeId){
   if (!currentUser) { closeModal(); showLoginModal(); return; }
-  var p = PLACES.find(function(x){return x.id===placeId;});
+  var p = (shoppingPrefill && shoppingPrefill.place && shoppingPrefill.place.id === placeId)
+    ? shoppingPrefill.place
+    : PLACES.find(function(x){return x.id===placeId;});
   if (!p) return showToast('ไม่พบสถานที่','error');
   var items = ($('shop-items') && $('shop-items').value.trim()) || '';
   if (!items) return showToast('กรุณาพิมพ์รายการ','warning');
   var phone = ($('shop-phone') && $('shop-phone').value.trim()) || '';
   if (!phone) return showToast('กรุณากรอกเบอร์ติดต่อ','warning');
+  var dropText = ($('shop-dropoff') && $('shop-dropoff').value.trim()) || '';
+  var dropPin = shoppingDropoff && pointMatchesText(shoppingDropoff, dropText) ? shoppingDropoff : null;
   var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : 0;
   var fare = Math.round(30 + (dist * 1.3 * 5));
   try{
@@ -4570,11 +4862,13 @@ window.submitShopOrder = async function(placeId){
       title: '🛒 ฝากซื้อ: ' + p.name,
       shopPlaceId: p.id, shopPlaceName: p.name,
       shopPlaceLat: p.lat, shopPlaceLng: p.lng,
-      from: (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
+      from: dropText || (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
       fromLat: userLocation ? userLocation.lat : null,
       fromLng: userLocation ? userLocation.lng : null,
-      to: (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
-      address: (userProfile&&userProfile.address) || '',
+      to: dropText || (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
+      address: dropText || (userProfile&&userProfile.address) || '',
+      lat: dropPin && isFinite(dropPin.lat) ? dropPin.lat : null,
+      lng: dropPin && isFinite(dropPin.lng) ? dropPin.lng : null,
       items: items, itemsText: items,
       note: ($('shop-note') && $('shop-note').value.trim()) || '',
       distanceKm: dist,
@@ -4588,6 +4882,8 @@ window.submitShopOrder = async function(placeId){
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('✅ ส่งออเดอร์แล้ว ฿' + fare);
+    shoppingPrefill = null;
+    shoppingDropoff = null;
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   } catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
@@ -5449,7 +5745,7 @@ window.confirmMapLocation = function(){
     return;
   }
   if (mode === 'food') {
-    foodDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address };
+    foodDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address, note: picked.note || (foodDropoff && foodDropoff.note) || '' };
     reopenFoodCheckout();
     showToast('📍 ' + (picked.address || 'เลือกที่อยู่จัดส่งแล้ว'));
     return;
