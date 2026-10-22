@@ -1,8 +1,10 @@
-const CACHE_NAME = 'chauat-app-v3.9.27';
+const CACHE_NAME = 'chauat-app-v3.9.28';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
 // /data/chauat-places.json is about 10KB, under the 300KB precache limit.
+// /data/nst-places.json is the province catalog. It is fetched on search
+// and is not precached, so a large file cannot fail install.
 // Shell for customer, merchant, admin, rider, and boss.
 // Do not list files that are not deployed. cache.addAll rejects the whole
 // install when any URL 404s, and a rejected install leaves the previous

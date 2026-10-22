@@ -217,6 +217,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .food-meta { font-size: 11px; color: var(--text-muted); font-weight: 700; margin-top: 3px; }
 .food-price { font-size: 14px; font-weight: 900; color: var(--green); margin-top: 4px; }
 .hotel-directory-note { margin: 0 14px 12px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-light), var(--surface)); border: 1px solid rgba(78,159,45,.18); color: var(--text-muted); font-size: 12px; line-height: 1.5; font-weight: 700; }
+.place-district-select { width: 100%; min-height: 42px; margin: 0 0 8px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 800; padding: 0 10px; }
+#hotel-tools .place-district-select, #tourist-tools .place-district-select { width: calc(100% - 28px); margin: 0 14px 12px; }
+.dest-sheet.expanded #dest-district { display: block; }
+#dest-district { display: none; }
 .hotel-search-wrap { margin: 0 14px 12px; position: relative; }
 .hotel-search-wrap input { width: 100%; min-height: 46px; box-sizing: border-box; padding: 0 14px 0 42px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; outline: none; box-shadow: var(--shadow-sm); }
 .hotel-search-wrap input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(78,159,45,.14); }
@@ -988,8 +992,9 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="dest-sheet-body">
         <div class="dest-search">
           <span aria-hidden="true">🔍</span>
-          <input id="dest-search-input" type="search" placeholder="ค้นหาสถานที่ ร้านอาหาร หรือถนน..." autocomplete="off" enterkeyhint="search">
+          <input id="dest-search-input" type="search" placeholder="ค้นหาสถานที่ในนครศรีธรรมราช..." autocomplete="off" enterkeyhint="search">
         </div>
+        <select id="dest-district" class="place-district-select" aria-label="อำเภอ"></select>
         <div id="dest-cat-filters" class="dest-cat-row"></div>
         <div id="dest-search-results" class="dest-search-results"></div>
         <div id="dest-address" class="dest-address">เลื่อนแผนที่เพื่อปักหมุด</div>
@@ -1038,7 +1043,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   <div class="header-top">
     <div class="search-bar">
       <span style="font-size:18px;opacity:.6">🔍</span>
-      <input type="text" id="search-input" placeholder="ค้นหาสถานที่ในอำเภอชะอวด...">
+      <input type="text" id="search-input" placeholder="ค้นหาสถานที่ในนครศรีธรรมราช...">
     </div>
     <div class="profile-avatar press-scale" onclick="openProfileSheet()">
       <span id="profile-avatar-emoji">🧑</span>
@@ -1055,8 +1060,16 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="section-more press-scale" onclick="closeCategoryView()">✕ ปิด</div>
     </div>
     <div id="hotel-tools" style="display:none">
-      <div class="hotel-directory-note">ค้นหาที่พักในชะอวด ดูรูปและรายละเอียดเบื้องต้นได้จาก ChauatGo แล้วกดจองต่อบน Agoda โดยตรง</div>
+      <div class="hotel-directory-note">ที่พักทั้งจังหวัดนครศรีธรรมราช รายการในชะอวดมาก่อน เลือกอำเภอเพื่อดูที่พักในอำเภอนั้น แล้วกดจองต่อบน Agoda ได้</div>
+      <select id="hotel-district" class="place-district-select" aria-label="อำเภอของที่พัก" onchange="setHotelDistrict(this.value)"></select>
       <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="hotel-search-input" type="search" placeholder="ค้นหาชื่อโรงแรมหรือรีสอร์ท..."></div>
+      <div class="dest-osm-credit">© OpenStreetMap contributors</div>
+    </div>
+    <div id="tourist-tools" style="display:none">
+      <div class="hotel-directory-note">สถานที่ท่องเที่ยวและจุดชมวิวทั้งจังหวัดนครศรีธรรมราช รายการในชะอวดมาก่อน</div>
+      <select id="tourist-district" class="place-district-select" aria-label="อำเภอของสถานที่ท่องเที่ยว" onchange="setTouristDistrict(this.value)"></select>
+      <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="tourist-search-input" type="search" placeholder="ค้นหาน้ำตก หาด วัด หรือจุดชมวิว..."></div>
+      <div class="dest-osm-credit">© OpenStreetMap contributors</div>
     </div>
     <div id="restaurant-tools" style="display:none">
       <div class="place-directory-note">ข้อมูลร้านอาหารในพื้นที่สำหรับค้นหาและปักหมุดเป็นปลายทางให้ไรเดอร์ ไม่ได้หมายความว่าร้านเข้าร่วม ChauatGo หรือเปิดให้บริการอยู่ในขณะนี้</div>
@@ -1383,6 +1396,15 @@ var mapPickerMode = null;
 var shoppingMapSelection = null;
 var _shoppingPlacesCache = [];
 var hotelSearchQuery = '';
+var touristSearchQuery = '';
+var homeDistrictFilter = '';
+var destDistrictFilter = '';
+var hotelDistrictFilter = '';
+var touristDistrictFilter = '';
+var provincePlaces = null;
+var provincePlacesPromise = null;
+var catalogPlaceById = {};
+var catalogCache = null;
 var currentCategoryCode = '';
 var trackingOrderId = null;
 var trackingMap = null;
@@ -1746,6 +1768,8 @@ document.addEventListener('DOMContentLoaded', function(){
   if (restaurantDistanceFilter) restaurantDistanceFilter.addEventListener('change', applyRestaurantFilters);
   var hotelSearch = $('hotel-search-input');
   if (hotelSearch) hotelSearch.addEventListener('input', function(){ hotelSearchQuery = hotelSearch.value || ''; renderHotelDirectory(); });
+  var touristSearch = $('tourist-search-input');
+  if (touristSearch) touristSearch.addEventListener('input', function(){ touristSearchQuery = touristSearch.value || ''; renderTouristDirectory(); });
   document.addEventListener('click', globalClickHandler);
 });
 
@@ -1791,7 +1815,10 @@ function hotelBookingUrl(p){
   return 'https://www.agoda.com/search?text=' + encodeURIComponent(p.name || 'โรงแรม ชะอวด');
 }
 function hotelPhone(p){ return String(p.phone || '').trim(); }
-function findHotelById(id){ return PLACES.find(function(x){ return x.id === id; }); }
+function findHotelById(id){
+  var p = PLACES.find(function(x){ return x.id === id; });
+  return p || catalogPlaceById[id] || null;
+}
 function hotelMapsUrl(p){
   if (p && p.mapsUrl) return p.mapsUrl;
   var query = p && p.name ? p.name + (p.address ? ', ' + p.address : ', ชะอวด นครศรีธรรมราช') : 'โรงแรม ชะอวด นครศรีธรรมราช';
@@ -1815,25 +1842,141 @@ function renderHotelCardHTML(p){
   return '<article class="hotel-card" data-place-id="'+esc(p.id)+'">' +
     '<div class="hotel-card-img">'+image+'</div>' +
     '<div class="hotel-card-body"><div class="hotel-card-name">'+esc(p.name)+'</div>' +
-    '<div class="hotel-card-meta">'+cat.icon+' '+esc(cat.name)+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
+    '<div class="hotel-card-meta">'+cat.icon+' '+esc(cat.name)+(p.district?' • อำเภอ'+esc(p.district):'')+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
     (p.price?'<div class="hotel-card-price">เริ่มต้นประมาณ '+esc(p.price)+'</div>':'') +
     '<div class="hotel-card-actions"><button type="button" class="hotel-action call" onclick="event.stopPropagation();callHotelById(\''+esc(p.id)+'\')">📞 โทร</button>' +
     '<button type="button" class="hotel-action destination" onclick="event.stopPropagation();setDestFromPlace(\''+esc(p.id)+'\')">🎯 ปลายทาง</button>' +
     '<button type="button" class="hotel-action book" onclick="event.stopPropagation();openHotelBooking(\''+esc(p.id)+'\')">ค้นหา Agoda</button></div></div></article>';
 }
+function provinceDistrictNames() {
+  var rows = (provincePlaces && provincePlaces.districts) || [];
+  var names = rows.map(function(d) { return d.n; }).filter(Boolean);
+  names.sort(function(a, b) {
+    if (a === 'ชะอวด') return -1;
+    if (b === 'ชะอวด') return 1;
+    return a.localeCompare(b, 'th');
+  });
+  return names;
+}
+function districtOptions(current) {
+  var html = '<option value="">ทุกอำเภอ</option>';
+  provinceDistrictNames().forEach(function(name) {
+    html += '<option value="' + esc(name) + '"' + (current === name ? ' selected' : '') + '>อำเภอ' + esc(name) + '</option>';
+  });
+  return html;
+}
+function fillDistrictSelect(id, current) {
+  var el = $(id);
+  if (!el) return;
+  el.innerHTML = districtOptions(current);
+}
+function provincePlacesFor(cats) {
+  var list = (provincePlaces && provincePlaces.places) || [];
+  var out = [];
+  list.forEach(function(p) {
+    if (cats.indexOf(p.c) === -1) return;
+    var id = 'osm-' + p.i;
+    var place = {
+      id: id,
+      name: p.n,
+      lat: p.lat,
+      lng: p.lng,
+      category: p.c,
+      price: '',
+      image: '',
+      rating: '',
+      phone: p.ph || '',
+      website: p.web || '',
+      hours: p.oh || '',
+      district: p.d || '',
+      address: 'อำเภอ' + (p.d || '') + ' จังหวัดนครศรีธรรมราช',
+      source: 'osm-province'
+    };
+    catalogPlaceById[id] = place;
+    out.push(place);
+  });
+  return out;
+}
+function mergeDirectoryPlaces(curated, extra) {
+  var kept = [];
+  var seen = {};
+  curated.forEach(function(p) {
+    if (!p || seen[p.id]) return;
+    seen[p.id] = true;
+    kept.push(p);
+  });
+  extra.forEach(function(p) {
+    var folded = foldPlaceName(p.name);
+    var dup = kept.some(function(other) {
+      return foldPlaceName(other.name) === folded && haversine(other.lat, other.lng, p.lat, p.lng) < 0.15;
+    });
+    if (!dup) kept.push(p);
+  });
+  return kept;
+}
+function filterDirectoryPlaces(list, query, district) {
+  var q = (query || '').trim().toLowerCase();
+  var rows = list.filter(function(p) {
+    if (district && (p.district || 'ชะอวด') !== district) return false;
+    if (!q) return true;
+    return (String(p.name || '') + ' ' + (p.district || '')).toLowerCase().indexOf(q) !== -1;
+  });
+  var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
+  rows.sort(function(a, b) {
+    var ca = (a.district || 'ชะอวด') === 'ชะอวด' ? 0 : 1;
+    var cb = (b.district || 'ชะอวด') === 'ชะอวด' ? 0 : 1;
+    if (!district && ca !== cb) return ca - cb;
+    return haversine(origin.lat, origin.lng, a.lat, a.lng) - haversine(origin.lat, origin.lng, b.lat, b.lng);
+  });
+  var cap = district ? 150 : 60;
+  var truncated = rows.length > cap;
+  rows = rows.slice(0, cap);
+  rows._truncated = truncated;
+  return rows;
+}
+window.setHotelDistrict = function(value) {
+  hotelDistrictFilter = value || '';
+  renderHotelDirectory();
+};
+window.setTouristDistrict = function(value) {
+  touristDistrictFilter = value || '';
+  renderTouristDirectory();
+};
+
 function renderHotelDirectory(){
   var grid = $('category-grid'); if(!grid) return;
-  var q = (hotelSearchQuery || '').trim().toLowerCase();
-  var hotelIds = {};
-  var hotels = PLACES.filter(function(p){ return p.category === 'h'; });
-  hotels = hotels.filter(function(p){
-    if (hotelIds[p.id]) return false;
-    hotelIds[p.id] = true;
-    return !q || String(p.name || '').toLowerCase().indexOf(q) !== -1;
-  });
+  fillDistrictSelect('hotel-district', hotelDistrictFilter);
+  if (!provincePlaces) {
+    grid.className = 'food-grid hotel-directory';
+    grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">กำลังโหลดที่พักทั้งจังหวัด...</div>';
+    ensurePlaceData(function(){ renderHotelDirectory(); });
+    return;
+  }
+  var curated = PLACES.filter(function(p){ return p.category === 'h'; });
+  var hotels = mergeDirectoryPlaces(curated, provincePlacesFor(['h']));
+  hotels = filterDirectoryPlaces(hotels, hotelSearchQuery, hotelDistrictFilter);
   grid.className = 'food-grid hotel-directory';
   if (!hotels.length) { grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">ไม่พบที่พักที่ค้นหา</div>'; return; }
-  grid.innerHTML = hotels.map(renderHotelCardHTML).join('');
+  var note = hotels._truncated ? '<div class="hotel-directory-note">แสดง ' + hotels.length + ' แห่งที่ใกล้ชะอวดก่อน เลือกอำเภอเพื่อดูที่พักในอำเภอนั้น</div>' : '';
+  grid.innerHTML = note + hotels.map(renderHotelCardHTML).join('');
+}
+
+function renderTouristDirectory(){
+  var grid = $('category-grid'); if(!grid) return;
+  fillDistrictSelect('tourist-district', touristDistrictFilter);
+  if (!provincePlaces) {
+    grid.className = 'food-grid';
+    grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">กำลังโหลดสถานที่ท่องเที่ยว...</div>';
+    ensurePlaceData(function(){ renderTouristDirectory(); });
+    return;
+  }
+  var curated = PLACES.filter(function(p){ return p.category === 't' || p.category === 'v' || p.category === 'k'; });
+  var spots = mergeDirectoryPlaces(curated, provincePlacesFor(['t', 'v', 'k']));
+  spots = filterDirectoryPlaces(spots, touristSearchQuery, touristDistrictFilter);
+  grid.className = 'food-grid';
+  if (!spots.length) { grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">ไม่พบสถานที่ที่ค้นหา</div>'; return; }
+  var note = spots._truncated ? '<div class="hotel-directory-note">แสดง ' + spots.length + ' แห่งที่ใกล้ชะอวดก่อน เลือกอำเภอเพื่อดูที่เหลือ</div>' : '';
+  grid.innerHTML = note + spots.map(renderPlaceCardHTML).join('');
 }
 
 function renderPlaceCardHTML(p){
@@ -1846,7 +1989,7 @@ function renderPlaceCardHTML(p){
   return '<div class="food-card" data-place-id="'+esc(p.id)+'">' +
     '<div class="food-img">'+imgHtml+'</div>' +
     '<div class="food-info"><div class="food-name">'+esc(p.name)+'</div>' +
-    '<div class="food-meta">'+cat.icon+' '+esc(cat.name)+(p.rating?' ⭐ '+p.rating:'')+distance+'</div>' +
+    '<div class="food-meta">'+cat.icon+' '+esc(cat.name)+(p.district?' • อำเภอ'+esc(p.district):'')+(p.rating?' ⭐ '+p.rating:'')+distance+'</div>' +
     (p.price?'<div class="food-price">'+esc(p.price)+'</div>':'')+'</div></div>';
 }
 
@@ -2046,37 +2189,43 @@ function bindSearchInput(){
   });
 }
 
-var HOME_CATS = ['w','e','o','l','r','f','c','m','h','t','g','b','y','x','u','a','d','n','j','z'];
+var HOME_CATS = ['w','e','o','l','r','f','c','m','h','t','v','k','g','b','y','x','u','a','d','n','j','z'];
 var homeCatFilter = '';
 
 function homeCatHtml() {
   var codes = [''].concat(HOME_CATS);
-  return '<div class="search-cat-row">' + codes.map(function(code) {
+  return '<select id="home-district" class="place-district-select" aria-label="อำเภอ" onchange="setHomeDistrict(this.value)">' + districtOptions(homeDistrictFilter) + '</select>' +
+    '<div class="search-cat-row">' + codes.map(function(code) {
     var cat = code ? (CATS[code] || { name: code, icon: '📍' }) : { name: 'ทั้งหมด', icon: '🔎' };
     return '<button type="button" class="search-cat-chip' + (homeCatFilter === code ? ' on' : '') + '" data-home-cat="' + code + '">' + cat.icon + ' ' + esc(cat.name) + '</button>';
   }).join('') + '</div>';
 }
 
+window.setHomeDistrict = function(value) {
+  homeDistrictFilter = value || '';
+  doSearch(($('search-input') && $('search-input').value) || '');
+};
 window.doSearch = function(q){
   var results = $('search-results'); if(!results) return;
   var query = (q || '').trim().toLowerCase();
-  if (!query && !homeCatFilter) {
+  if (!query && !homeCatFilter && !homeDistrictFilter) {
     results.style.display = 'block';
     results.classList.add('show');
-    results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">เลือกหมวด หรือพิมพ์ชื่อสถานที่ในอำเภอชะอวด</div>';
+    results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">เลือกหมวดหรืออำเภอ หรือพิมพ์ชื่อสถานที่ในจังหวัดนครศรีธรรมราช</div><div class="dest-osm-credit">© OpenStreetMap contributors</div>';
     return;
   }
-  if (!chauatPlaces) {
+  if (!chauatPlaces || !provincePlaces) {
     ensurePlaceData(function() {
       var now = ($('search-input') && $('search-input').value) || '';
-      if (now === (q || '') && homeCatFilter === (homeCatFilter)) doSearch(q);
+      if (now === (q || '')) doSearch(q);
     });
+    if (!chauatPlaces && !provincePlaces) return;
   }
   var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
-  var matches = searchPlaceCatalog(query, homeCatFilter, origin, 24);
+  var matches = searchPlaceCatalog(query, homeCatFilter, origin, 24, homeDistrictFilter);
   results.style.display='block'; results.classList.add('show');
   if(!matches.length){
-    results.innerHTML = homeCatHtml() + '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div>';
+    results.innerHTML = homeCatHtml() + '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div><div class="dest-osm-credit">© OpenStreetMap contributors</div>';
     return;
   }
   results.innerHTML = homeCatHtml() + matches.map(function(p){
@@ -2086,12 +2235,12 @@ window.doSearch = function(q){
     var attrs = p.placeId
       ? ' data-place-id="'+esc(p.placeId)+'"'
       : ' data-osm-lat="'+p.lat+'" data-osm-lng="'+p.lng+'" data-osm-name="'+esc(p.label)+'"';
-    var where = p.tambon ? 'ตำบล' + p.tambon : 'อำเภอชะอวด';
+    var where = p.district ? ('อำเภอ' + p.district) : (p.tambon ? 'ตำบล' + p.tambon : 'อำเภอชะอวด');
     return '<div class="search-item"' + attrs + '>' +
       '<div class="search-item-icon">'+imgHtml+'</div>' +
       '<div class="search-item-info"><div class="search-item-name">'+esc(p.label)+'</div>' +
       '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+' • '+esc(where)+(p.price?' • '+p.price:'')+'</div></div></div>';
-  }).join('') + '<div class="dest-osm-credit">สถานที่จาก OpenStreetMap (ODbL)</div>';
+  }).join('') + '<div class="dest-osm-credit">© OpenStreetMap contributors</div>';
 };
 
 /* ═══ NEARBY SHOPS ═══ */
@@ -4024,7 +4173,7 @@ window.doTravelSearch = function(q) {
     var idAttr = p.placeId ? ' data-place-id="' + esc(p.placeId) + '"' : '';
     return '<div class="travel-place-item" style="animation-delay:' + (idx * 0.02) + 's;border-radius:0;margin-bottom:0;box-shadow:none;border-bottom:1px solid var(--border)"' + idAttr + ' data-lat="' + p.lat + '" data-lng="' + p.lng + '" data-name="' + esc(p.label) + '" onclick="pickTravelFromSearch(this)">' +
       '<div class="travel-place-icon">' + cat.icon + '</div>' +
-      '<div class="travel-place-info"><div class="travel-place-name">' + esc(p.label) + '</div><div class="travel-place-sub">' + esc(cat.name) + (p.tambon ? ' • ตำบล' + esc(p.tambon) : '') + '</div></div>' +
+      '<div class="travel-place-info"><div class="travel-place-name">' + esc(p.label) + '</div><div class="travel-place-sub">' + esc(cat.name) + (p.district ? ' • อำเภอ' + esc(p.district) : (p.tambon ? ' • ตำบล' + esc(p.tambon) : '')) + '</div></div>' +
       (dist ? '<div class="travel-place-dist">' + dist + '</div>' : '') +
     '</div>';
   }).join('');
@@ -4278,7 +4427,7 @@ function renderExpressSuggest(which) {
   if (!rows.length) { box.innerHTML = ''; box.classList.remove('show'); return; }
   box.classList.add('show');
   box.innerHTML = rows.map(function(row, i) {
-    var where = row.tambon ? '<small>ตำบล' + esc(row.tambon) + '</small>' : '';
+    var where = row.district ? '<small>อำเภอ' + esc(row.district) + '</small>' : (row.tambon ? '<small>ตำบล' + esc(row.tambon) + '</small>' : '');
     return '<button type="button" class="exp-suggest-item" data-exp-suggest="' + which + '" data-suggest-index="' + i + '">' + esc(row.label) + where + '</button>';
   }).join('');
 }
@@ -4519,12 +4668,15 @@ window.showCategory = function(cat){
   var catInfo = CATS[code]||{name:cat,icon:'📍'};
   if($('category-title')) $('category-title').textContent = catInfo.icon+' '+catInfo.name;
   if($('hotel-tools')) $('hotel-tools').style.display = cat === 'hotel' ? 'block' : 'none';
+  if($('tourist-tools')) $('tourist-tools').style.display = cat === 'tourist' ? 'block' : 'none';
   if($('restaurant-tools')) $('restaurant-tools').style.display = cat === 'restaurant' ? 'block' : 'none';
   if (cat !== 'hotel' && $('category-grid')) $('category-grid').className = 'food-grid';
   if (cat === 'hotel') { hotelSearchQuery = ''; if ($('hotel-search-input')) $('hotel-search-input').value = ''; }
+  if (cat === 'tourist') { touristSearchQuery = ''; if ($('tourist-search-input')) $('tourist-search-input').value = ''; }
   var filtered = PLACES.filter(function(p){return p.category===code;});
   var grid = $('category-grid'); if(!grid) return;
   if (cat === 'hotel') { renderHotelDirectory(); return; }
+  if (cat === 'tourist') { renderTouristDirectory(); return; }
   if (cat === 'restaurant') { renderRestaurantDirectory(); return; }
   if(!filtered.length){ grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light)">ไม่มีข้อมูล</div>'; return; }
   grid.innerHTML = filtered.map(renderPlaceCardHTML).join('');
@@ -5226,12 +5378,34 @@ function loadChauatPlaces() {
     return res.json();
   }).then(function(data) {
     chauatPlaces = data;
+    catalogCache = null;
     return data;
   }).catch(function() {
     chauatPlacesPromise = null;
     return null;
   });
   return chauatPlacesPromise;
+}
+
+function loadProvincePlaces() {
+  if (provincePlaces) return Promise.resolve(provincePlaces);
+  if (provincePlacesPromise) return provincePlacesPromise;
+  provincePlacesPromise = fetch('/data/nst-places.json').then(function(res) {
+    if (!res.ok) throw new Error('province places ' + res.status);
+    return res.json();
+  }).then(function(data) {
+    provincePlaces = data || { places: [], districts: [] };
+    catalogCache = null;
+    fillDistrictSelect('dest-district', destDistrictFilter);
+    fillDistrictSelect('hotel-district', hotelDistrictFilter);
+    fillDistrictSelect('tourist-district', touristDistrictFilter);
+    return provincePlaces;
+  }).catch(function() {
+    provincePlaces = provincePlaces || { places: [], districts: [] };
+    provincePlacesPromise = null;
+    return provincePlaces;
+  });
+  return provincePlacesPromise;
 }
 
 function loadPlaceOverrides() {
@@ -5250,7 +5424,10 @@ function loadPlaceOverrides() {
 }
 
 function ensurePlaceData(cb) {
-  Promise.all([loadChauatPlaces(), loadPlaceOverrides()]).then(function() { if (cb && chauatPlaces) cb(); });
+  Promise.all([loadChauatPlaces(), loadProvincePlaces(), loadPlaceOverrides()]).then(function() {
+    catalogCache = null;
+    if (cb && (chauatPlaces || provincePlaces)) cb();
+  });
 }
 
 function foldPlaceName(value) {
@@ -5259,32 +5436,41 @@ function foldPlaceName(value) {
 
 function placeCatInfo(row) {
   if (row && row.cat === 'y' && row.label && row.label.indexOf('บ้าน') === 0) return { name: 'หมู่บ้าน', icon: '🏘️' };
-  return (CATS[row && row.cat]) || { name: 'ในชะอวด', icon: '📍' };
+  return (CATS[row && row.cat]) || { name: 'สถานที่', icon: '📍' };
+}
+
+function pushOsmPlace(rows, p, source, districtFallback) {
+  var over = placeOverrides[p.i] || {};
+  if (over.hidden) return;
+  var lat = typeof over.lat === 'number' ? over.lat : p.lat;
+  var lng = typeof over.lng === 'number' ? over.lng : p.lng;
+  if (!isFinite(lat) || !isFinite(lng)) return;
+  rows.push({
+    label: (over.name && String(over.name).trim()) || p.n,
+    cat: p.c,
+    tambon: p.t || '',
+    district: p.d || districtFallback || '',
+    lat: lat,
+    lng: lng,
+    osmId: p.i,
+    phone: p.ph || '',
+    website: p.web || '',
+    hours: p.oh || '',
+    source: source
+  });
 }
 
 function catalogRows() {
+  if (catalogCache) return catalogCache;
   var rows = [];
   (PLACES || []).forEach(function(p) {
     if (!p || !p.name || !isFinite(p.lat) || !isFinite(p.lng)) return;
-    rows.push({ label: p.name, cat: p.category, tambon: '', lat: p.lat, lng: p.lng, placeId: p.id, image: p.image, price: p.price, source: 'curated' });
+    rows.push({ label: p.name, cat: p.category, tambon: '', district: 'ชะอวด', lat: p.lat, lng: p.lng, placeId: p.id, image: p.image, price: p.price, source: 'curated' });
   });
   var list = (chauatPlaces && chauatPlaces.places) || [];
-  list.forEach(function(p) {
-    var over = placeOverrides[p.i] || {};
-    if (over.hidden) return;
-    var lat = typeof over.lat === 'number' ? over.lat : p.lat;
-    var lng = typeof over.lng === 'number' ? over.lng : p.lng;
-    if (!isFinite(lat) || !isFinite(lng)) return;
-    rows.push({
-      label: (over.name && String(over.name).trim()) || p.n,
-      cat: p.c,
-      tambon: p.t || '',
-      lat: lat,
-      lng: lng,
-      osmId: p.i,
-      source: 'osm'
-    });
-  });
+  list.forEach(function(p) { pushOsmPlace(rows, p, 'osm', 'ชะอวด'); });
+  var provinceList = (provincePlaces && provincePlaces.places) || [];
+  provinceList.forEach(function(p) { pushOsmPlace(rows, p, 'osm-province', ''); });
   // Admin-added places (placeOverrides documents with type 'added') join the OSM list.
   Object.keys(placeOverrides).forEach(function(id) {
     var over = placeOverrides[id] || {};
@@ -5297,6 +5483,7 @@ function catalogRows() {
       label: name,
       cat: over.category || 'x',
       tambon: over.tambon || '',
+      district: over.district || 'ชะอวด',
       lat: lat,
       lng: lng,
       osmId: id,
@@ -5304,32 +5491,68 @@ function catalogRows() {
     });
   });
   var kept = [];
+  var cells = {};
   rows.forEach(function(row) {
     var key = foldPlaceName(row.label);
-    var dup = kept.some(function(other) {
-      return foldPlaceName(other.label) === key && haversine(other.lat, other.lng, row.lat, row.lng) < 0.15;
-    });
-    if (!dup) kept.push(row);
+    var cx = Math.round(row.lat / 0.002);
+    var cy = Math.round(row.lng / 0.002);
+    var dup = false;
+    for (var dx = -1; dx <= 1 && !dup; dx++) {
+      for (var dy = -1; dy <= 1 && !dup; dy++) {
+        var bucket = cells[(cx + dx) + ':' + (cy + dy)] || [];
+        for (var i = 0; i < bucket.length; i++) {
+          var other = bucket[i];
+          if (row.osmId && other.osmId && row.osmId === other.osmId) { dup = true; break; }
+          if (foldPlaceName(other.label) === key && haversine(other.lat, other.lng, row.lat, row.lng) < 0.15) { dup = true; break; }
+        }
+      }
+    }
+    if (dup) return;
+    kept.push(row);
+    var cellId = cx + ':' + cy;
+    if (!cells[cellId]) cells[cellId] = [];
+    cells[cellId].push(row);
   });
+  catalogCache = kept;
   return kept;
 }
 
-function searchPlaceCatalog(query, cat, origin, limit) {
+function searchPlaceCatalog(query, cat, origin, limit, district) {
   var q = (query || '').trim().toLowerCase();
+  var want = district || '';
+  if (!q && !cat && !want) return [];
   var rows = catalogRows().filter(function(row) {
     if (cat && row.cat !== cat) return false;
-    if (!q) return !!cat;
+    if (want && (row.district || 'ชะอวด') !== want) return false;
+    if (!q) return true;
     var info = placeCatInfo(row);
-    var blob = (row.label + ' ' + (row.tambon || '') + ' ' + (info.name || '')).toLowerCase();
+    var blob = (row.label + ' ' + (row.tambon || '') + ' ' + (row.district || '') + ' ' + (info.name || '')).toLowerCase();
     return blob.indexOf(q) !== -1;
   });
-  rows.sort(function(a, b) {
-    return haversine(origin.lat, origin.lng, a.lat, a.lng) - haversine(origin.lat, origin.lng, b.lat, b.lng);
-  });
-  if (cat && !q) {
-    var osm = rows.filter(function(row) { return row.source === 'osm' || row.source === 'added'; });
-    var curated = rows.filter(function(row) { return row.source === 'curated'; }).slice(0, 6);
-    return osm.concat(curated).slice(0, limit || 80);
+  var o = origin || CHAUAT_CENTER;
+  function dist(row) { return haversine(o.lat, o.lng, row.lat, row.lng); }
+  if (!q) {
+    var chauat = [];
+    var other = [];
+    rows.forEach(function(row) {
+      if ((row.district || 'ชะอวด') === 'ชะอวด') chauat.push(row);
+      else other.push(row);
+    });
+    chauat.sort(function(a, b) { return dist(a) - dist(b); });
+    other.sort(function(a, b) { return dist(a) - dist(b); });
+    var curatedCap = want === 'ชะอวด' ? (limit || 40) : 8;
+    var curatedSeen = 0;
+    var chauatKept = [];
+    chauat.forEach(function(row) {
+      if (row.source === 'curated') {
+        if (curatedSeen >= curatedCap) return;
+        curatedSeen++;
+      }
+      chauatKept.push(row);
+    });
+    rows = chauatKept.concat(other);
+  } else {
+    rows.sort(function(a, b) { return dist(a) - dist(b); });
   }
   return rows.slice(0, limit || 40);
 }
@@ -5361,10 +5584,10 @@ function openOsmDest(lat, lng, name) {
 
 function searchLocalPlaces(q) {
   var origin = readPinLatLng() || userLocation || CHAUAT_CENTER;
-  return searchPlaceCatalog(q, destCatFilter, origin, destCatFilter && !q ? 40 : 12).map(function(p) {
+  return searchPlaceCatalog(q, destCatFilter, origin, (destCatFilter || destDistrictFilter) && !q ? 40 : 16, destDistrictFilter).map(function(p) {
     var cat = placeCatInfo(p);
-    var where = p.tambon ? ' • ตำบล' + p.tambon : '';
-    return { label: p.label, sub: cat.icon + ' ' + cat.name + where, tambon: p.tambon || '', lat: p.lat, lng: p.lng, icon: cat.icon, source: p.source || 'local' };
+    var where = p.district ? ' • อำเภอ' + p.district : (p.tambon ? ' • ตำบล' + p.tambon : '');
+    return { label: p.label, sub: cat.icon + ' ' + cat.name + where, tambon: p.tambon || '', district: p.district || '', lat: p.lat, lng: p.lng, icon: cat.icon, source: p.source || 'local' };
   });
 }
 
@@ -5387,7 +5610,7 @@ function renderDestSearchResults(items, pending) {
   var grouped = {};
   items.forEach(function(item, idx) {
     item._idx = idx;
-    var key = item.source === 'nominatim' ? 'จากแผนที่' : (item.tambon ? 'ตำบล' + item.tambon : 'อำเภอชะอวด');
+    var key = item.source === 'nominatim' ? 'จากแผนที่' : (item.district ? 'อำเภอ' + item.district : (item.tambon ? 'ตำบล' + item.tambon : 'อำเภอชะอวด'));
     if (!grouped[key]) { grouped[key] = []; groups.push(key); }
     grouped[key].push(item);
   });
@@ -5405,8 +5628,8 @@ function renderDestSearchResults(items, pending) {
       return '<button type="button" class="dest-result" data-idx="' + item._idx + '"><span class="dest-result-ico">' + (item.icon || '📍') + '</span><span><b>' + esc(item.label) + '</b><span>' + esc(item.sub || '') + '</span></span></button>';
     }).join('');
   }
-  html += '<div class="dest-osm-credit">© OpenStreetMap contributors (ODbL)</div>';
-  if (pending) html += '<div class="dest-result" style="cursor:default"><b>กำลังค้นหาในแผนที่...</b><span>อำเภอชะอวด จังหวัดนครศรีธรรมราช</span></div>';
+  html += '<div class="dest-osm-credit">© OpenStreetMap contributors</div>';
+  if (pending) html += '<div class="dest-result" style="cursor:default"><b>กำลังค้นหาในแผนที่...</b><span>จังหวัดนครศรีธรรมราช</span></div>';
   box.innerHTML = html;
   box.classList.add('show');
   box.querySelectorAll('button[data-idx]').forEach(function(btn) {
@@ -5468,7 +5691,7 @@ function onDestSearchInput() {
   clearTimeout(destSearchTimer);
   destSearchGen++;
   var gen = destSearchGen;
-  if (!q && !destCatFilter) { hideDestSearchResults(); return; }
+  if (!q && !destCatFilter && !destDistrictFilter) { hideDestSearchResults(); return; }
   setDestSheetExpanded(true);
   var draw = function() {
     if (gen !== destSearchGen) return;
@@ -5481,7 +5704,7 @@ function onDestSearchInput() {
       searchNominatim(q, local);
     }, 700);
   };
-  if (!chauatPlaces) ensurePlaceData(draw);
+  if (!chauatPlaces || !provincePlaces) ensurePlaceData(draw);
   else draw();
 }
 
@@ -5544,7 +5767,15 @@ function bindDestSheet() {
     input.addEventListener('input', onDestSearchInput);
     input.addEventListener('focus', function() {
       setDestSheetExpanded(true);
-      ensurePlaceData(function() { renderDestCatFilters(); });
+      ensurePlaceData(function() { renderDestCatFilters(); fillDistrictSelect('dest-district', destDistrictFilter); });
+    });
+  }
+  var destDistrict = $('dest-district');
+  if (destDistrict && !destDistrict.dataset.bound) {
+    destDistrict.dataset.bound = '1';
+    destDistrict.addEventListener('change', function() {
+      destDistrictFilter = destDistrict.value || '';
+      onDestSearchInput();
     });
   }
   var cats = $('dest-cat-filters');
@@ -5794,7 +6025,9 @@ function openHotelDetail(p){
     '<div class="hotel-detail-hero">'+image+'</div>' +
     '<h2 style="font-size:21px;line-height:1.3;font-weight:900;color:var(--text);margin:0">'+esc(p.name)+'</h2>' +
     '<div class="hotel-detail-kicker">🏨 ที่พัก'+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
-    '<div style="margin-top:12px;color:var(--text-muted);font-size:13px;line-height:1.6">📍 '+esc(p.address || 'ที่พักในอำเภอชะอวด จังหวัดนครศรีธรรมราช')+'</div>' +
+    '<div style="margin-top:12px;color:var(--text-muted);font-size:13px;line-height:1.6">📍 '+esc(p.address || 'ที่พักในจังหวัดนครศรีธรรมราช')+'</div>' +
+    (p.hours ? '<div style="margin-top:6px;color:var(--text-muted);font-size:12px;font-weight:700">🕐 '+esc(p.hours)+'</div>' : '') +
+    (p.source === 'osm-province' ? '<div class="dest-osm-credit">© OpenStreetMap contributors</div>' : '') +
     (p.price ? '<div style="margin-top:8px;color:var(--green);font-weight:900">เริ่มต้นประมาณ '+esc(p.price)+'</div>' : '') +
     '<div class="hotel-detail-actions"><button class="hotel-detail-call" type="button" onclick="callHotelById(\''+esc(p.id)+'\')">📞 '+(phone?'โทรหาโรงแรม':'ดูเบอร์ใน Maps')+'</button>' +
     '<button class="hotel-detail-book" type="button" onclick="window.open(hotelMapsUrl(findHotelById(\''+esc(p.id)+'\')),\'_blank\',\'noopener\')">🗺️ ดูข้อมูล Maps</button></div>' +

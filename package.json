@@ -2,7 +2,8 @@
   "name": "chauatgo",
   "private": true,
   "scripts": {
-    "build": "node scripts/build-client.js"
+    "build": "node scripts/build-client.js",
+    "places": "node scripts/fetch-osm-places.js"
   },
   "dependencies": {
     "terser": "^5.36.0"
