@@ -2402,7 +2402,8 @@ function calculateFoodDeliveryFee(dropoff, shopOverride) {
   var straightKm = haversine(shop.lat, shop.lng, dest.lat, dest.lng);
   var routeKm = straightKm * 1.3;
   var extraKm = Math.max(0, routeKm - 2);
-  var extraFee = Math.ceil(extraKm) * 5;
+  var perKm = 8;
+  var extraFee = Math.ceil(extraKm) * perKm;
   var fee = Math.min(150, baseFee + extraFee);
   return { fee: fee, distance: routeKm, base: baseFee, extra: extraFee, estimated: true };
 }
@@ -2536,7 +2537,7 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
       '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าอาหาร</span><span>฿' + fmt(subtotal) + '</span></div>' +
       (discountTotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--promo-red);font-weight:900"><span>🔥 ส่วนลดรวม</span><span>-฿' + fmt(discountTotal) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:4px 0"><span>ค่าส่ง' + (deliveryInfo.distance !== null ? ' (' + deliveryInfo.distance.toFixed(1) + ' กม.)' : '') + '</span><span>฿' + fmt(deliveryFee) + '</span></div>' +
-      '<div style="font-size:11px;color:var(--text-muted);padding:2px 0 4px">' + (deliveryInfo.estimated ? 'คำนวณจากร้านถึงจุดส่ง (เผื่อระยะถนนแล้ว)' : 'ค่าส่งเริ่มต้น • ร้านยังไม่มีพิกัด') + '</div>' +
+      '<div style="font-size:11px;color:var(--text-muted);padding:2px 0 4px">' + (deliveryInfo.estimated ? '฿20 รวม 2 กม.แรก จากนั้น ฿8/กม. • จากร้านถึงจุดส่ง' : 'ค่าส่งเริ่มต้น • ร้านยังไม่มีพิกัด') + '</div>' +
       (isCash ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--orange)"><span>ค่าบริการพิเศษ (เงินสด)</span><span>฿' + fmt(cashTip) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px;font-size:18px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fmt(grandTotal) + '</span></div>' +
     '</div>' +
@@ -4437,6 +4438,7 @@ function renderMerchantCart(){
   var summaryHtml = '<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าอาหาร</span><span>฿'+fmt(subtotal)+'</span></div>' +
     (discountTotal > 0 ? '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:900;color:var(--promo-red)"><span>🔥 ส่วนลดรวม</span><span>-฿'+fmt(discountTotal)+'</span></div>' : '') +
     '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700;color:var(--text-muted)"><span>ค่าส่ง' + (deliveryInfo.distance !== null ? ' (' + deliveryInfo.distance.toFixed(1) + ' กม.)' : '') + '</span><span>฿'+deliveryFee+'</span></div>' +
+    '<div style="font-size:11px;color:var(--text-muted);font-weight:700;padding:0 0 4px">' + (deliveryInfo.estimated ? '฿20 รวม 2 กม.แรก จากนั้น ฿8/กม.' : 'ค่าส่งเริ่มต้น • ร้านยังไม่มีพิกัด') + '</div>' +
     '<div style="display:flex;justify-content:space-between;padding:14px 0 0;font-size:18px;font-weight:900;border-top:2px solid var(--green);margin-top:8px"><span>รวม</span><span style="color:var(--green)">฿'+fmt(netTotal)+'</span></div>';
   list.innerHTML = '<div style="background:var(--surface);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow-sm)">' +
     '<div style="font-size:12px;font-weight:900;color:var(--text-muted);margin-bottom:10px">🏪 ' + esc(cart[0].merchantName) + '</div>' +
@@ -4843,7 +4845,7 @@ function updateDestEstimate() {
   if (mapPickerMode === 'food') {
     var foodFee = calculateFoodDeliveryFee({ lat: selectedDestination.lat, lng: selectedDestination.lng });
     if (foodFee.distance !== null) {
-      el.innerHTML = '<span>ค่าส่งอาหาร • ' + esc(foodFee.distance.toFixed(1)) + ' กม.</span><b>ประมาณ ฿' + esc(String(foodFee.fee)) + '</b>';
+      el.innerHTML = '<span>ค่าส่งอาหาร • ' + esc(foodFee.distance.toFixed(1)) + ' กม. • ฿8/กม. หลัง 2 กม.</span><b>ประมาณ ฿' + esc(String(foodFee.fee)) + '</b>';
     } else {
       el.innerHTML = '<span>ค่าส่งเริ่มต้น • ร้านยังไม่มีพิกัด</span><b>฿' + esc(String(foodFee.base)) + '</b>';
     }
