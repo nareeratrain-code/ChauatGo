@@ -244,6 +244,11 @@
       </div>
     </div>
 
+    <div id="job-filter-bar" role="tablist" aria-label="กรองประเภทงาน" style="display:flex;gap:8px;margin:14px 0 10px;padding:5px;background:var(--surface-2,#F2F5F3);border-radius:14px;overflow-x:auto">
+      <button type="button" class="job-filter-btn active" data-job-filter="all" onclick="setJobFilter('all')" role="tab" aria-selected="true" style="flex:1;min-width:92px;border:0;border-radius:10px;padding:10px 8px;background:var(--brand,#00A651);color:#fff;font:900 12px inherit;white-space:nowrap;cursor:pointer">ทั้งหมด</button>
+      <button type="button" class="job-filter-btn" data-job-filter="food" onclick="setJobFilter('food')" role="tab" aria-selected="false" style="flex:1;min-width:116px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">🍽️ ส่งอาหาร</button>
+      <button type="button" class="job-filter-btn" data-job-filter="express" onclick="setJobFilter('express')" role="tab" aria-selected="false" style="flex:1;min-width:116px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">📦 ส่งด่วน</button>
+    </div>
     <div id="active-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 16.5a2.2 2.2 0 1 0 .01 4.4A2.2 2.2 0 0 0 6 16.5zm11.2 0a2.2 2.2 0 1 0 .01 4.4 2.2 2.2 0 0 0-.01-4.4zM4.2 6h2.1l1.4 6.2h9.2l1.6-5.2H8.1l-.4-1.6H4.2V6z"/></svg>งานที่กำลังทำ</div>

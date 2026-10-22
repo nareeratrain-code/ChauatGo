@@ -64,6 +64,7 @@ let acceptingOffer = false;
 const hiddenOfferIds = new Set();
 const offerDeadlines = new Map();
 let isOnline = false;
+let jobFilter = 'all';
 let currentHistoryFilter = 'all';
 let cameraFile = null;
 let nearNotifiedOrderIds = new Set();
@@ -1072,6 +1073,29 @@ function updateHeroStats() {
   const totalEl = $('stat-total');
   if (totalEl) totalEl.textContent = riderProfile?.totalJobs || allHistory.length;
 }
+
+function isFoodJob(job) {
+  return !!(job && (job.type === 'food' || job.merchantId));
+}
+
+function matchesJobFilter(job) {
+  if (jobFilter === 'food') return isFoodJob(job);
+  if (jobFilter === 'express') return !isFoodJob(job);
+  return true;
+}
+
+function setJobFilter(filter) {
+  jobFilter = ['all', 'food', 'express'].includes(filter) ? filter : 'all';
+  document.querySelectorAll('[data-job-filter]').forEach(btn => {
+    const active = btn.dataset.jobFilter === jobFilter;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    btn.style.background = active ? 'var(--brand, #00A651)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--text, #173D2A)';
+  });
+  renderJobs();
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    15. RENDER JOBS
    ⭐ v3.9.1: เห็นทั้ง searching + ready
@@ -1080,16 +1104,20 @@ function renderJobs() {
   const myId = currentUser?.uid;
 
   const newJobs = allJobs.filter(j =>
+    matchesJobFilter(j) &&
     riderMayClaim(j) &&
     riderProfile?.verified && isOnline
   );
 
   const activeJobs = allJobs.filter(j =>
+    matchesJobFilter(j) &&
     j.riderId === myId &&
     (RIDER_ACTIVE_STATUSES.includes(j.status) || j.status === 'ready')
   );
 
-  const doneToday = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
+  const doneToday = allHistory.filter(j =>
+    matchesJobFilter(j) && isToday(j.doneAt || j.createdAt)
+  );
 
   const newSec = $('new-job-section');
   const actSec = $('active-job-section');
@@ -2971,6 +2999,7 @@ window.handleSignup = handleSignup;
 window.handleForgotPassword = handleForgotPassword;
 window.handleLogout = handleLogout;
 window.toggleOnline = toggleOnline;
+window.setJobFilter = setJobFilter;
 window.unlockRiderAudio = unlockRiderAudio;
 window.testRiderSound = testRiderSound;
 window.chooseAlertTone = chooseAlertTone;
