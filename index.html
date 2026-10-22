@@ -636,8 +636,9 @@ button.chat-list-item:active { filter: brightness(.97); }
 /* ═══ HOME V2 — category-led mobile layout ═══ */
 .header { padding: 14px 14px 16px; }
 .header .cg-brand { flex: 0 0 100%; padding: 2px 4px 14px; gap: 12px; justify-content: flex-start; }
-.header .cg-logo { width: 92px; height: 92px; border: 5px solid #fff; border-radius: 25px; box-shadow: 0 10px 24px rgba(0,0,0,.22); animation: none; transform: none; }
-.header .cg-brand-name { font-size: 34px; letter-spacing: .2px; animation: none; transform: none; background-position: 40% 50%; }
+.header .cg-logo { width: 92px; height: 92px; border: 5px solid #fff; border-radius: 25px; box-shadow: 0 10px 24px rgba(0,0,0,.22); animation: headerLogoBob 2.8s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
+.header .cg-brand-name { font-size: 34px; letter-spacing: .2px; animation: none; transform: none; background: none; color: inherit; }
+.header .header-brand-shimmer { display: inline-block; background: linear-gradient(100deg, #ffffff 0%, #ffffff 32%, #ffe27a 48%, #ffffff 58%, #c9f4ff 74%, #ffffff 100%); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: headerShimmer 3.2s ease-in-out infinite; will-change: background-position; transform: translate3d(0, 0, 0); backface-visibility: hidden; }
 .header .cg-brand-tag { margin-top: 5px; color: #DFFF8C; font-size: 15px; font-weight: 800; }
 .header-top { gap: 8px; width: 100%; min-width: 0; }
 .header-top .search-bar { flex: 1; min-width: 0; min-height: 52px; border-radius: 18px; padding: 0 15px; }
@@ -648,12 +649,42 @@ button.chat-list-item:active { filter: brightness(.97); }
 .brand-hero::before { content: '🛵'; font-size: 38px; line-height: 1; flex: 0 0 auto; }
 .brand-hero > div { min-width: 0; }
 .brand-hero .t { font-size: 20px; line-height: 1.25; color: #fff; white-space: nowrap; }
-.brand-hero .s { font-size: 13px; line-height: 1.35; color: rgba(255,255,255,.92); opacity: 1; }
+.brand-hero .s { font-size: 11px; line-height: 1.2; letter-spacing: -0.25px; color: rgba(255,255,255,.92); opacity: 1; white-space: nowrap; }
 .menu-grid { gap: 12px; margin: 0 2px 18px; }
-.menu-item { background: transparent; box-shadow: none; padding: 0; }
-.menu-icon { width: 100%; aspect-ratio: 1; height: auto; border-radius: 18px; background: #fff; border: 4px solid #D9601A; font-size: 32px; margin: 0 auto 8px; box-shadow: none; }
+.menu-item { background: transparent; box-shadow: none; padding: 0; container-type: inline-size; }
+.menu-icon { width: 100%; aspect-ratio: 1; height: auto; border-radius: 18px; background: #fff; border: 4px solid #D9601A; margin: 0 auto 8px; box-shadow: none; display: flex; align-items: center; justify-content: center; transition: transform .12s ease; }
 .menu-icon.food, .menu-icon.shopping, .menu-icon.travel, .menu-icon.express, .menu-icon.hotel, .menu-icon.map { background: #fff; }
+.menu-emoji { display: block; font-size: 74cqi; line-height: 1; animation: tileEmoji 2.2s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
+.menu-item:nth-child(2) .menu-emoji { animation-delay: .18s; }
+.menu-item:nth-child(3) .menu-emoji { animation-delay: .36s; }
+.menu-item:nth-child(4) .menu-emoji { animation-delay: .54s; }
+.menu-item:nth-child(5) .menu-emoji { animation-delay: .72s; }
+.menu-item:nth-child(6) .menu-emoji { animation-delay: .9s; }
+.menu-item:active .menu-icon { transform: scale(.9); }
+.menu-item:active .menu-emoji { animation-play-state: paused; }
 .menu-label { font-size: 12px; font-weight: 900; color: var(--text); margin-top: 0; }
+@keyframes headerLogoBob {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -8px, 0); }
+}
+@keyframes headerShimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes tileEmoji {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  40% { transform: translate3d(0, -8px, 0) rotate(-6deg); }
+  70% { transform: translate3d(0, 2px, 0) rotate(5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header .cg-logo,
+  .header .header-brand-shimmer,
+  .menu-emoji { animation: none; will-change: auto; }
+  .header .cg-logo,
+  .header .header-brand-shimmer,
+  .menu-emoji { transform: none; }
+  .menu-icon { transition: none; }
+}
 .home-section { margin: 0 0 16px; padding: 4px 0 2px; border: 2px solid var(--section-border); border-radius: 26px; background: var(--section-bg); overflow: hidden; }
 .home-section .section-header { padding: 12px 14px 8px; margin: 0; }
 .home-section .section-title { color: var(--section); font-size: 18px; display: flex; align-items: center; gap: 8px; }
@@ -1000,7 +1031,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   <div class="cg-brand">
     <picture><source srcset="images/logo-512.webp" type="image/webp"><img class="cg-logo" src="images/logo-512.png" alt="ChauatGo"></picture>
     <div class="cg-brand-copy">
-      <div class="cg-brand-name">ChauatGo</div>
+      <div class="cg-brand-name"><span class="header-brand-shimmer">ChauatGo</span></div>
       <div class="cg-brand-tag">สั่งครบ จบที่เดียว</div>
     </div>
   </div>
@@ -1092,12 +1123,12 @@ button.chat-list-item:active { filter: brightness(.97); }
     </div>
 
     <div class="menu-grid">
-      <div class="menu-item" onclick="openMerchantView('food')"><div class="menu-icon food">🍽️</div><div class="menu-label">อาหาร</div></div>
-      <div class="menu-item" onclick="openMerchantView('shopping')"><div class="menu-icon shopping">🛒</div><div class="menu-label">ของใช้</div></div>
-      <div class="menu-item" onclick="openTravelView()"><div class="menu-icon travel">🚗</div><div class="menu-label">เดินทาง</div></div>
-      <div class="menu-item" onclick="openOrderForm('express')"><div class="menu-icon express">📦</div><div class="menu-label">ส่งด่วน</div></div>
-      <div class="menu-item" onclick="showCategory('hotel')"><div class="menu-icon hotel">🏨</div><div class="menu-label">โรงแรม ที่พัก</div></div>
-      <div class="menu-item" onclick="openMapPage()"><div class="menu-icon map">🗺️</div><div class="menu-label">แผนที่</div></div>
+      <div class="menu-item" onclick="openMerchantView('food')"><div class="menu-icon food"><span class="menu-emoji">🍽️</span></div><div class="menu-label">อาหาร</div></div>
+      <div class="menu-item" onclick="openMerchantView('shopping')"><div class="menu-icon shopping"><span class="menu-emoji">🛒</span></div><div class="menu-label">ของใช้</div></div>
+      <div class="menu-item" onclick="openTravelView()"><div class="menu-icon travel"><span class="menu-emoji">🚗</span></div><div class="menu-label">เดินทาง</div></div>
+      <div class="menu-item" onclick="openOrderForm('express')"><div class="menu-icon express"><span class="menu-emoji">📦</span></div><div class="menu-label">ส่งด่วน</div></div>
+      <div class="menu-item" onclick="showCategory('hotel')"><div class="menu-icon hotel"><span class="menu-emoji">🏨</span></div><div class="menu-label">โรงแรม ที่พัก</div></div>
+      <div class="menu-item" onclick="openMapPage()"><div class="menu-icon map"><span class="menu-emoji">🗺️</span></div><div class="menu-label">แผนที่</div></div>
     </div>
 
     <div class="nearby-section">
