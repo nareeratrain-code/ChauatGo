@@ -55,6 +55,34 @@ test('missing shop coordinates fall back to the base fee', () => {
   assert.equal(info.estimated, false);
 });
 
+test('extra kilometres are ฿8 after the first 2 km and the fee caps at ฿150', () => {
+  context.cartShop = '';
+  context.cart = [];
+  context.nearbyShopsCache = [];
+  context.merchantsCache = [];
+  context.window._currentMerchant = null;
+  const shop = { lat: 7.90, lng: 99.90 };
+  const near = { lat: 7.925, lng: 99.90 };
+  const nearInfo = context.calculateFoodDeliveryFee(near, shop);
+  const nearKm = context.haversine(shop.lat, shop.lng, near.lat, near.lng) * 1.3;
+  assert.ok(nearKm > 2 && nearKm < 4);
+  assert.equal(nearInfo.fee, 20 + Math.ceil(nearKm - 2) * 8);
+  assert.equal(nearInfo.extra, nearInfo.fee - 20);
+
+  const far = { lat: 8.20, lng: 100.20 };
+  const farInfo = context.calculateFoodDeliveryFee(far, shop);
+  const farKm = context.haversine(shop.lat, shop.lng, far.lat, far.lng) * 1.3;
+  assert.ok(farKm > 20);
+  assert.equal(farInfo.fee, 150);
+  assert.ok(farInfo.extra > 130);
+});
+
+test('food fee copy shows ฿8 per km after the first 2 km', () => {
+  assert.match(indexHtml, /฿20 รวม 2 กม\.แรก จากนั้น ฿8\/กม\./);
+  assert.match(indexHtml, /฿8\/กม\. หลัง 2 กม\./);
+  assert.doesNotMatch(indexHtml.slice(feeStart, feeEnd), /\* 5/);
+});
+
 test('a fresh merchant document overrides a cart without coordinates', () => {
   context.cartShop = 'shop1';
   context.cart = [];
