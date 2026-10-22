@@ -365,6 +365,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .pf-menu-item .t { font-size: 14px; font-weight: 900; color: var(--text); }
 .pf-menu-item .s { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 .pf-menu-item .arr { color: var(--text-light); font-size: 20px; }
+.pf-theme-opt { color: var(--text-light); font-weight: 700; }
+.pf-theme-opt.on { color: var(--green); font-weight: 900; }
 .pf-login-prompt { text-align: center; padding: 40px 20px; }
 .pf-login-prompt .big-ico { font-size: 64px; margin-bottom: 12px; }
 .pf-login-prompt h3 { font-size: 20px; font-weight: 900; margin-bottom: 8px; color: #fff; }
@@ -637,17 +639,16 @@ button.chat-list-item:active { filter: brightness(.97); }
 .header .cg-logo { width: 92px; height: 92px; border: 5px solid #fff; border-radius: 25px; box-shadow: 0 10px 24px rgba(0,0,0,.22); animation: none; transform: none; }
 .header .cg-brand-name { font-size: 34px; letter-spacing: .2px; animation: none; transform: none; background-position: 40% 50%; }
 .header .cg-brand-tag { margin-top: 5px; color: #DFFF8C; font-size: 15px; font-weight: 800; }
-.header-top { gap: 8px; }
-.header-top .search-bar { min-height: 52px; border-radius: 18px; padding: 0 15px; }
-.header-top .search-bar input { font-size: 14px; }
-.header-theme-btn { width: 46px; height: 46px; flex: 0 0 46px; border: 0; border-radius: 50%; background: rgba(255,255,255,.18); color: #fff; font-size: 22px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
-.header-theme-btn:active { transform: scale(.94); }
-.theme-fab { display: none !important; }
+.header-top { gap: 8px; width: 100%; min-width: 0; }
+.header-top .search-bar { flex: 1; min-width: 0; min-height: 52px; border-radius: 18px; padding: 0 15px; }
+.header-top .search-bar input { min-width: 0; width: 100%; font-size: 14px; }
+.profile-avatar { flex: 0 0 46px; }
 #home-content { padding: 14px 12px 22px; }
 .brand-hero { min-height: 70px; margin: 0 2px 16px; padding: 14px 16px; border-radius: 22px; background: var(--header-grad); color: #fff; box-shadow: 0 8px 18px rgba(52,117,30,.22); }
 .brand-hero::before { content: '🛵'; font-size: 38px; line-height: 1; flex: 0 0 auto; }
-.brand-hero .t { font-size: 16px; color: #fff; }
-.brand-hero .s { font-size: 11px; color: rgba(255,255,255,.92); opacity: 1; }
+.brand-hero > div { min-width: 0; }
+.brand-hero .t { font-size: 20px; line-height: 1.25; color: #fff; white-space: nowrap; }
+.brand-hero .s { font-size: 13px; line-height: 1.35; color: rgba(255,255,255,.92); opacity: 1; }
 .menu-grid { gap: 12px; margin: 0 2px 18px; }
 .menu-item { background: transparent; box-shadow: none; padding: 0; }
 .menu-icon { width: 100%; aspect-ratio: 1; height: auto; border-radius: 18px; background: #fff; border: 4px solid #D9601A; font-size: 32px; margin: 0 auto 8px; box-shadow: none; }
@@ -683,12 +684,10 @@ button.chat-list-item:active { filter: brightness(.97); }
   .header .cg-logo { width: 78px; height: 78px; border-radius: 22px; }
   .header .cg-brand-name { font-size: 30px; }
   .header .cg-brand-tag { font-size: 13px; }
-  .header-theme-btn { display: flex; align-items: center; justify-content: center; }
 }
 
 @media (max-width: 360px) {
   .express-two-col { grid-template-columns: 1fr; gap: 0; }
-  .brand-hero .t { font-size: 14px; }
   .brand-hero img { width: 60px; height: 60px; }
   .nearby-shop-img { height: 95px; }
   .nearby-shop-img-fallback { height: 95px; font-size: 34px; }
@@ -1013,7 +1012,6 @@ button.chat-list-item:active { filter: brightness(.97); }
     <div class="profile-avatar press-scale" onclick="openProfileSheet()">
       <span id="profile-avatar-emoji">🧑</span>
     </div>
-    <button class="header-theme-btn press-scale" onclick="toggleTheme()" id="theme-fab" aria-label="สลับโหมดสี">🌙</button>
   </div>
 </div>
 
@@ -1221,12 +1219,19 @@ button.chat-list-item:active { filter: brightness(.97); }
         <div class="pf-info-row"><div class="ico">💬</div><div><div class="lbl">LINE ID</div><div class="val" id="pf-line-val">—</div></div></div>
         <div class="pf-info-row"><div class="ico">🏠</div><div><div class="lbl">ที่อยู่</div><div class="val" id="pf-address-val">—</div></div></div>
       </div>
-      <div class="pf-section">
-        <div class="pf-section-title">⚙️ การตั้งค่า</div>
+    </div>
+    <div class="pf-section">
+      <div class="pf-section-title">⚙️ การตั้งค่า</div>
+      <div id="pf-settings-account" style="display:none">
         <button class="pf-menu-item" onclick="openEditProfile()"><div class="ico g">✏️</div><div class="txt"><div class="t">แก้ไขโปรไฟล์</div><div class="s">ชื่อ, เบอร์, LINE, ที่อยู่</div></div><div class="arr">›</div></button>
         <button class="pf-menu-item" onclick="event.preventDefault();closeProfileSheet();setTimeout(function(){checkLocationPopup();},300)"><div class="ico b">📍</div><div class="txt"><div class="t">การเข้าถึงตำแหน่ง</div><div class="s">GPS</div></div><div class="arr">›</div></button>
-        <button class="pf-menu-item" onclick="toggleTheme();closeProfileSheet()"><div class="ico b">🌙</div><div class="txt"><div class="t">เปลี่ยนธีม</div><div class="s">Light / Dark Mode</div></div><div class="arr">›</div></button>
       </div>
+      <button type="button" class="pf-menu-item" id="pf-theme-row" onclick="toggleTheme()">
+        <div class="ico b" id="pf-theme-ico">☀️</div>
+        <div class="txt"><div class="t">ธีม: <span id="pf-theme-light" class="pf-theme-opt on">สว่าง</span> / <span id="pf-theme-dark" class="pf-theme-opt">มืด</span></div></div>
+      </button>
+    </div>
+    <div id="pf-logged-in-extra" style="display:none">
       <div class="pf-section">
         <div class="pf-section-title">🚀 เข้าร่วม Chauat Go</div>
         <button class="pf-menu-item" onclick="window.open('/merchant.html','_blank')"><div class="ico o">🏪</div><div class="txt"><div class="t">สมัครร้านค้า</div></div><div class="arr">›</div></button>
@@ -1667,13 +1672,21 @@ function dismissSplash(){
 }
 
 /* ═══ THEME ═══ */
+function syncThemeRow(theme){
+  theme = theme || document.documentElement.getAttribute('data-theme') || 'light';
+  var light = $('pf-theme-light');
+  var dark = $('pf-theme-dark');
+  if (light) light.classList.toggle('on', theme !== 'dark');
+  if (dark) dark.classList.toggle('on', theme === 'dark');
+  var ico = $('pf-theme-ico');
+  if (ico) ico.textContent = theme === 'dark' ? '🌙' : '☀️';
+}
 window.toggleTheme = function(){
   var current = document.documentElement.getAttribute('data-theme') || 'light';
   var next = current === 'light' ? 'dark' : 'light';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('chauat_theme', next);
-  var fab = $('theme-fab');
-  if (fab) fab.textContent = next === 'dark' ? '☀️' : '🌙';
+  syncThemeRow(next);
   var meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = next === 'dark' ? '#070B09' : '#4E9F2D';
   showToast(next === 'dark' ? '🌙 โหมดมืด' : '☀️ โหมดสว่าง', 'info');
@@ -1681,8 +1694,7 @@ window.toggleTheme = function(){
 function initTheme(){
   var theme = localStorage.getItem('chauat_theme') || 'light';
   document.documentElement.setAttribute('data-theme', theme);
-  var fab = $('theme-fab');
-  if (fab) fab.textContent = theme === 'dark' ? '☀️' : '🌙';
+  syncThemeRow(theme);
 }
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded', function(){
@@ -1896,6 +1908,9 @@ window.openProfileSheet = function(){
   if($('pf-logged-out')) $('pf-logged-out').style.display = loggedIn?'none':'block';
   if($('pf-logged-in')) $('pf-logged-in').style.display = loggedIn?'block':'none';
   if($('pf-logged-in-body')) $('pf-logged-in-body').style.display = loggedIn?'block':'none';
+  if($('pf-logged-in-extra')) $('pf-logged-in-extra').style.display = loggedIn?'block':'none';
+  if($('pf-settings-account')) $('pf-settings-account').style.display = loggedIn?'block':'none';
+  syncThemeRow();
   if(loggedIn){
     var name = (userProfile&&userProfile.name)||currentUser.displayName||'ผู้ใช้';
     var email = currentUser.email||'';
