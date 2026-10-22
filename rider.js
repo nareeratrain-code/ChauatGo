@@ -326,6 +326,19 @@ function showSoundBanner(show) {
   el.classList.toggle('show', !!show);
 }
 
+function updateRiderSoundStatus(icon, text, ready) {
+  const iconEl = $('rider-sound-icon');
+  const textEl = $('rider-sound-text');
+  const card = $('rider-sound-status');
+  if (iconEl) iconEl.textContent = icon || '🔔';
+  if (textEl) textEl.textContent = text || '';
+  if (card) {
+    card.style.background = ready ? '#EFF8F1' : '#FFF8E7';
+    card.style.borderColor = ready ? '#CDE8D2' : '#F4D58A';
+    card.style.color = ready ? '#1F5A2A' : '#765400';
+  }
+}
+
 function unlockRiderAudio() {
   const ctx = ensureAudioGraph(true);
   if (!ctx) {
@@ -347,6 +360,7 @@ function unlockRiderAudio() {
   return Promise.resolve(resume).then(() => {
     audioUnlocked = ctx.state === 'running';
     showSoundBanner(!audioUnlocked);
+    updateRiderSoundStatus(audioUnlocked ? '🔊' : '🔔', audioUnlocked ? 'เปิดเสียงแจ้งเตือนแล้ว • พร้อมรับงานใหม่' : 'แตะหน้าจอหนึ่งครั้งเพื่อเปิดเสียงแจ้งเตือนงานใหม่', audioUnlocked);
     if (audioUnlocked && alertJobId && Date.now() < alertUntil && !alertTimer) {
       const id = alertJobId;
       const remain = alertUntil;
@@ -454,15 +468,18 @@ function startRepeatingAlert(jobId) {
   const ctx = ensureAudioGraph(false);
   const ready = !!(ctx && ctx.state === 'running' && audioUnlocked);
   if (!prefs.on || prefs.volume <= 0) {
+    updateRiderSoundStatus('🔕', 'มีงานใหม่ แต่เสียงถูกปิดอยู่ • เปิดเสียงในเมนูไรเดอร์', false);
     vibrateJob();
     showSoundBanner(false);
     return;
   }
   if (!ready) {
+    updateRiderSoundStatus('🔔', 'มีงานใหม่ • แตะปุ่มด้านบนเพื่อเปิดเสียงแจ้งเตือน', false);
     showSoundBanner(true);
     vibrateJob();
     return;
   }
+  updateRiderSoundStatus('🚨', 'มีงานใหม่ • กำลังส่งเสียงและสั่นแจ้งเตือน', true);
   showSoundBanner(false);
   beginAlertLoop(alertJobId, until);
 }
@@ -495,6 +512,12 @@ function stopRepeatingAlert() {
   alertTimer = null;
   alertJobId = null;
   alertUntil = 0;
+  const prefs = loadSoundPrefs();
+  updateRiderSoundStatus(
+    !prefs.on || prefs.volume <= 0 ? '🔕' : (audioUnlocked ? '🔊' : '🔔'),
+    !prefs.on || prefs.volume <= 0 ? 'เสียงแจ้งเตือนปิดอยู่ • เปิดได้จากเมนูไรเดอร์' : (audioUnlocked ? 'เปิดเสียงแจ้งเตือนแล้ว • พร้อมรับงานใหม่' : 'แตะหน้าจอหนึ่งครั้งเพื่อเปิดเสียงแจ้งเตือนงานใหม่'),
+    !!(prefs.on && prefs.volume > 0 && audioUnlocked)
+  );
 }
 
 function acknowledgeAlert(jobId) {
@@ -530,6 +553,11 @@ function syncSoundSettingsUI() {
   document.querySelectorAll('[data-sound-tone]').forEach((btn) => {
     btn.classList.toggle('on', btn.getAttribute('data-sound-tone') === prefs.tone);
   });
+  updateRiderSoundStatus(
+    !prefs.on || prefs.volume <= 0 ? '🔕' : (audioUnlocked ? '🔊' : '🔔'),
+    !prefs.on || prefs.volume <= 0 ? 'เสียงแจ้งเตือนปิดอยู่ • เปิดได้จากเมนูไรเดอร์' : (audioUnlocked ? 'เปิดเสียงแจ้งเตือนแล้ว • พร้อมรับงานใหม่' : 'แตะหน้าจอหนึ่งครั้งเพื่อเปิดเสียงแจ้งเตือนงานใหม่'),
+    !!(prefs.on && prefs.volume > 0 && audioUnlocked)
+  );
 }
 
 function onSoundEnabledChange(checked) {
@@ -776,6 +804,15 @@ async function handleLogout() {
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
   const epoch = ++authEpoch;
+  const qaJobFilter = new URLSearchParams(window.location.search).get('qa') === 'job-filter';
+  if (qaJobFilter) {
+    currentUser = { uid: 'qa-rider' };
+    riderProfile = { uid: 'qa-rider', verified: true, status: 'active', name: 'QA Rider' };
+    isOnline = true;
+    $('login-screen').style.setProperty('display', 'none', 'important');
+    $('app').style.setProperty('display', 'block', 'important');
+    return;
+  }
   if (isSigningUp) return;
 
   if (myProfileUnsub) myProfileUnsub();
@@ -3016,6 +3053,51 @@ window.showTransferApp = showTransferApp;
 window.showGPIncome = showGPIncome;
 window.showTrustScore = showTrustScore;
 window.showHistory = showHistory;
+
+/* QA-only hooks: enabled only on the local/e2e rider filter route. */
+if (new URLSearchParams(window.location.search).get('qa') === 'job-filter') {
+  let qaLoadError = '';
+  window.__QA_RIDER_FILTER__ = {
+    setJobs: function (jobs) {
+      currentUser = currentUser || { uid: 'qa-rider' };
+      riderProfile = { ...(riderProfile || {}), uid: 'qa-rider', verified: true, status: 'active' };
+      isOnline = true;
+      dispatchConfig = { mode: 'manual' };
+      openJobs = Array.isArray(jobs) ? jobs : [];
+      activeMine = [];
+      allHistory = [];
+      qaLoadError = '';
+      publishJobs(new Set());
+    },
+    setLoadError: function (message) {
+      qaLoadError = String(message || 'ไม่สามารถโหลดงานได้');
+      openJobs = [];
+      activeMine = [];
+      allHistory = [];
+      allJobs = [];
+      renderJobs();
+    },
+    triggerNewJobAlert: function (jobId) {
+      startRepeatingAlert(jobId || 'qa-new-job');
+    },
+    setHistory: function (jobs) {
+      allHistory = Array.isArray(jobs) ? jobs : [];
+      renderJobs();
+    },
+    state: function () {
+      return {
+        filter: jobFilter,
+        loadError: qaLoadError,
+        newIds: Array.from(document.querySelectorAll('#new-jobs-list [data-card-id]')).map(el => el.dataset.cardId),
+        activeIds: Array.from(document.querySelectorAll('#active-jobs-list [data-card-id]')).map(el => el.dataset.cardId),
+        doneIds: Array.from(document.querySelectorAll('#done-jobs-list [data-card-id]')).map(el => el.dataset.cardId),
+        newCount: document.getElementById('new-count')?.textContent || '0',
+        activeCount: document.getElementById('active-count')?.textContent || '0',
+        doneCount: document.getElementById('done-count')?.textContent || '0'
+      };
+    }
+  };
+}
 window.showJobDetail = showJobDetail;
 window.closeNewJobPopup = closeNewJobPopup;
 window.acceptFromPopup = acceptFromPopup;

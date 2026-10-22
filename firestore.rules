@@ -779,6 +779,14 @@ service cloud.firestore {
       allow read, create, update, delete: if isAdmin();
     }
 
+    // Consent Events are created by the trusted Cloud Function only.
+    // Clients may read their own history for privacy/DSAR screens, but cannot
+    // forge subjectRef/timestamps or mutate append-only audit evidence.
+    match /consent_events/{eventId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.subjectRef == myUid());
+      allow create, update, delete: if false;
+    }
+
     match /places/{placeId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();

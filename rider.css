@@ -1385,3 +1385,159 @@ body {
   background: var(--brand-light);
   border-color: var(--brand);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHAUATGO RIDER UI POLISH — Green / Orange command center
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --brand: #008F4C;
+  --brand-dark: #006F3B;
+  --brand-light: #E8F7EE;
+  --green: #00A651;
+  --green-dark: #007A3F;
+  --green-light: #E8F5E9;
+  --bg: #F3F7F4;
+  --surface: #FFFFFF;
+  --surface-2: #F7FAF8;
+  --text: #10251B;
+  --text-muted: #617268;
+  --text-light: #93A39A;
+  --border: #DDE9E1;
+  --header-grad: linear-gradient(135deg, #006F3B 0%, #008F4C 58%, #F47A32 140%);
+  --input-bg: #FBFDFC;
+}
+[data-theme="dark"] {
+  --brand: #36D878;
+  --brand-dark: #19B85D;
+  --brand-light: #153A29;
+  --green: #36D878;
+  --green-dark: #19B85D;
+  --green-light: #173B2A;
+  --bg: #08120E;
+  --surface: #101D17;
+  --surface-2: #172820;
+  --text: #F1FAF4;
+  --text-muted: #A6B9AE;
+  --text-light: #70867A;
+  --border: #294238;
+  --header-grad: linear-gradient(135deg, #071B12 0%, #0C3B25 62%, #512817 140%);
+  --input-bg: #14241C;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(0,166,81,.07), transparent 28rem),
+    var(--bg);
+}
+[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(54,216,120,.08), transparent 28rem),
+    var(--bg);
+}
+
+.app-header {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface) 72%, rgba(244,122,50,.09) 100%);
+  border-bottom: 2px solid var(--brand);
+  box-shadow: 0 8px 24px rgba(0,76,42,.10);
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+.app-header::after {
+  content: '';
+  position: absolute; left: 14px; right: 14px; bottom: -2px;
+  height: 2px; border-radius: 99px;
+  background: linear-gradient(90deg, var(--brand), #F47A32, transparent);
+}
+.app-header .cg-brand-name {
+  background-image: linear-gradient(105deg, var(--brand-dark), #F47A32 50%, var(--brand) 90%);
+}
+[data-theme="dark"] .app-header .cg-brand-name {
+  background-image: linear-gradient(105deg, #F7FFF9, #FFAD73 48%, #66E69A 92%);
+}
+.online-toggle.online {
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+  color: var(--green-dark); border-color: color-mix(in srgb, var(--green) 50%, var(--border));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 12%, transparent);
+}
+[data-theme="dark"] .online-toggle.online { color: #8BFFB8; background: #123D27; border-color: #27794C; }
+.online-toggle.online .dot { background: var(--green); }
+.menu-btn:hover, .theme-fab:hover { border-color: var(--brand); color: var(--brand); }
+
+#rider-work-guide {
+  background: linear-gradient(135deg, #EAF8EF, #F6FBF7) !important;
+  border: 1px solid #BFE4CB !important;
+  border-left: 4px solid var(--brand) !important;
+  box-shadow: var(--shadow-xs);
+}
+[data-theme="dark"] #rider-work-guide {
+  background: linear-gradient(135deg, #123523, #10281C) !important;
+  border-color: #2B6646 !important;
+  color: #C5F6D5 !important;
+}
+#rider-sound-status {
+  box-shadow: var(--shadow-xs);
+  transition: background .25s, border-color .25s, transform .25s;
+}
+#rider-sound-status:has(#rider-sound-icon) { border-left: 4px solid #F4B400 !important; }
+[data-theme="dark"] #rider-sound-status {
+  background: #302714 !important; border-color: #705B23 !important; color: #FFE49A !important;
+}
+#rider-sound-status button {
+  background: linear-gradient(135deg, #F47A32, #E85D22) !important;
+  box-shadow: 0 4px 10px rgba(232,93,34,.24);
+}
+
+.hero-card {
+  border-top: 3px solid var(--brand);
+  box-shadow: 0 10px 28px rgba(0,76,42,.08);
+}
+.hero-card::before { background: linear-gradient(180deg, var(--brand), #F47A32); width: 5px; }
+.hero-amount { color: var(--brand-dark); }
+[data-theme="dark"] .hero-amount { color: #8BFFB8; }
+.hero-grid-cell.warn { background: #FFF4EA; border: 1px solid #FAD2B7; }
+[data-theme="dark"] .hero-grid-cell.warn { background: #38261A; border-color: #77442A; }
+
+.stat-mini { transition: transform .2s, border-color .2s, box-shadow .2s; }
+.stat-mini:hover { transform: translateY(-2px); border-color: #9CD6B0; box-shadow: var(--shadow-md); }
+.stat-mini .n { color: var(--brand-dark); }
+[data-theme="dark"] .stat-mini .n { color: #8BFFB8; }
+
+#job-filter-bar {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  padding: 5px !important;
+}
+#job-filter-bar .job-filter-btn {
+  color: var(--text) !important;
+  transition: background .2s, color .2s, transform .15s, box-shadow .2s;
+}
+#job-filter-bar .job-filter-btn.active,
+#job-filter-bar .job-filter-btn[aria-selected="true"] {
+  background: linear-gradient(135deg, var(--brand), #F47A32) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 12px rgba(0,143,76,.20);
+}
+#job-filter-bar .job-filter-btn:active { transform: scale(.97); }
+
+.job-card { border: 1px solid var(--border); border-left: 5px solid var(--brand); box-shadow: 0 6px 18px rgba(0,76,42,.07); }
+.job-card.is-new { border-left-color: #F47A32; }
+[data-theme="dark"] .job-card { background: #12231A; }
+
+.theme-fab {
+  background: var(--surface) !important; border: 1px solid var(--border); color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+@media (max-width: 380px) {
+  .app-header { padding-left: 10px; padding-right: 10px; }
+  .app-header .cg-brand-name { font-size: 20px; }
+  .online-toggle { min-width: 108px; padding-right: 9px; }
+  .container { padding: 10px; }
+  #rider-work-guide, #rider-sound-status { margin-left: 10px !important; margin-right: 10px !important; }
+  #rider-sound-status { font-size: 11px !important; }
+  #rider-sound-status button { padding: 7px 8px !important; font-size: 10px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

@@ -6,3 +6,5 @@ firebase-debug.log
 firestore-debug.log
 ui-debug.log
 *-debug.log
+playwright-report/
+test-results/

@@ -7,6 +7,7 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
 const D = require('./dispatch');
+const { recordConsentEvent } = require('./consent');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
 setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 });
@@ -131,4 +132,33 @@ exports.manualAssignRider = onCall(CALL, async (req) => {
   } catch (err) {
     fail(err);
   }
+});
+
+// Consent Events are written only by the trusted backend. Firestore Rules
+// deny direct client writes so the client cannot forge subjectRef or timestamps.
+exports.recordConsentEvent = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบก่อนบันทึก Consent');
+  guardAppCheck(req, 'recordConsentEvent');
+  try {
+    const result = await recordConsentEvent(db, req.auth.uid, req.data || {});
+    return { eventId: result.eventId, duplicate: result.duplicate };
+  } catch (err) {
+    if (err && err.code === 'invalid-argument') {
+      throw new HttpsError('invalid-argument', err.message);
+    }
+    throw err;
+  }
+});
+
+// Read-only, self-scoped endpoint used by the account/privacy screen and QA.
+exports.listMyConsentEvents = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'listMyConsentEvents');
+  const limit = Math.min(Math.max(Number(req.data && req.data.limit) || 50, 1), 100);
+  const snap = await db.collection('consent_events')
+    .where('subjectRef', '==', req.auth.uid)
+    .orderBy('receivedAt', 'desc')
+    .limit(limit)
+    .get();
+  return { events: snap.docs.map((doc) => ({ eventId: doc.id, ...doc.data() })) };
 });

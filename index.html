@@ -488,6 +488,33 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .pdpa-btn, .loc-popup-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; font-weight: 900; font-size: 14px; cursor: pointer; font-family: inherit; margin-bottom: 8px; }
 .pdpa-accept, .loc-allow { background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; }
 .loc-skip { background: var(--surface-2); color: var(--text-muted); }
+.pdpa-content.first-launch-consent { max-width: 460px; max-height: min(760px, calc(100vh - 32px)); overflow-y: auto; text-align: left; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); }
+.pdpa-brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.pdpa-brand-row img { width: 58px; height: 58px; border-radius: 17px; flex: 0 0 auto; }
+.pdpa-brand-copy { min-width: 0; }
+.pdpa-brand-copy b { display: block; font-size: 17px; font-weight: 950; color: var(--text); }
+.pdpa-brand-copy span { display: block; margin-top: 2px; font-size: 11px; color: var(--text-muted); font-weight: 800; }
+.pdpa-step { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; color: var(--green); font-size: 11px; font-weight: 900; }
+.pdpa-step i { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--brand-light); font-style: normal; }
+.pdpa-content.first-launch-consent h3 { margin: 0 0 8px; font-size: 21px; line-height: 1.25; }
+.pdpa-intro { margin: 0 0 14px !important; font-size: 13px !important; line-height: 1.65 !important; }
+.pdpa-notice-card { display: grid; gap: 9px; padding: 13px; margin: 0 0 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-2); }
+.pdpa-notice-item { display: flex; align-items: flex-start; gap: 9px; color: var(--text); font-size: 12px; line-height: 1.45; font-weight: 750; }
+.pdpa-notice-item b { display: block; font-size: 12px; font-weight: 900; }
+.pdpa-notice-item span { display: block; color: var(--text-muted); font-size: 11px; font-weight: 650; margin-top: 1px; }
+.pdpa-notice-icon { width: 28px; height: 28px; flex: 0 0 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: var(--brand-light); }
+.pdpa-policy-link { display: inline-block; color: var(--green); font-size: 12px; font-weight: 900; text-decoration: underline; margin: 0 0 14px; }
+.pdpa-choice-panel { display: none; padding: 13px; margin: 0 0 12px; border: 1px solid #B9DFA6; border-radius: 16px; background: color-mix(in srgb, var(--brand-light) 48%, var(--surface)); }
+.pdpa-choice-panel.show { display: block; }
+.pdpa-choice-title { margin: 0 0 8px; color: var(--text); font-size: 13px; font-weight: 900; }
+.pdpa-choice-sub { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 650; }
+.pdpa-choice-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-top: 1px solid rgba(78,159,45,.16); color: var(--text); font-size: 12px; font-weight: 850; }
+.pdpa-choice-row input { width: 20px; height: 20px; accent-color: var(--green); flex: 0 0 auto; }
+.pdpa-choice-row small { display: block; color: var(--text-muted); font-size: 10px; font-weight: 650; margin-top: 2px; }
+.pdpa-choice-actions { display: flex; gap: 8px; }
+.pdpa-choice-actions .pdpa-btn { flex: 1; }
+.pdpa-optional { background: transparent; color: var(--green); border: 1px solid var(--border); }
+@media (max-width: 360px) { .pdpa-content.first-launch-consent { padding: 18px 14px; } .pdpa-brand-row img { width: 52px; height: 52px; } .pdpa-content.first-launch-consent h3 { font-size: 19px; } }
 
 .offline-banner { position: fixed; top: 0; left: 0; right: 0; background: #E53935; color: #fff; text-align: center; padding: 8px; font-size: 12px; font-weight: 800; z-index: 99999; display: none; }
 .offline-banner.show { display: block; }
@@ -715,6 +742,38 @@ button.chat-list-item:active { filter: brightness(.97); }
 .partner-cta-btn { flex: 0 0 auto; border: 0; border-radius: 999px; background: #DFFF69; color: #173D12; padding: 10px 15px; font: 900 12px inherit; cursor: pointer; }
 [data-theme="dark"] .home-section { filter: saturate(.85); }
 [data-theme="dark"] .home-section .place-directory-note { background: rgba(20,30,22,.72); }
+
+/* Store detail page — reuses the same category palette as the home sections. */
+#modal:has(.store-detail-page) { align-items: flex-end; padding: 0; }
+#modal:has(.store-detail-page) .modal-content { max-width: 600px; max-height: 94vh; padding: 0 0 calc(18px + env(safe-area-inset-bottom)); border-radius: 26px 26px 0 0; overflow-y: auto; }
+.store-detail-page { --store: #168A45; --store-dark: #0D6D35; --store-bg: #EAF6DF; --store-border: #B9DFA6; background: var(--surface); color: var(--text); min-height: 100%; }
+.store-detail-page[data-store-category="restaurant"] { --store: #E85B2A; --store-dark: #873517; --store-bg: #FFF0E8; --store-border: #F5C2AD; }
+.store-detail-page[data-store-category="cafe"] { --store: #9A46CF; --store-dark: #64258D; --store-bg: #F6EAFF; --store-border: #DDBBEE; }
+.store-detail-page[data-store-category="convenience"] { --store: #2F6DE1; --store-dark: #1E438D; --store-bg: #EAF1FF; --store-border: #B8CBF6; }
+.store-detail-page[data-store-category="market"], .store-detail-page[data-store-category="shop"] { --store: #159BA7; --store-dark: #11636B; --store-bg: #E4F8F8; --store-border: #B5E0E2; }
+.store-detail-close { position: absolute; right: 14px; top: 14px; z-index: 2; width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(0,0,0,.42); color: #fff; font-size: 19px; cursor: pointer; }
+.store-detail-hero { position: relative; height: 190px; background: linear-gradient(135deg,var(--store-bg),var(--surface)); overflow: hidden; }
+.store-detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+.store-detail-hero-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 74px; background: linear-gradient(135deg,var(--store-bg),#fff); }
+.store-detail-body { padding: 18px 16px 0; }
+.store-detail-kicker { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; background: var(--store-bg); color: var(--store-dark); font-size: 11px; font-weight: 900; }
+.store-detail-name { margin-top: 8px; font-size: 24px; line-height: 1.2; font-weight: 900; color: var(--text); }
+.store-detail-sub { margin-top: 5px; color: var(--text-muted); font-size: 12px; font-weight: 700; line-height: 1.5; }
+.store-detail-status { display: flex; align-items: center; gap: 7px; margin-top: 10px; color: var(--store-dark); font-size: 12px; font-weight: 900; }
+.store-detail-actions { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 16px 0; }
+.store-detail-action { min-height: 48px; border: 1px solid var(--store-border); border-radius: 14px; background: var(--store-bg); color: var(--store-dark); font: 900 11px inherit; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.store-detail-action.primary { background: var(--store); border-color: var(--store); color: #fff; }
+.store-detail-action.disabled { opacity: .48; pointer-events: none; }
+.store-detail-note { padding: 11px 12px; border-radius: 14px; background: var(--store-bg); color: var(--store-dark); font-size: 11px; line-height: 1.5; font-weight: 700; }
+.store-detail-menu-head { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 10px; padding-bottom: 9px; border-bottom: 2px solid var(--store-border); }
+.store-detail-menu-title { color: var(--store-dark); font-size: 17px; font-weight: 900; }
+.store-detail-menu-count { color: var(--text-muted); font-size: 11px; font-weight: 800; }
+.store-detail-menu-list .menu-detail-card { border: 1px solid color-mix(in srgb,var(--store-border) 70%,transparent); background: var(--surface-2); border-radius: 16px; padding: 10px; }
+.store-detail-menu-list .menu-add-btn { background: var(--store); }
+.store-detail-menu-list .menu-detail-price-normal, .store-detail-menu-list .menu-detail-price-new { color: var(--store); }
+.store-detail-category-title { color: var(--store-dark) !important; border-color: var(--store) !important; }
+.store-detail-footer { display: flex; justify-content: center; margin-top: 16px; }
+.store-detail-close-btn { min-height: 44px; width: 100%; border: 0; border-radius: 14px; background: var(--surface-2); color: var(--text-muted); font: 900 13px inherit; cursor: pointer; }
 @media (max-width: 480px) {
   .header .cg-logo { width: 78px; height: 78px; border-radius: 22px; }
   .header .cg-brand-name { font-size: 30px; }
@@ -765,12 +824,31 @@ button.chat-list-item:active { filter: brightness(.97); }
 <div class="toast" id="toast"></div>
 
 <div class="pdpa-overlay hidden" id="pdpa-overlay">
-  <div class="pdpa-content">
-    <img src="icons/icon-512.png" style="margin-bottom:12px;width:76px;height:76px;border-radius:20px">
-    <h3>ยินดีต้อนรับสู่ Chauat Go</h3>
-    <p>แอปใช้คุกกี้และเก็บข้อมูลส่วนบุคคล (ชื่อ, เบอร์, GPS) เพื่อวัตถุประสงค์ในการให้บริการจัดส่ง<br><br>ปฏิบัติตาม พ.ร.บ. PDPA พ.ศ. 2562</p>
-    <button class="pdpa-btn pdpa-accept press-scale" onclick="acceptPDPA()">✅ ยอมรับและใช้งานต่อ</button>
-    <button class="pdpa-btn" style="background:var(--surface-2);color:var(--text-muted)" onclick="window.open('/privacy','_blank')">📖 อ่านนโยบาย</button>
+  <div class="pdpa-content first-launch-consent">
+    <div class="pdpa-brand-row">
+      <img src="icons/icon-512.png" alt="ChauatGo">
+      <div class="pdpa-brand-copy"><b>ChauatGo</b><span>สั่งครบ จบที่เดียว</span></div>
+    </div>
+    <div class="pdpa-step"><i>1</i> รับทราบ Privacy Notice <span aria-hidden="true">•</span> <span style="color:var(--text-muted);font-weight:700">ตั้งค่าเพิ่มเติมได้ภายหลัง</span></div>
+    <h3>ก่อนเริ่มใช้งาน</h3>
+    <p class="pdpa-intro">เราใช้ข้อมูลเท่าที่จำเป็นเพื่อให้บริการค้นหา สั่งซื้อ จัดส่ง ติดต่อ และดูแลความปลอดภัยของระบบ</p>
+    <div class="pdpa-notice-card" aria-label="สรุป Privacy Notice">
+      <div class="pdpa-notice-item"><i class="pdpa-notice-icon" aria-hidden="true">🛡️</i><div><b>ใช้ข้อมูลอย่างโปร่งใส</b><span>ชื่อ เบอร์โทรศัพท์ คำสั่งซื้อ และข้อมูลทางเทคนิคตามวัตถุประสงค์ที่แจ้ง</span></div></div>
+      <div class="pdpa-notice-item"><i class="pdpa-notice-icon" aria-hidden="true">📍</i><div><b>GPS ขอแยกเมื่อใช้ฟังก์ชัน</b><span>ยังไม่เปิดตำแหน่งอัตโนมัติ คุณเลือกอนุญาตเมื่อปักหมุดหรือคำนวณระยะทาง</span></div></div>
+      <div class="pdpa-notice-item"><i class="pdpa-notice-icon" aria-hidden="true">🔐</i><div><b>ควบคุมข้อมูลได้</b><span>คุณอ่านนโยบาย ใช้สิทธิ และถอนความยินยอมที่เป็นทางเลือกได้</span></div></div>
+    </div>
+    <a class="pdpa-policy-link" href="/privacy" target="_blank" rel="noopener">📖 อ่าน Privacy Policy ฉบับเต็ม</a>
+    <div class="pdpa-choice-panel" id="pdpa-choice-panel">
+      <p class="pdpa-choice-title">ตั้งค่าความเป็นส่วนตัว</p>
+      <p class="pdpa-choice-sub">ตัวเลือกเหล่านี้ไม่จำเป็นต่อการเปิดดูแอป และเปลี่ยนได้ภายหลัง</p>
+      <label class="pdpa-choice-row"><span>📣 ข่าวสารและโปรโมชั่น<small>รับข้อเสนอจาก ChauatGo</small></span><input id="consent-marketing" type="checkbox"></label>
+      <label class="pdpa-choice-row"><span>📊 วิเคราะห์การใช้งาน<small>ช่วยปรับปรุงประสบการณ์แบบรวม</small></span><input id="consent-analytics" type="checkbox"></label>
+      <label class="pdpa-choice-row"><span>🔔 แจ้งเตือนสถานะงาน<small>เปิดสิทธิ์แจ้งเตือนเมื่อใช้บริการที่เกี่ยวข้อง</small></span><input id="consent-notifications" type="checkbox"></label>
+      <div class="pdpa-choice-actions"><button class="pdpa-btn pdpa-optional press-scale" onclick="savePrivacyChoices()">บันทึกตัวเลือก</button><button class="pdpa-btn pdpa-accept press-scale" onclick="acceptPDPA()">เข้าสู่แอป</button></div>
+    </div>
+    <button class="pdpa-btn pdpa-accept press-scale" id="pdpa-primary-btn" onclick="acceptPDPA()">รับทราบและเข้าสู่แอป</button>
+    <button class="pdpa-btn pdpa-optional press-scale" id="pdpa-settings-btn" onclick="togglePrivacyChoices()">⚙️ ตั้งค่าความเป็นส่วนตัว</button>
+    <p style="font-size:10px!important;line-height:1.45!important;margin:4px 0 0!important;text-align:center">การกดรับทราบนี้ไม่รวม Consent สำหรับ GPS การตลาด รูปภาพ หรือสิทธิ์แจ้งเตือน</p>
   </div>
 </div>
 
@@ -1296,6 +1374,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 <script src="config/env.js"></script>
 <script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
@@ -1319,14 +1398,25 @@ var firebaseConfig = {
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
 
-var auth, db, storage;
+var auth, db, storage, functionsApi;
 try {
   var firebaseApp = (firebase.apps || []).filter(function(a){ return a.name === 'customer'; })[0]
     || firebase.initializeApp(firebaseConfig, 'customer');
-  if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
+  if (window.ChauatAppCheck && !window.__QA_USE_EMULATORS__) ChauatAppCheck.start(firebaseApp);
   auth = firebase.auth(firebaseApp);
   db = firebase.firestore(firebaseApp);
   storage = firebase.storage(firebaseApp);
+  if (window.__QA_USE_EMULATORS__ && location.hostname === '127.0.0.1') {
+    try { auth.useEmulator('http://127.0.0.1:9099'); } catch(e) {}
+    try { db.useEmulator('127.0.0.1', 8080); } catch(e) {}
+  }
+  if (firebase.functions) {
+    functionsApi = firebase.functions(firebaseApp, 'asia-southeast1');
+    if (window.__QA_USE_EMULATORS__ && location.hostname === '127.0.0.1') {
+      functionsApi.useEmulator('127.0.0.1', 5001);
+    }
+  }
+  window.functionsApi = functionsApi;
   if (window.ChauatCall) {
     ChauatCall.boot({
       role: 'customer',
@@ -1671,7 +1761,21 @@ async function enableNearAlerts() {
   } catch(e) {}
   if ('Notification' in window && Notification.permission === 'default' && !nearAlertsPermissionRequested) {
     nearAlertsPermissionRequested = true;
-    try { await Notification.requestPermission(); } catch(e) {}
+    try {
+      var notificationResult = await Notification.requestPermission();
+      window.recordConsentEvent({
+        eventType: notificationResult === 'granted' ? 'permission_granted' : (notificationResult === 'denied' ? 'permission_denied' : 'permission_dismissed'),
+        subjectType: 'customer',
+        purposeCode: 'customer.service_notifications',
+        policyId: 'customer_service_notifications',
+        policyVersion: '1.0',
+        noticeId: 'general_privacy_notice',
+        noticeVersion: '1.0',
+        consentValue: notificationResult === 'granted',
+        noticeAcknowledged: true,
+        channel: 'runtime_permission_dialog'
+      });
+    } catch(e) { window.recordConsentEvent({ eventType: 'permission_error', subjectType: 'customer', purposeCode: 'customer.service_notifications', channel: 'runtime_permission_dialog' }); }
   }
   var btn = $('near-alert-enable-btn');
   if (btn) btn.textContent = '✅ เปิดเสียงและการสั่นแล้ว';
@@ -2019,6 +2123,7 @@ function initAuth(){
         userProfile = snap.exists ? Object.assign({uid:user.uid},snap.data()) : null;
         window.userProfile = userProfile;
       }catch(e){}
+      flushPendingConsentEvents();
       var avName = (userProfile && userProfile.name) || user.displayName || '';
       if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = getAvatarEmoji(avName);
       subscribeUserOrders();
@@ -2406,6 +2511,15 @@ function renderAllShopsItem(shop, index) {
 }
 
 /* ═══ MERCHANT DETAIL ═══ */
+function merchantCategoryTheme(category) {
+  var key = String(category || '').toLowerCase();
+  if (key === 'restaurant' || key === 'r') return { key: 'restaurant', icon: '🍽️', label: 'ร้านอาหาร' };
+  if (key === 'cafe' || key === 'f') return { key: 'cafe', icon: '☕', label: 'คาเฟ่' };
+  if (key === 'convenience' || key === 'c') return { key: 'convenience', icon: '🏪', label: 'ร้านสะดวกซื้อ' };
+  if (key === 'market' || key === 'm') return { key: 'market', icon: '🛒', label: 'ตลาด' };
+  return { key: 'shop', icon: '🛍️', label: 'ร้านค้า' };
+}
+
 window.openMerchantDetail = async function(merchantId) {
   closeAllShopsModal();
   try {
@@ -2421,19 +2535,39 @@ window.openMerchantDetail = async function(merchantId) {
       lng: Number(m.lng)
     };
     window._menus = menus;
-
-    var headerRating = (m.ratingAvg && m.ratingCount)
-      ? '<div style="text-align:center;margin-top:4px;color:var(--text-muted);font-size:12px;font-weight:800"><span style="color:#FFC107">★</span> ' + Number(m.ratingAvg).toFixed(1) + ' • ' + m.ratingCount + ' รีวิว</div>'
+    var theme = merchantCategoryTheme(m.category);
+    var imgUrl = m.image || m.imageUrl || m.logo || m.shopImage || '';
+    var hasImg = /^https?:\/\//i.test(String(imgUrl));
+    var imgHtml = hasImg
+      ? '<img src="' + esc(imgUrl) + '" alt="' + esc(m.name || 'รูปหน้าร้าน') + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
       : '';
-
+    imgHtml += '<div class="store-detail-hero-fallback"' + (hasImg ? ' style="display:none"' : '') + '>' + theme.icon + '</div>';
+    var phone = String(m.phone || m.tel || '').trim();
+    var phoneHref = phone ? 'tel:' + phone.replace(/[^0-9+]/g, '') : '';
+    var mapsUrl = m.mapsUrl || (window.buildGoogleMapsSearchUrl ? window.buildGoogleMapsSearchUrl(m.name || '', m.lat, m.lng) : '');
+    var rating = (m.ratingAvg && m.ratingCount) ? '⭐ ' + Number(m.ratingAvg).toFixed(1) + ' • ' + m.ratingCount + ' รีวิว' : 'ยังไม่มีรีวิว';
+    var openStatus = m.isOpen === false ? '🔴 ปิดชั่วคราว' : '🟢 เปิดรับออเดอร์';
     var menuListHtml = renderMenuGrouped(menus, m.menuCategories);
     $('modal-body').innerHTML =
-      '<div style="text-align:center;margin-bottom:16px">' +
-        '<h2 style="font-size:20px;font-weight:900">' + esc(m.name || '') + '</h2>' +
-        headerRating +
-      '</div>' +
-      '<div style="max-height:55vh;overflow-y:auto">' + menuListHtml + '</div>' +
-      '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
+      '<div class="store-detail-page" data-store-category="' + theme.key + '">' +
+        '<button class="store-detail-close press-scale" onclick="closeModal()" aria-label="ปิดรายละเอียดร้าน">✕</button>' +
+        '<div class="store-detail-hero">' + imgHtml + '</div>' +
+        '<div class="store-detail-body">' +
+          '<div class="store-detail-kicker">' + theme.icon + ' ' + theme.label + '</div>' +
+          '<h2 class="store-detail-name">' + esc(m.name || 'ร้านค้า') + '</h2>' +
+          '<div class="store-detail-sub">' + esc(m.address || m.description || 'ข้อมูลร้านค้าในพื้นที่ชะอวด') + '</div>' +
+          '<div class="store-detail-status">' + openStatus + ' <span>•</span> <span>' + esc(rating) + '</span></div>' +
+          '<div class="store-detail-actions">' +
+            '<a class="store-detail-action' + (phoneHref ? '' : ' disabled') + '" href="' + (phoneHref ? esc(phoneHref) : '#') + '">📞 โทร</a>' +
+            '<a class="store-detail-action' + (mapsUrl ? '' : ' disabled') + '" href="' + (mapsUrl ? esc(mapsUrl) : '#') + '" target="_blank" rel="noopener">🗺️ แผนที่</a>' +
+            '<button class="store-detail-action primary" onclick="document.querySelector(\'.store-detail-menu-list\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">🍽️ ดูเมนู</button>' +
+          '</div>' +
+          '<div class="store-detail-note">สั่งอาหารจากร้านนี้ได้ในแชท/ตะกร้า ChauatGo • ตรวจสอบสถานะร้านและเมนูก่อนสั่งทุกครั้ง</div>' +
+          '<div class="store-detail-menu-head"><span class="store-detail-menu-title">เมนูของร้าน</span><span class="store-detail-menu-count">' + menus.length + ' รายการ</span></div>' +
+          '<div class="store-detail-menu-list">' + menuListHtml + '</div>' +
+          '<div class="store-detail-footer"><button class="store-detail-close-btn press-scale" onclick="closeModal()">ปิดหน้าร้าน</button></div>' +
+        '</div>' +
+      '</div>';
     openModal();
   } catch (e) { console.error(e); showToast('โหลดไม่สำเร็จ', 'error'); }
 };
@@ -2461,12 +2595,12 @@ function renderMenuGrouped(menus, menuCategories) {
   var html = '';
   cats.forEach(function(catName) {
     if (grouped[catName].length === 0) return;
-    html += '<div style="font-size:14px;font-weight:900;color:var(--text);padding:12px 4px 8px;border-bottom:2px solid var(--brand);margin-bottom:10px;margin-top:8px">📂 ' + esc(catName) + '</div>';
+    html += '<div class="store-detail-category-title" style="font-size:14px;font-weight:900;color:var(--text);padding:12px 4px 8px;border-bottom:2px solid var(--brand);margin-bottom:10px;margin-top:8px">📂 ' + esc(catName) + '</div>';
     html += grouped[catName].map(function(menu){ return renderMenuDetailCard(menu); }).join('');
   });
   if (uncategorized.length > 0) {
     if (cats.some(function(c){ return grouped[c].length > 0; })) {
-      html += '<div style="font-size:14px;font-weight:900;color:var(--text);padding:12px 4px 8px;border-bottom:2px solid var(--brand);margin-bottom:10px;margin-top:8px">📂 อื่นๆ</div>';
+      html += '<div class="store-detail-category-title" style="font-size:14px;font-weight:900;color:var(--text);padding:12px 4px 8px;border-bottom:2px solid var(--brand);margin-bottom:10px;margin-top:8px">📂 อื่นๆ</div>';
     }
     html += uncategorized.map(function(menu){ return renderMenuDetailCard(menu); }).join('');
   }
@@ -5117,12 +5251,101 @@ window.installPWA = async function(){
 window.dismissPWA = function(){ if ($('pwa-install-banner')) $('pwa-install-banner').classList.add('hidden'); localStorage.setItem('chauat_pwa_dismissed', '1'); };
 
 /* ═══ PDPA ═══ */
+function consentQueue(){
+  try { return JSON.parse(localStorage.getItem('chauat_pending_consent_events') || '[]'); }
+  catch(e) { return []; }
+}
+function saveConsentQueue(items){
+  try { localStorage.setItem('chauat_pending_consent_events', JSON.stringify(items.slice(-30))); } catch(e) {}
+}
+function newConsentIdempotencyKey(purposeCode, eventType){
+  return [purposeCode, eventType, 'v1', Date.now(), Math.random().toString(36).slice(2)].join('|');
+}
+window.recordConsentEvent = async function(payload){
+  var body = Object.assign({
+    source: 'web_app',
+    channel: 'first_launch',
+    locale: 'th-TH',
+    idempotencyKey: newConsentIdempotencyKey(payload.purposeCode || 'notice', payload.eventType || 'event')
+  }, payload || {});
+  if (!currentUser || !functionsApi) {
+    var pending = consentQueue(); pending.push(body); saveConsentQueue(pending);
+    window.dispatchEvent(new CustomEvent('chauat:consent-queued', { detail: body }));
+    return { queued: true };
+  }
+  try {
+    var callable = functionsApi.httpsCallable('recordConsentEvent');
+    var result = await callable(body);
+    window.dispatchEvent(new CustomEvent('chauat:consent-saved', { detail: Object.assign({}, body, result.data || {}) }));
+    return Object.assign({ queued: false }, result.data || {});
+  } catch(e) {
+    console.warn('[consent] บันทึกไม่สำเร็จ จะเก็บรอ Sync', e);
+    var retry = consentQueue(); retry.push(body); saveConsentQueue(retry);
+    window.dispatchEvent(new CustomEvent('chauat:consent-queued', { detail: body }));
+    return { queued: true, error: e };
+  }
+};
+async function flushPendingConsentEvents(){
+  if (!currentUser || !functionsApi) return;
+  var pending = consentQueue(); if (!pending.length) return;
+  saveConsentQueue([]);
+  for (var i = 0; i < pending.length; i++) {
+    try { await window.recordConsentEvent(pending[i]); }
+    catch(e) { var retry = consentQueue(); retry.push(pending[i]); saveConsentQueue(retry); }
+  }
+}
 function checkPDPA(){
-  if (!localStorage.getItem('chauat_pdpa_accepted')) { if ($('pdpa-overlay')) $('pdpa-overlay').classList.remove('hidden'); }
+  if (!localStorage.getItem('chauat_privacy_notice_ack_v1')) { if ($('pdpa-overlay')) $('pdpa-overlay').classList.remove('hidden'); }
   else { setTimeout(checkLocationPopup, 1500); }
 }
+window.togglePrivacyChoices = function(){
+  var panel = $('pdpa-choice-panel');
+  var settingsBtn = $('pdpa-settings-btn');
+  if (!panel) return;
+  var open = panel.classList.toggle('show');
+  if (settingsBtn) settingsBtn.textContent = open ? 'ปิดการตั้งค่าเพิ่มเติม' : '⚙️ ตั้งค่าความเป็นส่วนตัว';
+};
+window.savePrivacyChoices = function(){
+  var choices = {
+    marketing: !!($('consent-marketing') && $('consent-marketing').checked),
+    analytics: !!($('consent-analytics') && $('consent-analytics').checked),
+    notifications: !!($('consent-notifications') && $('consent-notifications').checked)
+  };
+  try {
+    Object.keys(choices).forEach(function(key){ localStorage.setItem('chauat_consent_' + key, choices[key] ? 'granted' : 'rejected'); });
+    localStorage.setItem('chauat_consent_version', '1.0');
+  } catch(e) {}
+  Object.keys(choices).forEach(function(key){
+    window.recordConsentEvent({
+      eventType: choices[key] ? 'consent_granted' : 'consent_rejected',
+      subjectType: 'customer',
+      purposeCode: 'customer.' + key,
+      policyId: 'customer_' + key,
+      policyVersion: '1.0',
+      noticeId: 'general_privacy_notice',
+      noticeVersion: '1.0',
+      consentValue: choices[key],
+      noticeAcknowledged: true
+    });
+  });
+  acceptPDPA();
+};
 window.acceptPDPA = function(){
-  localStorage.setItem('chauat_pdpa_accepted', '1');
+  try {
+    localStorage.setItem('chauat_privacy_notice_ack_v1', '1');
+    localStorage.setItem('chauat_pdpa_accepted', '1');
+    localStorage.setItem('chauat_privacy_notice_ack_at', new Date().toISOString());
+  } catch(e) {}
+  window.recordConsentEvent({
+    eventType: 'notice_acknowledged',
+    subjectType: 'customer',
+    purposeCode: 'customer.privacy_notice',
+    policyId: 'general_privacy_notice',
+    policyVersion: '1.0',
+    noticeId: 'general_privacy_notice',
+    noticeVersion: '1.0',
+    noticeAcknowledged: true
+  });
   if ($('pdpa-overlay')) $('pdpa-overlay').classList.add('hidden');
   setTimeout(checkLocationPopup, 500);
 };
@@ -5132,12 +5355,19 @@ window.checkLocationPopup = function(){
 window.requestLocation = function(){
   localStorage.setItem('chauat_location_asked', '1');
   if ($('loc-popup-overlay')) $('loc-popup-overlay').classList.add('hidden');
-  if (!navigator.geolocation) return;
+  if (!navigator.geolocation) {
+    window.recordConsentEvent({ eventType: 'permission_unavailable', subjectType: 'customer', purposeCode: 'customer.location.nearby_search', channel: 'runtime_permission_dialog' });
+    return;
+  }
   navigator.geolocation.getCurrentPosition(function(pos){
     userLocation = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+    window.recordConsentEvent({ eventType: 'permission_granted', subjectType: 'customer', purposeCode: 'customer.location.nearby_search', policyId: 'customer_location_nearby', policyVersion: '1.0', noticeId: 'general_privacy_notice', noticeVersion: '1.0', consentValue: true, noticeAcknowledged: true, channel: 'runtime_permission_dialog' });
     showToast('📍 เปิด GPS แล้ว');
     if (nearbyShopsLoaded) renderNearbyShops();
-  }, function(){ showToast('ไม่สามารถเข้าถึง GPS','error'); });
+  }, function(error){
+    window.recordConsentEvent({ eventType: error && error.code === 1 ? 'permission_denied' : 'permission_error', subjectType: 'customer', purposeCode: 'customer.location.nearby_search', policyId: 'customer_location_nearby', policyVersion: '1.0', noticeId: 'general_privacy_notice', noticeVersion: '1.0', consentValue: false, noticeAcknowledged: true, channel: 'runtime_permission_dialog' });
+    showToast('ไม่สามารถเข้าถึง GPS','error');
+  });
 };
 window.skipLocation = function(){
   localStorage.setItem('chauat_location_asked', '1');
