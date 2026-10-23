@@ -3,8 +3,8 @@ rules_version = '2';
 // Deltas from v3.8.4:
 //   * merchants: unauthenticated read only when verified == true (shop list query)
 //   * menus: public read (list query is merchantId only; cannot prove parent verified)
-//   * orders update [B]: parentheses fixed; food accept only from cooking/ready;
-//     ride/express/shopping (no kitchen) may still accept from searching/pending
+//   * orders update: a rider cannot set riderId or status accepted.
+//     Acceptance is only the acceptDispatchOffer / claimOpenJob callables.
 //   * orders update [E]: merchant may set foodReady + readyAt after rider accepted,
 //     without changing status; status becomes ready only while no rider is assigned
 //   * orders update [C]: picked_up only after food is ready when the order needs a kitchen
@@ -18,10 +18,9 @@ rules_version = '2';
 //     themselves and write offer, answer, and ICE for that call.
 //   * orders read: customer, shop, assigned rider, admin/boss, or a rider
 //     reading an unassigned searching/pending/cooking/ready order.
-//   * auto dispatch: riders cannot write dispatch fields or dispatchOffers.
-//     While config/dispatch.mode is auto, a rider may claim an order when it
-//     is offered to them alone, or when orders/{id}/dispatchOffers/{their uid}
-//     is still pending (broadcast). config/dispatch is admin-write, auth-read.
+//   * auto dispatch: riders cannot write dispatch fields, dispatchOffers,
+//     or rider_locks. Claiming an order from the client is denied.
+//     config/dispatch is admin-write, auth-read.
 //   * chats/messages: the order's customer, rider, or shop may read and send
 //     even when the chat doc has no userId/riderId (or does not exist yet).
 //     A missing chat can be read as "not found" by any signed-in user.
@@ -202,25 +201,6 @@ service cloud.firestore {
 
     function isOrderCustomer() {
       return isAuth() && resource.data.get('userId', '') == myUid();
-    }
-
-    function autoDispatchOn() {
-      return exists(/databases/$(database)/documents/config/dispatch)
-        && get(/databases/$(database)/documents/config/dispatch).data.get('mode', 'manual') == 'auto';
-    }
-
-    function myPendingOffer(orderId) {
-      return get(/databases/$(database)/documents/orders/$(orderId)/dispatchOffers/$(myUid()));
-    }
-
-    function riderMayTakeOpenJob(orderId) {
-      return !autoDispatchOn()
-        || resource.data.get('dispatchOfferRiderId', '') == myUid()
-        || (
-          exists(/databases/$(database)/documents/orders/$(orderId)/dispatchOffers/$(myUid()))
-          && myPendingOffer(orderId).data.get('riderId', '') == myUid()
-          && myPendingOffer(orderId).data.get('status', '') == 'pending'
-        );
     }
 
     function canReadOrder() {
@@ -499,20 +479,6 @@ service cloud.firestore {
           && request.resource.data.status == 'cancelled'
           && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
         )
-        // [B] rider accept — fully parenthesized (v3.8.4 bound || tighter than &&)
-        || (
-          isRiderActor()
-          && noRider(resource.data)
-          && request.resource.data.riderId == myUid()
-          && request.resource.data.status == 'accepted'
-          && identityFrozen()
-          && riderMayTakeOpenJob(orderId)
-          && onlyChanged(['riderId', 'riderName', 'riderPhone', 'status', 'acceptedAt'])
-          && (
-            (needsKitchen() && resource.data.status in ['cooking', 'ready'])
-            || (!needsKitchen() && resource.data.status in ['searching', 'pending', 'cooking', 'ready'])
-          )
-        )
         // [C] rider pickup — kitchen orders only after the shop marked ready
         || (
           isAssignedRider()
@@ -782,6 +748,11 @@ service cloud.firestore {
     // Consent Events are created by the trusted Cloud Function only.
     // Clients may read their own history for privacy/DSAR screens, but cannot
     // forge subjectRef/timestamps or mutate append-only audit evidence.
+    // One-job lock. Only Cloud Functions (admin SDK) may read or write it.
+    match /rider_locks/{riderId} {
+      allow read, write: if false;
+    }
+
     match /consent_events/{eventId} {
       allow read: if isAdmin() || (isAuth() && resource.data.subjectRef == myUid());
       allow create, update, delete: if false;

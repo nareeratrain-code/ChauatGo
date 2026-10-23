@@ -804,8 +804,7 @@ async function handleLogout() {
    ═══════════════════════════════════════════════════════════════════ */
 auth.onAuthStateChanged(async (user) => {
   const epoch = ++authEpoch;
-  const qaJobFilter = new URLSearchParams(window.location.search).get('qa') === 'job-filter';
-  if (qaJobFilter) {
+  if (qaFilterHookEnabled()) {
     currentUser = { uid: 'qa-rider' };
     riderProfile = { uid: 'qa-rider', verified: true, status: 'active', name: 'QA Rider' };
     isOnline = true;
@@ -995,7 +994,7 @@ function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
   myHistoryUnsub = db.collection('orders')
     .where('riderId', '==', currentUser.uid)
-    .where('status', '==', 'done')
+    .where('status', 'in', ['done', 'cancelled'])
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
@@ -1070,7 +1069,7 @@ function updateOnlineToggle() {
 }
 
 function updateHeroStats() {
-  const today = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
+  const today = allHistory.filter(j => j.status === 'done' && isToday(j.doneAt || j.createdAt));
   const feeTotal = today.reduce((s, j) => {
     const f = Number(j.fare || 0);
     return s + f * RIDER_SHARE;
@@ -1111,14 +1110,21 @@ function updateHeroStats() {
   if (totalEl) totalEl.textContent = riderProfile?.totalJobs || allHistory.length;
 }
 
-function isFoodJob(job) {
-  return !!(job && (job.type === 'food' || job.merchantId));
-}
+const JOB_FILTERS = ['all', 'food', 'express', 'ride', 'shopping'];
 
 function matchesJobFilter(job) {
-  if (jobFilter === 'food') return isFoodJob(job);
-  if (jobFilter === 'express') return !isFoodJob(job);
-  return true;
+  if (!jobFilter || jobFilter === 'all') return true;
+  return !!(job && job.type === jobFilter);
+}
+
+function historyMoment(job) {
+  return job && (job.doneAt || job.cancelledAt || job.createdAt);
+}
+
+function qaFilterHookEnabled() {
+  const host = (window.location && window.location.hostname) || '';
+  if (host !== 'localhost' && host !== '127.0.0.1') return false;
+  return new URLSearchParams(window.location.search).get('qa') === 'job-filter';
 }
 
 /* Active Jobs เป็นงานที่ไรเดอร์รับแล้ว ต้องแสดงเสมอไม่ว่ากำลังเลือก
@@ -1130,7 +1136,7 @@ function isActiveRiderJob(job, myId) {
 }
 
 function setJobFilter(filter) {
-  jobFilter = ['all', 'food', 'express'].includes(filter) ? filter : 'all';
+  jobFilter = JOB_FILTERS.indexOf(filter) === -1 ? 'all' : filter;
   document.querySelectorAll('[data-job-filter]').forEach(btn => {
     const active = btn.dataset.jobFilter === jobFilter;
     btn.classList.toggle('active', active);
@@ -1159,9 +1165,7 @@ function renderJobs() {
      และไม่ใช้ matchesJobFilter เพื่อไม่ให้งานที่รับแล้วหายจากหน้าจอ */
   const activeJobs = activeMine.filter(j => isActiveRiderJob(j, myId));
 
-  const doneToday = allHistory.filter(j =>
-    matchesJobFilter(j) && isToday(j.doneAt || j.createdAt)
-  );
+  const doneToday = allHistory.filter(j => isToday(historyMoment(j)));
 
   const newSec = $('new-job-section');
   const actSec = $('active-job-section');
@@ -1199,7 +1203,8 @@ function renderJobCard(j, type) {
     picked_up: { label: orderIsCash(j) ? '💵 รับของแล้ว • เก็บเงินสดตอนส่ง' : '📦 รอลูกค้าโอนเงิน', color: '#E65100', bg: '#FFF3E0' },
     customer_paid: { label: '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
-    done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' }
+    done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' },
+    cancelled: { label: 'ยกเลิกแล้ว', color: '#8A3A3A', bg: '#FDECEC' }
   }[j.status] || { label: j.status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
 
   const payBadge = fin.isCash
@@ -1251,7 +1256,7 @@ function renderJobCard(j, type) {
   } else if (j.status === 'on_the_way') {
     primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
       <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-  } else if (j.status === 'done') {
+  } else if (j.status === 'done' || j.status === 'cancelled') {
     primaryAction = `<button class="jc-primary-btn jc-gray" data-detail="${esc(j.id)}">📄 ดูรายละเอียด</button>`;
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
@@ -1339,36 +1344,18 @@ function sendAutomatedChatLater(orderId, key, text) {
    16. JOB ACTIONS
    ═══════════════════════════════════════════════════════════════════ */
 
-/* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้ */
+/* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้
+   The server transaction assigns the rider. The phone cannot write riderId. */
 async function acceptJob(jobId) {
   if (dispatchMode() === 'auto') {
     return showToast('โหมดอัตโนมัติ — รอกดรับจากใบเสนอ', 'warning');
   }
+  if (!currentUser || acceptingOffer) return;
+  acceptingOffer = true;
   try {
-    const ref = db.collection('orders').doc(jobId);
-    let readyAlready = false;
-    let prepMinutes = 0;
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) throw new Error('missing');
-      const job = snap.data();
-      if (job.riderId) throw new Error('taken');
-      if (orderNeedsKitchen(job)) {
-        if (job.status === 'searching' || job.status === 'pending') throw new Error('shop');
-        if (!RIDER_CLAIM_STATUSES.includes(job.status)) throw new Error('taken');
-      } else if (!RIDER_OPEN_STATUSES.includes(job.status)) {
-        throw new Error('taken');
-      }
-      readyAlready = !!(job.foodReady || job.readyAt || job.status === 'ready');
-      prepMinutes = Number(job.prepMinutes || 0);
-      tx.update(ref, {
-        riderId: currentUser.uid,
-        riderName: riderProfile.name,
-        riderPhone: riderProfile.phone,
-        status: 'accepted',
-        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    });
+    const result = await callDispatch('claimOpenJob', { orderId: jobId });
+    const readyAlready = !!(result && result.readyAlready);
+    const prepMinutes = Number((result && result.prepMinutes) || 0);
     showToast(readyAlready
       ? '✅ รับงานแล้ว — อาหารพร้อม ไปที่ร้าน'
       : ('✅ รับงานแล้ว — ร้านกำลังทำ' + (prepMinutes ? ' ประมาณ ' + prepMinutes + ' นาที' : '')));
@@ -1376,11 +1363,9 @@ async function acceptJob(jobId) {
     closeNewJobPopup();
     scheduleGPSIfActive();
   } catch (err) {
-    const code = err && err.message;
-    if (code === 'shop') return showToast('รอร้านรับออเดอร์ก่อน', 'warning');
-    if (code === 'taken') return showToast('⚠️ งานนี้ถูกรับไปแล้วหรือไม่พร้อม', 'warning');
-    if (code === 'missing') return showToast('ไม่พบงานนี้', 'error');
-    showToast('รับงานไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(acceptErrorText(err), 'error', 6000);
+  } finally {
+    acceptingOffer = false;
   }
 }
 
@@ -2263,20 +2248,21 @@ function showProfile() {
 }
 
 function showFinance() {
-  const today = allHistory.filter(j => isToday(j.doneAt || j.createdAt));
-  const week = allHistory.filter(j => {
+  const finished = allHistory.filter(j => j.status === 'done');
+  const today = finished.filter(j => isToday(j.doneAt || j.createdAt));
+  const week = finished.filter(j => {
     const d = toDate(j.doneAt);
     if (!d) return false;
     return d >= new Date(Date.now() - 7 * 86400000);
   });
-  const month = allHistory.filter(j => {
+  const month = finished.filter(j => {
     const d = toDate(j.doneAt);
     if (!d) return false;
     return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
   });
 
   const sum = (arr) => arr.reduce((s, j) => s + Number(j.riderIncome || 0), 0);
-  const pendingOwe = allHistory.filter(j => !j.riderPaid).reduce((s, j) => s + Number(j.riderOwe || 0), 0);
+  const pendingOwe = finished.filter(j => !j.riderPaid).reduce((s, j) => s + Number(j.riderOwe || 0), 0);
 
   const mc = $('modalContent');
   if (!mc) return;
@@ -2351,7 +2337,7 @@ function showHistory() {
             <span style="color:var(--green)">฿${fmt(j.riderIncome || 0)}</span>
           </div>
           <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-top:4px">
-            🕐 ${fmtDateTime(j.doneAt || j.createdAt)} • 👤 ${esc(j.userName || '')}
+            🕐 ${fmtDateTime(historyMoment(j))} • ${j.status === 'cancelled' ? 'ยกเลิก' : 'เสร็จ'} • 👤 ${esc(j.userName || '')}
           </div>
         </div>
       `).join('')
@@ -2827,95 +2813,37 @@ function tickOffer() {
   }
 }
 
-function maxJobsPerRider() {
-  const n = Math.round(Number(dispatchConfig && dispatchConfig.maxJobsPerRider));
-  if (!Number.isFinite(n) || n < 1) return 1;
-  return Math.min(5, n);
-}
-
-function offerOrderIsOpen(job) {
-  if (!job || job.riderId) return false;
-  if (orderNeedsKitchen(job)) return job.status === 'cooking' || job.status === 'ready';
-  return job.status === 'searching' || job.status === 'pending' || job.status === 'cooking' || job.status === 'ready';
-}
-
-function holdingJobMessage(docs, cap) {
-  const first = docs[0] && typeof docs[0].data === 'function' ? (docs[0].data() || {}) : {};
-  const code = first.code || first.orderCode || '';
-  const who = code ? ' (' + code + ')' : '';
-  const waitingPay = docs.some((d) => {
-    const j = typeof d.data === 'function' ? (d.data() || {}) : {};
-    return j.status === 'picked_up' && !orderIsCash(j) && !j.customerPaidAt;
-  });
-  if (waitingPay) {
-    return 'ยังส่งงานไม่เสร็จ' + who + ' — รอลูกค้าโอนเงินคือรับของแล้ว ยังไม่ได้เริ่มส่ง จึงรับงานใหม่ไม่ได้ (สูงสุด ' + cap + ' งาน)';
-  }
-  return 'ยังมีงานค้างอยู่' + who + ' — รับพร้อมกันได้ ' + cap + ' งาน';
-}
-
 function acceptErrorText(err) {
   const code = String((err && err.code) || '');
   const msg = String((err && err.message) || '');
-  if (code.indexOf('permission-denied') !== -1 || msg === 'permission') {
+  if (code.indexOf('permission-denied') !== -1 || msg === 'permission' || msg === 'not-yours') {
     return 'ไม่มีสิทธิ์รับงานนี้ — รับได้เฉพาะงานที่ระบบเสนอให้คุณ';
   }
   if (msg === 'taken') return 'งานนี้มีคนรับแล้ว';
   if (msg === 'expired') return 'หมดเวลาเสนองานแล้ว';
   if (msg === 'stale') return 'ข้อเสนอนี้ไม่ใช่รอบปัจจุบัน';
   if (msg === 'closed') return 'ข้อเสนอนี้ปิดแล้ว';
-  if (msg === 'missing') return 'ไม่พบงานนี้';
-  if (msg === 'not-ready') return 'งานนี้ยังไม่พร้อมให้รับ';
+  if (msg === 'missing' || msg === 'missing-order' || msg === 'missing-offer') return 'ไม่พบงานนี้';
+  if (msg === 'not-ready' || msg === 'shop') return 'งานนี้ยังไม่พร้อมให้รับ';
   if (msg === 'busy') return 'ยังมีงานค้างอยู่ — รับงานใหม่ไม่ได้';
   if (msg === 'unverified') return 'บัญชียังไม่ได้รับการอนุมัติ';
+  if (msg === 'auto') return 'โหมดอัตโนมัติ — กดรับจากใบเสนอ';
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg) || code === 'unavailable') {
     return 'ติดต่อระบบไม่ได้ — ตรวจสัญญาณเน็ตแล้วลองอีกครั้ง';
   }
+  if (msg) return msg;
   return 'รับงานไม่สำเร็จ';
 }
 
-/* Accept by writing the order. Rules already allow the offered rider to set
-   riderId/status/acceptedAt. That avoids the callable, whose Cloud Run
-   service often answers 403 without CORS and Chrome reports "Failed to fetch".
-   onOrderWritten then marks the offer accepted and raises the job count. */
+/* The callable in asia-southeast1 assigns the order inside one transaction.
+   Platform App Check is off so a rejection comes back with CORS headers. */
 async function acceptDispatchOffer() {
   const o = currentOffer;
   if (!o || !currentUser || acceptingOffer) return;
   acceptingOffer = true;
   try {
     if (riderProfile && riderProfile.verified !== true) throw new Error('unverified');
-    if (o.deadlineMs && Date.now() >= o.deadlineMs) throw new Error('expired');
-    const cap = maxJobsPerRider();
-    const mine = await db.collection('orders')
-      .where('riderId', '==', currentUser.uid)
-      .where('status', 'in', RIDER_ACTIVE_STATUSES)
-      .limit(8)
-      .get();
-    if (mine.size >= cap) {
-      showToast(holdingJobMessage(mine.docs, cap), 'warning', 7000);
-      return;
-    }
-    const orderRef = db.collection('orders').doc(o.orderId);
-    const offerRef = orderRef.collection('dispatchOffers').doc(o.id);
-    await db.runTransaction(async (tx) => {
-      const orderSnap = await tx.get(orderRef);
-      const offerSnap = await tx.get(offerRef);
-      if (!orderSnap.exists || !offerSnap.exists) throw new Error('missing');
-      const job = orderSnap.data() || {};
-      const offer = offerSnap.data() || {};
-      if (offer.riderId !== currentUser.uid) throw new Error('permission');
-      if (offer.status !== 'pending') throw new Error('closed');
-      if (job.riderId) throw new Error('taken');
-      if (job.dispatchOfferId && job.dispatchOfferId !== o.id && offer.broadcast !== true) throw new Error('stale');
-      if (job.dispatchOfferRiderId && job.dispatchOfferRiderId !== currentUser.uid) throw new Error('permission');
-      if (!offerOrderIsOpen(job)) throw new Error('not-ready');
-      tx.update(orderRef, {
-        riderId: currentUser.uid,
-        riderName: (riderProfile && riderProfile.name) || offer.riderName || '',
-        riderPhone: (riderProfile && riderProfile.phone) || '',
-        status: 'accepted',
-        acceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    });
+    await callDispatch('acceptDispatchOffer', { orderId: o.orderId, offerId: o.id });
     hiddenOfferIds.add(o.id);
     clearOffer(true);
     showToast('รับงานแล้ว');
@@ -3061,8 +2989,8 @@ window.showGPIncome = showGPIncome;
 window.showTrustScore = showTrustScore;
 window.showHistory = showHistory;
 
-/* QA-only hooks: enabled only on the local/e2e rider filter route. */
-if (new URLSearchParams(window.location.search).get('qa') === 'job-filter') {
+/* Local e2e only. A production host never gets this hook. */
+if (qaFilterHookEnabled()) {
   let qaLoadError = '';
   window.__QA_RIDER_FILTER__ = {
     setJobs: function (jobs) {

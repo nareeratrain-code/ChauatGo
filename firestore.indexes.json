@@ -23,6 +23,14 @@
         { "fieldPath": "riderId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "consent_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subjectRef", "order": "ASCENDING" },
+        { "fieldPath": "receivedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

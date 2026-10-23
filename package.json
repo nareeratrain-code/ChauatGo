@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build-client.js",
+    "places": "node scripts/fetch-osm-places.js",
     "test:e2e:permissions": "playwright test tests/e2e/permissions.spec.js",
     "test:e2e:permissions:ui": "playwright test tests/e2e/permissions.spec.js --ui",
     "test:e2e:rider-filter": "playwright test --config=playwright.rider-filter.config.js tests/e2e/rider-job-filter.spec.js",

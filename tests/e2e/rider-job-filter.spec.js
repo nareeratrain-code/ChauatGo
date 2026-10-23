@@ -28,54 +28,71 @@ async function readFilterState(page) {
 }
 
 test.describe('Rider Job Filter', () => {
-  test('แสดงตัวกรอง 3 ตัวเลือกและเลือกทั้งหมดเป็นค่าเริ่มต้น', async ({ page }) => {
+  test('แสดงตัวกรองห้าประเภทและเลือกทั้งหมดเป็นค่าเริ่มต้น', async ({ page }) => {
     await openRiderFilterQA(page);
 
     await expect(page.locator('#job-filter-bar')).toBeVisible();
     await expect(page.locator('[data-job-filter="all"]')).toHaveText('ทั้งหมด');
     await expect(page.locator('[data-job-filter="food"]')).toContainText('ส่งอาหาร');
     await expect(page.locator('[data-job-filter="express"]')).toContainText('ส่งด่วน');
+    await expect(page.locator('[data-job-filter="ride"]')).toContainText('เรียกรถ');
+    await expect(page.locator('[data-job-filter="shopping"]')).toContainText('ฝากซื้อ');
     await expect(page.locator('[data-job-filter="all"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('[data-job-filter="food"]')).toHaveAttribute('aria-selected', 'false');
   });
 
-  test('กรองอาหาร Partner และร้านที่มี merchantId ได้ถูกต้อง', async ({ page }) => {
+  test('กรองงานใหม่ตาม order.type และไม่ใช้ merchantId', async ({ page }) => {
     await openRiderFilterQA(page);
     await setJobs(page, [
-      { id: 'food-1', type: 'food', status: 'cooking', merchantId: 'merchant-1', title: 'อาหาร 1' },
+      { id: 'food-1', type: 'food', status: 'cooking', title: 'อาหารไม่มีร้าน' },
       { id: 'food-2', type: 'food', status: 'ready', merchantId: 'merchant-2', title: 'อาหาร 2' },
-      { id: 'food-3', status: 'cooking', merchantId: 'merchant-3', title: 'อาหารไม่มี type' },
-      { id: 'express-1', type: 'express', status: 'searching', title: 'ส่งด่วน 1' },
-      { id: 'shopping-1', type: 'shopping', status: 'searching', title: 'ฝากซื้อ 1' }
+      { id: 'shop-id-only', status: 'cooking', merchantId: 'merchant-3', title: 'มีร้านแต่ไม่มี type' },
+      { id: 'express-with-shop', type: 'express', status: 'searching', merchantId: 'merchant-9', title: 'ส่งด่วนที่มีร้าน' },
+      { id: 'ride-1', type: 'ride', status: 'searching', title: 'เรียกรถ 1' },
+      { id: 'shopping-1', type: 'shopping', status: 'searching', merchantId: 'merchant-4', title: 'ฝากซื้อ 1' }
     ]);
 
     await page.locator('[data-job-filter="food"]').click();
     const foodState = await readFilterState(page);
     expect(foodState.filter).toBe('food');
-    expect(foodState.newIds).toEqual(expect.arrayContaining(['food-1', 'food-2', 'food-3']));
-    expect(foodState.newIds).toHaveLength(3);
-    expect(foodState.newCount).toBe('3');
+    expect(foodState.newIds).toEqual(['food-1', 'food-2']);
+    expect(foodState.newCount).toBe('2');
 
     await page.locator('[data-job-filter="express"]').click();
     const expressState = await readFilterState(page);
-    expect(expressState.filter).toBe('express');
-    expect(expressState.newIds).toEqual(expect.arrayContaining(['express-1', 'shopping-1']));
-    expect(expressState.newIds).toHaveLength(2);
-    expect(expressState.newCount).toBe('2');
+    expect(expressState.newIds).toEqual(['express-with-shop']);
+    expect(expressState.newCount).toBe('1');
+
+    await page.locator('[data-job-filter="ride"]').click();
+    const rideState = await readFilterState(page);
+    expect(rideState.newIds).toEqual(['ride-1']);
+
+    await page.locator('[data-job-filter="shopping"]').click();
+    const shoppingState = await readFilterState(page);
+    expect(shoppingState.newIds).toEqual(['shopping-1']);
+
+    await page.locator('[data-job-filter="all"]').click();
+    const allState = await readFilterState(page);
+    expect(allState.newIds).toEqual(expect.arrayContaining([
+      'food-1', 'food-2', 'shop-id-only', 'express-with-shop', 'ride-1', 'shopping-1'
+    ]));
+    expect(allState.newCount).toBe('6');
   });
 
-  test('กรองเฉพาะงานใหม่ แต่งานที่กำลังทำและงานเสร็จยังแสดงตามประเภทที่เลือก', async ({ page }) => {
+  test('งานที่กำลังทำและงานเสร็จวันนี้ไม่ถูกตัวกรองซ่อน', async ({ page }) => {
     await openRiderFilterQA(page);
     await setJobs(page, [
       { id: 'active-food', type: 'food', status: 'on_the_way', riderId: 'qa-rider', merchantId: 'merchant-1', title: 'อาหารกำลังส่ง' },
-      { id: 'active-express', type: 'express', status: 'on_the_way', riderId: 'qa-rider', title: 'ส่งด่วนกำลังส่ง' }
+      { id: 'active-express', type: 'express', status: 'on_the_way', riderId: 'qa-rider', title: 'ส่งด่วนกำลังส่ง' },
+      { id: 'new-ride', type: 'ride', status: 'searching', title: 'เรียกรถใหม่' }
     ]);
 
     await page.evaluate(() => {
       const now = new Date();
       window.__QA_RIDER_FILTER__.setHistory([
         { id: 'done-food', type: 'food', merchantId: 'merchant-2', status: 'done', doneAt: now, title: 'อาหารเสร็จ' },
-        { id: 'done-express', type: 'express', status: 'done', doneAt: now, title: 'ส่งด่วนเสร็จ' }
+        { id: 'done-express', type: 'express', status: 'done', doneAt: now, title: 'ส่งด่วนเสร็จ' },
+        { id: 'cancelled-ride', type: 'ride', status: 'cancelled', cancelledAt: now, title: 'เรียกรถยกเลิก' }
       ]);
     });
 
@@ -83,15 +100,16 @@ test.describe('Rider Job Filter', () => {
     let state = await readFilterState(page);
     expect(state.activeIds).toEqual(['active-food', 'active-express']);
     expect(state.activeCount).toBe('2');
-    expect(state.doneIds).toEqual(['done-food']);
-    expect(state.doneCount).toBe('1');
+    expect(state.newIds).toEqual([]);
+    expect(state.doneIds).toEqual(['done-food', 'done-express', 'cancelled-ride']);
+    expect(state.doneCount).toBe('3');
 
-    await page.locator('[data-job-filter="express"]').click();
+    await page.locator('[data-job-filter="ride"]').click();
     state = await readFilterState(page);
+    expect(state.newIds).toEqual(['new-ride']);
     expect(state.activeIds).toEqual(['active-food', 'active-express']);
-    expect(state.activeCount).toBe('2');
-    expect(state.doneIds).toEqual(['done-express']);
-    expect(state.doneCount).toBe('1');
+    expect(state.doneIds).toEqual(['done-food', 'done-express', 'cancelled-ride']);
+    expect(state.doneCount).toBe('3');
   });
 
   test('ปุ่มตัวกรองอัปเดต aria-selected และกลับมาที่ทั้งหมดได้', async ({ page }) => {

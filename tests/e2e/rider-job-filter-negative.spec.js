@@ -52,7 +52,12 @@ test.describe('Rider Job Filter - Negative Tests', () => {
 
   test('เมื่อรายการงานมีข้อมูลไม่ครบหรือ type แปลก ระบบไม่โยน Exception', async ({ page }) => {
     const pageErrors = [];
-    page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('pageerror', error => {
+      const msg = error.message || '';
+      // App Check reCAPTCHA cannot complete in the local test browser.
+      if (/cancelled|recaptcha|appcheck/i.test(msg)) return;
+      pageErrors.push(msg);
+    });
     await openRiderFilterQA(page);
 
     await page.evaluate(() => window.__QA_RIDER_FILTER__.setJobs([
@@ -69,7 +74,11 @@ test.describe('Rider Job Filter - Negative Tests', () => {
 
     await page.locator('[data-job-filter="express"]').click();
     const expressResult = await state(page);
-    expect(expressResult.newIds).toEqual(expect.arrayContaining(['unknown-type', 'missing-id']));
+    expect(expressResult.newIds).toEqual(['missing-id']);
+
+    await page.locator('[data-job-filter="all"]').click();
+    const allResult = await state(page);
+    expect(allResult.newIds).toEqual(expect.arrayContaining(['unknown-type', 'missing-id', 'food-no-name']));
     expect(pageErrors).toEqual([]);
   });
 

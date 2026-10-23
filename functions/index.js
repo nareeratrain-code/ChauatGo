@@ -16,7 +16,12 @@ if (!getApps().length) initializeApp();
 const db = getFirestore();
 
 const APP_CHECK_ENFORCE = enforceFromEnv(process.env);
-const CALL = { invoker: 'public', cors: true, enforceAppCheck: APP_CHECK_ENFORCE };
+// invoker public + cors so the browser can call asia-southeast1. Do not set
+// enforceAppCheck here: the platform rejects a missing token with a 403 that
+// has no CORS headers, and Chrome reports that as "Failed to fetch".
+// guardAppCheck still rejects when APP_CHECK_ENFORCE=true, and that error
+// is a normal callable response the page can read.
+const CALL = { invoker: 'public', cors: true, enforceAppCheck: false };
 console.info('[appcheck] enforce=' + APP_CHECK_ENFORCE);
 
 function guardAppCheck(req, name) {
@@ -39,8 +44,10 @@ const REASONS = {
   expired: 'หมดเวลา',
   taken: 'งานนี้มีคนรับแล้ว',
   stale: 'ข้อเสนอนี้ไม่ใช่รอบปัจจุบัน',
-  busy: 'รับงานพร้อมกันได้ไม่เกินจำนวนที่กำหนด',
-  unverified: 'บัญชียังไม่ได้รับการอนุมัติ'
+  busy: 'ยังมีงานค้างอยู่ — รับงานใหม่ไม่ได้',
+  unverified: 'บัญชียังไม่ได้รับการอนุมัติ',
+  auto: 'โหมดอัตโนมัติ — กดรับจากใบเสนอ',
+  shop: 'รอร้านรับออเดอร์ก่อน'
 };
 
 function fail(err) {
@@ -88,6 +95,19 @@ exports.acceptDispatchOffer = onCall(CALL, async (req) => {
   if (!data.orderId || !data.offerId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
   try {
     return await D.acceptOffer(db, req.auth.uid, data.orderId, data.offerId);
+  } catch (err) {
+    fail(err);
+  }
+});
+
+// Manual-mode list accept. Auto mode must use acceptDispatchOffer.
+exports.claimOpenJob = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'claimOpenJob');
+  const data = req.data || {};
+  if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
+  try {
+    return await D.claimOpenJob(db, req.auth.uid, data.orderId);
   } catch (err) {
     fail(err);
   }
