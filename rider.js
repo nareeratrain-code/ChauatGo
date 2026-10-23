@@ -1121,6 +1121,14 @@ function matchesJobFilter(job) {
   return true;
 }
 
+/* Active Jobs เป็นงานที่ไรเดอร์รับแล้ว ต้องแสดงเสมอไม่ว่ากำลังเลือก
+   ตัวกรองงานใหม่ประเภทใดอยู่ก็ตาม */
+function isActiveRiderJob(job, myId) {
+  return !!(job && myId && job.riderId === myId && (
+    RIDER_ACTIVE_STATUSES.includes(job.status) || job.status === 'ready'
+  ));
+}
+
 function setJobFilter(filter) {
   jobFilter = ['all', 'food', 'express'].includes(filter) ? filter : 'all';
   document.querySelectorAll('[data-job-filter]').forEach(btn => {
@@ -1140,17 +1148,16 @@ function setJobFilter(filter) {
 function renderJobs() {
   const myId = currentUser?.uid;
 
-  const newJobs = allJobs.filter(j =>
+  /* Job Filter มีผลเฉพาะงานใหม่ที่ยังรอให้ไรเดอร์รับเท่านั้น */
+  const newJobs = openJobs.filter(j =>
     matchesJobFilter(j) &&
     riderMayClaim(j) &&
     riderProfile?.verified && isOnline
   );
 
-  const activeJobs = allJobs.filter(j =>
-    matchesJobFilter(j) &&
-    j.riderId === myId &&
-    (RIDER_ACTIVE_STATUSES.includes(j.status) || j.status === 'ready')
-  );
+  /* Active Jobs แยกจาก New Jobs อย่างเด็ดขาด: อ่านจาก activeMine
+     และไม่ใช้ matchesJobFilter เพื่อไม่ให้งานที่รับแล้วหายจากหน้าจอ */
+  const activeJobs = activeMine.filter(j => isActiveRiderJob(j, myId));
 
   const doneToday = allHistory.filter(j =>
     matchesJobFilter(j) && isToday(j.doneAt || j.createdAt)
@@ -3064,7 +3071,9 @@ if (new URLSearchParams(window.location.search).get('qa') === 'job-filter') {
       isOnline = true;
       dispatchConfig = { mode: 'manual' };
       openJobs = Array.isArray(jobs) ? jobs : [];
-      activeMine = [];
+      activeMine = Array.isArray(jobs)
+        ? jobs.filter(job => isActiveRiderJob(job, 'qa-rider'))
+        : [];
       allHistory = [];
       qaLoadError = '';
       publishJobs(new Set());

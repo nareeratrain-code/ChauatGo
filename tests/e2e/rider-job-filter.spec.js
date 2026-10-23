@@ -64,7 +64,7 @@ test.describe('Rider Job Filter', () => {
     expect(expressState.newCount).toBe('2');
   });
 
-  test('กรองงานที่กำลังทำและงานเสร็จวันนี้ตามประเภทเดียวกัน', async ({ page }) => {
+  test('กรองเฉพาะงานใหม่ แต่งานที่กำลังทำและงานเสร็จยังแสดงตามประเภทที่เลือก', async ({ page }) => {
     await openRiderFilterQA(page);
     await setJobs(page, [
       { id: 'active-food', type: 'food', status: 'on_the_way', riderId: 'qa-rider', merchantId: 'merchant-1', title: 'อาหารกำลังส่ง' },
@@ -81,15 +81,15 @@ test.describe('Rider Job Filter', () => {
 
     await page.locator('[data-job-filter="food"]').click();
     let state = await readFilterState(page);
-    expect(state.activeIds).toEqual(['active-food']);
-    expect(state.activeCount).toBe('1');
+    expect(state.activeIds).toEqual(['active-food', 'active-express']);
+    expect(state.activeCount).toBe('2');
     expect(state.doneIds).toEqual(['done-food']);
     expect(state.doneCount).toBe('1');
 
     await page.locator('[data-job-filter="express"]').click();
     state = await readFilterState(page);
-    expect(state.activeIds).toEqual(['active-express']);
-    expect(state.activeCount).toBe('1');
+    expect(state.activeIds).toEqual(['active-food', 'active-express']);
+    expect(state.activeCount).toBe('2');
     expect(state.doneIds).toEqual(['done-express']);
     expect(state.doneCount).toBe('1');
   });
