@@ -27,12 +27,16 @@ test('notification clicks follow data.type', () => {
 
 test('clients use the order callables and drop the unused fee constants', () => {
   assert.equal(indexHtml.includes("collection('orders').add"), false);
-  assert.match(indexHtml, /httpsCallable\('createOrder'\)/);
+  assert.equal(indexHtml.includes("httpsCallable('createOrder')"), false);
+  assert.match(indexHtml, /cloudfunctions\.net\/createOrder/);
+  assert.match(indexHtml, /firebaseApp\.functions\('asia-southeast1'\)/);
+  assert.equal(indexHtml.includes('firebase.functions(firebaseApp'), false);
   assert.match(indexHtml, /function checkoutErrorText/);
   assert.match(indexHtml, /showToast\(checkoutErrorText\(e\), 'error'\)/);
   assert.match(indexHtml, /fcm-safe\.js/);
-  assert.match(indexHtml, /ChauatFcm\.install\(firebaseApp\)/);
+  assert.match(indexHtml, /ChauatFcm\.disarm\(firebaseApp\)/);
   assert.match(indexHtml, /ChauatFcm\.warm\(firebaseApp\)/);
+  assert.equal(indexHtml.includes('ChauatFcm.install(firebaseApp)'), false);
   assert.equal(indexHtml.includes('firebase.messaging(firebaseApp)'), false);
   assert.match(rider, /serviceWorkerRegistration: reg/);
   assert.match(rider, /ChauatFcm\.install\(firebaseApp\)/);

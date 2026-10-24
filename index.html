@@ -1417,13 +1417,18 @@ try {
     try { auth.useEmulator('http://127.0.0.1:9099'); } catch(e) {}
     try { db.useEmulator('127.0.0.1', 8080); } catch(e) {}
   }
-  if (firebase.functions) {
-    functionsApi = firebase.functions(firebaseApp, 'asia-southeast1');
+  if (firebaseApp.functions) {
+    // firebase.functions(app, region) ignores the region and stays on
+    // us-central1. The region is an argument of app.functions().
+    functionsApi = firebaseApp.functions('asia-southeast1');
     if (window.__QA_USE_EMULATORS__ && location.hostname === '127.0.0.1') {
       functionsApi.useEmulator('127.0.0.1', 5001);
     }
   }
   window.functionsApi = functionsApi;
+  // httpsCallable reads messaging-internal.getToken. Patch that private
+  // method. Do not call firebase.messaging() on this page before an order.
+  if (window.ChauatFcm && ChauatFcm.disarm) ChauatFcm.disarm(firebaseApp);
   if (window.ChauatCall) {
     ChauatCall.boot({
       role: 'customer',
@@ -1433,7 +1438,6 @@ try {
     });
   }
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
-  if (window.ChauatFcm) ChauatFcm.install(firebaseApp);
 } catch(e) { console.error('Firebase init error:', e); }
 
 /* ═══ GLOBAL STATE ═══ */
@@ -3015,9 +3019,59 @@ function checkoutErrorText(err) {
   return ('ส่งไม่สำเร็จ: ' + text).slice(0, 180);
 }
 
-async function createServerOrder(payload) {
+function createOrderUrl() {
+  var project = 'chauat-go-b9841';
+  var region = 'asia-southeast1';
+  if (window.__QA_USE_EMULATORS__ && location.hostname === '127.0.0.1') {
+    return 'http://127.0.0.1:5001/' + project + '/' + region + '/createOrder';
+  }
+  return 'https://' + region + '-' + project + '.cloudfunctions.net/createOrder';
+}
+
+function messagingSwError(err) {
+  var msg = String(err && (err.message || err.code) || '');
+  return msg.indexOf('unable to register the default service worker') !== -1
+    || msg.indexOf('firebase-cloud-messaging-push-scope') !== -1
+    || msg.indexOf('firebase-messaging-sw.js') !== -1
+    || msg.indexOf('failed-service-worker-registration') !== -1;
+}
+
+/* POST the callable protocol directly. httpsCallable asks Messaging for a
+   token before the request, and that rejection aborts the order. */
+async function postCreateOrder(body) {
+  var token = await currentUser.getIdToken();
+  var appCheck = '';
+  try {
+    if (window.ChauatAppCheck && typeof ChauatAppCheck.token === 'function') appCheck = await ChauatAppCheck.token() || '';
+  } catch (e) { appCheck = ''; }
+  var headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+  if (appCheck) headers['X-Firebase-AppCheck'] = appCheck;
+  var res;
+  try {
+    res = await fetch(createOrderUrl(), {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ data: body })
+    });
+  } catch (err) {
+    throw new Error((err && err.message) || 'ติดต่อระบบสั่งซื้อไม่ได้');
+  }
+  var text = '';
+  try { text = await res.text(); } catch (e) { text = ''; }
+  var parsed = {};
+  try { parsed = text ? JSON.parse(text) : {}; } catch (e) { parsed = {}; }
+  if (!res.ok || (parsed && parsed.error)) {
+    var serverMsg = parsed && parsed.error && (parsed.error.message || parsed.error.status);
+    var error = new Error(serverMsg || ('ส่งคำสั่งไม่สำเร็จ (' + res.status + ')'));
+    error.status = res.status;
+    error.code = (parsed && parsed.error && parsed.error.status) || '';
+    throw error;
+  }
+  return (parsed && parsed.result) || {};
+}
+
+async function createServerOrder(payload, retried) {
   if (!currentUser) throw new Error('กรุณาเข้าสู่ระบบ');
-  if (!functionsApi || typeof functionsApi.httpsCallable !== 'function') throw new Error('ระบบสั่งซื้อยังไม่พร้อม');
   var body = callableData(Object.assign({}, payload || {}));
   delete body.fare;
   delete body.total;
@@ -3026,14 +3080,19 @@ async function createServerOrder(payload) {
   delete body.riderIncome;
   delete body.riderOwe;
   delete body.riderPaid;
-  var res = await functionsApi.httpsCallable('createOrder')(body);
-  // Token registration stays off this promise. The callable SDK asks for
-  // a token before the request; ChauatFcm makes that call resolve empty.
+  var data;
+  try {
+    data = await postCreateOrder(body);
+  } catch (err) {
+    // One retry, still on the messaging-free POST. Never fall back to httpsCallable.
+    if (!retried && messagingSwError(err)) return createServerOrder(payload, true);
+    throw err;
+  }
   setTimeout(function () {
     if (!window.ChauatFcm) return;
     ChauatFcm.warm(firebaseApp).catch(function () {});
   }, 0);
-  return (res && res.data) || {};
+  return data || {};
 }
 
 /* ⭐ v3.9.0: confirmCheckout → status = "searching" */

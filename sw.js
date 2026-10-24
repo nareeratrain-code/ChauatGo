@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.36';
+const CACHE_NAME = 'chauat-app-v3.9.37';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -173,7 +173,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.origin !== self.location.origin) return;
-  if (url.pathname === '/sw.js' || url.pathname === '/sw-admin.js') return;
+  if (url.pathname === '/sw.js' || url.pathname === '/sw-admin.js' || url.pathname === '/firebase-messaging-sw.js') return;
 
   event.respondWith(networkFirst(request, url));
 });
