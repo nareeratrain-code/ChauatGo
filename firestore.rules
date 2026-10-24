@@ -19,8 +19,10 @@ rules_version = '2';
 //     (or admin) may read signaling. A participant may create a call as
 //     themselves and write offer, answer, and ICE for that call.
 //   * orders read: customer, shop, assigned rider, admin/boss, or a verified
-//     rider reading an order that has no riderId and is still
-//     searching/pending/cooking/ready.
+//     rider reading an order that has no riderId. Food (and any other kitchen
+//     order) is visible to that rider only after the shop has accepted
+//     (status cooking or ready). Ride, express, and shopping stay visible
+//     from searching/pending.
 //   * orders create: clients cannot set fare or total. createOrder
 //     recomputes them. A direct client create is denied (mismatch).
 //   * orders update: riders cannot write riderIncome, riderOwe, or riderPaid.
@@ -235,13 +237,13 @@ service cloud.firestore {
           resource.data.get('userId', '') == myUid()
           || resource.data.get('merchantId', '') == myUid()
           || resource.data.get('riderId', '') == myUid()
-        ))
-        || (
-          isVerifiedRider()
-          && resource.data.riderId == null
-          && resource.data.status in ['searching', 'pending', 'cooking', 'ready']
-        );
+        ));
     }
+
+    // Open-job reads are separate allows. One OR that mixes "any cooking
+    // order" with "searching only when it is not food" is treated as the
+    // union of those statuses, so a query of searching+cooking still returns
+    // food the shop has not accepted. Each allow below is exactly one query.
 
     function noDispatchControl(data) {
       return data.get('dispatchState', '') == ''
@@ -493,6 +495,15 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if canReadOrder();
+      // Shop accepted: cooking/ready, nobody assigned yet. Food and any other type.
+      allow read: if isVerifiedRider()
+        && resource.data.riderId == null
+        && resource.data.status in ['cooking', 'ready'];
+      // No kitchen. Ride, express, and shopping are offered from searching.
+      allow read: if isVerifiedRider()
+        && resource.data.riderId == null
+        && resource.data.type in ['ride', 'express', 'shopping']
+        && resource.data.status in ['searching', 'pending'];
 
       // Fare and total are written only by createOrder. Rules cannot
       // recompute the kilometre fee, so any client-set fare is a mismatch.

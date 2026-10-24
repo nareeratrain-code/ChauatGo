@@ -57,6 +57,7 @@ function tsMillis(v) {
 const REASON_NO_PICKUP = 'ร้านไม่มีพิกัด';
 const REASON_WAIT_SHOP = 'รอร้านรับออเดอร์';
 const REASON_UNASSIGNED = 'ไม่มีไรเดอร์รับภายใน 1 ชม.';
+const REASON_SHOP_TIMEOUT = 'ร้านไม่รับออเดอร์ภายใน 1 ชม.';
 const REASON_STALE_JOB = 'ไม่จบงานภายใน 1 ชม.';
 const TIMEOUT_STATUSES = OPEN_STATUSES.concat(ACTIVE_STATUSES);
 
@@ -147,12 +148,19 @@ function needsKitchen(order) {
   return !!order.merchantId;
 }
 
+// The shop accept action is the move to cooking/ready. createOrder leaves food
+// on searching, so a code number alone is not acceptance.
+function shopAccepted(order) {
+  if (!needsKitchen(order)) return true;
+  return KITCHEN_STATUSES.indexOf(order.status) !== -1;
+}
+
 function needsDispatch(order) {
   if (!order) return false;
   if (order.riderId) return false;
   if (TERMINAL.indexOf(order.status) !== -1) return false;
   if (order.dispatchState === 'manual' || order.dispatchState === 'assigned') return false;
-  if (needsKitchen(order)) return KITCHEN_STATUSES.indexOf(order.status) !== -1;
+  if (needsKitchen(order)) return shopAccepted(order);
   return OPEN_STATUSES.indexOf(order.status) !== -1;
 }
 
@@ -162,7 +170,7 @@ function canBroadcast(order) {
   if (order.dispatchState === 'assigned' || order.dispatchState === 'auto_cleared' || order.dispatchState === 'expired_unassigned') {
     return false;
   }
-  if (needsKitchen(order)) return KITCHEN_STATUSES.indexOf(order.status) !== -1;
+  if (needsKitchen(order)) return shopAccepted(order);
   return OPEN_STATUSES.indexOf(order.status) !== -1;
 }
 
@@ -725,6 +733,7 @@ async function acceptOffer(db, uid, orderId, offerId) {
       if (offer.riderId !== uid) throw new Error('not-yours');
       if (offer.status !== 'pending') throw new Error('closed');
       if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
+      if (needsKitchen(order) && !shopAccepted(order)) throw new Error('shop');
       const exp = tsMillis(offer.expiresAt);
       if (exp && exp < Date.now()) throw new Error('expired');
       if (order.riderId) throw new Error('taken');
@@ -762,6 +771,7 @@ async function acceptOffer(db, uid, orderId, offerId) {
     });
   } catch (err) {
     if (err && err.message === 'busy') await noteBusy(db, uid);
+    if (err && err.message === 'shop') await closePendingOffers(db, orderRef, 'wait_shop');
     throw err;
   }
   await closePendingOffers(db, orderRef, 'taken');
@@ -791,8 +801,7 @@ async function claimOpenJob(db, uid, orderId) {
       if (order.riderId) throw new Error('taken');
       if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
       if (needsKitchen(order)) {
-        if (order.status === 'searching' || order.status === 'pending') throw new Error('shop');
-        if (KITCHEN_STATUSES.indexOf(order.status) === -1) throw new Error('taken');
+        if (!shopAccepted(order)) throw new Error('shop');
       } else if (OPEN_STATUSES.indexOf(order.status) === -1) {
         throw new Error('taken');
       }
@@ -864,6 +873,7 @@ async function manualAssign(db, adminUid, orderId, riderId) {
     const heldSnap = await heldLockOrder(tx, db, lockSnap, orderId);
     if (order.riderId) throw new Error('taken');
     if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
+    if (needsKitchen(order) && !shopAccepted(order)) throw new Error('shop');
     if (otherActiveDoc(activeSnap, orderId) || lockStillBusy(heldSnap, riderId)) {
       throw new Error('busy');
     }
@@ -1098,19 +1108,23 @@ async function noteWaitingForShop(db, orderId, hinted) {
   const order = snap.exists ? (snap.data() || {}) : (hinted || {});
   if (!snap.exists || order.riderId) return { skipped: 'assigned' };
   if (!needsKitchen(order)) return { skipped: 'not-kitchen' };
-  if (order.status !== 'searching' && order.status !== 'pending') return { skipped: 'not-waiting' };
-  if (order.dispatchState === 'manual' || order.dispatchState === 'assigned' || order.dispatchState === 'offered') {
+  if (shopAccepted(order)) return { skipped: 'accepted' };
+  await closePendingOffers(db, ref, 'wait_shop');
+  if (order.dispatchState === 'assigned' || order.dispatchState === 'auto_cleared' || order.dispatchState === 'expired_unassigned') {
     return { skipped: order.dispatchState };
   }
+  const cfg = await loadConfig(db);
+  if (cfg.mode !== 'auto') return { skipped: 'manual', closed: true };
   if (order.dispatchState === 'waiting' && order.dispatchManualReason === REASON_WAIT_SHOP && String(order.code || '').trim()) {
     return { skipped: 'noted' };
   }
-  const cfg = await loadConfig(db);
-  if (cfg.mode !== 'auto') return { skipped: 'manual' };
   await ref.set(Object.assign({
     dispatchState: 'waiting',
     dispatchManualReason: REASON_WAIT_SHOP,
     dispatchMode: 'auto',
+    dispatchOfferId: FieldValue.delete(),
+    dispatchOfferRiderId: FieldValue.delete(),
+    dispatchOfferExpiresAt: FieldValue.delete(),
     dispatchUpdatedAt: FieldValue.serverTimestamp()
   }, codePatch(order)), { merge: true });
   return { ok: true, waiting: true };
@@ -1334,7 +1348,10 @@ async function sweepTimeouts(db) {
       }
       if (!order.riderId && OPEN_STATUSES.indexOf(order.status) !== -1) {
         if (!born || nowMs - born < unassignedMs) continue;
-        if (await cancelUnassigned(db, doc.ref, unassignedReason)) cancelled += 1;
+        const reason = needsKitchen(order) && !shopAccepted(order)
+          ? timeoutReason(cfg.unassignedTimeoutMin, REASON_SHOP_TIMEOUT)
+          : unassignedReason;
+        if (await cancelUnassigned(db, doc.ref, reason)) cancelled += 1;
         continue;
       }
       if (!order.riderId || ACTIVE_STATUSES.indexOf(order.status) === -1) continue;
@@ -1398,10 +1415,12 @@ module.exports = {
   REASON_NO_PICKUP,
   REASON_WAIT_SHOP,
   REASON_UNASSIGNED,
+  REASON_SHOP_TIMEOUT,
   REASON_STALE_JOB,
   normalizeConfig,
   exhaustedReason,
   needsKitchen,
+  shopAccepted,
   needsDispatch,
   pickupOf,
   acceptanceRate,

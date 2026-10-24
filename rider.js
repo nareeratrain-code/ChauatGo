@@ -53,7 +53,7 @@ let gpsUploadTimer = null;
 let lastGpsUpload = 0;
 let dispatchUnsub = null;
 let offerUnsub = null;
-let myOpenUnsub = null;
+let openUnsubs = [];
 let myActiveUnsub = null;
 let dispatchConfig = { mode: 'manual' };
 let openJobs = [];
@@ -1032,7 +1032,8 @@ function subscribeProfile() {
 }
 
 function stopJobSubs() {
-  if (myOpenUnsub) { myOpenUnsub(); myOpenUnsub = null; }
+  openUnsubs.forEach((stop) => { try { stop(); } catch (e) {} });
+  openUnsubs = [];
   if (myActiveUnsub) { myActiveUnsub(); myActiveUnsub = null; }
   myJobsUnsub = null;
 }
@@ -1072,8 +1073,8 @@ function publishJobs(prevOpenIds) {
   autoStartPaymentWatch();
 }
 
-/* งานใหม่ = ร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready)
-   แยกคิวรี่ เพราะกฎอ่านออเดอร์ไม่ให้ไรเดอร์เห็นงานที่คนอื่นรับไปแล้ว */
+/* อาหารเปิดหลังร้านรับ (cooking/ready) คนละคิวรี่กับเรียกรถ/ส่งด่วน/ฝากซื้อ
+   เพราะกฎไม่อ่านออเดอร์อาหารที่ร้านยังไม่กดรับ และไม่อ่านงานที่คนอื่นรับแล้ว */
 function subscribeJobs() {
   stopJobSubs();
   const prevOpen = new Set(openJobs.map(j => j.id));
@@ -1081,16 +1082,34 @@ function subscribeJobs() {
     openJobs = [];
     publishJobs(prevOpen);
   } else if (currentUser) {
-    myOpenUnsub = db.collection('orders')
-      .where('riderId', '==', null)
-      .where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])
-      .limit(50)
-      .onSnapshot(snap => {
-        const prev = seenJobIds;
-        openJobs = snap.docs.map(mapOrderDoc);
-        seenJobIds = new Set(openJobs.map(j => j.id));
-        publishJobs(prev);
-      }, err => console.warn('open jobs', err && err.code));
+    const buckets = [];
+    const publishOpen = () => {
+      const map = new Map();
+      buckets.forEach((snap) => {
+        if (!snap) return;
+        snap.docs.forEach((doc) => map.set(doc.id, mapOrderDoc(doc)));
+      });
+      const prev = seenJobIds;
+      openJobs = Array.from(map.values());
+      seenJobIds = new Set(openJobs.map(j => j.id));
+      publishJobs(prev);
+    };
+    const watch = (query, index) => {
+      openUnsubs.push(query.limit(50).onSnapshot((snap) => {
+        buckets[index] = snap;
+        publishOpen();
+      }, (err) => console.warn('open jobs', err && err.code)));
+    };
+    watch(db.collection('orders').where('riderId', '==', null).where('status', 'in', ['cooking', 'ready']), 0);
+    ['ride', 'express', 'shopping'].forEach((type, i) => {
+      watch(
+        db.collection('orders')
+          .where('riderId', '==', null)
+          .where('type', '==', type)
+          .where('status', 'in', ['searching', 'pending']),
+        i + 1
+      );
+    });
   }
   if (!currentUser) return;
   myActiveUnsub = db.collection('orders')

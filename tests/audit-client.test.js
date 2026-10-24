@@ -45,6 +45,9 @@ test('clients use the order callables and drop the unused fee constants', () => 
   assert.equal(rider.includes('SERVICE_BASE'), false);
   assert.equal(rider.includes('FREE_KM'), false);
   assert.match(rider, /where\('riderId', '==', null\)/);
+  assert.match(rider, /where\('status', 'in', \['cooking', 'ready'\]\)/);
+  assert.match(rider, /where\('type', '==', type\)/);
+  assert.equal(rider.includes("where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])"), false);
 });
 
 test('storage rules are wired and App Check stays off', () => {

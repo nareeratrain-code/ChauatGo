@@ -3598,7 +3598,7 @@ function renderOrderCard(o){
       '<div style="flex:1;min-width:0">' +
         '<div class="order-track-title">'+esc(o.title||'ออเดอร์')+'</div>' +
         codeHtml +
-        '<div class="order-track-sub">'+(statusMap[o.status]||o.status)+' • ฿'+fmt(o.total||o.fare||0)+'</div>' +
+        '<div class="order-track-sub">'+((o.type==='food' && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (statusMap[o.status]||o.status))+' • ฿'+fmt(o.total||o.fare||0)+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
         orderPrepNote(o) +
         '<div style="margin-top:4px">' + payBadge + '</div>' +
@@ -3771,6 +3771,9 @@ function renderTrackingInfo(o){
     cancelled:{icon:'❌',title:'ยกเลิก',sub:'ออเดอร์ถูกยกเลิก'}
   };
   var s = statusMap[o.status] || {icon:'📍',title:o.status,sub:''};
+  if (o.type === 'food' && (o.status === 'searching' || o.status === 'pending')) {
+    s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
+  }
   if (o.paymentMode === 'cash' && o.status === 'picked_up') {
     s = { icon: '💵', title: 'ไรเดอร์รับของแล้ว', sub: 'ชำระเงินสดกับไรเดอร์' };
   } else if (o.paymentMode === 'cash' && o.status === 'on_the_way') {
@@ -3985,7 +3988,7 @@ window.showOrderBill = async function(orderId) {
         '<div style="font-size:11px;opacity:.9;font-weight:700;margin-top:6px">' + dateStr + '</div>' +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;font-size:14px;font-weight:900">' +
-        esc(statusMap[o.status] || o.status) +
+        esc((o.type === 'food' && (o.status === 'searching' || o.status === 'pending')) ? '🔔 รอร้านรับออเดอร์' : (statusMap[o.status] || o.status)) +
         (['done','delivered','cancelled'].indexOf(o.status) !== -1 ? '' : ((o.foodReady || o.readyAt) ? '<div style="font-size:12px;color:#168A45;margin-top:6px">✅ อาหารพร้อมแล้ว</div>' : (o.prepMinutes ? '<div style="font-size:12px;color:#E65100;margin-top:6px">⏱️ เวลาทำประมาณ ' + Number(o.prepMinutes) + ' นาที</div>' : ''))) +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px">' +
