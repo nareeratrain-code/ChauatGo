@@ -7,7 +7,9 @@ rules_version = '2';
 //     Acceptance is only the acceptDispatchOffer / claimOpenJob callables.
 //   * orders update [E]: merchant may set foodReady + readyAt after rider accepted,
 //     without changing status; status becomes ready only while no rider is assigned
-//   * orders update [C]: picked_up only after food is ready when the order needs a kitchen
+//   * orders update [C]: picked_up only after food is ready when the order needs a kitchen.
+//     Food photo may be saved without the shop slip. The slip is a later update
+//     that keeps status. A kitchen order cannot become on_the_way until that slip exists.
 //   * isAdmin also covers boss role active/super, users.role admin (not pending),
 //     and the three master emails — a pending admins doc cannot self-promote
 //   * placeOverrides: anyone can read; only isAdmin() can write.
@@ -202,6 +204,17 @@ service cloud.firestore {
       return resource.data.get('foodReady', false) == true
         || (hasField(resource.data, 'readyAt') && resource.data.readyAt != null)
         || resource.data.status == 'ready';
+    }
+
+    function shopSlipAttached() {
+      return (
+          resource.data.get('riderSlipToShop', '') is string
+          && resource.data.get('riderSlipToShop', '').size() > 0
+        )
+        || (
+          resource.data.get('riderSlipUrl', '') is string
+          && resource.data.get('riderSlipUrl', '').size() > 0
+        );
     }
 
     function isOrderMerchant() {
@@ -507,11 +520,25 @@ service cloud.firestore {
         )
         || (
           isAssignedRider()
+          && needsKitchen()
+          && resource.data.status in ['picked_up', 'customer_paid']
+          && request.resource.data.status == resource.data.status
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && request.resource.data.riderSlipToShop is string
+          && request.resource.data.riderSlipToShop.size() > 0
+          && request.resource.data.riderSlipToShop.size() <= 2000
+          && request.resource.data.riderPaidShopAt is timestamp
+        )
+        || (
+          isAssignedRider()
           && resource.data.status in ['picked_up', 'customer_paid']
           && request.resource.data.status == 'on_the_way'
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'onTheWayAt'])
+          && (!needsKitchen() || shopSlipAttached())
         )
         || (
           isAssignedRider()

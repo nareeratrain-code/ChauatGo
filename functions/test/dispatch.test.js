@@ -892,6 +892,18 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         type: 'ride', status: 'accepted', userId: 'cust1', riderId: 'rider1', merchantId: '',
         code: 'OD-CHAT2'
       });
+      await root.collection('orders').doc('food-ready').set({
+        type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1',
+        foodReady: true, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-TEST'
+      });
+      await root.collection('orders').doc('food-wait').set({
+        type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1',
+        foodReady: false, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-WAIT'
+      });
+      await root.collection('orders').doc('express-hand').set({
+        type: 'express', status: 'picked_up', userId: 'cust1', merchantId: '', riderId: 'rider1',
+        paymentMode: 'cash', code: 'OD-EXP'
+      });
       await root.collection('chats').doc('chat-listed').set({
         orderId: 'chat-listed', userId: 'cust1', riderId: 'rider1', merchantId: 'shop1'
       });
@@ -912,6 +924,47 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['customer message on legacy chat', () => assertSucceeds(cdb.collection('chats').doc('chat1').collection('messages').add(msg('cust1', 'user', 'ถึงไหนแล้ว')))],
       ['rider message on legacy chat', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(msg('rider1', 'rider', 'กำลังไป')))],
       ['shop system message', () => assertSucceeds(sdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'ยกเลิก'), { systemMessage: true })))],
+      ['food photo without a slip, then slip, then leave', async () => {
+        await assertFails(rdb.collection('orders').doc('food-wait').update({
+          status: 'picked_up',
+          pickedUpAt: serverTimestamp(),
+          foodImage: 'https://example.com/food.jpg',
+          foodImagePath: 'orders/food-wait/food_1.jpg'
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          status: 'picked_up',
+          pickedUpAt: serverTimestamp(),
+          foodImage: 'https://example.com/food.jpg',
+          foodImagePath: 'orders/food-ready/food_1.jpg'
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+        await assertFails(cdb.collection('orders').doc('food-ready').update({
+          riderSlipToShop: 'https://example.com/slip.jpg',
+          riderSlipToShopPath: 'slips/riders/cust1/x.jpg',
+          riderPaidShopAt: serverTimestamp()
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          riderSlipToShop: 'https://example.com/slip.jpg',
+          riderPaidShopAt: serverTimestamp(),
+          fare: 1
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          riderSlipToShop: 'https://example.com/slip.jpg',
+          riderSlipToShopPath: 'slips/riders/rider1/food-ready_1.jpg',
+          riderPaidShopAt: serverTimestamp()
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('express-hand').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+      }],
       ['rider automated status note', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('rider1', 'rider', 'ใกล้ถึงแล้ว'), {
         systemMessage: true, automated: true, automationKey: 'near_customer'
       })))],
