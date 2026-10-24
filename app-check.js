@@ -12,6 +12,19 @@
     return key;
   }
 
+  function cancelledMessage(err) {
+    var msg = String((err && (err.message || err.code)) || err || '').trim();
+    return /^cancelled$/i.test(msg) || /^canceled$/i.test(msg);
+  }
+
+  if (typeof root.addEventListener === 'function') {
+    root.addEventListener('unhandledrejection', function (event) {
+      if (!cancelledMessage(event && event.reason)) return;
+      if (event.preventDefault) event.preventDefault();
+      console.warn('[appcheck] cancelled');
+    });
+  }
+
   function start(app) {
     if (!app || started) return started;
     var key = siteKey();
@@ -40,7 +53,8 @@
     return started.getToken(false).then(function (res) {
       return (res && res.token) || '';
     }).catch(function (err) {
-      console.warn('[appcheck] token failed', err);
+      if (cancelledMessage(err)) console.warn('[appcheck] cancelled');
+      else console.warn('[appcheck] token failed', err);
       return '';
     });
   }

@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { geohashForLocation, distanceBetween } = require('geofire-common');
 const localGeo = require('../../geohash');
 const D = require('../dispatch');
+const Orders = require('../orders');
 
 const FORBIDDEN = 'เหล่าเต๊ง';
 
@@ -90,7 +91,7 @@ test('missing config stays on the manual list', () => {
   assert.equal(D.exhaustedReason(8, { cooldown: 1 }), 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — รอเสนอซ้ำหลังคูลดาวน์');
   assert.equal(D.exhaustedReason(8, { far: 2 }), 'ไม่มีไรเดอร์ว่างในระยะ 8 กม. — ไรเดอร์อยู่นอกระยะ');
   assert.equal(cfg.unassignedTimeoutMin, 60);
-  assert.equal(cfg.staleAssignTimeoutMin, 60);
+  assert.equal(cfg.staleAssignTimeoutMin, 180);
   assert.equal(cfg.reofferCooldownSec, 180);
   assert.equal(D.normalizeConfig({ unassignedTimeoutMin: 1, staleAssignTimeoutMin: 90, reofferCooldownSec: 10 }).unassignedTimeoutMin, 5);
   assert.equal(D.normalizeConfig({ staleAssignTimeoutMin: 90 }).staleAssignTimeoutMin, 90);
@@ -332,16 +333,35 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(lateOffer.data().status, 'pending');
   assert.equal(lateOffer.data().broadcast, true);
 
+  await seedOrder('ord-cancelled', { status: 'cancelled', code: 'OD-CAN', riderId: null });
+  await db.collection('orders').doc('ord-cancelled').collection('dispatchOffers').doc('test-near').set({
+    riderId: 'test-near', status: 'pending', orderId: 'ord-cancelled'
+  });
+  await assert.rejects(
+    () => D.acceptOffer(db, 'test-near', 'ord-cancelled', 'test-near'),
+    (err) => err && err.message === 'closed'
+  );
+  await D.onOrderWritten(db, { status: 'searching', riderId: null }, {
+    status: 'cancelled', riderId: null
+  }, 'ord-cancelled');
+  const closedCancelOffer = await db.collection('orders').doc('ord-cancelled').collection('dispatchOffers').doc('test-near').get();
+  assert.equal(closedCancelOffer.data().status, 'expired');
+  assert.equal(closedCancelOffer.data().endReason, 'cancelled');
+
   await db.collection('admins').doc('admin-1').set({ role: 'active' });
   const isAdmin = await D.callerIsAdmin(db, { uid: 'admin-1', token: {} });
   assert.equal(isAdmin, true);
   const notAdmin = await D.callerIsAdmin(db, { uid: 'test-near', token: { email: 'rider@example.com' } });
   assert.equal(notAdmin, false);
   await seedOrder('ord-force');
-  const forced = await D.manualAssign(db, 'admin-1', 'ord-force', 'test-busy');
+  await assert.rejects(
+    () => D.manualAssign(db, 'admin-1', 'ord-force', 'test-busy'),
+    (err) => err && err.message === 'busy'
+  );
+  const forced = await D.manualAssign(db, 'admin-1', 'ord-force', 'test-far');
   assert.equal(forced.ok, true);
   const forcedDoc = await db.collection('orders').doc('ord-force').get();
-  assert.equal(forcedDoc.data().riderId, 'test-busy');
+  assert.equal(forcedDoc.data().riderId, 'test-far');
   assert.equal(forcedDoc.data().dispatchMode, 'manual-override');
   await assert.rejects(
     () => D.manualAssign(db, 'admin-1', 'ord-force', 'test-near'),
@@ -444,6 +464,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(holdCount.data().activeJobCount, 1);
 
   const hourAgo = Timestamp.fromDate(new Date(Date.now() - 2 * 60 * 60 * 1000));
+  const fourHours = Timestamp.fromDate(new Date(Date.now() - 4 * 60 * 60 * 1000));
   await seedOrder('ord-old-open', {
     type: 'express',
     status: 'searching',
@@ -474,10 +495,24 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     merchantId: '',
     merchantName: '',
     code: 'OD-SLOW',
-    acceptedAt: hourAgo,
+    createdAt: fourHours,
+    acceptedAt: fourHours,
     dispatchState: 'assigned',
     dispatchCounted: true,
     dispatchOfferId: 'live-slow'
+  });
+  await seedOrder('ord-fresh-accept', {
+    type: 'shopping',
+    status: 'accepted',
+    riderId: 'test-far',
+    riderName: 'ไกล',
+    merchantId: '',
+    merchantName: '',
+    code: 'OD-FRESH',
+    createdAt: hourAgo,
+    acceptedAt: hourAgo,
+    dispatchState: 'assigned',
+    dispatchCounted: true
   });
   await db.collection('orders').doc('ord-stale-accept').collection('dispatchOffers').doc('live-slow').set({
     riderId: 'test-slow',
@@ -500,10 +535,12 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(staleAccept.exists, true);
   assert.equal(staleAccept.data().riderId, 'test-slow');
   assert.equal(staleAccept.data().status, 'cancelled');
-  assert.equal(staleAccept.data().cancelReason, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(staleAccept.data().cancelReason, 'ไม่จบงานภายใน 180 นาที');
   assert.equal(staleAccept.data().dispatchState, 'auto_cleared');
   assert.equal(staleAccept.data().adminFlag, 'auto_cleared');
-  assert.equal(staleAccept.data().customerNotice, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(staleAccept.data().customerNotice, 'ไม่จบงานภายใน 180 นาที');
+  const freshAccept = await db.collection('orders').doc('ord-fresh-accept').get();
+  assert.equal(freshAccept.data().status, 'accepted');
   const closedOffer = await db.collection('orders').doc('ord-stale-accept').collection('dispatchOffers').doc('live-slow').get();
   assert.equal(closedOffer.data().status, 'expired');
   assert.equal(closedOffer.data().endReason, 'stale_job');
@@ -512,7 +549,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   }, staleAccept.data(), 'ord-stale-accept');
   const slowDoc = await db.collection('riders').doc('test-slow').get();
   assert.equal(slowDoc.data().activeJobCount, 0);
-  assert.equal(slowDoc.data().lastNotice.text, 'OD-SLOW • ไม่จบงานภายใน 1 ชม.');
+  assert.equal(slowDoc.data().lastNotice.text, 'OD-SLOW • ไม่จบงานภายใน 180 นาที');
   await seedOrder('ord-with-goods', {
     type: 'express',
     status: 'picked_up',
@@ -521,7 +558,8 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     merchantId: '',
     merchantName: '',
     code: 'OD-GOODS',
-    acceptedAt: hourAgo,
+    createdAt: fourHours,
+    acceptedAt: fourHours,
     dispatchState: 'assigned',
     dispatchOfferId: 'goods-offer'
   });
@@ -535,7 +573,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(goods.exists, true);
   assert.equal(goods.data().riderId, 'test-slow');
   assert.equal(goods.data().status, 'cancelled');
-  assert.equal(goods.data().cancelReason, 'ไม่จบงานภายใน 1 ชม.');
+  assert.equal(goods.data().cancelReason, 'ไม่จบงานภายใน 180 นาที');
   assert.equal(goods.data().adminFlag, 'auto_cleared');
   const goodsOffer = await db.collection('orders').doc('ord-with-goods').collection('dispatchOffers').doc('goods-offer').get();
   assert.equal(goodsOffer.data().status, 'expired');
@@ -580,6 +618,70 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.ok(allOrders.size > 0);
   void FieldValue;
 
+  await db.collection('merchants').doc('shop-fee').set({
+    name: 'ร้านทดสอบ', lat: 7.90, lng: 99.90, verified: true
+  });
+  await db.collection('menus').doc('menu-fee').set({
+    merchantId: 'shop-fee', name: 'ข้าวทดสอบ', price: 100, status: 'available'
+  });
+  const created = await Orders.createOrder(db, 'customer-fee', {
+    type: 'food',
+    merchantId: 'shop-fee',
+    merchantName: 'ร้านทดสอบ',
+    items: [{ menuId: 'menu-fee', qty: 2, name: 'ข้าวทดสอบ' }],
+    lat: 7.925,
+    lng: 99.90,
+    paymentMode: 'transfer',
+    address: 'บ้านทดสอบ',
+    fare: 1,
+    total: 1
+  });
+  const expectedNear = Orders.foodDeliveryFee({ lat: 7.90, lng: 99.90 }, { lat: 7.925, lng: 99.90 });
+  assert.equal(created.fare, expectedNear.fee);
+  assert.equal(created.total, 200 + expectedNear.fee);
+  const createdDoc = await db.collection('orders').doc(created.id).get();
+  assert.ok(createdDoc.data().createdAt);
+  assert.equal(createdDoc.data().foodTotal, 200);
+  assert.equal(createdDoc.data().userId, 'customer-fee');
+  assertNoProtectedShop(createdDoc.data());
+  const capped = await Orders.createOrder(db, 'customer-fee', {
+    type: 'food',
+    merchantId: 'shop-fee',
+    items: [{ menuId: 'menu-fee', qty: 1 }],
+    lat: 8.20,
+    lng: 100.20,
+    paymentMode: 'cash',
+    fare: 1,
+    total: 1
+  });
+  assert.equal(capped.fare, 150);
+  assert.equal(capped.cashTip, 5);
+  assert.equal(capped.total, 255);
+  await db.collection('riders').doc('rider-fee').set({ verified: true, name: 'ไรเดอร์ทดสอบ', totalJobs: 0, totalIncome: 0 });
+  await db.collection('merchants').doc('shop-fee').set({
+    gpStartDate: Timestamp.fromDate(new Date(Date.now() - 100 * 86400000))
+  }, { merge: true });
+  await db.collection('orders').doc(created.id).update({
+    riderId: 'rider-fee',
+    status: 'on_the_way',
+    fare: 40,
+    cashTip: 0,
+    paymentMode: 'transfer'
+  });
+  const done = await Orders.completeOrder(db, 'rider-fee', created.id);
+  assert.equal(done.riderIncome, 32);
+  assert.equal(done.riderOwe, 8);
+  assert.equal(done.gpTotal, 6);
+  assert.equal(done.gpRider, 4);
+  assert.equal(done.gpPlatform, 2);
+  const riderFee = await db.collection('riders').doc('rider-fee').get();
+  assert.equal(riderFee.data().totalJobs, 1);
+  assert.equal(riderFee.data().totalIncome, 32);
+  await assert.rejects(
+    () => Orders.completeOrder(db, 'rider-fee', created.id),
+    (err) => err && err.code === 'failed-precondition'
+  );
+
   const fs = require('fs');
   const path = require('path');
   const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
@@ -597,13 +699,20 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('users').doc('cust1').set({ role: 'user' });
       await root.collection('users').doc('shop1').set({ role: 'merchant' });
       await root.collection('users').doc('admin1').set({ role: 'admin', isPending: false });
+      await root.collection('users').doc('rider-new').set({ role: 'rider' });
       await root.collection('riders').doc('rider1').set({
-        verified: true, riderId: 'rider1', trustScore: 100, status: 'inactive', offersAccepted: 0
+        verified: true, riderId: 'rider1', trustScore: 100, status: 'inactive', offersAccepted: 0, totalJobs: 0, totalIncome: 0
+      });
+      await root.collection('riders').doc('rider-new').set({
+        verified: false, riderId: 'rider-new'
       });
       await root.collection('merchants').doc('shop1').set({ verified: true, name: 'ร้านทดสอบ' });
       await root.doc('config/dispatch').set({ mode: 'manual' });
       await root.collection('orders').doc('open1').set({
-        type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ'
+        type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ', riderId: null
+      });
+      await root.collection('orders').doc('cooking-taken').set({
+        type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', riderId: 'other'
       });
       await root.collection('orders').doc('taken1').set({
         type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'other'
@@ -623,6 +732,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     });
 
     const rider = rulesEnv.authenticatedContext('rider1');
+    const newbie = rulesEnv.authenticatedContext('rider-new');
     const cust = rulesEnv.authenticatedContext('cust1');
     const shop = rulesEnv.authenticatedContext('shop1');
     const stranger = rulesEnv.authenticatedContext('stranger');
@@ -632,10 +742,21 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     const sdb = shop.firestore();
     const stdb = stranger.firestore();
     const adb = adminCtx.firestore();
+    const openQuery = () => rdb.collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get();
     const checks = [
-      ['rider open list', () => assertSucceeds(rdb.collection('orders').where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
+      ['rider open list', () => assertSucceeds(openQuery())],
+      ['rider open list without empty rider', () => assertFails(rdb.collection('orders').where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
+      ['unverified open list', () => assertFails(newbie.firestore().collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
       ['rider get open', () => assertSucceeds(rdb.collection('orders').doc('open1').get())],
+      ['rider deny assigned open', () => assertFails(rdb.collection('orders').doc('cooking-taken').get())],
       ['rider deny taken', () => assertFails(rdb.collection('orders').doc('taken1').get())],
+      ['customer cannot set fare', () => assertFails(cdb.collection('orders').add({
+        type: 'food', userId: 'cust1', status: 'searching', fare: 1, total: 999, riderId: null
+      }))],
+      ['rider cannot write payout', () => assertFails(rdb.collection('orders').doc('near1').update({
+        status: 'done', riderIncome: 80, riderOwe: 20, riderPaid: false
+      }))],
+      ['rider cannot bump totals', () => assertFails(rdb.collection('riders').doc('rider1').update({ totalJobs: 9, totalIncome: 9 }))],
       ['rider own list', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', 'rider1').where('status', 'in', ['accepted', 'picked_up']).limit(5).get())],
       ['rider deny offer write', () => assertFails(rdb.collection('orders').doc('open1').collection('dispatchOffers').doc('x').set({ riderId: 'rider1', status: 'pending' }))],
       ['rider offer list', () => assertSucceeds(rdb.collectionGroup('dispatchOffers').where('riderId', '==', 'rider1').where('status', '==', 'pending').get())],
@@ -650,7 +771,17 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['stranger deny one', () => assertFails(stdb.collection('orders').doc('open1').get())],
       ['stranger deny list', () => assertFails(stdb.collection('orders').limit(5).get())],
       ['admin list', () => assertSucceeds(adb.collection('orders').limit(5).get())],
-      ['admin save config', () => assertSucceeds(adb.doc('config/dispatch').set({ mode: 'manual', radiusStepsKm: [3, 5, 8] }))]
+      ['admin save config', () => assertSucceeds(adb.doc('config/dispatch').set({ mode: 'manual', radiusStepsKm: [3, 5, 8] }))],
+      ['gp amount too high', () => assertFails(sdb.collection('gp_transfers').add({
+        merchantId: 'shop1', status: 'pending', amount: 200000, slipPath: 'gp_slips/shop1/1.jpg'
+      }))],
+      ['gp slip outside folder', () => assertFails(sdb.collection('gp_transfers').add({
+        merchantId: 'shop1', status: 'pending', amount: 20, slipPath: 'slips/shop1/1.jpg'
+      }))],
+      ['gp transfer bounded', () => assertSucceeds(sdb.collection('gp_transfers').add({
+        merchantId: 'shop1', merchantName: 'ร้านทดสอบ', status: 'pending', amount: 20,
+        slipPath: 'gp_slips/shop1/1.jpg', slipUrl: 'https://example.com/slip.jpg'
+      }))]
     ];
     for (const [name, run] of checks) {
       try {
@@ -783,6 +914,12 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['admin message', () => assertSucceeds(adb.collection('chats').doc('chat1').collection('messages').add(msg('admin1', 'admin', 'ตรวจ')))],
       ['admin message without sender denied', () => assertFails(adb.collection('chats').doc('chat1').collection('messages').add({
         senderRole: 'admin', senderName: 'Admin', text: 'ไม่มีผู้ส่ง', createdAt: serverTimestamp()
+      }))],
+      ['admin adds a tambon outside Cha-uat', () => assertSucceeds(adb.collection('placeOverrides').doc('added-sichon').set({
+        type: 'added', name: 'หาดทดสอบ', category: 't', tambon: 'สิชล', lat: 8.9, lng: 99.9, updatedAt: serverTimestamp()
+      }))],
+      ['admin rejects an unknown tambon', () => assertFails(adb.collection('placeOverrides').doc('added-bad').set({
+        type: 'added', name: 'ไม่มี', category: 't', tambon: 'ไม่มีตำบลนี้', lat: 8.0, lng: 100.0, updatedAt: serverTimestamp()
       }))]
     ];
     for (const [name, run] of chatChecks) {

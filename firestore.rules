@@ -16,8 +16,15 @@ rules_version = '2';
 //   * orders/{orderId}/calls: only that order's customer, rider, or shop
 //     (or admin) may read signaling. A participant may create a call as
 //     themselves and write offer, answer, and ICE for that call.
-//   * orders read: customer, shop, assigned rider, admin/boss, or a rider
-//     reading an unassigned searching/pending/cooking/ready order.
+//   * orders read: customer, shop, assigned rider, admin/boss, or a verified
+//     rider reading an order that has no riderId and is still
+//     searching/pending/cooking/ready.
+//   * orders create: clients cannot set fare or total. createOrder
+//     recomputes them. A direct client create is denied (mismatch).
+//   * orders update: riders cannot write riderIncome, riderOwe, or riderPaid.
+//     completeOrder writes the 80/20 split and food GP.
+//   * riders update: totalIncome and totalJobs stay server-owned.
+//   * gp_transfers: amount is above 0 and at most ฿100,000, slip under gp_slips/{uid}/.
 //   * auto dispatch: riders cannot write dispatch fields, dispatchOffers,
 //     or rider_locks. Claiming an order from the client is denied.
 //     config/dispatch is admin-write, auth-read.
@@ -93,6 +100,12 @@ service cloud.firestore {
       return isRider() || isRiderByRole();
     }
 
+    function isVerifiedRider() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/riders/$(myUid()))
+        && get(/databases/$(database)/documents/riders/$(myUid())).data.get('verified', false) == true;
+    }
+
     function onlyChanged(fields) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
     }
@@ -127,8 +140,8 @@ service cloud.firestore {
         && (
           (!('lat' in request.resource.data) && !('lng' in request.resource.data))
           || (
-            isValidNumber(request.resource.data.lat, 7.5, 8.5)
-            && isValidNumber(request.resource.data.lng, 99.4, 100.5)
+            isValidNumber(request.resource.data.lat, 7.7, 9.5)
+            && isValidNumber(request.resource.data.lng, 99.1, 100.5)
           )
         );
     }
@@ -139,9 +152,9 @@ service cloud.firestore {
         && request.resource.data.type == 'added'
         && isValidString(request.resource.data.name, 1, 120)
         && request.resource.data.category in ['r', 'f', 'c', 'm', 't', 'h', 's', 'w', 'g', 'b', 'e', 'o', 'x', 'l', 'p', 'y', 'i', 'k', 'v']
-        && request.resource.data.tambon in ['ชะอวด', 'ท่าเสม็ด', 'ท่าประจะ', 'เคร็ง', 'วังอ่าง', 'บ้านตูล', 'ขอนหาด', 'เกาะขันธ์', 'ควนหนองหงษ์', 'เขาพระทอง', 'นางหลง']
-        && isValidNumber(request.resource.data.lat, 7.5, 8.5)
-        && isValidNumber(request.resource.data.lng, 99.4, 100.5)
+        && request.resource.data.tambon in ['กรุงชิง', 'กรุงหยัน', 'กลาย', 'กะทูน', 'กะปาง', 'กะเปียด', 'กะหรอ', 'การะเกด', 'กำแพงเซา', 'กำโลน', 'กุแหระ', 'เกาะขันธ์', 'เกาะทวด', 'เกาะเพชร', 'แก้วแสน', 'ขนอม', 'ขนาบนาก', 'ขอนหาด', 'ขุนทะเล', 'เขาแก้ว', 'เขาขาว', 'เขาน้อย', 'เขาพระ', 'เขาพระทอง', 'เขาพระบาท', 'เขาพังไกร', 'เขาโร', 'คลองกระบือ', 'คลองน้อย', 'คลองเส', 'คลัง', 'ควนกรด', 'ควนกลาง', 'ควนเกย', 'ควนชะลิก', 'ควนชุม', 'ควนทอง', 'ควนพัง', 'ควนหนองคว้า', 'ควนหนองหงษ์', 'เคร็ง', 'จันดี', 'ฉลอง', 'ฉวาง', 'ชะมาย', 'ชะเมา', 'ชะอวด', 'ช้างกลาง', 'ช้างซ้าย', 'เชียรเขา', 'เชียรใหญ่', 'ไชยมนตรี', 'ดอนตรอ', 'ดอนตะโก', 'ดุสิต', 'ตลิ่งชัน', 'ถ้ำพรรณรา', 'ถ้ำใหญ่', 'ทรายขาว', 'ท้องเนียน', 'ท้องลำเจียก', 'ทอนหงส์', 'ท่าขนาน', 'ท่าขึ้น', 'ทางพูน', 'ท่างิ้ว', 'ท่าซอม', 'ท่าซัก', 'ท่าดี', 'ท่าประจะ', 'ท่าพยา', 'ท้ายสำเภา', 'ท่ายาง', 'ท่าเรือ', 'ท่าไร่', 'ท่าวัง', 'ท่าศาลา', 'ท่าเสม็ด', 'ที่วัง', 'ทุ่งปรัง', 'ทุ่งโพธิ์', 'ทุ่งสง', 'ทุ่งสัง', 'ทุ่งใส', 'ทุ่งใหญ่', 'เทพราช', 'ไทยบุรี', 'นบพิตำ', 'นากะชะ', 'นาเขลียง', 'นาเคียน', 'นางหลง', 'นาทราย', 'นาบอน', 'นาพรุ', 'นาโพธิ์', 'นาไม้ไผ่', 'นาเรียง', 'นาแว', 'นาสาร', 'นาหมอบุญ', 'นาหลวงเสน', 'นาเหรง', 'น้ำตก', 'ในเมือง', 'บางขัน', 'บางจาก', 'บางตะพง', 'บางนบ', 'บางพระ', 'บางรูป', 'บางศาลา', 'บ้านกลาง', 'บ้านเกาะ', 'บ้านควนมุด', 'บ้านชะอวด', 'บ้านตูล', 'บ้านนิคม', 'บ้านเนิน', 'บ้านเพิง', 'บ้านราม', 'บ้านลำนาว', 'บ้านใหม่', 'ปริก', 'ปากนคร', 'ปากพนัง', 'ปากพนังฝั่งตะวันตก', 'ปากพนังฝั่งตะวันออก', 'ปากพูน', 'ปากแพรก', 'ป่าระกำ', 'เปลี่ยน', 'พรหมโลก', 'พิปูน', 'โพธิ์ทอง', 'โพธิ์เสด็จ', 'มะม่วงสองต้น', 'แม่เจ้าอยู่หัว', 'โมคลาน', 'ไม้เรียง', 'ยางค้อม', 'ร่อนพิบูลย์', 'รามแก้ว', 'ละอาย', 'ลานสกา', 'วังหิน', 'วังอ่าง', 'สระแก้ว', 'สวนขัน', 'สวนหลวง', 'สามตำบล', 'สิชล', 'สี่ขีด', 'เสาธง', 'เสาเภา', 'เสือหึง', 'ไสหมาก', 'ไสหร้า', 'หนองหงส์', 'หน้าสตน', 'หลักช้าง', 'ห้วยปริก', 'หัวตะพาน', 'หัวไทร', 'หินตก', 'หูล่อง', 'แหลม', 'แหลมตะลุมพุก', 'อินคีรี']
+        && isValidNumber(request.resource.data.lat, 7.7, 9.5)
+        && isValidNumber(request.resource.data.lng, 99.1, 100.5)
         && request.resource.data.updatedAt is timestamp
         && (!('hidden' in request.resource.data) || request.resource.data.hidden is bool);
     }
@@ -210,7 +223,11 @@ service cloud.firestore {
           || resource.data.get('merchantId', '') == myUid()
           || resource.data.get('riderId', '') == myUid()
         ))
-        || (isRiderActor() && resource.data.status in ['searching', 'pending', 'cooking', 'ready']);
+        || (
+          isVerifiedRider()
+          && resource.data.riderId == null
+          && resource.data.status in ['searching', 'pending', 'cooking', 'ready']
+        );
     }
 
     function noDispatchControl(data) {
@@ -441,6 +458,8 @@ service cloud.firestore {
           && unchanged('offersTotal')
           && unchanged('activeJobCount')
           && unchanged('idleSince')
+          && unchanged('totalIncome')
+          && unchanged('totalJobs')
         );
       allow delete: if isAdmin();
     }
@@ -462,14 +481,9 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read: if canReadOrder();
 
-      allow create: if isAuth()
-        && request.resource.data.userId == myUid()
-        && request.resource.data.status in ['searching', 'pending']
-        && request.resource.data.type in ['food', 'ride', 'express', 'shopping']
-        && isValidNumber(request.resource.data.total, 0, 100000)
-        && noRider(request.resource.data)
-        && noDispatchControl(request.resource.data)
-        && request.resource.data.get('foodReady', false) != true;
+      // Fare and total are written only by createOrder. Rules cannot
+      // recompute the kilometre fee, so any client-set fare is a mismatch.
+      allow create: if false;
 
       allow update: if moneyFrozen() && (
         // [A] customer cancel while still waiting for the shop
@@ -507,16 +521,8 @@ service cloud.firestore {
           && unchanged('riderId')
           && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
         )
-        || (
-          isAssignedRider()
-          && resource.data.status == 'on_the_way'
-          && request.resource.data.status in ['delivered', 'done']
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'doneAt', 'deliveredAt', 'riderIncome', 'riderOwe', 'riderPaid'])
-          && isValidNumber(request.resource.data.get('riderIncome', 0), 0, 100000)
-          && isValidNumber(request.resource.data.get('riderOwe', 0), 0, 100000)
-        )
+        // Completion payout is completeOrder only. Clients cannot set
+        // riderIncome, riderOwe, or riderPaid, or flip status to done.
         // [D] rider cancel
         || (
           isAssignedRider()
@@ -737,7 +743,11 @@ service cloud.firestore {
       allow create: if isMerchant()
         && request.resource.data.merchantId == myUid()
         && request.resource.data.status == 'pending'
-        && isValidNumber(request.resource.data.amount, 0, 1000000);
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.amount <= 100000
+        && request.resource.data.slipPath is string
+        && request.resource.data.slipPath.matches('^gp_slips/' + myUid() + '/[A-Za-z0-9_.-]+$');
       allow update, delete: if isAdmin();
     }
 
