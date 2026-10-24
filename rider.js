@@ -1066,6 +1066,15 @@ function updateOnlineToggle() {
   syncLocationUpload();
 }
 
+// Dispatch allows one active job unless config/dispatch says otherwise (1–5).
+// The hero must show that cap. offersAccepted/offersTotal is a lifetime
+// offer rate and was rendering as "รับงาน 5/5" while the rider could hold one job.
+function riderJobLimit() {
+  const raw = Number(dispatchConfig && dispatchConfig.maxJobsPerRider);
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  return Math.min(5, Math.max(1, Math.round(raw)));
+}
+
 function updateHeroStats() {
   const today = allHistory.filter(j => j.status === 'done' && isToday(j.doneAt || j.createdAt));
   const feeTotal = today.reduce((s, j) => {
@@ -1081,12 +1090,14 @@ function updateHeroStats() {
 
   const incomeEl = $('hero-income');
   if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
+  const activeCount = allJobs.filter(j =>
+    j.riderId === currentUser?.uid &&
+    RIDER_ACTIVE_STATUSES.includes(j.status)
+  ).length;
+
   const subEl = $('hero-sub');
   if (subEl) {
-    const totalOffers = Number(riderProfile?.offersTotal || 0);
-    const acceptedOffers = Number(riderProfile?.offersAccepted || 0);
-    const rate = totalOffers > 0 ? ` • รับงาน ${acceptedOffers}/${totalOffers}` : '';
-    subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้` + rate;
+    subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้ • รับงาน ${activeCount}/${riderJobLimit()}`;
   }
   const feeEl = $('hero-fee');
   if (feeEl) feeEl.textContent = '฿' + fmt(feeTotal);
@@ -1094,11 +1105,6 @@ function updateHeroStats() {
   if (tipEl) tipEl.textContent = '฿' + fmt(tipTotal);
   const oweEl = $('hero-owe');
   if (oweEl) oweEl.textContent = '฿' + fmt(todayOwe);
-
-  const activeCount = allJobs.filter(j =>
-    j.riderId === currentUser?.uid &&
-    RIDER_ACTIVE_STATUSES.includes(j.status)
-  ).length;
 
   const doneEl = $('stat-done');
   if (doneEl) doneEl.textContent = today.length;
@@ -1557,13 +1563,13 @@ async function confirmPickup() {
     /* อัปโหลดรูปอาหาร */
     const foodPath = `orders/${jobId}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
-    await foodRef.put(pickupFoodBlob);
+    await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     pickupFoodUrl = await foodRef.getDownloadURL();
 
     /* อัปโหลดสลิป */
     const slipPath = `slips/riders/${currentUser.uid}/${jobId}_${ts}.jpg`;
     const slipRef = storage.ref(slipPath);
-    await slipRef.put(pickupSlipBlob);
+    await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
     pickupSlipUrl = await slipRef.getDownloadURL();
 
     /* อัปเดต order */
@@ -2568,7 +2574,7 @@ async function sendChatImage(file) {
     const compressed = await compressImage(file, 800, 0.75);
     const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
     const ref = storage.ref(path);
-    await ref.put(compressed);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
 
     await ensureRiderChat(activeChatId);

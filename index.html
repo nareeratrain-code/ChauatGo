@@ -4947,8 +4947,9 @@ async function uploadExpressParcelPhoto(file) {
   if (!file.type || file.type.indexOf('image/') !== 0) throw new Error('ไฟล์รูปสิ่งของไม่ถูกต้อง');
   var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   if (['jpg','jpeg','png','webp','heic'].indexOf(ext) === -1) ext = 'jpg';
-  // No storage.rules file is deployed from this repo. Customer chat photos
-  // already upload under chats/{id}/images/, so the parcel photo uses that prefix.
+  // Parcel photos are stored under the customer's own chats/{uid}/images/
+  // prefix. Storage rules allow that uid to write images there before an
+  // order document exists.
   var path = 'chats/' + currentUser.uid + '/images/parcel_' + Date.now() + '.' + ext;
   var snap = await storage.ref(path).put(file, { contentType: file.type });
   return { url: await snap.ref.getDownloadURL(), path: path };

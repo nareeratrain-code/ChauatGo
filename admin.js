@@ -1366,7 +1366,8 @@ async function sendChatImage(file) {
 
   try {
     const ref = storage.ref(`chats/${activeChatId}/${Date.now()}.jpg`);
-    await ref.put(file);
+    const contentType = file.type && file.type.indexOf('image/') === 0 ? file.type : 'image/jpeg';
+    await ref.put(file, { contentType: contentType });
     const url = await ref.getDownloadURL();
 
     await db.collection('chats').doc(activeChatId).collection('messages').add({

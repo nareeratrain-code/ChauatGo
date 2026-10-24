@@ -7,7 +7,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test test/*.test.js",
-    "test:emu": "cd .. && npx --yes firebase-tools emulators:exec --only firestore --project chauat-go-b9841 \"npm test --prefix functions\""
+    "test:storage": "node --test test/rules/storage-rules.test.js",
+    "test:emu": "cd .. && npx --yes firebase-tools emulators:exec --only firestore,storage --project chauat-go-b9841 \"npm test --prefix functions && npm run test:storage --prefix functions\""
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",
