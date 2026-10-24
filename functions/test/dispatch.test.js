@@ -657,6 +657,38 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(capped.fare, 150);
   assert.equal(capped.cashTip, 5);
   assert.equal(capped.total, 255);
+  await db.collection('merchants').doc('shop-nocoord').set({
+    name: 'ร้านทดสอบไม่มีพิกัด', verified: true
+  });
+  await db.collection('menus').doc('menu-somtum').set({
+    merchantId: 'shop-nocoord', name: 'ส้มตำทดสอบ', price: 70, status: 'available'
+  });
+  await db.collection('menus').doc('menu-tea').set({
+    merchantId: 'shop-nocoord', name: 'ชาทดสอบ', price: 35, status: 'available'
+  });
+  const baseFee = await Orders.createOrder(db, 'customer-fee', {
+    type: 'food',
+    merchantId: 'shop-nocoord',
+    items: [
+      { menuId: 'menu-somtum', qty: 3, price: 1 },
+      { menuId: 'menu-tea', qty: 3, price: 1 }
+    ],
+    shopPlaceLat: null,
+    shopPlaceLng: null,
+    lat: null,
+    lng: null,
+    paymentMode: 'transfer',
+    fare: 999,
+    total: 1
+  });
+  assert.equal(baseFee.fare, 20);
+  assert.equal(baseFee.cashTip, 0);
+  assert.equal(baseFee.total, 335);
+  const baseDoc = await db.collection('orders').doc(baseFee.id).get();
+  assert.equal(Object.prototype.hasOwnProperty.call(baseDoc.data(), 'shopPlaceLat'), false);
+  assert.equal(baseDoc.data().distanceKm, 0);
+  assert.equal(baseDoc.data().netTotal, 315);
+  assertNoProtectedShop(baseDoc.data());
   await db.collection('riders').doc('rider-fee').set({ verified: true, name: 'ไรเดอร์ทดสอบ', totalJobs: 0, totalIncome: 0 });
   await db.collection('merchants').doc('shop-fee').set({
     gpStartDate: Timestamp.fromDate(new Date(Date.now() - 100 * 86400000))

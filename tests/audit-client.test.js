@@ -28,6 +28,8 @@ test('notification clicks follow data.type', () => {
 test('clients use the order callables and drop the unused fee constants', () => {
   assert.equal(indexHtml.includes("collection('orders').add"), false);
   assert.match(indexHtml, /httpsCallable\('createOrder'\)/);
+  assert.match(indexHtml, /function checkoutErrorText/);
+  assert.match(indexHtml, /showToast\(checkoutErrorText\(e\), 'error'\)/);
   assert.match(rider, /completeOrder/);
   assert.equal(rider.includes('SERVICE_BASE'), false);
   assert.equal(rider.includes('FREE_KM'), false);

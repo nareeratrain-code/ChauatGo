@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.34';
+const CACHE_NAME = 'chauat-app-v3.9.35';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -142,6 +142,7 @@ self.addEventListener('activate', (event) => {
     setTimeout(() => {
       self.clients.matchAll({ type: 'window' }).then((windows) => {
         for (const client of windows) {
+          if (client.postMessage) client.postMessage({ type: 'RELOAD' });
           if (typeof client.navigate !== 'function') continue;
           if (!client.url || client.url.indexOf('http') !== 0) continue;
           client.navigate(client.url).catch(() => {});
