@@ -3,10 +3,14 @@
 
      try { return this.messaging.getToken(); } catch (e) { return; }
 
-   getToken() returns a promise. Returning it does not await it, so the
+   getToken() returns a promise. The published bundle dropped await, so the
    try/catch misses the rejection. With notification permission granted,
-   that promise registers /firebase-messaging-sw.js (this site does not
-   have that file) and the rejection aborts createOrder.
+   that promise registers /firebase-messaging-sw.js. A 404 there rejects
+   the promise and aborts createOrder.
+
+   httpsCallable holds the private messaging-internal component, not the
+   object returned by firebase.messaging(). Patching only the public
+   getToken does not stop the callable. disarm() patches the private one.
 
    A call with no serviceWorkerRegistration is the callable SDK. Resolve
    it immediately and do not register the default worker. A call that
@@ -19,16 +23,8 @@
     return key.length > 20 ? key : '';
   }
 
-  function install(app) {
-    if (!root.firebase || !root.firebase.messaging || !app) return null;
-    var messaging;
-    try {
-      messaging = root.firebase.messaging(app);
-    } catch (err) {
-      console.warn('[fcm] init skipped', err);
-      return null;
-    }
-    if (!messaging || messaging.__chauatSafe) return messaging;
+  function patchGetToken(messaging) {
+    if (!messaging || typeof messaging.getToken !== 'function' || messaging.__chauatSafe) return messaging;
     var raw = messaging.getToken.bind(messaging);
     messaging.getToken = function (options) {
       var opts = options || {};
@@ -46,6 +42,42 @@
     return messaging;
   }
 
+  function install(app) {
+    if (!root.firebase || !root.firebase.messaging || !app) return null;
+    var messaging;
+    try {
+      messaging = root.firebase.messaging(app);
+    } catch (err) {
+      console.warn('[fcm] init skipped', err);
+      return null;
+    }
+    return patchGetToken(messaging);
+  }
+
+  /* Patch the instance httpsCallable actually calls. */
+  function disarm(app) {
+    var modular = app && (app._delegate || app);
+    var container = modular && modular.container;
+    if (!container || typeof container.getProvider !== 'function') return;
+    var provider;
+    try {
+      provider = container.getProvider('messaging-internal');
+    } catch (err) {
+      return;
+    }
+    if (!provider) return;
+    function take(internal) {
+      patchGetToken(internal);
+    }
+    try {
+      if (typeof provider.getImmediate === 'function') take(provider.getImmediate({ optional: true }));
+    } catch (err) {}
+    if (typeof provider.get !== 'function') return;
+    Promise.resolve().then(function () {
+      return provider.get();
+    }).then(take, function () {});
+  }
+
   /* Explicit registration. Callers must not await this on the order path. */
   function warm(app) {
     var key = vapidKey();
@@ -60,5 +92,5 @@
     });
   }
 
-  root.ChauatFcm = { install: install, warm: warm };
+  root.ChauatFcm = { install: install, disarm: disarm, warm: warm };
 })(typeof self !== 'undefined' ? self : this);
