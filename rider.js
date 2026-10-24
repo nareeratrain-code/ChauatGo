@@ -135,15 +135,55 @@ const CASH_TIP = 5;
 const ARRIVAL_RADIUS_M = 300;
 const NEAR_CUSTOMER_RADIUS_M = 300;
 const CUSTOMER_ARRIVAL_RADIUS_M = 50;
-const AUTO_CHAT_MESSAGES = {
-  accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปยังร้านหรือสถานที่ที่ลูกค้าปักหมุดไว้เพื่อซื้อของให้ครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
-  shop_arrived: '📍 ไรเดอร์ถึงร้านหรือสถานที่ที่ปักหมุดแล้วครับ/ค่ะ\nกรุณาเตรียมรับสาย เพื่อยืนยันรายการฝากซื้อ และเตรียมโอนเงินค่าอาหารหรือค่าสินค้าให้ไรเดอร์ครับ/ค่ะ',
-  picked_up: '✅ ไรเดอร์รับอาหารหรือสินค้าเรียบร้อยแล้วครับ/ค่ะ\nกำลังเตรียมเดินทางไปส่งตามพิกัดบ้านลูกค้า กรุณารอรับสายหากมีรายการต้องยืนยันเพิ่มเติมครับ/ค่ะ',
-  on_the_way: '🚀 ไรเดอร์ออกจากร้านแล้ว และกำลังเดินทางไปบ้านลูกค้าครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งเตือนครับ/ค่ะ',
-  near_customer: '🔔 ไรเดอร์อยู่ห่างจากปลายทางประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับสายและเตรียมตัวรับอาหารหรือสินค้านะครับ/ค่ะ',
-  arrived_customer: '📍 ไรเดอร์ถึงบริเวณปลายทางแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับอาหารและสินค้าด้วยนะครับ/ค่ะ',
-  delivered: '✅ ส่งอาหารหรือสินค้าเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+const AUTO_CHAT_BY_TYPE = {
+  food: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปที่ร้านเพื่อรับอาหารของลูกค้าครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกำลังรับอาหารจากร้าน และจะออกเดินทางไปส่งเมื่อรับของครบครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์รับอาหารจากร้านเรียบร้อยแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามที่อยู่ลูกค้าครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังนำอาหารไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์อยู่ห่างจากจุดส่งอาหารประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับอาหารนะครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงจุดส่งอาหารแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับอาหารด้วยนะครับ/ค่ะ',
+    delivered: '✅ ส่งอาหารเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  },
+  express: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานส่งด่วนแล้ว และกำลังเดินทางไปรับพัสดุครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงจุดรับพัสดุแล้วครับ/ค่ะ\nกำลังรับของ และจะเดินทางไปส่งตามปลายทางครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์รับพัสดุแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามปลายทางครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังนำพัสดุไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์อยู่ห่างจากจุดส่งพัสดุประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับของนะครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงจุดส่งพัสดุแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับพัสดุด้วยนะครับ/ค่ะ',
+    delivered: '✅ ส่งพัสดุเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  },
+  shopping: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปยังร้านหรือสถานที่ที่ลูกค้าปักหมุดไว้เพื่อซื้อของให้ครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงร้านหรือสถานที่ที่ปักหมุดแล้วครับ/ค่ะ\nกรุณาเตรียมรับสาย เพื่อยืนยันรายการฝากซื้อ และเตรียมโอนเงินค่าอาหารหรือค่าสินค้าให้ไรเดอร์ครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์ซื้อของตามรายการฝากซื้อเรียบร้อยแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามที่อยู่ลูกค้าครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังนำของฝากซื้อไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์อยู่ห่างจากจุดส่งของฝากซื้อประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับของนะครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงจุดส่งของฝากซื้อแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับของด้วยนะครับ/ค่ะ',
+    delivered: '✅ ส่งของฝากซื้อเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  },
+  ride: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานเรียกรถแล้ว และกำลังเดินทางไปรับลูกค้าครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงจุดรับแล้วครับ/ค่ะ\nกรุณาเตรียมออกมาพบไรเดอร์นะครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์รับลูกค้าแล้ว และกำลังเดินทางไปยังปลายทางครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังเดินทางไปยังปลายทางครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์ใกล้ถึงปลายทางแล้วครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงปลายทางแล้วครับ/ค่ะ',
+    delivered: '✅ ถึงปลายทางเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  }
 };
+
+function orderServiceType(order) {
+  const type = String((order && order.type) || '').trim();
+  if (type === 'food' || type === 'express' || type === 'shopping' || type === 'ride') return type;
+  return 'food';
+}
+
+function autoChatText(order, key) {
+  const pack = AUTO_CHAT_BY_TYPE[orderServiceType(order)];
+  return (pack && pack[key]) || '';
+}
 const MAX_SLIP_SIZE = 5 * 1024 * 1024;
 const PAYMENT_TIMEOUT_5MIN = 5 * 60 * 1000;
 const PAYMENT_TIMEOUT_15MIN = 15 * 60 * 1000;
@@ -1310,10 +1350,33 @@ function renderJobCard(j, type) {
     </div>`;
 }
 
-async function sendAutomatedChat(orderId, key, text) {
-  if (!orderId || !text || !currentUser) return;
+function findKnownOrder(orderId) {
+  const lists = [allJobs, allHistory];
+  for (let i = 0; i < lists.length; i++) {
+    const found = (lists[i] || []).find((job) => job && (job.id === orderId || job.orderId === orderId));
+    if (found) return found;
+  }
+  if (currentOffer && currentOffer.orderId === orderId) return currentOffer;
+  return null;
+}
+
+async function orderForAutoChat(orderId) {
+  const known = findKnownOrder(orderId);
+  if (known && known.type) return known;
+  try {
+    const snap = await db.collection('orders').doc(orderId).get();
+    if (snap.exists) return Object.assign({ id: snap.id }, snap.data());
+  } catch (err) {}
+  return known;
+}
+
+async function sendAutomatedChat(orderId, key) {
+  if (!orderId || !key || !currentUser) return;
   const token = orderId + ':' + key;
   if (autoChatSent.has(token)) return;
+  const order = await orderForAutoChat(orderId);
+  const text = autoChatText(order, key);
+  if (!text) return;
   autoChatSent.add(token);
   try {
     const body = await ensureRiderChat(orderId);
@@ -1340,8 +1403,8 @@ async function sendAutomatedChat(orderId, key, text) {
   }
 }
 
-function sendAutomatedChatLater(orderId, key, text) {
-  sendAutomatedChat(orderId, key, text);
+function sendAutomatedChatLater(orderId, key) {
+  sendAutomatedChat(orderId, key);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1363,7 +1426,7 @@ async function acceptJob(jobId) {
     showToast(readyAlready
       ? '✅ รับงานแล้ว — อาหารพร้อม ไปที่ร้าน'
       : ('✅ รับงานแล้ว — ร้านกำลังทำ' + (prepMinutes ? ' ประมาณ ' + prepMinutes + ' นาที' : '')));
-    sendAutomatedChatLater(jobId, 'accepted', AUTO_CHAT_MESSAGES.accepted);
+    sendAutomatedChatLater(jobId, 'accepted');
     closeNewJobPopup();
     scheduleGPSIfActive();
   } catch (err) {
@@ -1413,7 +1476,7 @@ async function arrivedAtShop(jobId) {
   if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
-  sendAutomatedChatLater(jobId, 'shop_arrived', AUTO_CHAT_MESSAGES.shop_arrived);
+  sendAutomatedChatLater(jobId, 'shop_arrived');
   openPickupModal(jobId, job);
 }
 
@@ -1588,7 +1651,7 @@ async function confirmPickup() {
     showToast(cashPickup
       ? '✅ รับของแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง'
       : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน');
-    sendAutomatedChatLater(jobId, 'picked_up', AUTO_CHAT_MESSAGES.picked_up);
+    sendAutomatedChatLater(jobId, 'picked_up');
     closeModal();
     arrivedShopNotifiedOrderIds.add(jobId);
 
@@ -1679,7 +1742,7 @@ async function startDelivery(jobId) {
       onTheWayAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('🚀 เริ่มส่งอาหาร');
-    sendAutomatedChatLater(jobId, 'on_the_way', AUTO_CHAT_MESSAGES.on_the_way);
+    sendAutomatedChatLater(jobId, 'on_the_way');
     clearPaymentTimers();
   } catch (err) {
     showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
@@ -1812,7 +1875,7 @@ async function confirmDeliver(jobId) {
     const result = await callDispatch('completeOrder', { orderId: jobId });
     const income = result && result.riderIncome != null ? result.riderIncome : fin.totalRider;
     showToast('✅ ส่งสำเร็จ! +฿' + fmt(income));
-    sendAutomatedChatLater(jobId, 'delivered', AUTO_CHAT_MESSAGES.delivered);
+    sendAutomatedChatLater(jobId, 'delivered');
     closeModal();
     clearPaymentTimers();
     stopGPS();
@@ -2154,7 +2217,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
         arrivedShopNotifiedOrderIds.add(job.id);
         soundArrivedShop();
         showToast('📍 ถึงร้านแล้ว — กด "ถึงร้าน" เพื่อรับอาหาร');
-        sendAutomatedChatLater(job.id, 'shop_arrived', AUTO_CHAT_MESSAGES.shop_arrived);
+        sendAutomatedChatLater(job.id, 'shop_arrived');
       }
     }
 
@@ -2170,7 +2233,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
           riderNearCustomerAt: firebase.firestore.FieldValue.serverTimestamp(),
           riderNearCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
-        sendAutomatedChatLater(job.id, 'near_customer', AUTO_CHAT_MESSAGES.near_customer);
+        sendAutomatedChatLater(job.id, 'near_customer');
       }
     }
 
@@ -2181,7 +2244,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
         await db.collection('orders').doc(job.id).update({
           riderArrivedCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
-        sendAutomatedChatLater(job.id, 'arrived_customer', AUTO_CHAT_MESSAGES.arrived_customer);
+        sendAutomatedChatLater(job.id, 'arrived_customer');
       }
     }
   }
@@ -2840,7 +2903,7 @@ async function acceptDispatchOffer() {
     hiddenOfferIds.add(o.id);
     clearOffer(true);
     showToast('รับงานแล้ว');
-    sendAutomatedChatLater(o.orderId, 'accepted', AUTO_CHAT_MESSAGES.accepted);
+    sendAutomatedChatLater(o.orderId, 'accepted');
     scheduleGPSIfActive();
   } catch (err) {
     showToast(acceptErrorText(err), 'error', 6000);
