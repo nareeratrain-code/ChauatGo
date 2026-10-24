@@ -1,5 +1,8 @@
 /* Call a 2nd-gen Firebase callable in asia-southeast1 without the Functions SDK.
-   The compat SDK defaults to us-central1, which is the wrong region. */
+   The compat SDK defaults to us-central1, which is the wrong region and was
+   one cause of the browser "Failed to fetch" on accept. The function is
+   deployed with invoker public. App Check is enforced inside the function,
+   not by the platform, so a rejection still has CORS headers. */
 (function (root) {
   var PROJECT = 'chauat-go-b9841';
   var REGION = 'asia-southeast1';

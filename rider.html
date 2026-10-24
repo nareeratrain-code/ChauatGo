@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Chauat Go Rider — v3.9.26</title>
+<title>Chauat Go Rider — v3.9.31</title>
 <meta name="theme-color" content="#FF6B35">
 <meta name="description" content="แอปไรเดอร์ Chauat Go — อ.ชะอวด">
 <meta name="robots" content="noindex,nofollow">
@@ -15,7 +15,7 @@
 
 <script>
 (function() {
-  var VERSION = 'v3.9.27-20261017-005';
+  var VERSION = 'v3.9.31-rider-accept-20261023-001';
   var saved = localStorage.getItem('chauat_ver_rider');
   var lastReload = localStorage.getItem('chauat_last_reload_rider');
   var now = Date.now();
@@ -250,11 +250,13 @@
     </div>
 
     <div id="job-filter-bar" role="tablist" aria-label="กรองประเภทงาน" style="display:flex;gap:8px;margin:14px 0 10px;padding:5px;background:var(--surface-2,#F2F5F3);border-radius:14px;overflow-x:auto">
-      <button type="button" class="job-filter-btn active" data-job-filter="all" onclick="setJobFilter('all')" role="tab" aria-selected="true" style="flex:1;min-width:92px;border:0;border-radius:10px;padding:10px 8px;background:var(--brand,#00A651);color:#fff;font:900 12px inherit;white-space:nowrap;cursor:pointer">ทั้งหมด</button>
-      <button type="button" class="job-filter-btn" data-job-filter="food" onclick="setJobFilter('food')" role="tab" aria-selected="false" style="flex:1;min-width:116px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">🍽️ ส่งอาหาร</button>
-      <button type="button" class="job-filter-btn" data-job-filter="express" onclick="setJobFilter('express')" role="tab" aria-selected="false" style="flex:1;min-width:116px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">📦 ส่งด่วน</button>
+      <button type="button" class="job-filter-btn active" data-job-filter="all" onclick="setJobFilter('all')" role="tab" aria-selected="true" style="flex:1;min-width:84px;border:0;border-radius:10px;padding:10px 8px;background:var(--brand,#00A651);color:#fff;font:900 12px inherit;white-space:nowrap;cursor:pointer">ทั้งหมด</button>
+      <button type="button" class="job-filter-btn" data-job-filter="food" onclick="setJobFilter('food')" role="tab" aria-selected="false" style="flex:1;min-width:108px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">🍽️ ส่งอาหาร</button>
+      <button type="button" class="job-filter-btn" data-job-filter="express" onclick="setJobFilter('express')" role="tab" aria-selected="false" style="flex:1;min-width:100px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">📦 ส่งด่วน</button>
+      <button type="button" class="job-filter-btn" data-job-filter="ride" onclick="setJobFilter('ride')" role="tab" aria-selected="false" style="flex:1;min-width:96px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">🚗 เรียกรถ</button>
+      <button type="button" class="job-filter-btn" data-job-filter="shopping" onclick="setJobFilter('shopping')" role="tab" aria-selected="false" style="flex:1;min-width:100px;border:0;border-radius:10px;padding:10px 8px;background:transparent;color:var(--text,#173D2A);font:900 12px inherit;white-space:nowrap;cursor:pointer">🛒 ฝากซื้อ</button>
     </div>
-    <div style="margin:-4px 2px 10px;color:var(--text-muted,#66736B);font-size:11px;font-weight:700">ตัวกรองนี้ใช้กับ “งานใหม่” เท่านั้น งานที่รับแล้วจะแสดงใน “งานที่กำลังทำ” เสมอ</div>
+    <div style="margin:-4px 2px 10px;color:var(--text-muted,#66736B);font-size:11px;font-weight:700">ตัวกรองนี้ใช้กับงานใหม่เท่านั้น งานที่กำลังทำและงานที่เสร็จแล้วแสดงเสมอ</div>
     <div id="active-job-section" class="section-wrap" style="display:none">
       <div class="section-divider">
         <div class="title"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 16.5a2.2 2.2 0 1 0 .01 4.4A2.2 2.2 0 0 0 6 16.5zm11.2 0a2.2 2.2 0 1 0 .01 4.4 2.2 2.2 0 0 0-.01-4.4zM4.2 6h2.1l1.4 6.2h9.2l1.6-5.2H8.1l-.4-1.6H4.2V6z"/></svg>งานที่กำลังทำ</div>

@@ -663,11 +663,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     const claim = {
       riderId: 'rider1', riderName: 'ทดสอบ', riderPhone: '0800000000', status: 'accepted', acceptedAt: 1
     };
-    try {
-      await assertSucceeds(rdb.collection('orders').doc('open1').update(claim));
-    } catch (err) {
-      throw new Error('manual claim: ' + (err && err.message));
-    }
+    await assertFails(rdb.collection('orders').doc('open1').update(claim));
 
     await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
       const root = ctx.firestore();
@@ -675,19 +671,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('orders').doc('open2').set({
         type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ'
       });
-    });
-    await assertFails(rdb.collection('orders').doc('open2').update(claim));
-    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
-      await ctx.firestore().collection('orders').doc('open2').update({ dispatchOfferRiderId: 'rider1' });
-    });
-    try {
-      await assertSucceeds(rdb.collection('orders').doc('open2').update(claim));
-    } catch (err) {
-      throw new Error('offered claim: ' + (err && err.message));
-    }
-
-    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
-      const root = ctx.firestore();
+      await root.collection('orders').doc('open2').update({ dispatchOfferRiderId: 'rider1' });
       await root.collection('orders').doc('open-broadcast').set({
         type: 'ride', status: 'searching', userId: 'cust1', merchantId: '', merchantName: ''
       });
@@ -700,16 +684,6 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('orders').doc('open-other').collection('dispatchOffers').doc('someone').set({
         riderId: 'someone', status: 'pending', broadcast: true, orderId: 'open-other'
       });
-    });
-    try {
-      await assertSucceeds(rdb.collection('orders').doc('open-broadcast').update(claim));
-    } catch (err) {
-      throw new Error('broadcast claim: ' + (err && err.message));
-    }
-    await assertFails(rdb.collection('orders').doc('open-other').update(claim));
-
-    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
-      const root = ctx.firestore();
       await root.collection('orders').doc('shop-offer').set({
         type: 'shopping',
         status: 'searching',
@@ -724,15 +698,16 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('orders').doc('shop-offer').collection('dispatchOffers').doc('shop-of').set({
         riderId: 'rider1', status: 'pending', orderId: 'shop-offer'
       });
+      await root.collection('rider_locks').doc('rider1').set({ riderId: 'rider1', orderId: '' });
     });
-    try {
-      await assertSucceeds(rdb.collection('orders').doc('shop-offer').update(claim));
-    } catch (err) {
-      throw new Error('shopping offer claim: ' + (err && err.message));
-    }
+    await assertFails(rdb.collection('orders').doc('open2').update(claim));
+    await assertFails(rdb.collection('orders').doc('open-broadcast').update(claim));
+    await assertFails(rdb.collection('orders').doc('open-other').update(claim));
+    await assertFails(rdb.collection('orders').doc('shop-offer').update(claim));
     await assertFails(rdb.collection('orders').doc('shop-offer').collection('dispatchOffers').doc('shop-of').update({
       status: 'accepted'
     }));
+    await assertFails(rdb.collection('rider_locks').doc('rider1').set({ orderId: 'open1' }));
 
     let serverTimestamp = null;
     try {

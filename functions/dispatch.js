@@ -1,6 +1,6 @@
 'use strict';
 
-const { FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { FieldPath, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { geohashQueryBounds, distanceBetween } = require('geofire-common');
 
@@ -438,28 +438,82 @@ async function jobCountForOffer(db, riderId, stored) {
   return 0;
 }
 
+async function pageDocs(query, pageSize) {
+  const size = pageSize || 300;
+  const docs = [];
+  let cursor = null;
+  for (;;) {
+    let q = query.limit(size);
+    if (cursor) q = q.startAfter(cursor);
+    const snap = await q.get();
+    if (snap.empty) return docs;
+    docs.push.apply(docs, snap.docs);
+    if (snap.size < size) return docs;
+    cursor = snap.docs[snap.docs.length - 1];
+  }
+}
+
 async function eligibleRiders(db) {
-  const riderSnap = await db.collection('riders').where('verified', '==', true).limit(100).get();
-  const gpsSnap = await db.collection('gps_riders').limit(100).get();
+  const riderDocs = await pageDocs(db.collection('riders').orderBy(FieldPath.documentId()));
+  const gpsDocs = await pageDocs(db.collection('gps_riders').orderBy(FieldPath.documentId()));
   const gps = {};
-  gpsSnap.docs.forEach((doc) => { gps[doc.id] = doc.data() || {}; });
+  gpsDocs.forEach((doc) => { gps[doc.id] = doc.data() || {}; });
   const out = [];
-  for (const doc of riderSnap.docs) {
+  for (const doc of riderDocs) {
     const r = doc.data() || {};
-    if (!riderIsReady(r.status)) continue;
+    if (r.verified !== true || !riderIsReady(r.status)) continue;
     const g = gps[doc.id];
-    if (g && g.online !== true) continue;
+    if (!g || g.online !== true) continue;
     const jobs = await jobCountForOffer(db, doc.id, r.activeJobCount);
     if (jobs > 0) continue;
     out.push({
       riderId: doc.id,
-      riderName: r.name || (g && g.name) || '',
+      riderName: r.name || g.name || '',
       riderPhone: r.phone || '',
-      lat: g ? finiteOrNull(g.lat) : null,
-      lng: g ? finiteOrNull(g.lng) : null
+      lat: finiteOrNull(g.lat),
+      lng: finiteOrNull(g.lng)
     });
   }
   return out;
+}
+
+function riderLockRef(db, uid) {
+  return db.collection('rider_locks').doc(uid);
+}
+
+function activeJobsQuery(db, riderId) {
+  return db.collection('orders')
+    .where('riderId', '==', riderId)
+    .where('status', 'in', ACTIVE_STATUSES)
+    .limit(5);
+}
+
+function otherActiveDoc(activeSnap, orderId) {
+  if (!activeSnap) return null;
+  for (let i = 0; i < activeSnap.docs.length; i++) {
+    if (activeSnap.docs[i].id !== orderId) return activeSnap.docs[i];
+  }
+  return null;
+}
+
+async function heldLockOrder(tx, db, lockSnap, orderId) {
+  const lock = lockSnap && lockSnap.exists ? (lockSnap.data() || {}) : {};
+  if (!lock.orderId || lock.orderId === orderId) return null;
+  return tx.get(db.collection('orders').doc(lock.orderId));
+}
+
+function lockStillBusy(heldSnap, uid) {
+  if (!heldSnap || !heldSnap.exists) return false;
+  const data = heldSnap.data() || {};
+  return data.riderId === uid && ACTIVE_STATUSES.indexOf(data.status) !== -1;
+}
+
+function holdRiderLock(tx, lock, uid, orderId) {
+  tx.set(lock, {
+    riderId: uid,
+    orderId: orderId,
+    updatedAt: FieldValue.serverTimestamp()
+  });
 }
 
 function offerBody(orderId, order, rider, pickup, nowMs, holdMs) {
@@ -498,9 +552,9 @@ async function broadcastOrder(db, orderId, cfg) {
 
   const pickup = pickupOf(preData);
   const riders = await eligibleRiders(db);
-  const existing = await ref.collection('dispatchOffers').limit(100).get();
+  const existingDocs = await pageDocs(ref.collection('dispatchOffers').orderBy(FieldPath.documentId()));
   const held = {};
-  existing.docs.forEach((doc) => {
+  existingDocs.forEach((doc) => {
     const data = doc.data() || {};
     const id = data.riderId || doc.id;
     if (!held[id] || data.status === 'pending' || data.status === 'skipped' || data.status === 'accepted') {
@@ -513,7 +567,7 @@ async function broadcastOrder(db, orderId, cfg) {
   });
   const holdMs = Math.max(5, cfg.unassignedTimeoutMin || 60) * 60 * 1000;
   if (!fresh.length) {
-    const pending = existing.docs.some((doc) => (doc.data() || {}).status === 'pending');
+    const pending = existingDocs.some((doc) => (doc.data() || {}).status === 'pending');
     if (pending) {
       if (preData.dispatchState !== 'offered') {
         await ref.update(Object.assign({
@@ -541,26 +595,36 @@ async function broadcastOrder(db, orderId, cfg) {
 
   const patch = codePatch(preData);
   const orderForOffer = patch.code ? Object.assign({}, preData, { code: patch.code }) : preData;
-  const batch = db.batch();
-  const riderIds = [];
-  fresh.forEach((rider) => {
-    riderIds.push(rider.riderId);
-    batch.set(
-      ref.collection('dispatchOffers').doc(rider.riderId),
-      offerBody(orderId, orderForOffer, rider, pickup, nowMs, holdMs)
-    );
-  });
-  batch.update(ref, Object.assign({
-    dispatchMode: 'auto',
-    dispatchState: 'offered',
-    dispatchOfferId: FieldValue.delete(),
-    dispatchOfferRiderId: FieldValue.delete(),
-    dispatchOfferExpiresAt: FieldValue.delete(),
-    dispatchOfferedIds: FieldValue.arrayUnion.apply(FieldValue, riderIds),
-    dispatchManualReason: FieldValue.delete(),
-    dispatchUpdatedAt: FieldValue.serverTimestamp()
-  }, patch));
-  await batch.commit();
+  const riderIds = fresh.map((rider) => rider.riderId);
+  const CHUNK = 400;
+  for (let i = 0; i < fresh.length; i += CHUNK) {
+    const slice = fresh.slice(i, i + CHUNK);
+    const batch = db.batch();
+    slice.forEach((rider) => {
+      batch.set(
+        ref.collection('dispatchOffers').doc(rider.riderId),
+        offerBody(orderId, orderForOffer, rider, pickup, nowMs, holdMs)
+      );
+    });
+    const ids = slice.map((rider) => rider.riderId);
+    const offerPatch = {
+      dispatchOfferedIds: FieldValue.arrayUnion.apply(FieldValue, ids),
+      dispatchUpdatedAt: FieldValue.serverTimestamp()
+    };
+    if (i === 0) {
+      batch.update(ref, Object.assign({
+        dispatchMode: 'auto',
+        dispatchState: 'offered',
+        dispatchOfferId: FieldValue.delete(),
+        dispatchOfferRiderId: FieldValue.delete(),
+        dispatchOfferExpiresAt: FieldValue.delete(),
+        dispatchManualReason: FieldValue.delete()
+      }, offerPatch, patch));
+    } else {
+      batch.update(ref, offerPatch);
+    }
+    await batch.commit();
+  }
   const label = preData.code || preData.title || preData.merchantName || 'ออเดอร์';
   await Promise.all(riderIds.map((id) => notifyRider(db, id, {
     title: 'มีงานใหม่',
@@ -634,92 +698,163 @@ async function expireOffer(db, orderId, offerId, reason) {
   return result;
 }
 
+async function noteBusy(db, uid) {
+  const live = await countActiveJobs(db, uid);
+  if (live > 0) await raiseRiderJobCount(db, uid, live);
+}
+
 async function acceptOffer(db, uid, orderId, offerId) {
   const orderRef = db.collection('orders').doc(orderId);
   const offerRef = orderRef.collection('dispatchOffers').doc(offerId);
   const riderRef = db.collection('riders').doc(uid);
-  const cfg = await loadConfig(db);
-  const liveJobs = await countActiveJobs(db, uid);
-  if (liveJobs >= cfg.maxJobsPerRider) {
-    const riderPre = await riderRef.get();
-    const stored = riderPre.exists ? Number((riderPre.data() || {}).activeJobCount || 0) : 0;
-    if (liveJobs > stored) await raiseRiderJobCount(db, uid, liveJobs);
-    throw new Error('busy');
+  const lock = riderLockRef(db, uid);
+  try {
+    await db.runTransaction(async (tx) => {
+      const activeSnap = await tx.get(activeJobsQuery(db, uid));
+      const lockSnap = await tx.get(lock);
+      const offerSnap = await tx.get(offerRef);
+      const orderSnap = await tx.get(orderRef);
+      const riderSnap = await tx.get(riderRef);
+      const heldSnap = await heldLockOrder(tx, db, lockSnap, orderId);
+      if (!offerSnap.exists) throw new Error('missing-offer');
+      if (!orderSnap.exists) throw new Error('missing-order');
+      if (!riderSnap.exists) throw new Error('missing-rider');
+      const offer = offerSnap.data() || {};
+      const order = orderSnap.data() || {};
+      const rider = riderSnap.data() || {};
+      if (offer.riderId !== uid) throw new Error('not-yours');
+      if (offer.status !== 'pending') throw new Error('closed');
+      const exp = tsMillis(offer.expiresAt);
+      if (exp && exp < Date.now()) throw new Error('expired');
+      if (order.riderId) throw new Error('taken');
+      if (order.dispatchOfferId && order.dispatchOfferId !== offerId && offer.broadcast !== true) {
+        throw new Error('stale');
+      }
+      if (rider.verified !== true) throw new Error('unverified');
+      if (otherActiveDoc(activeSnap, orderId) || lockStillBusy(heldSnap, uid)) {
+        throw new Error('busy');
+      }
+      tx.update(orderRef, {
+        riderId: uid,
+        riderName: rider.name || offer.riderName || '',
+        riderPhone: rider.phone || '',
+        status: 'accepted',
+        acceptedAt: FieldValue.serverTimestamp(),
+        dispatchState: 'assigned',
+        dispatchCounted: true,
+        dispatchOfferRiderId: FieldValue.delete(),
+        dispatchOfferExpiresAt: FieldValue.delete(),
+        dispatchUpdatedAt: FieldValue.serverTimestamp()
+      });
+      tx.update(offerRef, {
+        status: 'accepted',
+        endReason: 'accepted',
+        respondedAt: FieldValue.serverTimestamp()
+      });
+      tx.update(riderRef, {
+        offersAccepted: FieldValue.increment(1),
+        offersTotal: FieldValue.increment(1),
+        activeJobCount: FieldValue.increment(1),
+        idleSince: null
+      });
+      holdRiderLock(tx, lock, uid, orderId);
+    });
+  } catch (err) {
+    if (err && err.message === 'busy') await noteBusy(db, uid);
+    throw err;
   }
-  await db.runTransaction(async (tx) => {
-    const offerSnap = await tx.get(offerRef);
-    const orderSnap = await tx.get(orderRef);
-    const riderSnap = await tx.get(riderRef);
-    if (!offerSnap.exists) throw new Error('missing-offer');
-    if (!orderSnap.exists) throw new Error('missing-order');
-    if (!riderSnap.exists) throw new Error('missing-rider');
-    const offer = offerSnap.data() || {};
-    const order = orderSnap.data() || {};
-    const rider = riderSnap.data() || {};
-    if (offer.riderId !== uid) throw new Error('not-yours');
-    if (offer.status !== 'pending') throw new Error('closed');
-    const exp = tsMillis(offer.expiresAt);
-    if (exp && exp < Date.now()) throw new Error('expired');
-    if (order.riderId) throw new Error('taken');
-    if (order.dispatchOfferId && order.dispatchOfferId !== offerId && offer.broadcast !== true) {
-      throw new Error('stale');
-    }
-    const jobs = Number(rider.activeJobCount || 0);
-    if (jobs >= cfg.maxJobsPerRider) throw new Error('busy');
-    if (rider.verified !== true) throw new Error('unverified');
-    tx.update(orderRef, {
-      riderId: uid,
-      riderName: rider.name || offer.riderName || '',
-      riderPhone: rider.phone || '',
-      status: 'accepted',
-      acceptedAt: FieldValue.serverTimestamp(),
-      dispatchState: 'assigned',
-      dispatchCounted: true,
-      dispatchOfferRiderId: FieldValue.delete(),
-      dispatchOfferExpiresAt: FieldValue.delete(),
-      dispatchUpdatedAt: FieldValue.serverTimestamp()
-    });
-    tx.update(offerRef, {
-      status: 'accepted',
-      endReason: 'accepted',
-      respondedAt: FieldValue.serverTimestamp()
-    });
-    tx.update(riderRef, {
-      offersAccepted: FieldValue.increment(1),
-      offersTotal: FieldValue.increment(1),
-      activeJobCount: FieldValue.increment(1),
-      idleSince: null
-    });
-  });
-  await closeOtherOffers(db, orderRef, offerId);
+  await closePendingOffers(db, orderRef, 'taken');
   return { ok: true };
 }
 
-async function closeOtherOffers(db, orderRef, winnerOfferId) {
-  const snap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(40).get();
-  if (snap.empty) return;
-  const batch = db.batch();
-  let n = 0;
-  snap.docs.forEach((doc) => {
-    if (doc.id === winnerOfferId) return;
-    batch.update(doc.ref, {
-      status: 'expired',
-      endReason: 'taken',
-      respondedAt: FieldValue.serverTimestamp()
+async function claimOpenJob(db, uid, orderId) {
+  const cfg = await loadConfig(db);
+  if (cfg.mode === 'auto') throw new Error('auto');
+  const orderRef = db.collection('orders').doc(orderId);
+  const riderRef = db.collection('riders').doc(uid);
+  const lock = riderLockRef(db, uid);
+  let readyAlready = false;
+  let prepMinutes = 0;
+  try {
+    await db.runTransaction(async (tx) => {
+      const activeSnap = await tx.get(activeJobsQuery(db, uid));
+      const lockSnap = await tx.get(lock);
+      const orderSnap = await tx.get(orderRef);
+      const riderSnap = await tx.get(riderRef);
+      const heldSnap = await heldLockOrder(tx, db, lockSnap, orderId);
+      if (!orderSnap.exists) throw new Error('missing-order');
+      if (!riderSnap.exists) throw new Error('missing-rider');
+      const order = orderSnap.data() || {};
+      const rider = riderSnap.data() || {};
+      if (rider.verified !== true) throw new Error('unverified');
+      if (order.riderId) throw new Error('taken');
+      if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
+      if (needsKitchen(order)) {
+        if (order.status === 'searching' || order.status === 'pending') throw new Error('shop');
+        if (KITCHEN_STATUSES.indexOf(order.status) === -1) throw new Error('taken');
+      } else if (OPEN_STATUSES.indexOf(order.status) === -1) {
+        throw new Error('taken');
+      }
+      if (otherActiveDoc(activeSnap, orderId) || lockStillBusy(heldSnap, uid)) {
+        throw new Error('busy');
+      }
+      readyAlready = !!(order.foodReady || order.readyAt || order.status === 'ready');
+      prepMinutes = Number(order.prepMinutes || 0);
+      tx.update(orderRef, Object.assign({
+        riderId: uid,
+        riderName: rider.name || '',
+        riderPhone: rider.phone || '',
+        status: 'accepted',
+        acceptedAt: FieldValue.serverTimestamp(),
+        dispatchState: 'assigned',
+        dispatchCounted: true,
+        dispatchMode: 'manual',
+        dispatchOfferRiderId: FieldValue.delete(),
+        dispatchOfferExpiresAt: FieldValue.delete(),
+        dispatchUpdatedAt: FieldValue.serverTimestamp()
+      }, codePatch(order)));
+      tx.update(riderRef, {
+        activeJobCount: FieldValue.increment(1),
+        idleSince: null
+      });
+      holdRiderLock(tx, lock, uid, orderId);
     });
-    n += 1;
-  });
-  if (n) await batch.commit();
+  } catch (err) {
+    if (err && err.message === 'busy') await noteBusy(db, uid);
+    throw err;
+  }
+  await closePendingOffers(db, orderRef, 'taken');
+  return { ok: true, readyAlready: readyAlready, prepMinutes: prepMinutes };
+}
+
+async function closePendingOffers(db, orderRef, endReason) {
+  const reason = endReason || 'taken';
+  for (;;) {
+    const snap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(400).get();
+    if (snap.empty) return;
+    const batch = db.batch();
+    snap.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        status: 'expired',
+        endReason: reason,
+        respondedAt: FieldValue.serverTimestamp()
+      });
+    });
+    await batch.commit();
+    if (snap.size < 400) return;
+  }
 }
 
 async function manualAssign(db, adminUid, orderId, riderId) {
   const orderRef = db.collection('orders').doc(orderId);
   const riderRef = db.collection('riders').doc(riderId);
   const offerRef = orderRef.collection('dispatchOffers').doc();
-  const pendingSnap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(40).get();
+  const lock = riderLockRef(db, riderId);
+  const pendingSnap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(300).get();
   await db.runTransaction(async (tx) => {
     const orderSnap = await tx.get(orderRef);
     const riderSnap = await tx.get(riderRef);
+    await tx.get(lock);
     if (!orderSnap.exists) throw new Error('missing-order');
     if (!riderSnap.exists) throw new Error('missing-rider');
     const order = orderSnap.data() || {};
@@ -787,7 +922,9 @@ async function manualAssign(db, adminUid, orderId, riderId) {
       activeJobCount: FieldValue.increment(1),
       idleSince: null
     });
+    holdRiderLock(tx, lock, riderId, orderId);
   });
+  await closePendingOffers(db, orderRef, 'manual');
   await notifyRider(db, riderId, {
     title: 'แอดมินจ่ายงานให้คุณ',
     body: 'เปิดแอปเพื่อดูงาน',
@@ -796,16 +933,27 @@ async function manualAssign(db, adminUid, orderId, riderId) {
   return { ok: true, offerId: offerRef.id };
 }
 
-async function releaseRiderJob(db, riderId) {
+async function releaseRiderJob(db, riderId, orderId) {
   if (!riderId) return;
   const ref = db.collection('riders').doc(riderId);
+  const lock = riderLockRef(db, riderId);
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
+    const lockSnap = await tx.get(lock);
     if (!snap.exists) return;
     const n = Math.max(0, Number((snap.data() || {}).activeJobCount || 0) - 1);
     const patch = { activeJobCount: n };
     if (n === 0) patch.idleSince = FieldValue.serverTimestamp();
     tx.update(ref, patch);
+    if (!lockSnap.exists) return;
+    const current = (lockSnap.data() || {}).orderId || '';
+    if (n === 0 || !orderId || current === orderId) {
+      tx.set(lock, {
+        riderId: riderId,
+        orderId: '',
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
   });
 }
 
@@ -869,6 +1017,7 @@ async function ensureAssigned(db, orderId) {
     const order = snap.data() || {};
     if (!order.riderId || order.dispatchCounted === true) return;
     const riderRef = db.collection('riders').doc(order.riderId);
+    const lock = riderLockRef(db, order.riderId);
     const refs = [];
     const seen = {};
     function addRef(ref) {
@@ -879,11 +1028,11 @@ async function ensureAssigned(db, orderId) {
     pendingSnap.docs.forEach((doc) => addRef(doc.ref));
     addRef(orderRef.collection('dispatchOffers').doc(order.riderId));
     if (order.dispatchOfferId) addRef(orderRef.collection('dispatchOffers').doc(order.dispatchOfferId));
-    const reads = [tx.get(riderRef)];
+    const reads = [tx.get(riderRef), tx.get(lock)];
     for (let i = 0; i < refs.length; i++) reads.push(tx.get(refs[i]));
     const got = await Promise.all(reads);
     const riderSnap = got[0];
-    const offerSnaps = got.slice(1);
+    const offerSnaps = got.slice(2);
     const patch = {
       activeJobCount: FieldValue.increment(1),
       idleSince: null
@@ -917,7 +1066,12 @@ async function ensureAssigned(db, orderId) {
       dispatchOfferExpiresAt: FieldValue.delete(),
       dispatchUpdatedAt: FieldValue.serverTimestamp()
     });
+    holdRiderLock(tx, lock, order.riderId, orderId);
   });
+  const after = await orderRef.get();
+  if (after.exists && (after.data() || {}).riderId) {
+    await closePendingOffers(db, orderRef, 'taken');
+  }
 }
 
 async function ensureOrderCode(db, orderId) {
@@ -963,8 +1117,8 @@ function holdsJobSlot(order) {
 async function onOrderWritten(db, before, after, orderId) {
   const beforeHolds = holdsJobSlot(before);
   const afterSameRider = after && before && after.riderId === before.riderId && holdsJobSlot(after);
-  if (beforeHolds && !afterSameRider) {
-    await releaseRiderJob(db, before.riderId);
+    if (beforeHolds && !afterSameRider) {
+    await releaseRiderJob(db, before.riderId, orderId);
   }
   if (after && after.riderId && (!before || !before.riderId) && after.dispatchCounted !== true) {
     await ensureAssigned(db, orderId);
@@ -1101,8 +1255,8 @@ async function cancelUnassigned(db, ref, reason) {
 }
 
 async function cancelStaleJob(db, ref, reason) {
-  const pending = await ref.collection('dispatchOffers').where('status', '==', 'pending').limit(20).get();
-  return db.runTransaction(async (tx) => {
+  const pending = await ref.collection('dispatchOffers').where('status', '==', 'pending').limit(300).get();
+  const riderId = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) return '';
     const order = snap.data() || {};
@@ -1138,11 +1292,12 @@ async function cancelStaleJob(db, ref, reason) {
     });
     return order.riderId;
   });
+  if (riderId) await closePendingOffers(db, ref, 'stale_job');
+  return riderId;
 }
 
 async function sweepTimeouts(db) {
   const cfg = await loadConfig(db);
-  if (cfg.mode !== 'auto') return { cancelled: 0, cleared: 0, mode: cfg.mode };
   const nowMs = Date.now();
   const unassignedMs = cfg.unassignedTimeoutMin * 60 * 1000;
   const staleMs = cfg.staleAssignTimeoutMin * 60 * 1000;
@@ -1234,6 +1389,7 @@ module.exports = {
   offerNext,
   expireOffer,
   acceptOffer,
+  claimOpenJob,
   manualAssign,
   releaseRiderJob,
   reconcileRiderJobs,
