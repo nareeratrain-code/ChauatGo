@@ -1591,9 +1591,11 @@ async function sendChatImage(file) {
   if (file.size > 5 * 1024 * 1024) return toast('รูปใหญ่เกิน 5MB', true);
   toast('⏳ กำลังอัปโหลด...');
   try {
-    const path = `chats/${activeChatId}/${Date.now()}_${file.name}`;
+    const safeName = String(file.name || 'image.jpg').split('/').pop().replace(/[^\w.\-]+/g, '_').slice(-80) || 'image.jpg';
+    const path = `chats/${activeChatId}/${Date.now()}_${safeName}`;
     const ref = storage.ref(path);
-    await ref.put(file);
+    const contentType = file.type && file.type.indexOf('image/') === 0 ? file.type : 'image/jpeg';
+    await ref.put(file, { contentType: contentType });
     const url = await ref.getDownloadURL();
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       imageUrl: url, senderRole: 'admin', senderName: 'Admin',
@@ -1823,7 +1825,8 @@ async function uploadAdminSlip(orderId, file) {
   const path = `slips/orders/${orderId}/admin-${Date.now()}.${file.name.split('.').pop()}`;
   const ref = storage.ref(path);
   try {
-    const task = ref.put(file);
+    const contentType = file.type && file.type.indexOf('image/') === 0 ? file.type : 'image/jpeg';
+    const task = ref.put(file, { contentType: contentType });
     task.on('state_changed', s => { bar.style.width = (s.bytesTransferred / s.totalBytes * 100) + '%'; });
     await task;
     const url = await ref.getDownloadURL();

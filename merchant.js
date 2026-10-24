@@ -1572,7 +1572,7 @@ async function saveMenu() {
       const compressed = await compressImage(editingMenuImgBlob, 800, 0.8);
       const path = `menus/${currentUser.uid}/${Date.now()}.jpg`;
       const ref = storage.ref(path);
-      await ref.put(compressed);
+      await ref.put(compressed, { contentType: 'image/jpeg' });
       imageUrl = await ref.getDownloadURL();
     }
 
@@ -1799,7 +1799,7 @@ async function saveShopAvatar() {
     const compressed = await compressImage(pendingShopAvatarBlob, 800, 0.85);
     const path = `shops/${currentUser.uid}/avatar_${Date.now()}.jpg`;
     const ref = storage.ref(path);
-    await ref.put(compressed);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
 
     await db.collection('merchants').doc(currentUser.uid).update({
@@ -2176,7 +2176,7 @@ async function submitGpTransfer() {
     const compressed = await compressImage(gpSlipFile, 1000, 0.8);
     const path = `gp_slips/${currentUser.uid}/${Date.now()}.jpg`;
     const ref = storage.ref(path);
-    await ref.put(compressed);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
     const slipUrl = await ref.getDownloadURL();
     const note = $('gp-note')?.value.trim() || '';
     const roundLabel = new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
@@ -2372,7 +2372,7 @@ async function sendChatImage(file) {
     const compressed = await compressImage(file, 800, 0.75);
     const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
     const ref = storage.ref(path);
-    await ref.put(compressed);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
 
     await ensureMerchantChat(activeChatId);

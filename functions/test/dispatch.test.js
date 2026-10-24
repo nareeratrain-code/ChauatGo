@@ -25,6 +25,9 @@ test('browser geohash matches geofire-common', () => {
 
 test('food still waiting on the shop is not dispatched', () => {
   assert.equal(D.needsDispatch({ type: 'food', status: 'searching', merchantName: 'ร้านทดสอบ' }), false);
+  assert.equal(D.shopAccepted({ type: 'food', status: 'searching' }), false);
+  assert.equal(D.shopAccepted({ type: 'food', status: 'cooking' }), true);
+  assert.equal(D.shopAccepted({ type: 'express', status: 'searching' }), true);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', merchantName: 'ร้านทดสอบ' }), true);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', riderId: 'r1' }), false);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', dispatchState: 'manual' }), false);
@@ -311,6 +314,46 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.match(waiting.data().code, /^OD-\d{4}$/);
   const waitOffers = await db.collection('orders').doc('ord-wait').collection('dispatchOffers').get();
   assert.equal(waitOffers.size, 0);
+  await db.collection('orders').doc('ord-wait').collection('dispatchOffers').doc('test-near').set({
+    riderId: 'test-near',
+    status: 'pending',
+    broadcast: true,
+    orderId: 'ord-wait',
+    expiresAt: Timestamp.fromDate(new Date(Date.now() + 60000))
+  });
+  await assert.rejects(
+    () => D.acceptOffer(db, 'test-near', 'ord-wait', 'test-near'),
+    (err) => err && err.message === 'shop'
+  );
+  const refused = await db.collection('orders').doc('ord-wait').get();
+  assert.equal(refused.data().status, 'searching');
+  assert.equal(refused.data().riderId || '', '');
+  const refusedOffer = await db.collection('orders').doc('ord-wait').collection('dispatchOffers').doc('test-near').get();
+  assert.equal(refusedOffer.data().status, 'expired');
+  assert.equal(refusedOffer.data().endReason, 'wait_shop');
+  await assert.rejects(
+    () => D.manualAssign(db, 'admin-1', 'ord-wait', 'test-near'),
+    (err) => err && err.message === 'shop'
+  );
+  await db.doc('config/dispatch').update({ mode: 'manual' });
+  await assert.rejects(
+    () => D.claimOpenJob(db, 'test-near', 'ord-wait'),
+    (err) => err && err.message === 'shop'
+  );
+  await db.doc('config/dispatch').update({ mode: 'auto' });
+  await db.collection('orders').doc('ord-wait').update({
+    status: 'cooking',
+    cookingAt: Timestamp.now()
+  });
+  // The rider counter was already released, but eligibility recounts live
+  // orders. Finish the accepted job or this rider stays busy.
+  await db.collection('orders').doc('ord-accept').update({ status: 'done' });
+  const afterShop = await D.offerNext(db, 'ord-wait');
+  assert.ok(afterShop.riderIds && afterShop.riderIds.indexOf('test-idle') !== -1);
+  assert.ok(afterShop.riderIds.indexOf('test-busy') === -1);
+  const offeredWait = await db.collection('orders').doc('ord-wait').get();
+  assert.equal(offeredWait.data().status, 'cooking');
+  assert.equal(offeredWait.data().dispatchState, 'offered');
 
   await seedOrder('ord-nopick');
   await db.collection('orders').doc('ord-nopick').update({
@@ -465,6 +508,14 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
 
   const hourAgo = Timestamp.fromDate(new Date(Date.now() - 2 * 60 * 60 * 1000));
   const fourHours = Timestamp.fromDate(new Date(Date.now() - 4 * 60 * 60 * 1000));
+  await seedOrder('ord-old-shop', {
+    type: 'food',
+    status: 'searching',
+    code: 'OD-SHOP',
+    createdAt: hourAgo,
+    dispatchState: 'waiting',
+    dispatchManualReason: 'รอร้านรับออเดอร์'
+  });
   await seedOrder('ord-old-open', {
     type: 'express',
     status: 'searching',
@@ -529,6 +580,11 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.equal(oldOpen.data().cancelReason, 'ไม่มีไรเดอร์รับภายใน 1 ชม.');
   assert.equal(oldOpen.data().dispatchState, 'expired_unassigned');
   assert.equal(oldOpen.data().customerNotice, 'ไม่มีไรเดอร์รับภายใน 1 ชม.');
+  const oldShop = await db.collection('orders').doc('ord-old-shop').get();
+  assert.equal(oldShop.data().status, 'cancelled');
+  assert.equal(oldShop.data().cancelReason, 'ร้านไม่รับออเดอร์ภายใน 1 ชม.');
+  assert.equal(oldShop.data().customerNotice, 'ร้านไม่รับออเดอร์ภายใน 1 ชม.');
+  assert.equal(oldShop.data().cancelledBy, 'system');
   const youngOpen = await db.collection('orders').doc('ord-young-open').get();
   assert.equal(youngOpen.data().status, 'searching');
   const staleAccept = await db.collection('orders').doc('ord-stale-accept').get();
@@ -743,6 +799,13 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('orders').doc('open1').set({
         type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ', riderId: null
       });
+      await root.collection('orders').doc('food-new').set({
+        type: 'food', status: 'searching', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ', riderId: null,
+        code: 'OD-NEW'
+      });
+      await root.collection('orders').doc('ride-open').set({
+        type: 'ride', status: 'searching', userId: 'cust1', merchantId: '', riderId: null
+      });
       await root.collection('orders').doc('cooking-taken').set({
         type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', riderId: 'other'
       });
@@ -774,9 +837,15 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
     const sdb = shop.firestore();
     const stdb = stranger.firestore();
     const adb = adminCtx.firestore();
-    const openQuery = () => rdb.collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get();
+    const openQuery = () => rdb.collection('orders').where('riderId', '==', null).where('status', 'in', ['cooking', 'ready']).limit(10).get();
     const checks = [
       ['rider open list', () => assertSucceeds(openQuery())],
+      ['rider cannot list food before the shop accepts', () => assertFails(rdb.collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
+      ['rider cannot read food before the shop accepts', () => assertFails(rdb.collection('orders').doc('food-new').get())],
+      ['customer still reads food waiting on the shop', () => assertSucceeds(cdb.collection('orders').doc('food-new').get())],
+      ['shop still reads its waiting order', () => assertSucceeds(sdb.collection('orders').doc('food-new').get())],
+      ['rider reads an open ride', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', null).where('type', '==', 'ride').where('status', 'in', ['searching', 'pending']).limit(10).get())],
+      ['rider reads that ride', () => assertSucceeds(rdb.collection('orders').doc('ride-open').get())],
       ['rider open list without empty rider', () => assertFails(rdb.collection('orders').where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
       ['unverified open list', () => assertFails(newbie.firestore().collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
       ['rider get open', () => assertSucceeds(rdb.collection('orders').doc('open1').get())],
@@ -892,6 +961,18 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         type: 'ride', status: 'accepted', userId: 'cust1', riderId: 'rider1', merchantId: '',
         code: 'OD-CHAT2'
       });
+      await root.collection('orders').doc('food-ready').set({
+        type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1',
+        foodReady: true, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-TEST'
+      });
+      await root.collection('orders').doc('food-wait').set({
+        type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1',
+        foodReady: false, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-WAIT'
+      });
+      await root.collection('orders').doc('express-hand').set({
+        type: 'express', status: 'picked_up', userId: 'cust1', merchantId: '', riderId: 'rider1',
+        paymentMode: 'cash', code: 'OD-EXP'
+      });
       await root.collection('chats').doc('chat-listed').set({
         orderId: 'chat-listed', userId: 'cust1', riderId: 'rider1', merchantId: 'shop1'
       });
@@ -912,6 +993,47 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['customer message on legacy chat', () => assertSucceeds(cdb.collection('chats').doc('chat1').collection('messages').add(msg('cust1', 'user', 'ถึงไหนแล้ว')))],
       ['rider message on legacy chat', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(msg('rider1', 'rider', 'กำลังไป')))],
       ['shop system message', () => assertSucceeds(sdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'ยกเลิก'), { systemMessage: true })))],
+      ['food photo without a slip, then slip, then leave', async () => {
+        await assertFails(rdb.collection('orders').doc('food-wait').update({
+          status: 'picked_up',
+          pickedUpAt: serverTimestamp(),
+          foodImage: 'https://example.com/food.jpg',
+          foodImagePath: 'orders/food-wait/food_1.jpg'
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          status: 'picked_up',
+          pickedUpAt: serverTimestamp(),
+          foodImage: 'https://example.com/food.jpg',
+          foodImagePath: 'orders/food-ready/food_1.jpg'
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+        await assertFails(cdb.collection('orders').doc('food-ready').update({
+          riderSlipToShop: 'https://example.com/slip.jpg',
+          riderSlipToShopPath: 'slips/riders/cust1/x.jpg',
+          riderPaidShopAt: serverTimestamp()
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          riderSlipToShop: 'https://example.com/slip.jpg',
+          riderPaidShopAt: serverTimestamp(),
+          fare: 1
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          riderSlipToShop: 'https://example.com/slip.jpg',
+          riderSlipToShopPath: 'slips/riders/rider1/food-ready_1.jpg',
+          riderPaidShopAt: serverTimestamp()
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('express-hand').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+      }],
       ['rider automated status note', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('rider1', 'rider', 'ใกล้ถึงแล้ว'), {
         systemMessage: true, automated: true, automationKey: 'near_customer'
       })))],

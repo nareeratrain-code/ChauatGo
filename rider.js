@@ -53,7 +53,7 @@ let gpsUploadTimer = null;
 let lastGpsUpload = 0;
 let dispatchUnsub = null;
 let offerUnsub = null;
-let myOpenUnsub = null;
+let openUnsubs = [];
 let myActiveUnsub = null;
 let dispatchConfig = { mode: 'manual' };
 let openJobs = [];
@@ -103,6 +103,19 @@ function orderFoodReady(j) {
   return !!(j && (j.foodReady || j.readyAt || j.status === 'ready'));
 }
 
+function orderHasShopSlip(order) {
+  return String((order && (order.riderSlipToShop || order.riderSlipUrl)) || '').trim().length > 0;
+}
+
+/* Food leaves the shop only after the shop-payment slip is on the order.
+   Transfer still waits for the customer's payment. Cash is collected on delivery. */
+function canLeaveShop(order) {
+  if (!order) return false;
+  if (orderNeedsKitchen(order) && !orderHasShopSlip(order)) return false;
+  if (order.paymentMode === 'cash') return true;
+  return !!(order.customerPaidAt || order.status === 'customer_paid');
+}
+
 function dispatchMode() {
   return dispatchConfig && dispatchConfig.mode === 'auto' ? 'auto' : 'manual';
 }
@@ -135,15 +148,117 @@ const CASH_TIP = 5;
 const ARRIVAL_RADIUS_M = 300;
 const NEAR_CUSTOMER_RADIUS_M = 300;
 const CUSTOMER_ARRIVAL_RADIUS_M = 50;
-const AUTO_CHAT_MESSAGES = {
-  accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปยังร้านหรือสถานที่ที่ลูกค้าปักหมุดไว้เพื่อซื้อของให้ครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
-  shop_arrived: '📍 ไรเดอร์ถึงร้านหรือสถานที่ที่ปักหมุดแล้วครับ/ค่ะ\nกรุณาเตรียมรับสาย เพื่อยืนยันรายการฝากซื้อ และเตรียมโอนเงินค่าอาหารหรือค่าสินค้าให้ไรเดอร์ครับ/ค่ะ',
-  picked_up: '✅ ไรเดอร์รับอาหารหรือสินค้าเรียบร้อยแล้วครับ/ค่ะ\nกำลังเตรียมเดินทางไปส่งตามพิกัดบ้านลูกค้า กรุณารอรับสายหากมีรายการต้องยืนยันเพิ่มเติมครับ/ค่ะ',
-  on_the_way: '🚀 ไรเดอร์ออกจากร้านแล้ว และกำลังเดินทางไปบ้านลูกค้าครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งเตือนครับ/ค่ะ',
-  near_customer: '🔔 ไรเดอร์อยู่ห่างจากปลายทางประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับสายและเตรียมตัวรับอาหารหรือสินค้านะครับ/ค่ะ',
-  arrived_customer: '📍 ไรเดอร์ถึงบริเวณปลายทางแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับอาหารและสินค้าด้วยนะครับ/ค่ะ',
-  delivered: '✅ ส่งอาหารหรือสินค้าเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+const AUTO_CHAT_BY_TYPE = {
+  food: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปที่ร้านเพื่อรับอาหารของลูกค้าครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกำลังถ่ายรูปอาหารเพื่อส่งให้ลูกค้าตรวจสอบครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์รับอาหารจากร้านแล้ว และกำลังนำอาหารไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์อยู่ห่างจากจุดส่งอาหารประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับอาหารนะครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงจุดส่งอาหารแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับอาหารด้วยนะครับ/ค่ะ',
+    delivered: '✅ ส่งอาหารเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐',
+    shop_slip: '🧾 ไรเดอร์โอนค่าอาหารให้ร้านแล้วครับ/ค่ะ\nนี่คือสลิปที่โอนให้ร้านครับ/ค่ะ'
+  },
+  express: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานส่งด่วนแล้ว และกำลังเดินทางไปรับพัสดุครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงจุดรับพัสดุแล้วครับ/ค่ะ\nกำลังรับของ และจะเดินทางไปส่งตามปลายทางครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์รับพัสดุแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามปลายทางครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังนำพัสดุไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์อยู่ห่างจากจุดส่งพัสดุประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับของนะครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงจุดส่งพัสดุแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับพัสดุด้วยนะครับ/ค่ะ',
+    delivered: '✅ ส่งพัสดุเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  },
+  shopping: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปยังร้านหรือสถานที่ที่ลูกค้าปักหมุดไว้เพื่อซื้อของให้ครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงร้านหรือสถานที่ที่ปักหมุดแล้วครับ/ค่ะ\nกรุณาเตรียมรับสาย เพื่อยืนยันรายการฝากซื้อ และเตรียมโอนเงินค่าอาหารหรือค่าสินค้าให้ไรเดอร์ครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์ซื้อของตามรายการฝากซื้อเรียบร้อยแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามที่อยู่ลูกค้าครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังนำของฝากซื้อไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์อยู่ห่างจากจุดส่งของฝากซื้อประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับของนะครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงจุดส่งของฝากซื้อแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับของด้วยนะครับ/ค่ะ',
+    delivered: '✅ ส่งของฝากซื้อเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  },
+  ride: {
+    accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานเรียกรถแล้ว และกำลังเดินทางไปรับลูกค้าครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
+    shop_arrived: '📍 ไรเดอร์ถึงจุดรับแล้วครับ/ค่ะ\nกรุณาเตรียมออกมาพบไรเดอร์นะครับ/ค่ะ',
+    picked_up: '✅ ไรเดอร์รับลูกค้าแล้ว และกำลังเดินทางไปยังปลายทางครับ/ค่ะ',
+    on_the_way: '🚀 ไรเดอร์กำลังเดินทางไปยังปลายทางครับ/ค่ะ',
+    near_customer: '🔔 ไรเดอร์ใกล้ถึงปลายทางแล้วครับ/ค่ะ',
+    arrived_customer: '📍 ไรเดอร์ถึงปลายทางแล้วครับ/ค่ะ',
+    delivered: '✅ ถึงปลายทางเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
+  }
 };
+
+function orderServiceType(order) {
+  const type = String((order && order.type) || '').trim();
+  if (type === 'food' || type === 'express' || type === 'shopping' || type === 'ride') return type;
+  return 'food';
+}
+
+function bahtText(n) {
+  const v = Math.round(Number(n) * 100) / 100;
+  if (!Number.isFinite(v)) return '฿0';
+  return '฿' + (Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : v.toFixed(2));
+}
+
+function foodAmountOf(order) {
+  if (!order) return 0;
+  if (order.foodTotal != null && order.foodTotal !== '') {
+    const n = Number(order.foodTotal);
+    if (Number.isFinite(n)) return n;
+  }
+  if (order.itemsTotal != null && order.itemsTotal !== '') {
+    const n = Number(order.itemsTotal);
+    if (Number.isFinite(n)) return n;
+  }
+  if (!Array.isArray(order.items)) return 0;
+  return order.items.reduce((sum, item) => {
+    const price = Number(item && (item.price != null ? item.price : item.originalPrice) || 0);
+    const qty = Number(item && item.qty || 0);
+    if (!Number.isFinite(price) || !Number.isFinite(qty)) return sum;
+    return sum + price * qty;
+  }, 0);
+}
+
+function foodPayParts(order) {
+  const food = foodAmountOf(order);
+  const fareRaw = Number(order && order.fare || 0);
+  const fare = Number.isFinite(fareRaw) ? fareRaw : 0;
+  const cash = !!(order && order.paymentMode === 'cash');
+  let tip = 0;
+  if (cash) {
+    tip = order.cashTip != null ? Number(order.cashTip) || 0 : CASH_TIP;
+  }
+  if (!Number.isFinite(tip)) tip = 0;
+  return {
+    cash,
+    food,
+    fare,
+    tip,
+    total: Math.round((food + fare + tip) * 100) / 100
+  };
+}
+
+function foodPayEquation(parts) {
+  const food = 'ค่าอาหาร ' + bahtText(parts.food);
+  const fare = 'ค่าส่ง ' + bahtText(parts.fare);
+  const tip = parts.tip > 0 ? ' + ค่าบริการเงินสด ' + bahtText(parts.tip) : '';
+  return food + ' + ' + fare + tip + ' = รวม ' + bahtText(parts.total);
+}
+
+function foodPhotoMessage(order) {
+  const parts = foodPayParts(order);
+  const amounts = foodPayEquation(parts);
+  if (parts.cash) {
+    return '📸 ไรเดอร์ถ่ายรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาเตรียมเงินสดจ่ายไรเดอร์ตอนรับอาหารครับ/ค่ะ\n' + amounts;
+  }
+  return '📸 ไรเดอร์ถ่ายรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์ตามยอดนี้ครับ/ค่ะ\n' + amounts;
+}
+
+function autoChatText(order, key) {
+  const type = orderServiceType(order);
+  if (type === 'food' && (key === 'food_photo' || key === 'picked_up')) return foodPhotoMessage(order);
+  const pack = AUTO_CHAT_BY_TYPE[type];
+  return (pack && pack[key]) || '';
+}
 const MAX_SLIP_SIZE = 5 * 1024 * 1024;
 const PAYMENT_TIMEOUT_5MIN = 5 * 60 * 1000;
 const PAYMENT_TIMEOUT_15MIN = 15 * 60 * 1000;
@@ -917,7 +1032,8 @@ function subscribeProfile() {
 }
 
 function stopJobSubs() {
-  if (myOpenUnsub) { myOpenUnsub(); myOpenUnsub = null; }
+  openUnsubs.forEach((stop) => { try { stop(); } catch (e) {} });
+  openUnsubs = [];
   if (myActiveUnsub) { myActiveUnsub(); myActiveUnsub = null; }
   myJobsUnsub = null;
 }
@@ -957,8 +1073,8 @@ function publishJobs(prevOpenIds) {
   autoStartPaymentWatch();
 }
 
-/* งานใหม่ = ร้านรับแล้ว (cooking) หรืออาหารพร้อม (ready)
-   แยกคิวรี่ เพราะกฎอ่านออเดอร์ไม่ให้ไรเดอร์เห็นงานที่คนอื่นรับไปแล้ว */
+/* อาหารเปิดหลังร้านรับ (cooking/ready) คนละคิวรี่กับเรียกรถ/ส่งด่วน/ฝากซื้อ
+   เพราะกฎไม่อ่านออเดอร์อาหารที่ร้านยังไม่กดรับ และไม่อ่านงานที่คนอื่นรับแล้ว */
 function subscribeJobs() {
   stopJobSubs();
   const prevOpen = new Set(openJobs.map(j => j.id));
@@ -966,16 +1082,34 @@ function subscribeJobs() {
     openJobs = [];
     publishJobs(prevOpen);
   } else if (currentUser) {
-    myOpenUnsub = db.collection('orders')
-      .where('riderId', '==', null)
-      .where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])
-      .limit(50)
-      .onSnapshot(snap => {
-        const prev = seenJobIds;
-        openJobs = snap.docs.map(mapOrderDoc);
-        seenJobIds = new Set(openJobs.map(j => j.id));
-        publishJobs(prev);
-      }, err => console.warn('open jobs', err && err.code));
+    const buckets = [];
+    const publishOpen = () => {
+      const map = new Map();
+      buckets.forEach((snap) => {
+        if (!snap) return;
+        snap.docs.forEach((doc) => map.set(doc.id, mapOrderDoc(doc)));
+      });
+      const prev = seenJobIds;
+      openJobs = Array.from(map.values());
+      seenJobIds = new Set(openJobs.map(j => j.id));
+      publishJobs(prev);
+    };
+    const watch = (query, index) => {
+      openUnsubs.push(query.limit(50).onSnapshot((snap) => {
+        buckets[index] = snap;
+        publishOpen();
+      }, (err) => console.warn('open jobs', err && err.code)));
+    };
+    watch(db.collection('orders').where('riderId', '==', null).where('status', 'in', ['cooking', 'ready']), 0);
+    ['ride', 'express', 'shopping'].forEach((type, i) => {
+      watch(
+        db.collection('orders')
+          .where('riderId', '==', null)
+          .where('type', '==', type)
+          .where('status', 'in', ['searching', 'pending']),
+        i + 1
+      );
+    });
   }
   if (!currentUser) return;
   myActiveUnsub = db.collection('orders')
@@ -1066,6 +1200,15 @@ function updateOnlineToggle() {
   syncLocationUpload();
 }
 
+// Dispatch allows one active job unless config/dispatch says otherwise (1–5).
+// The hero must show that cap. offersAccepted/offersTotal is a lifetime
+// offer rate and was rendering as "รับงาน 5/5" while the rider could hold one job.
+function riderJobLimit() {
+  const raw = Number(dispatchConfig && dispatchConfig.maxJobsPerRider);
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  return Math.min(5, Math.max(1, Math.round(raw)));
+}
+
 function updateHeroStats() {
   const today = allHistory.filter(j => j.status === 'done' && isToday(j.doneAt || j.createdAt));
   const feeTotal = today.reduce((s, j) => {
@@ -1081,12 +1224,14 @@ function updateHeroStats() {
 
   const incomeEl = $('hero-income');
   if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
+  const activeCount = allJobs.filter(j =>
+    j.riderId === currentUser?.uid &&
+    RIDER_ACTIVE_STATUSES.includes(j.status)
+  ).length;
+
   const subEl = $('hero-sub');
   if (subEl) {
-    const totalOffers = Number(riderProfile?.offersTotal || 0);
-    const acceptedOffers = Number(riderProfile?.offersAccepted || 0);
-    const rate = totalOffers > 0 ? ` • รับงาน ${acceptedOffers}/${totalOffers}` : '';
-    subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้` + rate;
+    subEl.textContent = `จาก ${today.length} งานเสร็จสิ้นวันนี้ • รับงาน ${activeCount}/${riderJobLimit()}`;
   }
   const feeEl = $('hero-fee');
   if (feeEl) feeEl.textContent = '฿' + fmt(feeTotal);
@@ -1094,11 +1239,6 @@ function updateHeroStats() {
   if (tipEl) tipEl.textContent = '฿' + fmt(tipTotal);
   const oweEl = $('hero-owe');
   if (oweEl) oweEl.textContent = '฿' + fmt(todayOwe);
-
-  const activeCount = allJobs.filter(j =>
-    j.riderId === currentUser?.uid &&
-    RIDER_ACTIVE_STATUSES.includes(j.status)
-  ).length;
 
   const doneEl = $('stat-done');
   if (doneEl) doneEl.textContent = today.length;
@@ -1220,8 +1360,12 @@ function renderJobCard(j, type) {
   const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`;
 
   const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
+  const shopSlip = orderHasShopSlip(j);
   if (j.status === 'accepted' && foodIsReady) {
     statusInfo = { label: '✅ อาหารพร้อม • ไปรับที่ร้าน', color: 'var(--green)', bg: '#E8F5E9' };
+  }
+  if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
+    statusInfo = { label: '📸 ส่งรูปแล้ว • แนบสลิปก่อนออก', color: '#E65100', bg: '#FFF3E0' };
   }
   const prepHtml = (!foodIsReady && j.prepMinutes)
     ? `<div class="jc-row"><span class="jc-row-icon">⏱️</span><span class="jc-row-text">ร้านใช้เวลาทำประมาณ ${Number(j.prepMinutes)} นาที</span></div>`
@@ -1239,18 +1383,17 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ถึงร้าน</button>
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     }
-  } else if (j.status === 'picked_up') {
-    const canStart = orderIsCash(j) || !!j.customerPaidAt;
-    if (canStart) {
+  } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
+    if (orderNeedsKitchen(j) && !shopSlip) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (canLeaveShop(j)) {
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าโอนเงิน</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     }
-  } else if (j.status === 'customer_paid') {
-    primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
-      <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
   } else if (j.status === 'on_the_way') {
     primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
       <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
@@ -1304,10 +1447,33 @@ function renderJobCard(j, type) {
     </div>`;
 }
 
-async function sendAutomatedChat(orderId, key, text) {
-  if (!orderId || !text || !currentUser) return;
+function findKnownOrder(orderId) {
+  const lists = [allJobs, allHistory];
+  for (let i = 0; i < lists.length; i++) {
+    const found = (lists[i] || []).find((job) => job && (job.id === orderId || job.orderId === orderId));
+    if (found) return found;
+  }
+  if (currentOffer && currentOffer.orderId === orderId) return currentOffer;
+  return null;
+}
+
+async function orderForAutoChat(orderId) {
+  const known = findKnownOrder(orderId);
+  if (known && known.type) return known;
+  try {
+    const snap = await db.collection('orders').doc(orderId).get();
+    if (snap.exists) return Object.assign({ id: snap.id }, snap.data());
+  } catch (err) {}
+  return known;
+}
+
+async function sendAutomatedChat(orderId, key) {
+  if (!orderId || !key || !currentUser) return;
   const token = orderId + ':' + key;
   if (autoChatSent.has(token)) return;
+  const order = await orderForAutoChat(orderId);
+  const text = autoChatText(order, key);
+  if (!text) return;
   autoChatSent.add(token);
   try {
     const body = await ensureRiderChat(orderId);
@@ -1334,8 +1500,8 @@ async function sendAutomatedChat(orderId, key, text) {
   }
 }
 
-function sendAutomatedChatLater(orderId, key, text) {
-  sendAutomatedChat(orderId, key, text);
+function sendAutomatedChatLater(orderId, key) {
+  sendAutomatedChat(orderId, key);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1357,7 +1523,7 @@ async function acceptJob(jobId) {
     showToast(readyAlready
       ? '✅ รับงานแล้ว — อาหารพร้อม ไปที่ร้าน'
       : ('✅ รับงานแล้ว — ร้านกำลังทำ' + (prepMinutes ? ' ประมาณ ' + prepMinutes + ' นาที' : '')));
-    sendAutomatedChatLater(jobId, 'accepted', AUTO_CHAT_MESSAGES.accepted);
+    sendAutomatedChatLater(jobId, 'accepted');
     closeNewJobPopup();
     scheduleGPSIfActive();
   } catch (err) {
@@ -1407,11 +1573,23 @@ async function arrivedAtShop(jobId) {
   if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
-  sendAutomatedChatLater(jobId, 'shop_arrived', AUTO_CHAT_MESSAGES.shop_arrived);
+  sendAutomatedChatLater(jobId, 'shop_arrived');
   openPickupModal(jobId, job);
 }
 
-/* ⭐ v3.9.1: Modal รับอาหาร — ถ่ายรูปอาหาร + สลิป */
+function openShopSlip(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return showToast('ไม่พบงาน', 'error');
+  openPickupModal(jobId, job);
+}
+
+function pickupStage(job) {
+  if (job && orderNeedsKitchen(job) && job.foodImage) return 'slip';
+  if (job && orderNeedsKitchen(job)) return 'food';
+  return 'both';
+}
+
+/* Food: photo first (payment message), then the shop slip. Other services still send both together. */
 function openPickupModal(jobId, job) {
   pickupOrderId = jobId;
   pickupFoodBlob = null;
@@ -1420,17 +1598,37 @@ function openPickupModal(jobId, job) {
   pickupSlipUrl = null;
 
   const fin = calcOrderFinance(job);
+  const stage = pickupStage(job);
   const mc = $('modalContent');
   if (!mc) return;
 
+  const foodHeading = stage === 'slip'
+    ? `<div style="font-size:48px">🧾</div>
+      <h2 style="font-size:20px;font-weight:900;margin-top:8px">โอนค่าอาหารให้ร้าน</h2>
+      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">
+        แนบสลิปแล้วระบบจะส่งให้ลูกค้า ออกเดินทางได้หลังมีสลิป
+      </p>`
+    : (stage === 'food'
+      ? `<div style="font-size:48px">📸</div>
+      <h2 style="font-size:20px;font-weight:900;margin-top:8px">ถ่ายรูปอาหาร</h2>
+      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">
+        ${orderIsCash(job) ? 'ส่งรูปให้ลูกค้า แล้วแจ้งให้เตรียมเงินสดจ่ายไรเดอร์ตอนรับของ' : 'ส่งรูปให้ลูกค้า แล้วแจ้งยอดให้โอนหาไรเดอร์'}
+      </p>`
+      : `<div style="font-size:48px">📸</div>
+      <h2 style="font-size:20px;font-weight:900;margin-top:8px">รับของ</h2>
+      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">
+        กรุณาถ่ายรูปของ + สลิปที่จ่ายร้าน
+      </p>`);
+
+  const payPreview = stage === 'food'
+    ? `<div style="background:#FFF8E1;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;font-weight:800;line-height:1.6;white-space:pre-line">${esc(foodPhotoMessage(job))}</div>`
+    : '';
+
   mc.innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
-      <div style="font-size:48px">📸</div>
-      <h2 style="font-size:20px;font-weight:900;margin-top:8px">รับอาหารจากร้าน</h2>
-      <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">
-        กรุณาถ่ายรูปอาหาร + สลิปที่จ่ายร้าน
-      </p>
+      ${foodHeading}
     </div>
+    ${payPreview}
 
     <!-- ข้อมูลร้าน -->
     <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:16px">
@@ -1443,7 +1641,7 @@ function openPickupModal(jobId, job) {
     </div>
 
     <!-- รูปอาหาร -->
-    <div style="margin-bottom:14px">
+    <div style="margin-bottom:14px;${stage === 'slip' ? 'display:none' : ''}">
       <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">
         📸 รูปอาหาร <span style="color:#E53935">*บังคับ</span>
       </label>
@@ -1462,8 +1660,10 @@ function openPickupModal(jobId, job) {
       <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">
     </div>
 
+    ${stage === 'slip' && job.foodImage ? `<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:900;margin-bottom:8px">📸 รูปที่ส่งให้ลูกค้าแล้ว</div><img src="${esc(job.foodImage)}" style="width:100%;border-radius:12px;max-height:180px;object-fit:cover"></div>` : ''}
+
     <!-- สลิปโอนร้าน -->
-    <div style="margin-bottom:14px">
+    <div style="margin-bottom:14px;${stage === 'food' ? 'display:none' : ''}">
       <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">
         🧾 สลิปที่จ่ายร้าน <span style="color:#E53935">*บังคับ</span>
       </label>
@@ -1485,7 +1685,7 @@ function openPickupModal(jobId, job) {
     <!-- ปุ่ม -->
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="action-btn-big btn-gray-big ripple" style="flex:1" onclick="closeModal()">ยกเลิก</button>
-      <button class="action-btn-big btn-green-big ripple" style="flex:1" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งให้ลูกค้า</button>
+      <button class="action-btn-big btn-green-big ripple" style="flex:1" id="pickup-confirm-btn" disabled onclick="confirmPickup()">${stage === 'slip' ? '🧾 ส่งสลิปให้ลูกค้า' : (stage === 'food' ? '📤 ส่งรูปอาหารให้ลูกค้า' : '📤 ส่งให้ลูกค้า')}</button>
     </div>
   `;
 
@@ -1534,19 +1734,128 @@ async function handlePickupImage(event, type) {
 function updatePickupConfirmBtn() {
   const btn = $('pickup-confirm-btn');
   if (!btn) return;
-  btn.disabled = !(pickupFoodBlob && pickupSlipBlob);
+  const job = allJobs.find(j => j.id === pickupOrderId);
+  const stage = pickupStage(job);
+  if (stage === 'food') btn.disabled = !pickupFoodBlob;
+  else if (stage === 'slip') btn.disabled = !pickupSlipBlob;
+  else btn.disabled = !(pickupFoodBlob && pickupSlipBlob);
 }
 
-/* ⭐ v3.9.1: ยืนยันรับอาหาร → picked_up */
+async function postRiderOrderImage(orderId, blob) {
+  const body = await ensureRiderChat(orderId);
+  const path = `chats/${orderId}/images/${Date.now()}_${currentUser.uid}.jpg`;
+  const ref = storage.ref(path);
+  await ref.put(blob, { contentType: 'image/jpeg' });
+  const url = await ref.getDownloadURL();
+  await db.collection('chats').doc(orderId).collection('messages').add({
+    imageUrl: url,
+    imagePath: path,
+    senderId: currentUser.uid,
+    senderRole: 'rider',
+    senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  try {
+    await db.collection('chats').doc(orderId).update({
+      lastMessage: '📷 รูปภาพ',
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (previewErr) {}
+  return url;
+}
+
+/* Food photo goes to the customer with the payment request. The shop slip is the next step. */
 async function confirmPickup() {
-  if (!pickupFoodBlob || !pickupSlipBlob) {
-    return showToast('⚠️ กรุณาถ่ายรูปอาหาร + สลิป', 'warning');
-  }
   const pickupJob = allJobs.find(j => j.id === pickupOrderId);
+  const stage = pickupStage(pickupJob);
+  if (stage === 'food') return submitFoodPhoto(pickupJob);
+  if (stage === 'slip') return submitShopSlip(pickupJob);
+  return confirmCombinedPickup();
+}
+
+async function submitFoodPhoto(pickupJob) {
+  if (!pickupFoodBlob) return showToast('⚠️ กรุณาถ่ายรูปอาหาร', 'warning');
   if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
+  const btn = $('pickup-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
+  try {
+    const jobId = pickupOrderId;
+    const ts = Date.now();
+    const foodPath = `orders/${jobId}/food_${ts}.jpg`;
+    const foodRef = storage.ref(foodPath);
+    await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
+    pickupFoodUrl = await foodRef.getDownloadURL();
+    await postRiderOrderImage(jobId, pickupFoodBlob);
+    await db.collection('orders').doc(jobId).update({
+      status: 'picked_up',
+      pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
+      foodImage: pickupFoodUrl,
+      foodImagePath: foodPath
+    });
+    const pickedJob = allJobs.find(j => j.id === jobId) || pickupJob;
+    if (pickedJob) {
+      pickedJob.status = 'picked_up';
+      pickedJob.foodImage = pickupFoodUrl;
+      pickedJob.foodImagePath = foodPath;
+    }
+    sendAutomatedChatLater(jobId, 'food_photo');
+    arrivedShopNotifiedOrderIds.add(jobId);
+    if (pickedJob && !orderIsCash(pickedJob)) startPaymentTimers(jobId);
+    showToast(orderIsCash(pickedJob)
+      ? '✅ ส่งรูปแล้ว — แจ้งให้เตรียมเงินสดตอนส่ง แล้วแนบสลิปร้าน'
+      : '✅ ส่งรูปแล้ว — แจ้งลูกค้าให้โอน แล้วแนบสลิปร้าน');
+    renderJobs();
+    openPickupModal(jobId, pickedJob || { id: jobId, type: 'food', foodImage: pickupFoodUrl });
+  } catch (err) {
+    console.error('submitFoodPhoto error:', err);
+    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งรูปอาหารให้ลูกค้า'; }
+  }
+}
 
+async function submitShopSlip(pickupJob) {
+  if (!pickupSlipBlob) return showToast('⚠️ กรุณาแนบสลิปที่จ่ายร้าน', 'warning');
+  const btn = $('pickup-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
+  try {
+    const jobId = pickupOrderId;
+    const ts = Date.now();
+    const slipPath = `slips/riders/${currentUser.uid}/${jobId}_${ts}.jpg`;
+    const slipRef = storage.ref(slipPath);
+    await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
+    pickupSlipUrl = await slipRef.getDownloadURL();
+    await postRiderOrderImage(jobId, pickupSlipBlob);
+    await db.collection('orders').doc(jobId).update({
+      riderSlipToShop: pickupSlipUrl,
+      riderSlipToShopPath: slipPath,
+      riderPaidShopAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const job = allJobs.find(j => j.id === jobId) || pickupJob;
+    if (job) {
+      job.riderSlipToShop = pickupSlipUrl;
+      job.riderSlipToShopPath = slipPath;
+    }
+    sendAutomatedChatLater(jobId, 'shop_slip');
+    showToast(canLeaveShop(job)
+      ? (orderIsCash(job) ? '✅ ส่งสลิปแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง' : '✅ ส่งสลิปแล้ว — เริ่มส่งได้')
+      : '✅ ส่งสลิปแล้ว — รอลูกค้าโอนก่อนออกจากร้าน');
+    closeModal();
+    renderJobs();
+  } catch (err) {
+    console.error('submitShopSlip error:', err);
+    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🧾 ส่งสลิปให้ลูกค้า'; }
+  }
+}
+
+/* Express, shopping, and ride still attach the photo and the shop slip together. */
+async function confirmCombinedPickup() {
+  if (!pickupFoodBlob || !pickupSlipBlob) {
+    return showToast('⚠️ กรุณาถ่ายรูปของ + สลิป', 'warning');
+  }
   const btn = $('pickup-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
 
@@ -1554,19 +1863,16 @@ async function confirmPickup() {
     const jobId = pickupOrderId;
     const ts = Date.now();
 
-    /* อัปโหลดรูปอาหาร */
     const foodPath = `orders/${jobId}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
-    await foodRef.put(pickupFoodBlob);
+    await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     pickupFoodUrl = await foodRef.getDownloadURL();
 
-    /* อัปโหลดสลิป */
     const slipPath = `slips/riders/${currentUser.uid}/${jobId}_${ts}.jpg`;
     const slipRef = storage.ref(slipPath);
-    await slipRef.put(pickupSlipBlob);
+    await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
     pickupSlipUrl = await slipRef.getDownloadURL();
 
-    /* อัปเดต order */
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
       pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1582,13 +1888,13 @@ async function confirmPickup() {
     showToast(cashPickup
       ? '✅ รับของแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง'
       : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน');
-    sendAutomatedChatLater(jobId, 'picked_up', AUTO_CHAT_MESSAGES.picked_up);
+    sendAutomatedChatLater(jobId, 'picked_up');
     closeModal();
     arrivedShopNotifiedOrderIds.add(jobId);
 
     if (!cashPickup) startPaymentTimers(jobId);
   } catch (err) {
-    console.error('confirmPickup error:', err);
+    console.error('confirmCombinedPickup error:', err);
     showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งให้ลูกค้า'; }
   }
@@ -1664,7 +1970,10 @@ async function startDelivery(jobId) {
     if (!snap.exists) return showToast('ไม่พบงาน', 'error');
     const job = snap.data();
 
-    if (!orderIsCash(job) && !job.customerPaidAt) {
+    if (orderNeedsKitchen(job) && !orderHasShopSlip(job)) {
+      return showToast('⚠️ แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง', 'warning');
+    }
+    if (!canLeaveShop(job)) {
       return showToast('⚠️ ลูกค้ายังไม่โอนเงิน', 'warning');
     }
 
@@ -1673,7 +1982,7 @@ async function startDelivery(jobId) {
       onTheWayAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast('🚀 เริ่มส่งอาหาร');
-    sendAutomatedChatLater(jobId, 'on_the_way', AUTO_CHAT_MESSAGES.on_the_way);
+    sendAutomatedChatLater(jobId, 'on_the_way');
     clearPaymentTimers();
   } catch (err) {
     showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
@@ -1806,7 +2115,7 @@ async function confirmDeliver(jobId) {
     const result = await callDispatch('completeOrder', { orderId: jobId });
     const income = result && result.riderIncome != null ? result.riderIncome : fin.totalRider;
     showToast('✅ ส่งสำเร็จ! +฿' + fmt(income));
-    sendAutomatedChatLater(jobId, 'delivered', AUTO_CHAT_MESSAGES.delivered);
+    sendAutomatedChatLater(jobId, 'delivered');
     closeModal();
     clearPaymentTimers();
     stopGPS();
@@ -2148,7 +2457,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
         arrivedShopNotifiedOrderIds.add(job.id);
         soundArrivedShop();
         showToast('📍 ถึงร้านแล้ว — กด "ถึงร้าน" เพื่อรับอาหาร');
-        sendAutomatedChatLater(job.id, 'shop_arrived', AUTO_CHAT_MESSAGES.shop_arrived);
+        sendAutomatedChatLater(job.id, 'shop_arrived');
       }
     }
 
@@ -2164,7 +2473,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
           riderNearCustomerAt: firebase.firestore.FieldValue.serverTimestamp(),
           riderNearCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
-        sendAutomatedChatLater(job.id, 'near_customer', AUTO_CHAT_MESSAGES.near_customer);
+        sendAutomatedChatLater(job.id, 'near_customer');
       }
     }
 
@@ -2175,7 +2484,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
         await db.collection('orders').doc(job.id).update({
           riderArrivedCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(() => {});
-        sendAutomatedChatLater(job.id, 'arrived_customer', AUTO_CHAT_MESSAGES.arrived_customer);
+        sendAutomatedChatLater(job.id, 'arrived_customer');
       }
     }
   }
@@ -2568,7 +2877,7 @@ async function sendChatImage(file) {
     const compressed = await compressImage(file, 800, 0.75);
     const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
     const ref = storage.ref(path);
-    await ref.put(compressed);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
 
     await ensureRiderChat(activeChatId);
@@ -2834,7 +3143,7 @@ async function acceptDispatchOffer() {
     hiddenOfferIds.add(o.id);
     clearOffer(true);
     showToast('รับงานแล้ว');
-    sendAutomatedChatLater(o.orderId, 'accepted', AUTO_CHAT_MESSAGES.accepted);
+    sendAutomatedChatLater(o.orderId, 'accepted');
     scheduleGPSIfActive();
   } catch (err) {
     showToast(acceptErrorText(err), 'error', 6000);
@@ -2915,13 +3224,14 @@ function maybeRefreshPush() {
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-slip],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
     if (t.dataset.accept) await acceptJob(t.dataset.accept);
     else if (t.dataset.skip) skipJob(t.dataset.skip);
     else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
+    else if (t.dataset.slip) openShopSlip(t.dataset.slip);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);

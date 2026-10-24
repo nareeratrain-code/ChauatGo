@@ -7,7 +7,9 @@ rules_version = '2';
 //     Acceptance is only the acceptDispatchOffer / claimOpenJob callables.
 //   * orders update [E]: merchant may set foodReady + readyAt after rider accepted,
 //     without changing status; status becomes ready only while no rider is assigned
-//   * orders update [C]: picked_up only after food is ready when the order needs a kitchen
+//   * orders update [C]: picked_up only after food is ready when the order needs a kitchen.
+//     Food photo may be saved without the shop slip. The slip is a later update
+//     that keeps status. A kitchen order cannot become on_the_way until that slip exists.
 //   * isAdmin also covers boss role active/super, users.role admin (not pending),
 //     and the three master emails — a pending admins doc cannot self-promote
 //   * placeOverrides: anyone can read; only isAdmin() can write.
@@ -17,8 +19,10 @@ rules_version = '2';
 //     (or admin) may read signaling. A participant may create a call as
 //     themselves and write offer, answer, and ICE for that call.
 //   * orders read: customer, shop, assigned rider, admin/boss, or a verified
-//     rider reading an order that has no riderId and is still
-//     searching/pending/cooking/ready.
+//     rider reading an order that has no riderId. Food (and any other kitchen
+//     order) is visible to that rider only after the shop has accepted
+//     (status cooking or ready). Ride, express, and shopping stay visible
+//     from searching/pending.
 //   * orders create: clients cannot set fare or total. createOrder
 //     recomputes them. A direct client create is denied (mismatch).
 //   * orders update: riders cannot write riderIncome, riderOwe, or riderPaid.
@@ -204,6 +208,17 @@ service cloud.firestore {
         || resource.data.status == 'ready';
     }
 
+    function shopSlipAttached() {
+      return (
+          resource.data.get('riderSlipToShop', '') is string
+          && resource.data.get('riderSlipToShop', '').size() > 0
+        )
+        || (
+          resource.data.get('riderSlipUrl', '') is string
+          && resource.data.get('riderSlipUrl', '').size() > 0
+        );
+    }
+
     function isOrderMerchant() {
       return isMerchant() && resource.data.get('merchantId', '') == myUid();
     }
@@ -222,13 +237,13 @@ service cloud.firestore {
           resource.data.get('userId', '') == myUid()
           || resource.data.get('merchantId', '') == myUid()
           || resource.data.get('riderId', '') == myUid()
-        ))
-        || (
-          isVerifiedRider()
-          && resource.data.riderId == null
-          && resource.data.status in ['searching', 'pending', 'cooking', 'ready']
-        );
+        ));
     }
+
+    // Open-job reads are separate allows. One OR that mixes "any cooking
+    // order" with "searching only when it is not food" is treated as the
+    // union of those statuses, so a query of searching+cooking still returns
+    // food the shop has not accepted. Each allow below is exactly one query.
 
     function noDispatchControl(data) {
       return data.get('dispatchState', '') == ''
@@ -480,6 +495,15 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if canReadOrder();
+      // Shop accepted: cooking/ready, nobody assigned yet. Food and any other type.
+      allow read: if isVerifiedRider()
+        && resource.data.riderId == null
+        && resource.data.status in ['cooking', 'ready'];
+      // No kitchen. Ride, express, and shopping are offered from searching.
+      allow read: if isVerifiedRider()
+        && resource.data.riderId == null
+        && resource.data.type in ['ride', 'express', 'shopping']
+        && resource.data.status in ['searching', 'pending'];
 
       // Fare and total are written only by createOrder. Rules cannot
       // recompute the kilometre fee, so any client-set fare is a mismatch.
@@ -507,11 +531,25 @@ service cloud.firestore {
         )
         || (
           isAssignedRider()
+          && needsKitchen()
+          && resource.data.status in ['picked_up', 'customer_paid']
+          && request.resource.data.status == resource.data.status
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && request.resource.data.riderSlipToShop is string
+          && request.resource.data.riderSlipToShop.size() > 0
+          && request.resource.data.riderSlipToShop.size() <= 2000
+          && request.resource.data.riderPaidShopAt is timestamp
+        )
+        || (
+          isAssignedRider()
           && resource.data.status in ['picked_up', 'customer_paid']
           && request.resource.data.status == 'on_the_way'
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'onTheWayAt'])
+          && (!needsKitchen() || shopSlipAttached())
         )
         || (
           isAssignedRider()
