@@ -1380,6 +1380,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 <script src="config/env.js"></script>
 <script src="app-check.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
+<script src="fcm-safe.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -1432,8 +1433,7 @@ try {
     });
   }
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
-  try { if (firebase.messaging) firebase.messaging(firebaseApp); }
-  catch (msgErr) { console.warn('FCM พร้อมแล้วแต่ยังส่งพุชไม่ได้จนกว่าจะใส่ Web Push key (VAPID) ใน Firebase Console', msgErr); }
+  if (window.ChauatFcm) ChauatFcm.install(firebaseApp);
 } catch(e) { console.error('Firebase init error:', e); }
 
 /* ═══ GLOBAL STATE ═══ */
@@ -3027,6 +3027,12 @@ async function createServerOrder(payload) {
   delete body.riderOwe;
   delete body.riderPaid;
   var res = await functionsApi.httpsCallable('createOrder')(body);
+  // Token registration stays off this promise. The callable SDK asks for
+  // a token before the request; ChauatFcm makes that call resolve empty.
+  setTimeout(function () {
+    if (!window.ChauatFcm) return;
+    ChauatFcm.warm(firebaseApp).catch(function () {});
+  }, 0);
   return (res && res.data) || {};
 }
 

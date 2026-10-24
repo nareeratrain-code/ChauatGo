@@ -2889,8 +2889,9 @@ async function enableRiderPush(silent) {
     return;
   }
   try {
-    const messaging = firebase.messaging();
-    const reg = await navigator.serviceWorker.ready;
+    const messaging = window.ChauatFcm ? ChauatFcm.install(firebaseApp) : firebase.messaging();
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js') || await navigator.serviceWorker.ready;
+    if (!messaging || !reg) throw new Error('no-worker');
     const token = await messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
     if (!token || !currentUser) throw new Error('no-token');
     await db.collection('riders').doc(currentUser.uid).update({

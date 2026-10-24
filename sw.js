@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.35';
+const CACHE_NAME = 'chauat-app-v3.9.36';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -32,6 +32,7 @@ const ASSETS = [
   '/dispatch-client.js',
   '/config/env.js',
   '/app-check.js',
+  '/fcm-safe.js',
   '/manifest-rider.json',
   '/manifest-customer.json',
   '/data/chauat-places.json',

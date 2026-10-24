@@ -30,6 +30,13 @@ test('clients use the order callables and drop the unused fee constants', () => 
   assert.match(indexHtml, /httpsCallable\('createOrder'\)/);
   assert.match(indexHtml, /function checkoutErrorText/);
   assert.match(indexHtml, /showToast\(checkoutErrorText\(e\), 'error'\)/);
+  assert.match(indexHtml, /fcm-safe\.js/);
+  assert.match(indexHtml, /ChauatFcm\.install\(firebaseApp\)/);
+  assert.match(indexHtml, /ChauatFcm\.warm\(firebaseApp\)/);
+  assert.equal(indexHtml.includes('firebase.messaging(firebaseApp)'), false);
+  assert.match(rider, /serviceWorkerRegistration: reg/);
+  assert.match(rider, /ChauatFcm\.install\(firebaseApp\)/);
+  assert.equal(fs.readFileSync('merchant.js', 'utf8').includes('messaging.getToken'), false);
   assert.match(rider, /completeOrder/);
   assert.equal(rider.includes('SERVICE_BASE'), false);
   assert.equal(rider.includes('FREE_KM'), false);
