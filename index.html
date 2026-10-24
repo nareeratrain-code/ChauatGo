@@ -2997,10 +2997,28 @@ window.setPaymentMode = function(mode) {
   $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, calculateFoodDeliveryFee(foodDropoff).fee, 5);
 };
 
+function callableData(value) {
+  if (typeof value === 'number') return isFinite(value) ? value : null;
+  if (value == null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(callableData);
+  var out = {};
+  Object.keys(value).forEach(function(key) { out[key] = callableData(value[key]); });
+  return out;
+}
+
+function checkoutErrorText(err) {
+  var code = String(err && err.code || '').replace(/^functions\//, '');
+  var msg = String(err && err.message || '').trim();
+  var text = msg || code;
+  if (!text) return 'ส่งไม่สำเร็จ';
+  if (text.indexOf('ส่งไม่สำเร็จ') === 0) return text.slice(0, 180);
+  return ('ส่งไม่สำเร็จ: ' + text).slice(0, 180);
+}
+
 async function createServerOrder(payload) {
   if (!currentUser) throw new Error('กรุณาเข้าสู่ระบบ');
   if (!functionsApi || typeof functionsApi.httpsCallable !== 'function') throw new Error('ระบบสั่งซื้อยังไม่พร้อม');
-  var body = Object.assign({}, payload || {});
+  var body = callableData(Object.assign({}, payload || {}));
   delete body.fare;
   delete body.total;
   delete body.createdAt;
@@ -3068,7 +3086,7 @@ window.confirmCheckout = async function(grandTotal) {
     try { switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)')); } catch (uiErr) {}
   } catch (e) {
     console.error('confirmCheckout error:', e);
-    showToast('ส่งไม่สำเร็จ', 'error');
+    showToast(checkoutErrorText(e), 'error');
   }
 };
 
@@ -4564,7 +4582,7 @@ window.submitRideOrder = async function(){
     if($('pick-banner')) $('pick-banner').style.display='none';
     updateConfirmBtnState();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
-  }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
+  }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
 /* ═══ ORDER FORM (generic) ═══ */
@@ -4607,7 +4625,7 @@ window.submitOrder = async function(type){
     showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdGeneric.total != null ? createdGeneric.total : baseFare));
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
-  }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
+  }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
 /* ═══ EXPRESS ═══ */
@@ -4938,7 +4956,7 @@ window.submitExpressOrder = async function(){
     expOrigin = null; expDestination = null;
     expressParcelPhotoFile = null;
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
-  }catch(e){ showToast(e && e.message ? e.message : 'ส่งไม่สำเร็จ','error'); }
+  }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
 /* ═══ CATEGORY ═══ */
@@ -5325,7 +5343,7 @@ window.submitShopOrder = async function(placeId){
     shoppingDropoff = null;
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
-  } catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
+  } catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
 /* ═══ MODAL / LIGHTBOX ═══ */
@@ -6578,20 +6596,38 @@ window.confirmCustomerPaid = window.confirmCustomerPaid;
 /* Service Worker */
 if ('serviceWorker' in navigator) {
   var hadSwController = !!navigator.serviceWorker.controller;
-  try {
-    if (sessionStorage.getItem('chauat_sw_reload') === '1') sessionStorage.removeItem('chauat_sw_reload');
-  } catch (e) {}
-  navigator.serviceWorker.addEventListener('controllerchange', function() {
+  function reloadForNewWorker() {
     if (!hadSwController) return;
     try {
       if (sessionStorage.getItem('chauat_sw_reload') === '1') return;
       sessionStorage.setItem('chauat_sw_reload', '1');
     } catch (e) {}
     location.reload();
+  }
+  try {
+    if (sessionStorage.getItem('chauat_sw_reload') === '1') sessionStorage.removeItem('chauat_sw_reload');
+  } catch (e) {}
+  navigator.serviceWorker.addEventListener('controllerchange', reloadForNewWorker);
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'RELOAD') reloadForNewWorker();
   });
   window.addEventListener('load', function(){
     navigator.serviceWorker.register('/sw.js', {updateViaCache:'none'})
-      .then(function(reg){ reg.update(); setInterval(function(){ reg.update(); }, 60000); })
+      .then(function(reg){
+        function takeOver(worker) {
+          if (worker && worker.postMessage) worker.postMessage('SKIP_WAITING');
+        }
+        takeOver(reg.waiting);
+        reg.addEventListener('updatefound', function() {
+          var installing = reg.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', function() {
+            if (installing.state === 'installed') takeOver(reg.waiting);
+          });
+        });
+        reg.update();
+        setInterval(function(){ reg.update(); }, 60000);
+      })
       .catch(function(){});
   });
 }
