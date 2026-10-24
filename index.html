@@ -451,6 +451,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .search-cat-row { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: none; }
 .search-cat-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .search-cat-chip.on { border-color: var(--green); color: var(--green); }
+.home-dir-status, .home-dir-count { padding: 4px 4px 8px; text-align: center; color: var(--text-light); font-size: 12px; font-weight: 800; line-height: 1.45; }
+.home-load-more { width: 100%; min-height: 44px; margin: 2px 0 8px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
 .dest-sheet.expanded .dest-search-results.show { display: block; }
 .dest-result { width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 12px; border: none; border-bottom: 1px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer; }
 .dest-result:last-child { border-bottom: none; }
@@ -1123,7 +1125,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   <div class="header-top">
     <div class="search-bar">
       <span style="font-size:18px;opacity:.6">🔍</span>
-      <input type="text" id="search-input" placeholder="ค้นหาสถานที่ในนครศรีธรรมราช...">
+      <input type="text" id="search-input" placeholder="ค้นหา เช่น ..." autocomplete="off">
     </div>
     <div class="profile-avatar press-scale" onclick="openProfileSheet()">
       <span id="profile-avatar-emoji">🧑</span>
@@ -1491,8 +1493,6 @@ var shoppingMapSelection = null;
 var _shoppingPlacesCache = [];
 var hotelSearchQuery = '';
 var touristSearchQuery = '';
-var homeDistrictFilter = '';
-var homeTambonFilter = '';
 var destDistrictFilter = '';
 var destTambonFilter = '';
 var hotelDistrictFilter = '';
@@ -1873,6 +1873,7 @@ document.addEventListener('DOMContentLoaded', function(){
   checkPDPA();
   updateCartBar();
   bindSearchInput();
+  setTimeout(function() { ensurePlaceData(refreshSearchPlaceholder, ''); }, 700);
   var restaurantSearch = $('restaurant-search');
   if (restaurantSearch) restaurantSearch.addEventListener('input', applyRestaurantFilters);
   var restaurantTypeFilter = $('restaurant-type-filter');
@@ -2347,79 +2348,140 @@ window.saveProfile = async function(){
 function bindSearchInput(){
   var input = $('search-input'); if(!input) return;
   input.removeAttribute('oninput');
-  input.addEventListener('input',function(e){doSearch(e.target.value);});
-  input.addEventListener('focus',function(){ doSearch(input.value); });
+  input.addEventListener('input',function(e){
+    homeListLimit = HOME_PAGE;
+    if (homeSearchTimer) clearTimeout(homeSearchTimer);
+    var value = e.target.value;
+    homeSearchTimer = setTimeout(function(){ doSearch(value); }, 100);
+  });
+  input.addEventListener('focus',function(){
+    var results = $('search-results');
+    var opening = !(results && results.classList.contains('show'));
+    if (opening) {
+      homeOrderToken++;
+      homeOrderCache = null;
+      homeListLimit = HOME_PAGE;
+      refreshSearchPlaceholder();
+    }
+    doSearch(input.value);
+  });
 }
 
 var HOME_CATS = ['w','e','o','l','r','f','c','m','ml','h','t','v','k','g','tr','b','y','x','u','a','d','n','j','z'];
+var HOME_PAGE = 40;
 var homeCatFilter = '';
+var homeListLimit = HOME_PAGE;
+var homeSearchTimer = null;
+var homeOrderToken = 0;
+var homeOrderCache = null;
+var PLACE_CREDIT = '© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)';
+
+function placeCreditHtml() {
+  var text = (provincePlaces && provincePlaces.attribution) || PLACE_CREDIT;
+  return '<div class="dest-osm-credit">' + esc(text) + '</div>';
+}
+
+function refreshSearchPlaceholder() {
+  var input = $('search-input');
+  if (!input || !chauatPlaces || !provinceDataReady('')) return;
+  var rows = catalogRows();
+  if (!rows.length) return;
+  var place = rows[Math.floor(Math.random() * rows.length)];
+  if (place && place.label) input.placeholder = 'ค้นหา เช่น ' + place.label;
+}
+
+function shufflePlaces(rows) {
+  var copy = rows.slice();
+  for (var i = copy.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var swap = copy[i];
+    copy[i] = copy[j];
+    copy[j] = swap;
+  }
+  return copy;
+}
+
+function homeRandomSlice(cat, limit) {
+  var key = homeOrderToken + '|' + (cat || '*');
+  if (!homeOrderCache || homeOrderCache.key !== key) {
+    var rows = catalogRows().filter(function(row) { return rowHasCat(row, cat); });
+    homeOrderCache = { key: key, rows: shufflePlaces(rows) };
+  }
+  var sliced = homeOrderCache.rows.slice(0, limit);
+  sliced.total = homeOrderCache.rows.length;
+  return sliced;
+}
 
 function homeCatHtml() {
   var codes = [''].concat(HOME_CATS);
-  return '<select id="home-district" class="place-district-select" aria-label="อำเภอ" onchange="setHomeDistrict(this.value)">' + districtOptions(homeDistrictFilter) + '</select>' +
-    '<select id="home-tambon" class="place-district-select" aria-label="ตำบล" onchange="setHomeTambon(this.value)">' + tambonOptions(homeDistrictFilter, homeTambonFilter) + '</select>' +
-    '<div class="search-cat-row">' + codes.map(function(code) {
+  return '<div class="search-cat-row">' + codes.map(function(code) {
     var cat = code ? (CATS[code] || { name: code, icon: '📍' }) : { name: 'ทั้งหมด', icon: '🔎' };
     return '<button type="button" class="search-cat-chip' + (homeCatFilter === code ? ' on' : '') + '" data-home-cat="' + code + '">' + cat.icon + ' ' + esc(cat.name) + '</button>';
   }).join('') + '</div>';
 }
 
-window.setHomeDistrict = function(value) {
-  homeDistrictFilter = value || '';
-  if (homeTambonFilter && tambonsFor(homeDistrictFilter).indexOf(homeTambonFilter) === -1) homeTambonFilter = '';
-  doSearch(($('search-input') && $('search-input').value) || '');
-};
-window.setHomeTambon = function(value) {
-  if (!homeDistrictFilter) return;
-  homeTambonFilter = value || '';
+function homeDirSummary(shown, total, query) {
+  var scope = query ? 'ผลการค้นหา' : 'สุ่มสถานที่';
+  if (homeCatFilter && CATS[homeCatFilter]) scope += ' · ' + CATS[homeCatFilter].name;
+  if (!total) return scope + ' · ไม่มีสถานที่';
+  if (shown >= total) return scope + ' · ' + total + ' สถานที่';
+  return scope + ' · แสดง ' + shown + ' จาก ' + total;
+}
+
+window.loadMoreHomePlaces = function(event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  if (homeSearchTimer) clearTimeout(homeSearchTimer);
+  homeListLimit += HOME_PAGE;
   doSearch(($('search-input') && $('search-input').value) || '');
 };
 window.doSearch = function(q){
   var results = $('search-results'); if(!results) return;
   var query = (q || '').trim().toLowerCase();
-  if (!query && !homeCatFilter && !homeDistrictFilter && !homeTambonFilter) {
-    results.style.display = 'block';
-    results.classList.add('show');
-    results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">เลือกหมวดหรืออำเภอ หรือพิมพ์ชื่อสถานที่ในจังหวัดนครศรีธรรมราช</div><div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>';
-    if (!provinceIndex) {
-      loadProvinceIndex().then(function() {
-        var now = ($('search-input') && $('search-input').value) || '';
-        if (!String(now).trim() && !homeCatFilter && !homeDistrictFilter && !homeTambonFilter && document.activeElement === $('search-input')) doSearch('');
-      });
-    }
-    return;
-  }
-  if (!chauatPlaces || !provinceDataReady(homeDistrictFilter)) {
-    results.style.display = 'block';
-    results.classList.add('show');
-    results.innerHTML = homeCatHtml() + '<div style="padding:14px;text-align:center;color:var(--text-light);font-weight:700">กำลังโหลดสถานที่...</div><div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>';
+  var keepScroll = homeListLimit > HOME_PAGE ? results.scrollTop : 0;
+  results.style.display = 'block';
+  results.classList.add('show');
+  if (!chauatPlaces || !provinceDataReady('')) {
+    results.innerHTML = homeCatHtml() + '<div class="home-dir-status">กำลังโหลดสถานที่...</div>' + placeCreditHtml();
     ensurePlaceData(function() {
-      var now = ($('search-input') && $('search-input').value) || '';
-      if (now === (q || '')) doSearch(q);
-    }, homeDistrictFilter);
+      refreshSearchPlaceholder();
+      if (!results.classList.contains('show')) return;
+      doSearch(($('search-input') && $('search-input').value) || '');
+    }, '');
     return;
   }
+  var input = $('search-input');
+  if (input && (input.placeholder || '').indexOf('ค้นหา เช่น ') !== 0) refreshSearchPlaceholder();
   var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
-  var matches = searchPlaceCatalog(query, homeCatFilter, origin, 24, homeDistrictFilter, homeTambonFilter);
-  results.style.display='block'; results.classList.add('show');
+  var matches = query
+    ? searchPlaceCatalog(query, homeCatFilter, origin, homeListLimit)
+    : homeRandomSlice(homeCatFilter, homeListLimit);
+  var total = typeof matches.total === 'number' ? matches.total : matches.length;
   if(!matches.length){
-    results.innerHTML = homeCatHtml() + '<div style="padding:20px;text-align:center;color:var(--text-light);font-weight:700">ไม่พบ "'+esc(q)+'"</div><div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>';
+    var emptyText = query ? ('ไม่พบ "' + esc(q) + '"') : 'ไม่พบสถานที่ในหมวดนี้';
+    results.innerHTML = homeCatHtml() + '<div class="home-dir-status">' + emptyText + '</div>' + placeCreditHtml();
     return;
   }
-  results.innerHTML = homeCatHtml() + matches.map(function(p){
+  var more = total > matches.length
+    ? '<button type="button" class="home-load-more" onclick="loadMoreHomePlaces(event)">โหลดเพิ่ม (' + matches.length + '/' + total + ')</button>'
+    : '';
+  results.innerHTML = homeCatHtml() + '<div class="home-dir-count">' + esc(homeDirSummary(matches.length, total, query)) + '</div>' + matches.map(function(p){
     var cat = placeCatInfo(p);
     var hasImg = p.placeId && p.image && hasRealImage(p.image);
     var imgHtml = hasImg ? '<img src="'+esc(p.image)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : cat.icon;
     var attrs = p.placeId
       ? ' data-place-id="'+esc(p.placeId)+'"'
       : ' data-osm-lat="'+p.lat+'" data-osm-lng="'+p.lng+'" data-osm-name="'+esc(p.label)+'"';
-    var where = (p.tambon ? ('ตำบล' + p.tambon + ' ') : '') + (p.district ? ('อำเภอ' + p.district) : (p.tambon ? '' : 'อำเภอชะอวด'));
-    if (p.approx) where += ' • ตำแหน่งโดยประมาณ';
+    var whereBits = [];
+    if (p.tambon) whereBits.push('ตำบล' + p.tambon);
+    whereBits.push('อำเภอ' + (p.district || 'ชะอวด'));
+    if (p.approx) whereBits.push('ตำแหน่งโดยประมาณ');
+    var where = whereBits.join(' • ');
     return '<div class="search-item"' + attrs + '>' +
       '<div class="search-item-icon">'+imgHtml+'</div>' +
       '<div class="search-item-info"><div class="search-item-name">'+esc(p.label)+'</div>' +
       '<div class="search-item-meta">'+cat.icon+' '+esc(cat.name)+' • '+esc(where)+(p.price?' • '+p.price:'')+'</div></div></div>';
-  }).join('') + '<div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>';
+  }).join('') + more + placeCreditHtml();
+  results.scrollTop = keepScroll;
 };
 
 /* ═══ NEARBY SHOPS ═══ */
@@ -5434,6 +5496,7 @@ function globalClickHandler(e){
   var homeCat = e.target.closest('[data-home-cat]');
   if (homeCat) {
     homeCatFilter = homeCat.dataset.homeCat || '';
+    homeListLimit = HOME_PAGE;
     doSearch(($('search-input') && $('search-input').value) || '');
     return;
   }
@@ -5919,11 +5982,21 @@ function rowHasCat(row, cat) {
   return !!(cat.length === 1 && row.hl && row.hl.indexOf(cat) !== -1);
 }
 
-function searchPlaceCatalog(query, cat, origin, limit, district, tambon) {
+function placeMatchRank(row, q) {
+  var nameKey = row.q || foldSearchQuery(row.label);
+  var at = nameKey.indexOf(q);
+  if (at !== -1) return at;
+  var info = placeCatInfo(row);
+  var extra = foldSearchQuery((row.tambon || '') + (row.district || '') + (info.name || ''));
+  var extraAt = extra.indexOf(q);
+  return extraAt === -1 ? 10000 : 5000 + extraAt;
+}
+
+function searchPlaceCatalog(query, cat, origin, limit, district, tambon, browseAll) {
   var q = foldSearchQuery(query);
   var want = district || '';
   var wantTambon = tambon || '';
-  if (!q && !cat && !want && !wantTambon) return [];
+  if (!q && !cat && !want && !wantTambon && !browseAll) return [];
   var rows = catalogRows().filter(function(row) {
     if (!rowHasCat(row, cat)) return false;
     if (want && (row.district || 'ชะอวด') !== want) return false;
@@ -5936,7 +6009,7 @@ function searchPlaceCatalog(query, cat, origin, limit, district, tambon) {
   });
   var o = origin || CHAUAT_CENTER;
   function dist(row) { return haversine(o.lat, o.lng, row.lat, row.lng); }
-  if (!q) {
+  if (!q && !browseAll) {
     var chauat = [];
     var other = [];
     rows.forEach(function(row) {
@@ -5956,10 +6029,19 @@ function searchPlaceCatalog(query, cat, origin, limit, district, tambon) {
       chauatKept.push(row);
     });
     rows = chauatKept.concat(other);
+  } else if (q) {
+    rows.sort(function(a, b) {
+      var ra = placeMatchRank(a, q);
+      var rb = placeMatchRank(b, q);
+      if (ra !== rb) return ra - rb;
+      return dist(a) - dist(b);
+    });
   } else {
     rows.sort(function(a, b) { return dist(a) - dist(b); });
   }
-  return rows.slice(0, limit || 40);
+  var sliced = rows.slice(0, limit || 40);
+  sliced.total = rows.length;
+  return sliced;
 }
 
 function renderDestCatFilters() {
