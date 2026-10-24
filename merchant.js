@@ -2166,7 +2166,8 @@ document.addEventListener('change', (e) => {
 
 async function submitGpTransfer() {
   if (!gpSlipFile) return showToast('กรุณาแนบสลิปโอน', 'warning');
-  if (currentGpPending <= 0) return showToast('ไม่มี GP ค้างโอน', 'warning');
+  const amount = Math.round(Number(currentGpPending) * 100) / 100;
+  if (!(amount > 0) || amount > 100000) return showToast('ยอด GP ต้องมากกว่า 0 และไม่เกิน ฿100,000', 'warning');
 
   const btn = $('btn-submit-gp');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
@@ -2178,7 +2179,6 @@ async function submitGpTransfer() {
     await ref.put(compressed);
     const slipUrl = await ref.getDownloadURL();
     const note = $('gp-note')?.value.trim() || '';
-    const amount = currentGpPending;
     const roundLabel = new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
     const historyEntry = {

@@ -12,7 +12,7 @@ const DEFAULT_CONFIG = {
   staleLocationSec: 120,
   reofferCooldownSec: 180,
   unassignedTimeoutMin: 60,
-  staleAssignTimeoutMin: 60,
+  staleAssignTimeoutMin: 180,
   weights: { distance: 1, idle: 1, acceptance: 1, rating: 1 }
 };
 
@@ -81,7 +81,7 @@ function normalizeConfig(raw) {
     staleLocationSec: clamp(Number(d.staleLocationSec) || 120, 30, 600),
     reofferCooldownSec: clamp(Math.round(Number(d.reofferCooldownSec) || 180), 30, 3600),
     unassignedTimeoutMin: clamp(Math.round(Number(d.unassignedTimeoutMin) || 60), 5, 1440),
-    staleAssignTimeoutMin: clamp(Math.round(Number(d.staleAssignTimeoutMin) || 60), 5, 1440),
+    staleAssignTimeoutMin: clamp(Math.round(Number(d.staleAssignTimeoutMin) || 180), 5, 1440),
     weights: {
       distance: numOr(w.distance, 1),
       idle: numOr(w.idle, 1),
@@ -724,6 +724,7 @@ async function acceptOffer(db, uid, orderId, offerId) {
       const rider = riderSnap.data() || {};
       if (offer.riderId !== uid) throw new Error('not-yours');
       if (offer.status !== 'pending') throw new Error('closed');
+      if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
       const exp = tsMillis(offer.expiresAt);
       if (exp && exp < Date.now()) throw new Error('expired');
       if (order.riderId) throw new Error('taken');
@@ -852,15 +853,20 @@ async function manualAssign(db, adminUid, orderId, riderId) {
   const lock = riderLockRef(db, riderId);
   const pendingSnap = await orderRef.collection('dispatchOffers').where('status', '==', 'pending').limit(300).get();
   await db.runTransaction(async (tx) => {
+    const activeSnap = await tx.get(activeJobsQuery(db, riderId));
+    const lockSnap = await tx.get(lock);
     const orderSnap = await tx.get(orderRef);
     const riderSnap = await tx.get(riderRef);
-    await tx.get(lock);
     if (!orderSnap.exists) throw new Error('missing-order');
     if (!riderSnap.exists) throw new Error('missing-rider');
     const order = orderSnap.data() || {};
     const rider = riderSnap.data() || {};
+    const heldSnap = await heldLockOrder(tx, db, lockSnap, orderId);
     if (order.riderId) throw new Error('taken');
     if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
+    if (otherActiveDoc(activeSnap, orderId) || lockStillBusy(heldSnap, riderId)) {
+      throw new Error('busy');
+    }
     const pendingReads = [];
     for (let i = 0; i < pendingSnap.docs.length; i++) pendingReads.push(tx.get(pendingSnap.docs[i].ref));
     let prevSnap = null;
@@ -1115,6 +1121,9 @@ function holdsJobSlot(order) {
 }
 
 async function onOrderWritten(db, before, after, orderId) {
+  if (after && after.status === 'cancelled' && (!before || before.status !== 'cancelled')) {
+    await closePendingOffers(db, db.collection('orders').doc(orderId), 'cancelled');
+  }
   const beforeHolds = holdsJobSlot(before);
   const afterSameRider = after && before && after.riderId === before.riderId && holdsJobSlot(after);
     if (beforeHolds && !afterSameRider) {
@@ -1301,27 +1310,44 @@ async function sweepTimeouts(db) {
   const nowMs = Date.now();
   const unassignedMs = cfg.unassignedTimeoutMin * 60 * 1000;
   const staleMs = cfg.staleAssignTimeoutMin * 60 * 1000;
+  const horizon = Math.min(unassignedMs, staleMs);
   const unassignedReason = timeoutReason(cfg.unassignedTimeoutMin, REASON_UNASSIGNED);
   const staleReason = timeoutReason(cfg.staleAssignTimeoutMin, REASON_STALE_JOB);
-  const snap = await db.collection('orders').where('status', 'in', TIMEOUT_STATUSES).limit(200).get();
   let cancelled = 0;
   let cleared = 0;
-  for (const doc of snap.docs) {
-    const order = doc.data() || {};
-    if (!order.riderId && OPEN_STATUSES.indexOf(order.status) !== -1) {
-      const born = createdMs(order);
-      if (!born || nowMs - born < unassignedMs) continue;
-      if (await cancelUnassigned(db, doc.ref, unassignedReason)) cancelled += 1;
-      continue;
+  let cursor = null;
+  for (let page = 0; page < 25; page++) {
+    let query = db.collection('orders')
+      .where('status', 'in', TIMEOUT_STATUSES)
+      .orderBy('createdAt')
+      .limit(200);
+    if (cursor) query = query.startAfter(cursor);
+    const snap = await query.get();
+    if (snap.empty) break;
+    let stop = false;
+    for (const doc of snap.docs) {
+      const order = doc.data() || {};
+      const born = tsMillis(order.createdAt);
+      if (born && born > nowMs - horizon) {
+        stop = true;
+        break;
+      }
+      if (!order.riderId && OPEN_STATUSES.indexOf(order.status) !== -1) {
+        if (!born || nowMs - born < unassignedMs) continue;
+        if (await cancelUnassigned(db, doc.ref, unassignedReason)) cancelled += 1;
+        continue;
+      }
+      if (!order.riderId || ACTIVE_STATUSES.indexOf(order.status) === -1) continue;
+      const since = tsMillis(order.acceptedAt);
+      if (!since || nowMs - since < staleMs) continue;
+      const riderId = await cancelStaleJob(db, doc.ref, staleReason);
+      if (!riderId) continue;
+      cleared += 1;
+      const code = order.code ? order.code + ' • ' : '';
+      await writeRiderNotice(db, riderId, code + staleReason);
     }
-    if (!order.riderId || ACTIVE_STATUSES.indexOf(order.status) === -1) continue;
-    const since = tsMillis(order.acceptedAt);
-    if (!since || nowMs - since < staleMs) continue;
-    const riderId = await cancelStaleJob(db, doc.ref, staleReason);
-    if (!riderId) continue;
-    cleared += 1;
-    const code = order.code ? order.code + ' • ' : '';
-    await writeRiderNotice(db, riderId, code + staleReason);
+    cursor = snap.docs[snap.docs.length - 1];
+    if (stop || snap.size < 200) break;
   }
   return { cancelled: cancelled, cleared: cleared };
 }

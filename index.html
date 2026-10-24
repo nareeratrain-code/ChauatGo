@@ -45,10 +45,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest-customer.json">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="brand-ui.css">
 <link rel="stylesheet" href="voice-call.css">
@@ -2997,6 +2997,21 @@ window.setPaymentMode = function(mode) {
   $('modal-body').innerHTML = renderCheckoutModal(subtotal, discountTotal, calculateFoodDeliveryFee(foodDropoff).fee, 5);
 };
 
+async function createServerOrder(payload) {
+  if (!currentUser) throw new Error('กรุณาเข้าสู่ระบบ');
+  if (!functionsApi || typeof functionsApi.httpsCallable !== 'function') throw new Error('ระบบสั่งซื้อยังไม่พร้อม');
+  var body = Object.assign({}, payload || {});
+  delete body.fare;
+  delete body.total;
+  delete body.createdAt;
+  delete body.codeCreatedAt;
+  delete body.riderIncome;
+  delete body.riderOwe;
+  delete body.riderPaid;
+  var res = await functionsApi.httpsCallable('createOrder')(body);
+  return (res && res.data) || {};
+}
+
 /* ⭐ v3.9.0: confirmCheckout → status = "searching" */
 window.confirmCheckout = async function(grandTotal) {
   captureFoodCheckoutDraft();
@@ -3019,7 +3034,7 @@ window.confirmCheckout = async function(grandTotal) {
   grandTotal = (subtotal - discountTotal) + deliveryFee + cashTip;
 
   try {
-    await db.collection('orders').add({
+    var createdFood = await createServerOrder({
       type: 'food',
       userId: currentUser.uid,
       userName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
@@ -3032,24 +3047,15 @@ window.confirmCheckout = async function(grandTotal) {
       shopPlaceName: merchantData.name || (cart[0] ? cart[0].merchantName : ''),
       items: items,
       itemsText: items.map(function(i) { return i.name + ' x' + i.qty; }).join(', '),
-      itemsTotal: subtotal, subtotal: subtotal,
-      discountTotal: discountTotal,
-      netTotal: subtotal - discountTotal,
-      foodTotal: subtotal,
-      fare: deliveryFee, total: grandTotal,
-      cashTip: cashTip,
-      status: 'searching',                   /* ⭐ v3.9.0 */
-      riderId: null,                          /* ⭐ v3.9.0 */
       address: (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '',
       note: (foodDropoff && foodDropoff.note) || '',
       lat: (foodDropoff && isFinite(foodDropoff.lat)) ? foodDropoff.lat : (userLocation ? userLocation.lat : null),
       lng: (foodDropoff && isFinite(foodDropoff.lng)) ? foodDropoff.lng : (userLocation ? userLocation.lng : null),
       paymentMode: selectedPaymentMode,
       code: generateOrderCode(),
-      deliveryCode: generateDeliveryCode(),
-      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      deliveryCode: generateDeliveryCode()
     });
+    grandTotal = createdFood.total != null ? createdFood.total : grandTotal;
     cart = []; cartShop = ''; selectedPaymentMode = 'transfer'; foodDropoff = null; foodReorderNotice = '';
     try {
       localStorage.removeItem('chauat_cart');
@@ -3058,7 +3064,7 @@ window.confirmCheckout = async function(grandTotal) {
     try { updateCartBar(); } catch (uiErr) {}
     try { closeModal(); } catch (uiErr) {}
     try { _refreshCartViews(); } catch (uiErr) {}
-    showToast('✅ ส่งออเดอร์แล้ว');
+    showToast('✅ ส่งออเดอร์แล้ว ฿' + fmt(grandTotal));
     try { switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)')); } catch (uiErr) {}
   } catch (e) {
     console.error('confirmCheckout error:', e);
@@ -3122,13 +3128,24 @@ function showNearAlertByLevel(order, level, distMeters) {
   }
 
   if (nearAlertsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+    var nearTitle = config.icon + ' ' + config.title;
+    var nearBody = nearLabel + ' • ' + config.sub;
+    var nearTag = 'near-' + order.id + '-' + level;
+    var nearData = { type: 'near_customer', orderId: order.id };
     try {
-      new Notification(config.icon + ' ' + config.title, {
-        body: nearLabel + ' • ' + config.sub,
-        icon: '/icons/icon-512.png',
-        tag: 'near-' + order.id + '-' + level,
-        requireInteraction: level === 'ARRIVED'
-      });
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(function(reg) {
+          return reg.showNotification(nearTitle, {
+            body: nearBody,
+            icon: '/icons/icon-512.png',
+            tag: nearTag,
+            data: nearData,
+            requireInteraction: level === 'ARRIVED'
+          });
+        }).catch(function() {});
+      } else {
+        new Notification(nearTitle, { body: nearBody, icon: '/icons/icon-512.png', tag: nearTag, data: nearData });
+      }
     } catch(e){}
   }
 }
@@ -4523,7 +4540,7 @@ window.submitRideOrder = async function(){
   var destLng = pin && isFinite(pin.lng) ? pin.lng : null;
   var fareInfo = calculateFare(selectedVehicle, destLat, destLng);
   try{
-    await db.collection('orders').add({
+    var createdRide = await createServerOrder({
       type:'ride', vehicle:selectedVehicle.type,
       vehicleName:({motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'})[selectedVehicle.type],
       userId:currentUser.uid,
@@ -4535,17 +4552,11 @@ window.submitRideOrder = async function(){
       fromLat: userLocation ? userLocation.lat : null,
       fromLng: userLocation ? userLocation.lng : null,
       lat:destLat, lng:destLng,
-      distanceKm: fareInfo.distance,
-      status:'searching',
-      riderId: null,
-      fare: fareInfo.total, total: fareInfo.total,
       paymentMode: 'transfer',
       code: generateOrderCode(),
-      deliveryCode: generateDeliveryCode(),
-      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      deliveryCode: generateDeliveryCode()
     });
-    showToast('✅ เรียกรถแล้ว ฿' + fareInfo.total);
+    showToast('✅ เรียกรถแล้ว ฿' + (createdRide.total != null ? createdRide.total : fareInfo.total));
     closeModal();
     selectedDestination = null; selectedVehicle = null;
     if(destinationMarker && map){map.removeLayer(destinationMarker);destinationMarker=null;}
@@ -4580,7 +4591,7 @@ window.submitOrder = async function(type){
   if(!from||!to) return showToast('กรอกต้นทาง-ปลายทาง','error');
   var baseFare = {ride: 50, food: 20, shopping: 30}[type] || 30;
   try{
-    await db.collection('orders').add({
+    var createdGeneric = await createServerOrder({
       type:type, userId:currentUser.uid,
       userName:(userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
       userPhone:$('order-phone').value.trim(),
@@ -4589,16 +4600,11 @@ window.submitOrder = async function(type){
       note:$('order-note').value.trim(),
       fromLat: userLocation ? userLocation.lat : null,
       fromLng: userLocation ? userLocation.lng : null,
-      status:'searching',
-      riderId: null,
-      fare: baseFare, total: baseFare,
       paymentMode: 'transfer',
       code: generateOrderCode(),
-      deliveryCode: generateDeliveryCode(),
-      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      deliveryCode: generateDeliveryCode()
     });
-    showToast('✅ ส่งออเดอร์แล้ว');
+    showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdGeneric.total != null ? createdGeneric.total : baseFare));
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   }catch(e){ showToast('ส่งไม่สำเร็จ','error'); }
@@ -4905,7 +4911,7 @@ window.submitExpressOrder = async function(){
     }
   }
   try{
-    await db.collection('orders').add({
+    var createdExpress = await createServerOrder({
       type: 'express', userId: currentUser.uid,
       userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
       userPhone: $('order-phone').value.trim(),
@@ -4922,16 +4928,12 @@ window.submitExpressOrder = async function(){
       address: toText,
       fromLat: expOrigin ? expOrigin.lat : null, fromLng: expOrigin ? expOrigin.lng : null,
       lat: expDestination ? expDestination.lat : null, lng: expDestination ? expDestination.lng : null,
-      distanceKm: distanceKm, note: $('order-note').value.trim(),
-      status: 'searching',
-      riderId: null,
-      fare: total, total: total, paymentMode: 'transfer',
+      note: $('order-note').value.trim(),
+      paymentMode: 'transfer',
       code: generateOrderCode(),
-      deliveryCode: generateDeliveryCode(),
-      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      deliveryCode: generateDeliveryCode()
     });
-    showToast('✅ ส่งออเดอร์แล้ว ฿' + total);
+    showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdExpress.total != null ? createdExpress.total : total));
     closeModal();
     expOrigin = null; expDestination = null;
     expressParcelPhotoFile = null;
@@ -5297,7 +5299,7 @@ window.submitShopOrder = async function(placeId){
   var dist = userLocation ? haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) : 0;
   var fare = Math.round(30 + (dist * 1.3 * 5));
   try{
-    await db.collection('orders').add({
+    var createdShop = await createServerOrder({
       type: 'shopping',
       userId: currentUser.uid,
       userName: (userProfile&&userProfile.name) || currentUser.displayName || 'ลูกค้า',
@@ -5314,17 +5316,11 @@ window.submitShopOrder = async function(placeId){
       lng: dropPin && isFinite(dropPin.lng) ? dropPin.lng : null,
       items: items, itemsText: items,
       note: ($('shop-note') && $('shop-note').value.trim()) || '',
-      distanceKm: dist,
-      status: 'searching',
-      riderId: null,
-      fare: fare, total: fare,
       paymentMode: 'cash',
       code: generateOrderCode(),
-      deliveryCode: generateDeliveryCode(),
-      codeCreatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      deliveryCode: generateDeliveryCode()
     });
-    showToast('✅ ส่งออเดอร์แล้ว ฿' + fare);
+    showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdShop.total != null ? createdShop.total : fare));
     shoppingPrefill = null;
     shoppingDropoff = null;
     closeModal();

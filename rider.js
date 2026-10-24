@@ -132,9 +132,6 @@ let pickupOrderId = null;
 const RIDER_SHARE = 0.80;
 const PLATFORM_SHARE = 0.20;
 const CASH_TIP = 5;
-const SERVICE_BASE = 20;
-const SERVICE_PER_KM = 8;
-const FREE_KM = 1;
 const ARRIVAL_RADIUS_M = 300;
 const NEAR_CUSTOMER_RADIUS_M = 300;
 const CUSTOMER_ARRIVAL_RADIUS_M = 50;
@@ -970,6 +967,7 @@ function subscribeJobs() {
     publishJobs(prevOpen);
   } else if (currentUser) {
     myOpenUnsub = db.collection('orders')
+      .where('riderId', '==', null)
       .where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])
       .limit(50)
       .onSnapshot(snap => {
@@ -1805,20 +1803,9 @@ async function confirmDeliver(jobId) {
   const fin = calcOrderFinance(job);
 
   try {
-    await db.collection('orders').doc(jobId).update({
-      status: 'done',
-      doneAt: firebase.firestore.FieldValue.serverTimestamp(),
-      riderIncome: fin.riderShare + fin.tip,
-      riderOwe: fin.platformShare,
-      riderPaid: false
-    });
-
-    await db.collection('riders').doc(currentUser.uid).update({
-      totalJobs: firebase.firestore.FieldValue.increment(1),
-      totalIncome: firebase.firestore.FieldValue.increment(fin.riderShare + fin.tip)
-    });
-
-    showToast('✅ ส่งสำเร็จ! +฿' + fmt(fin.totalRider));
+    const result = await callDispatch('completeOrder', { orderId: jobId });
+    const income = result && result.riderIncome != null ? result.riderIncome : fin.totalRider;
+    showToast('✅ ส่งสำเร็จ! +฿' + fmt(income));
     sendAutomatedChatLater(jobId, 'delivered', AUTO_CHAT_MESSAGES.delivered);
     closeModal();
     clearPaymentTimers();

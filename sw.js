@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.33';
+const CACHE_NAME = 'chauat-app-v3.9.34';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -33,6 +33,7 @@ const ASSETS = [
   '/config/env.js',
   '/app-check.js',
   '/manifest-rider.json',
+  '/manifest-customer.json',
   '/data/chauat-places.json',
   '/images/logo-512.png',
   '/images/logo-512.webp',
@@ -83,16 +84,34 @@ try {
   });
 } catch (err) {}
 
+function notificationPath(data) {
+  const type = String((data && data.type) || '');
+  if (type === 'near_customer' || type === 'customer_order' || type === 'order_update') return '/';
+  if (type === 'food_ready' || type === 'manual_assign' || type === 'dispatch_notice') return '/rider.html';
+  return '/rider.html';
+}
+
+function clientMatches(url, path) {
+  try {
+    const pathname = new URL(url).pathname;
+    if (path === '/') return pathname === '/' || pathname === '/index.html';
+    return pathname === path;
+  } catch (err) {
+    return false;
+  }
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const path = notificationPath(event.notification && event.notification.data);
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (let i = 0; i < list.length; i++) {
       const client = list[i];
-      if (client.url && client.url.indexOf('/rider.html') !== -1 && typeof client.focus === 'function') {
+      if (client.url && clientMatches(client.url, path) && typeof client.focus === 'function') {
         return client.focus();
       }
     }
-    if (self.clients.openWindow) return self.clients.openWindow('/rider.html');
+    if (self.clients.openWindow) return self.clients.openWindow(path);
   }));
 });
 

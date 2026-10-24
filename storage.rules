@@ -1,0 +1,125 @@
+rules_version = '2';
+// Client uploads: chat images, parcel photos, GP slips, menu photos,
+// shop avatars, rider pickup photos, and rider-to-shop slips.
+// Download URLs keep working for whoever already received the link.
+// Direct SDK reads of chat images and slips stay with the order parties.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource.size > 0
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function userPath() {
+      return /databases/(default)/documents/users/$(request.auth.uid);
+    }
+
+    function adminPath() {
+      return /databases/(default)/documents/admins/$(request.auth.uid);
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        (
+          request.auth.token.email != null
+          && request.auth.token.email.lower() in [
+            'adminchauatgo@gmail.com',
+            'admin@chauatgo.com',
+            'chauatgo@gmail.com'
+          ]
+        )
+        || (
+          firestore.exists(adminPath())
+          && firestore.get(adminPath()).data.role in ['active', 'super']
+        )
+        || (
+          firestore.exists(userPath())
+          && firestore.get(userPath()).data.role == 'admin'
+          && firestore.get(userPath()).data.get('isPending', false) != true
+        )
+      );
+    }
+
+    function orderPath(orderId) {
+      return /databases/(default)/documents/orders/$(orderId);
+    }
+
+    function chatPath(chatId) {
+      return /databases/(default)/documents/chats/$(chatId);
+    }
+
+    function orderParty(orderId) {
+      return signedIn()
+        && firestore.exists(orderPath(orderId))
+        && (
+          firestore.get(orderPath(orderId)).data.get('userId', '') == request.auth.uid
+          || firestore.get(orderPath(orderId)).data.get('riderId', '') == request.auth.uid
+          || firestore.get(orderPath(orderId)).data.get('merchantId', '') == request.auth.uid
+        );
+    }
+
+    function chatParty(chatId) {
+      return signedIn()
+        && firestore.exists(chatPath(chatId))
+        && (
+          firestore.get(chatPath(chatId)).data.get('userId', '') == request.auth.uid
+          || firestore.get(chatPath(chatId)).data.get('riderId', '') == request.auth.uid
+          || firestore.get(chatPath(chatId)).data.get('merchantId', '') == request.auth.uid
+        );
+    }
+
+    function canSeeChatFile(chatId) {
+      return isAdmin() || request.auth.uid == chatId || orderParty(chatId) || chatParty(chatId);
+    }
+
+    match /chats/{chatId}/images/{fileName} {
+      allow read: if signedIn() && canSeeChatFile(chatId);
+      allow write: if signedIn() && canSeeChatFile(chatId) && isImage();
+    }
+
+    match /chats/{chatId}/{fileName} {
+      allow read: if signedIn() && canSeeChatFile(chatId);
+      allow write: if isAdmin() && isImage();
+    }
+
+    match /gp_slips/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if signedIn() && request.auth.uid == uid && isImage();
+    }
+
+    match /menus/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && isImage();
+    }
+
+    match /shops/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && isImage();
+    }
+
+    match /orders/{orderId}/{fileName} {
+      allow read: if signedIn() && (isAdmin() || orderParty(orderId));
+      allow write: if signedIn()
+        && isImage()
+        && firestore.exists(orderPath(orderId))
+        && firestore.get(orderPath(orderId)).data.get('riderId', '') == request.auth.uid;
+    }
+
+    match /slips/riders/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if signedIn() && request.auth.uid == uid && isImage();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /slips/orders/{orderId}/{fileName} {
+      allow read: if signedIn() && (isAdmin() || orderParty(orderId));
+      allow create, update: if isAdmin() && isImage();
+      allow delete: if isAdmin();
+    }
+  }
+}

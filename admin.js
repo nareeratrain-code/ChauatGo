@@ -1457,7 +1457,7 @@ const OSM_CATS = {
   x: 'อื่นๆ', l: 'สาธารณสุข', p: 'ไปรษณีย์', y: 'ชุมชน', i: 'ตำรวจ', k: 'แคมป์ปิ้ง', v: 'จุดเช็กอิน'
 };
 const PLACE_CAT_ORDER = ['o', 'r', 'm', 'k', 'v', 'w', 'e', 'l', 'i', 'f', 'c', 's', 't', 'h', 'g', 'b', 'p', 'y', 'x'];
-const PLACE_TAMBONS = ['ชะอวด', 'ท่าเสม็ด', 'ท่าประจะ', 'เคร็ง', 'วังอ่าง', 'บ้านตูล', 'ขอนหาด', 'เกาะขันธ์', 'ควนหนองหงษ์', 'เขาพระทอง', 'นางหลง'];
+const PLACE_TAMBONS = ["กรุงชิง","กรุงหยัน","กลาย","กะทูน","กะปาง","กะเปียด","กะหรอ","การะเกด","กำแพงเซา","กำโลน","กุแหระ","เกาะขันธ์","เกาะทวด","เกาะเพชร","แก้วแสน","ขนอม","ขนาบนาก","ขอนหาด","ขุนทะเล","เขาแก้ว","เขาขาว","เขาน้อย","เขาพระ","เขาพระทอง","เขาพระบาท","เขาพังไกร","เขาโร","คลองกระบือ","คลองน้อย","คลองเส","คลัง","ควนกรด","ควนกลาง","ควนเกย","ควนชะลิก","ควนชุม","ควนทอง","ควนพัง","ควนหนองคว้า","ควนหนองหงษ์","เคร็ง","จันดี","ฉลอง","ฉวาง","ชะมาย","ชะเมา","ชะอวด","ช้างกลาง","ช้างซ้าย","เชียรเขา","เชียรใหญ่","ไชยมนตรี","ดอนตรอ","ดอนตะโก","ดุสิต","ตลิ่งชัน","ถ้ำพรรณรา","ถ้ำใหญ่","ทรายขาว","ท้องเนียน","ท้องลำเจียก","ทอนหงส์","ท่าขนาน","ท่าขึ้น","ทางพูน","ท่างิ้ว","ท่าซอม","ท่าซัก","ท่าดี","ท่าประจะ","ท่าพยา","ท้ายสำเภา","ท่ายาง","ท่าเรือ","ท่าไร่","ท่าวัง","ท่าศาลา","ท่าเสม็ด","ที่วัง","ทุ่งปรัง","ทุ่งโพธิ์","ทุ่งสง","ทุ่งสัง","ทุ่งใส","ทุ่งใหญ่","เทพราช","ไทยบุรี","นบพิตำ","นากะชะ","นาเขลียง","นาเคียน","นางหลง","นาทราย","นาบอน","นาพรุ","นาโพธิ์","นาไม้ไผ่","นาเรียง","นาแว","นาสาร","นาหมอบุญ","นาหลวงเสน","นาเหรง","น้ำตก","ในเมือง","บางขัน","บางจาก","บางตะพง","บางนบ","บางพระ","บางรูป","บางศาลา","บ้านกลาง","บ้านเกาะ","บ้านควนมุด","บ้านชะอวด","บ้านตูล","บ้านนิคม","บ้านเนิน","บ้านเพิง","บ้านราม","บ้านลำนาว","บ้านใหม่","ปริก","ปากนคร","ปากพนัง","ปากพนังฝั่งตะวันตก","ปากพนังฝั่งตะวันออก","ปากพูน","ปากแพรก","ป่าระกำ","เปลี่ยน","พรหมโลก","พิปูน","โพธิ์ทอง","โพธิ์เสด็จ","มะม่วงสองต้น","แม่เจ้าอยู่หัว","โมคลาน","ไม้เรียง","ยางค้อม","ร่อนพิบูลย์","รามแก้ว","ละอาย","ลานสกา","วังหิน","วังอ่าง","สระแก้ว","สวนขัน","สวนหลวง","สามตำบล","สิชล","สี่ขีด","เสาธง","เสาเภา","เสือหึง","ไสหมาก","ไสหร้า","หนองหงส์","หน้าสตน","หลักช้าง","ห้วยปริก","หัวตะพาน","หัวไทร","หินตก","หูล่อง","แหลม","แหลมตะลุมพุก","อินคีรี"];
 const CHAUAT_PLACE_CENTER = { lat: 7.965, lng: 99.996 };
 
 function placeStamp() {
@@ -2051,8 +2051,8 @@ document.addEventListener('click', async e => {
       if (!name) return showToast('ใส่ชื่อสถานที่', 'error');
       if (!OSM_CATS[category]) return showToast('เลือกประเภท', 'error');
       if (!PLACE_TAMBONS.includes(tambon)) return showToast('เลือกตำบล', 'error');
-      if (!Number.isFinite(lat) || lat < 7.5 || lat > 8.5 || !Number.isFinite(lng) || lng < 99.4 || lng > 100.5) {
-        return showToast('เลื่อนหมุดให้อยู่ในอำเภอชะอวด', 'error');
+      if (!Number.isFinite(lat) || lat < 7.7 || lat > 9.5 || !Number.isFinite(lng) || lng < 99.1 || lng > 100.5) {
+        return showToast('เลื่อนหมุดให้อยู่ในจังหวัดนครศรีธรรมราช', 'error');
       }
       // placeAddedOk allows only these keys. updatedAt must be a timestamp.
       const payload = {
@@ -2367,7 +2367,7 @@ function dispatch() {
       <label class="meta">ยกเลิกถ้าไม่มีไรเดอร์รับ (นาที)</label>
       <input id="dispatch-unassigned-min" type="number" min="5" max="1440" value="${esc(String(cfg.unassignedTimeoutMin || 60))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <label class="meta">ยกเลิกงานที่ไรเดอร์รับแล้วไม่จบ รวมถึงรับของแล้ว (นาที)</label>
-      <input id="dispatch-stale-min" type="number" min="5" max="1440" value="${esc(String(cfg.staleAssignTimeoutMin || 60))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
+      <input id="dispatch-stale-min" type="number" min="5" max="1440" value="${esc(String(cfg.staleAssignTimeoutMin || 180))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <label class="meta">เสนอซ้ำให้คนเดิมได้หลัง (วินาที)</label>
       <input id="dispatch-reoffer-sec" type="number" min="30" max="3600" value="${esc(String(cfg.reofferCooldownSec || 180))}" style="width:100%;margin:6px 0 10px;padding:10px;border-radius:10px;border:2px solid var(--border)">
       <div class="meta">น้ำหนักคะแนน (ระยะ / ว่างนาน / อัตรารับ / ดาว)</div>
@@ -2463,7 +2463,7 @@ async function saveDispatchSettings() {
     offerTimeoutSec: Math.min(120, Math.max(10, Number($('dispatch-timeout') && $('dispatch-timeout').value) || 20)),
     maxJobsPerRider: Math.min(5, Math.max(1, Math.round(Number($('dispatch-max') && $('dispatch-max').value) || 1))),
     unassignedTimeoutMin: Math.min(1440, Math.max(5, Math.round(Number($('dispatch-unassigned-min') && $('dispatch-unassigned-min').value) || 60))),
-    staleAssignTimeoutMin: Math.min(1440, Math.max(5, Math.round(Number($('dispatch-stale-min') && $('dispatch-stale-min').value) || 60))),
+    staleAssignTimeoutMin: Math.min(1440, Math.max(5, Math.round(Number($('dispatch-stale-min') && $('dispatch-stale-min').value) || 180))),
     reofferCooldownSec: Math.min(3600, Math.max(30, Math.round(Number($('dispatch-reoffer-sec') && $('dispatch-reoffer-sec').value) || 180))),
     staleLocationSec: 120,
     weights: {
