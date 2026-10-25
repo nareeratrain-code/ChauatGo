@@ -83,7 +83,7 @@ const STATUS = {
 function statusLabel(o) {
   const base = STATUS[o?.status] || o?.status || '—';
   const riderMoved = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'].includes(o?.status);
-  const shopConfirmed = !!(o && (o.cookingAt || o.readyAt || o.code));
+  const shopConfirmed = !!(o && (o.cookingAt || o.readyAt || o.foodReady || o.status === 'cooking' || o.status === 'ready'));
   if (riderMoved && !shopConfirmed) return base + ' • ร้านยังไม่ยืนยัน';
   return base;
 }
@@ -1366,7 +1366,8 @@ async function sendChatImage(file) {
 
   try {
     const ref = storage.ref(`chats/${activeChatId}/${Date.now()}.jpg`);
-    await ref.put(file);
+    const contentType = file.type && file.type.indexOf('image/') === 0 ? file.type : 'image/jpeg';
+    await ref.put(file, { contentType: contentType });
     const url = await ref.getDownloadURL();
 
     await db.collection('chats').doc(activeChatId).collection('messages').add({
@@ -1713,7 +1714,7 @@ document.addEventListener('click', async e => {
     '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-change-role],' +
     '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset],' +
     '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps],' +
-    '[data-dispatch-save],[data-dispatch-assign],[data-dispatch-history]'
+    '[data-dispatch-save],[data-dispatch-assign],[data-dispatch-history],[data-shop-accept]'
   );
   if (!t) return;
 
@@ -1766,6 +1767,10 @@ document.addEventListener('click', async e => {
     }
     if (t.dataset.dispatchHistory) {
       await loadDispatchOffers(t.dataset.dispatchHistory);
+      return;
+    }
+    if (t.dataset.shopAccept) {
+      await confirmShopByPhone(t.dataset.shopAccept);
       return;
     }
     if (t.dataset.editMerchant) {
@@ -2312,6 +2317,13 @@ function broadcastOfferLine(o) {
   return `<div class="data-card-meta">เสนอพร้อมกัน ${ids.length} คน${names.length ? ' • ' + esc(names.join(', ')) + more : ''}</div>`;
 }
 
+function foodWaitingForShop(o) {
+  if (!o || o.riderId) return false;
+  if (o.status !== 'searching' && o.status !== 'pending') return false;
+  if (o.type === 'ride' || o.type === 'express' || o.type === 'shopping') return false;
+  return o.type === 'food' || !!o.merchantId;
+}
+
 function dispatchQueue() {
   return store.orders.filter(o => {
     if (['done', 'delivered', 'cancelled'].includes(o.status)) return false;
@@ -2396,6 +2408,7 @@ function dispatch() {
         ${broadcastOfferLine(o)}
         ${o.adminFlagReason ? `<div class="data-card-meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
         ${dispatchSkipHtml(o)}
+        ${foodWaitingForShop(o) ? `<button type="button" class="btn-primary" style="margin-top:8px" data-shop-accept="${esc(o.id)}">ร้านรับแล้ว (โทรยืนยัน)</button>` : ''}
         <button type="button" class="btn-primary" style="margin-top:8px" data-dispatch-history="${esc(o.id)}">ดูประวัติข้อเสนอ</button>
       </div>`).join('') : '<div class="empty"><div>ไม่มีออเดอร์ที่รอจ่าย</div></div>'}
     ${historyHtml}
@@ -2492,6 +2505,21 @@ async function loadDispatchOffers(orderId) {
     render();
   } catch (err) {
     showToast('โหลดประวัติไม่สำเร็จ', 'error');
+  }
+}
+
+async function confirmShopByPhone(orderId) {
+  const order = (store.orders || []).find(o => o.id === orderId);
+  if (!foodWaitingForShop(order)) return showToast('ร้านรับออเดอร์นี้แล้ว', 'warning');
+  try {
+    await db.collection('orders').doc(orderId).update({
+      status: 'cooking',
+      cookingAt: firebase.firestore.FieldValue.serverTimestamp(),
+      prepMinutes: 15
+    });
+    showToast('บันทึกว่าร้านรับแล้ว — ระบบจะเสนอให้ไรเดอร์');
+  } catch (err) {
+    showToast('บันทึกไม่สำเร็จ: ' + ((err && (err.code || err.message)) || ''), 'error');
   }
 }
 

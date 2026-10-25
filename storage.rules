@@ -1,18 +1,23 @@
 rules_version = '2';
-// Client uploads: chat images, parcel photos, GP slips, menu photos,
-// shop avatars, rider pickup photos, and rider-to-shop slips.
-// Download URLs keep working for whoever already received the link.
-// Direct SDK reads of chat images and slips stay with the order parties.
+// Client uploads. Paths are the ones the apps actually write:
+//   orders/{orderId}/food_*.jpg                         rider pickup photo
+//   slips/riders/{riderUid}/{orderId}_*.jpg             rider slip paid to the shop
+//   slips/orders/{orderId}/admin-*.*                    boss/admin settlement slip
+//   chats/{orderId}/images/*                            customer, rider, shop chat
+//   chats/{uid}/images/parcel_*                         customer parcel photo
+//   chats/{orderId}/{file}                              admin/boss chat image
+//   gp_slips/{merchantUid}/*                            shop GP slip
+//   menus/{merchantUid}/*  shops/{merchantUid}/*        menu photo and shop avatar
+// Customer "โอนแล้ว" does not upload a file.
+// Several clients call put(blob) or put(file) with no metadata. The Storage
+// SDK then sends application/octet-stream when the Blob type is empty
+// (common for a camera blob). A .jpg/.png/... name with that type is still
+// an image. Deletes have no request.resource, so they are separate from
+// the image check. The order's rider is orders/{id}.riderId == auth.uid.
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() {
       return request.auth != null;
-    }
-
-    function isImage() {
-      return request.resource.size > 0
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
     }
 
     function userPath() {
@@ -23,11 +28,19 @@ service firebase.storage {
       return /databases/(default)/documents/admins/$(request.auth.uid);
     }
 
+    function riderPath() {
+      return /databases/(default)/documents/riders/$(request.auth.uid);
+    }
+
+    function authEmail() {
+      return request.auth.token.get('email', '');
+    }
+
     function isAdmin() {
       return signedIn() && (
         (
-          request.auth.token.email != null
-          && request.auth.token.email.lower() in [
+          authEmail() != ''
+          && authEmail().lower() in [
             'adminchauatgo@gmail.com',
             'admin@chauatgo.com',
             'chauatgo@gmail.com'
@@ -45,6 +58,43 @@ service firebase.storage {
       );
     }
 
+    function isRiderAccount() {
+      return signedIn() && firestore.exists(riderPath());
+    }
+
+    function merchantPath() {
+      return /databases/(default)/documents/merchants/$(request.auth.uid);
+    }
+
+    function isMerchantAccount() {
+      return signedIn() && firestore.exists(merchantPath());
+    }
+
+    function contentType() {
+      return request.resource.contentType == null ? '' : request.resource.contentType;
+    }
+
+    function imageTyped() {
+      return contentType().matches('image/.*');
+    }
+
+    // Full match. request.resource.name is the object path, e.g. orders/id/food_1.jpg.
+    function imageNamed() {
+      return request.resource.name.lower().matches('.*\\.(jpg|jpeg|png|webp|gif|heic|heif)');
+    }
+
+    function untypedImage() {
+      return imageNamed()
+        && (contentType() == '' || contentType() == 'application/octet-stream');
+    }
+
+    function isImage() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 5 * 1024 * 1024
+        && (imageTyped() || untypedImage());
+    }
+
     function orderPath(orderId) {
       return /databases/(default)/documents/orders/$(orderId);
     }
@@ -53,14 +103,25 @@ service firebase.storage {
       return /databases/(default)/documents/chats/$(chatId);
     }
 
+    function orderFieldIsMe(orderId, field) {
+      return firestore.exists(orderPath(orderId))
+        && firestore.get(orderPath(orderId)).data.get(field, '') == request.auth.uid;
+    }
+
+    function isOrderCustomer(orderId) {
+      return signedIn() && orderFieldIsMe(orderId, 'userId');
+    }
+
+    function isOrderRider(orderId) {
+      return signedIn() && orderFieldIsMe(orderId, 'riderId');
+    }
+
+    function isOrderShop(orderId) {
+      return signedIn() && orderFieldIsMe(orderId, 'merchantId');
+    }
+
     function orderParty(orderId) {
-      return signedIn()
-        && firestore.exists(orderPath(orderId))
-        && (
-          firestore.get(orderPath(orderId)).data.get('userId', '') == request.auth.uid
-          || firestore.get(orderPath(orderId)).data.get('riderId', '') == request.auth.uid
-          || firestore.get(orderPath(orderId)).data.get('merchantId', '') == request.auth.uid
-        );
+      return isOrderCustomer(orderId) || isOrderRider(orderId) || isOrderShop(orderId);
     }
 
     function chatParty(chatId) {
@@ -73,46 +134,58 @@ service firebase.storage {
         );
     }
 
+    // chatId is the order id for order chats, or the customer's uid for a
+    // parcel photo stored before the order exists.
     function canSeeChatFile(chatId) {
-      return isAdmin() || request.auth.uid == chatId || orderParty(chatId) || chatParty(chatId);
+      return signedIn() && (
+        request.auth.uid == chatId
+        || orderParty(chatId)
+        || chatParty(chatId)
+        || isAdmin()
+      );
     }
 
     match /chats/{chatId}/images/{fileName} {
-      allow read: if signedIn() && canSeeChatFile(chatId);
-      allow write: if signedIn() && canSeeChatFile(chatId) && isImage();
+      allow read: if canSeeChatFile(chatId);
+      allow create, update: if canSeeChatFile(chatId) && isImage();
+      allow delete: if canSeeChatFile(chatId);
     }
 
     match /chats/{chatId}/{fileName} {
-      allow read: if signedIn() && canSeeChatFile(chatId);
-      allow write: if isAdmin() && isImage();
+      allow read: if isAdmin() || orderParty(chatId) || chatParty(chatId);
+      allow create, update: if isAdmin() && isImage();
+      allow delete: if isAdmin();
     }
 
     match /gp_slips/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow write: if signedIn() && request.auth.uid == uid && isImage();
+      allow create, update: if isImage() && request.auth.uid == uid && isMerchantAccount();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
     match /menus/{uid}/{fileName} {
       allow read: if true;
-      allow write: if signedIn() && request.auth.uid == uid && isImage();
+      allow create, update: if isImage() && request.auth.uid == uid && isMerchantAccount();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
     match /shops/{uid}/{fileName} {
       allow read: if true;
-      allow write: if signedIn() && request.auth.uid == uid && isImage();
+      allow create, update: if isImage() && request.auth.uid == uid && isMerchantAccount();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
     match /orders/{orderId}/{fileName} {
       allow read: if signedIn() && (isAdmin() || orderParty(orderId));
-      allow write: if signedIn()
-        && isImage()
-        && firestore.exists(orderPath(orderId))
-        && firestore.get(orderPath(orderId)).data.get('riderId', '') == request.auth.uid;
+      allow create, update: if isImage() && (isOrderRider(orderId) || isAdmin());
+      allow delete: if isOrderRider(orderId) || isAdmin();
     }
 
     match /slips/riders/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if signedIn() && request.auth.uid == uid && isImage();
+      allow create, update: if isImage()
+        && request.auth.uid == uid
+        && isRiderAccount();
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
