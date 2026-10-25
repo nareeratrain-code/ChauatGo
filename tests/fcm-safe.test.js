@@ -118,7 +118,9 @@ test('default FCM worker is real JavaScript and does not take over the page', ()
   assert.equal(sw.includes('caches.'), false);
   assert.equal(sw.includes("addEventListener('fetch'"), false);
   assert.match(appSw, /\/firebase-messaging-sw\.js/);
-  assert.match(appSw, /chauat-app-v3\.9\.37/);
+  const cacheVersion = appSw.match(/const CACHE_NAME\s*=\s*['"](chauat-app-v\d+\.\d+\.\d+)['"]/);
+  assert.ok(cacheVersion, 'sw.js must declare a semantic ChauatGo cache version');
+  assert.match(cacheVersion[1], /^chauat-app-v\d+\.\d+\.\d+$/);
   const header = vercel.headers.find((item) => item.source === '/firebase-messaging-sw.js');
   assert.ok(header);
   const contentType = header.headers.find((item) => item.key === 'Content-Type');
