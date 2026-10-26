@@ -756,6 +756,36 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
   });
 }
 
+function compressQrImage(file, maxWidth = 1600) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width, height = img.height;
+        if (!width || !height) return reject(new Error('รูป QR ไม่มีขนาดที่ใช้งานได้'));
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('ไม่สามารถเตรียมพื้นที่รูป QR ได้'));
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('สร้างไฟล์ QR ไม่สำเร็จ')), 'image/png');
+      };
+      img.onerror = () => reject(new Error('อ่านรูป QR ไม่สำเร็จ'));
+    };
+    reader.onerror = () => reject(new Error('อ่านไฟล์ QR ไม่สำเร็จ'));
+  });
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    9. FINANCE
    ═══════════════════════════════════════════════════════════════════ */
@@ -2592,23 +2622,27 @@ async function handleRiderQrFile(event) {
   if (!file.type.startsWith('image/') && file.type !== '') {
     return showToast('กรุณาเลือกไฟล์รูปภาพ QR เท่านั้น', 'error');
   }
-  if (file.size > MAX_SLIP_SIZE) return showToast('ไฟล์ QR ใหญ่เกิน 5MB', 'error');
+  if (!file.size || file.size > MAX_SLIP_SIZE) return showToast('ไฟล์ QR ต้องมีขนาดมากกว่า 0 และไม่เกิน 5MB', 'error');
+  let newPath = '';
   try {
     showToast('⏳ กำลังบันทึก QR Code...', 'info');
-    const blob = await compressImage(file, 1200, 0.9);
-    const path = `rider_qr/${currentUser.uid}/payment-qr.jpg`;
-    const ref = storage.ref(path);
-    await ref.put(blob, { contentType: 'image/jpeg' });
+    const blob = await compressQrImage(file);
+    newPath = `rider_qr/${currentUser.uid}/payment-qr-${Date.now()}.png`;
+    const ref = storage.ref(newPath);
+    await ref.put(blob, { contentType: 'image/png' });
     const url = await ref.getDownloadURL();
     await db.collection('riders').doc(currentUser.uid).update({
       qrCodeUrl: url,
-      qrCodePath: path
+      qrCodePath: newPath
     });
+    const oldPath = riderProfile.qrCodePath;
     riderProfile.qrCodeUrl = url;
-    riderProfile.qrCodePath = path;
+    riderProfile.qrCodePath = newPath;
+    if (oldPath && oldPath !== newPath) await storage.ref(oldPath).delete().catch(() => {});
     showToast('✅ บันทึก QR Code แล้ว', 'success');
     showProfile();
   } catch (err) {
+    if (newPath) await storage.ref(newPath).delete().catch(() => {});
     console.error('handleRiderQrFile error:', err);
     showToast('บันทึก QR ไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
@@ -2618,7 +2652,11 @@ async function removeRiderQr() {
   if (!currentUser || !riderProfile?.qrCodeUrl) return;
   if (!confirm('ลบ QR Code สำหรับรับโอนเงินใช่ไหม?')) return;
   try {
-    if (riderProfile.qrCodePath) await storage.ref(riderProfile.qrCodePath).delete().catch(() => {});
+    if (riderProfile.qrCodePath) {
+      await storage.ref(riderProfile.qrCodePath).delete().catch((err) => {
+        if (err?.code !== 'storage/object-not-found') throw err;
+      });
+    }
     await db.collection('riders').doc(currentUser.uid).update({
       qrCodeUrl: firebase.firestore.FieldValue.delete(),
       qrCodePath: firebase.firestore.FieldValue.delete()

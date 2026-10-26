@@ -112,3 +112,11 @@ test('เหตุการณ์ถึงร้านและส่งรู�
   const photoBlock = riderSource.slice(photoStart, slipStart);
   assert.match(photoBlock, /sendRiderQrPaymentChat\(jobId, 'food_payment'\)/);
 });
+
+test('QR Upload ใช้ PNG และ versioned path เพื่อไม่เปลี่ยน QR เก่าในแชท', () => {
+  assert.match(riderSource, /function compressQrImage\(file, maxWidth = 1600\)/);
+  assert.match(riderSource, /payment-qr-\$\{Date\.now\(\)\}\.png/);
+  assert.match(riderSource, /contentType: 'image\/png'/);
+  assert.match(riderSource, /if \(oldPath && oldPath !== newPath\) await storage\.ref\(oldPath\)\.delete/);
+  assert.match(riderSource, /if \(newPath\) await storage\.ref\(newPath\)\.delete/);
+});
