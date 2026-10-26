@@ -1500,6 +1500,50 @@ async function sendAutomatedChat(orderId, key) {
   }
 }
 
+function riderQrPaymentText(order, phase) {
+  if (!order || order.paymentMode === 'cash') return '';
+  if (phase === 'shop_arrived') {
+    return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
+  }
+  return '📸 ไรเดอร์ส่งรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์เพื่อชำระค่าอาหารและค่าบริการตามยอดนี้ครับ/ค่ะ\n' + foodPayEquation(foodPayParts(order)) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนเงินให้ไรเดอร์ครับ/ค่ะ';
+}
+
+async function sendRiderQrPaymentChat(orderId, phase) {
+  if (!orderId || !currentUser || !riderProfile?.qrCodeUrl) return;
+  const order = await orderForAutoChat(orderId);
+  if (!order || orderServiceType(order) !== 'food' || order.paymentMode === 'cash') return;
+  const key = phase === 'shop_arrived' ? 'shop_arrived_qr' : 'food_payment_qr';
+  const text = riderQrPaymentText(order, phase);
+  const token = orderId + ':' + key;
+  if (!text || autoChatSent.has(token)) return;
+  autoChatSent.add(token);
+  try {
+    const body = await ensureRiderChat(orderId);
+    const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_' + key);
+    if ((await messageRef.get()).exists) return;
+    await messageRef.set({
+      text,
+      imageUrl: riderProfile.qrCodeUrl,
+      imagePath: riderProfile.qrCodePath || '',
+      senderId: currentUser.uid,
+      senderRole: 'rider',
+      senderName: body.riderName || riderProfile.name || 'ไรเดอร์',
+      systemMessage: true,
+      automated: true,
+      automationKey: key,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(orderId).update({
+      lastMessage: text.split('\n')[0].slice(0, 80),
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.warn('automated rider QR chat:', key, err && (err.code || err.message));
+    autoChatSent.delete(token);
+  }
+}
+
 function sendAutomatedChatLater(orderId, key) {
   sendAutomatedChat(orderId, key);
 }
@@ -1573,7 +1617,11 @@ async function arrivedAtShop(jobId) {
   if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
+  if (orderServiceType(job) === 'food' && job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
+    showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
+  }
   sendAutomatedChatLater(jobId, 'shop_arrived');
+  sendRiderQrPaymentChat(jobId, 'shop_arrived');
   openPickupModal(jobId, job);
 }
 
@@ -1802,6 +1850,7 @@ async function submitFoodPhoto(pickupJob) {
       pickedJob.foodImagePath = foodPath;
     }
     sendAutomatedChatLater(jobId, 'food_photo');
+    sendRiderQrPaymentChat(jobId, 'food_payment');
     arrivedShopNotifiedOrderIds.add(jobId);
     if (pickedJob && !orderIsCash(pickedJob)) startPaymentTimers(jobId);
     showToast(orderIsCash(pickedJob)
@@ -2520,6 +2569,53 @@ function closeModal() {
 /* ═══════════════════════════════════════════════════════════════════
    22. PROFILE / FINANCE
    ═══════════════════════════════════════════════════════════════════ */
+async function handleRiderQrFile(event) {
+  const file = event?.target?.files?.[0];
+  if (event?.target) event.target.value = '';
+  if (!file || !currentUser || !riderProfile) return;
+  if (!file.type.startsWith('image/') && file.type !== '') {
+    return showToast('กรุณาเลือกไฟล์รูปภาพ QR เท่านั้น', 'error');
+  }
+  if (file.size > MAX_SLIP_SIZE) return showToast('ไฟล์ QR ใหญ่เกิน 5MB', 'error');
+  try {
+    showToast('⏳ กำลังบันทึก QR Code...', 'info');
+    const blob = await compressImage(file, 1200, 0.9);
+    const path = `rider_qr/${currentUser.uid}/payment-qr.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(blob, { contentType: 'image/jpeg' });
+    const url = await ref.getDownloadURL();
+    await db.collection('riders').doc(currentUser.uid).update({
+      qrCodeUrl: url,
+      qrCodePath: path
+    });
+    riderProfile.qrCodeUrl = url;
+    riderProfile.qrCodePath = path;
+    showToast('✅ บันทึก QR Code แล้ว', 'success');
+    showProfile();
+  } catch (err) {
+    console.error('handleRiderQrFile error:', err);
+    showToast('บันทึก QR ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+  }
+}
+
+async function removeRiderQr() {
+  if (!currentUser || !riderProfile?.qrCodeUrl) return;
+  if (!confirm('ลบ QR Code สำหรับรับโอนเงินใช่ไหม?')) return;
+  try {
+    if (riderProfile.qrCodePath) await storage.ref(riderProfile.qrCodePath).delete().catch(() => {});
+    await db.collection('riders').doc(currentUser.uid).update({
+      qrCodeUrl: firebase.firestore.FieldValue.delete(),
+      qrCodePath: firebase.firestore.FieldValue.delete()
+    });
+    delete riderProfile.qrCodeUrl;
+    delete riderProfile.qrCodePath;
+    showToast('ลบ QR Code แล้ว', 'success');
+    showProfile();
+  } catch (err) {
+    showToast('ลบ QR ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+  }
+}
+
 function showProfile() {
   const mc = $('modalContent');
   if (!mc) return;
@@ -2537,6 +2633,13 @@ function showProfile() {
       <p><b>งานทั้งหมด:</b> ${riderProfile.totalJobs || 0} งาน</p>
       <p><b>รายได้รวม:</b> ฿${fmt(riderProfile.totalIncome || 0)}</p>
       <p><b>Trust Score:</b> ⭐ ${riderProfile.trustScore || 100} / 100</p>
+    </div>
+    <div style="margin-top:16px;padding:14px;background:var(--surface-2);border-radius:14px">
+      <div style="font-weight:900;margin-bottom:6px">📱 QR Code รับโอนเงินจากลูกค้า</div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">QR นี้จะถูกส่งให้ลูกค้าอัตโนมัติเมื่อไรเดอร์ถึงร้าน และหลังส่งรูปอาหาร พร้อมข้อความยอดที่ต้องโอน</div>
+      ${riderProfile.qrCodeUrl ? `<img src="${esc(riderProfile.qrCodeUrl)}" alt="QR รับโอนเงิน" style="display:block;width:min(220px,100%);aspect-ratio:1;object-fit:contain;margin:8px auto 12px;background:#fff;border-radius:12px;padding:8px"><button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="removeRiderQr()">🗑️ ลบ QR Code</button>` : '<div style="padding:18px;text-align:center;border:2px dashed var(--border);border-radius:12px;color:var(--text-muted);font-weight:800;margin-bottom:10px">ยังไม่ได้แนบ QR Code</div>'}
+      <input id="rider-qr-input" type="file" accept="image/*" style="display:none" onchange="handleRiderQrFile(event)">
+      <button class="action-btn-big ${riderProfile.qrCodeUrl ? 'btn-gray-big' : 'btn-green-big'} ripple" style="width:100%" onclick="document.getElementById('rider-qr-input').click()">${riderProfile.qrCodeUrl ? '🔄 เปลี่ยน QR Code' : '📤 แนบ QR Code ของไรเดอร์'}</button>
     </div>
     <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
   `;
@@ -3280,6 +3383,8 @@ window.openSheet = openSheet;
 window.closeSheet = closeSheet;
 window.closeModal = closeModal;
 window.showProfile = showProfile;
+window.handleRiderQrFile = handleRiderQrFile;
+window.removeRiderQr = removeRiderQr;
 window.showFinance = showFinance;
 window.showTransferShop = showTransferShop;
 window.showTransferApp = showTransferApp;

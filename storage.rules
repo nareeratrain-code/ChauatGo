@@ -175,6 +175,17 @@ service firebase.storage {
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
+    // Rider payment QR. Only the rider who owns the profile may upload/update it.
+    // The download URL is delivered to the customer inside the authorized order chat.
+    match /rider_qr/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if isImage()
+        && signedIn()
+        && request.auth.uid == uid
+        && isRiderAccount();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
     match /orders/{orderId}/{fileName} {
       allow read: if signedIn() && (isAdmin() || orderParty(orderId));
       allow create, update: if isImage() && (isOrderRider(orderId) || isAdmin());
