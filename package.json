@@ -10,7 +10,9 @@
     "test:e2e:rider-filter:negative": "playwright test --config=playwright.rider-filter.config.js tests/e2e/rider-job-filter-negative.spec.js",
     "test:e2e:rider-filter:performance": "playwright test --config=playwright.rider-filter.config.js tests/e2e/rider-job-filter-performance.spec.js",
     "test:e2e:rider-filter:stress": "playwright test --config=playwright.rider-filter.config.js tests/e2e/rider-job-filter-stress.spec.js",
-    "test:rider-qr": "node --test tests/rider-qr-chat.test.js"
+    "test:rider-qr": "node --test tests/rider-qr-chat.test.js",
+    "dev:emulators": "npx firebase-tools emulators:start --only auth,firestore,storage,functions --project chauat-go-b9841",
+    "test:storage:emu": "npx firebase-tools emulators:exec --only firestore,storage --project chauat-go-b9841 \"npm run test:storage --prefix functions\""
   },
   "dependencies": {
     "terser": "^5.36.0"

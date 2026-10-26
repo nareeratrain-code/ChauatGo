@@ -21,11 +21,27 @@ const firebaseConfig = {
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
 
+const riderDevQuery = new URLSearchParams(window.location.search);
+const riderDevHost = window.location.hostname || '';
+const riderPrivateHost = riderDevHost === 'localhost'
+  || riderDevHost === '127.0.0.1'
+  || /^10\./.test(riderDevHost)
+  || /^192\.168\./.test(riderDevHost)
+  || /^172\.(1[6-9]|2\d|3[0-1])\./.test(riderDevHost);
+const useRiderEmulators = riderDevQuery.get('emulator') === '1' && riderPrivateHost;
+const riderEmulatorHost = riderPrivateHost && riderDevHost !== 'localhost' && riderDevHost !== '127.0.0.1'
+  ? riderDevHost : '127.0.0.1';
 const firebaseApp = firebase.apps.find(a => a.name === 'rider') || firebase.initializeApp(firebaseConfig, 'rider');
-if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
+if (window.ChauatAppCheck && !useRiderEmulators) ChauatAppCheck.start(firebaseApp);
 const auth = firebase.auth(firebaseApp);
 const db = firebase.firestore(firebaseApp);
 const storage = firebase.storage(firebaseApp);
+if (useRiderEmulators) {
+  auth.useEmulator('http://' + riderEmulatorHost + ':9099');
+  db.useEmulator(riderEmulatorHost, 8080);
+  storage.useEmulator(riderEmulatorHost, 9199);
+  console.warn('[ChauatGo DEV] Rider connected to Firebase Emulators at ' + riderEmulatorHost);
+}
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 console.log('%c🛵 Chauat Go Rider v3.9.1', 'color:#FF6B35;font-weight:900;font-size:14px');
