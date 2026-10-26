@@ -1555,18 +1555,19 @@ function riderQrPaymentText(order, phase) {
 }
 
 async function sendRiderQrPaymentChat(orderId, phase) {
-  if (!orderId || !currentUser || !riderProfile?.qrCodeUrl) return;
+  if (!orderId || !currentUser || !riderProfile?.qrCodeUrl) return false;
   const order = await orderForAutoChat(orderId);
-  if (!order || orderServiceType(order) !== 'food' || order.paymentMode === 'cash') return;
+  if (!order || orderServiceType(order) !== 'food' || order.paymentMode === 'cash') return false;
   const key = phase === 'shop_arrived' ? 'shop_arrived_qr' : 'food_payment_qr';
   const text = riderQrPaymentText(order, phase);
   const token = orderId + ':' + key;
-  if (!text || autoChatSent.has(token)) return;
+  if (!text) return false;
+  if (autoChatSent.has(token)) return true;
   autoChatSent.add(token);
   try {
     const body = await ensureRiderChat(orderId);
     const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_' + key);
-    if ((await messageRef.get()).exists) return;
+    if ((await messageRef.get()).exists) return true;
     await messageRef.set({
       text,
       imageUrl: riderProfile.qrCodeUrl,
@@ -1584,9 +1585,11 @@ async function sendRiderQrPaymentChat(orderId, phase) {
       lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    return true;
   } catch (err) {
     console.warn('automated rider QR chat:', key, err && (err.code || err.message));
     autoChatSent.delete(token);
+    return false;
   }
 }
 
@@ -1667,7 +1670,10 @@ async function arrivedAtShop(jobId) {
     showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
   }
   sendAutomatedChatLater(jobId, 'shop_arrived');
-  sendRiderQrPaymentChat(jobId, 'shop_arrived');
+  const qrSent = await sendRiderQrPaymentChat(jobId, 'shop_arrived');
+  if (orderServiceType(job) === 'food' && job.paymentMode !== 'cash' && riderProfile?.qrCodeUrl && !qrSent) {
+    showToast('⚠️ ส่ง QR ให้ลูกค้าไม่สำเร็จ กรุณาตรวจสอบแชทหรือส่งใหม่', 'warning', 6000);
+  }
   openPickupModal(jobId, job);
 }
 
@@ -1896,7 +1902,13 @@ async function submitFoodPhoto(pickupJob) {
       pickedJob.foodImagePath = foodPath;
     }
     sendAutomatedChatLater(jobId, 'food_photo');
-    sendRiderQrPaymentChat(jobId, 'food_payment');
+    const qrSent = await sendRiderQrPaymentChat(jobId, 'food_payment');
+    if (orderServiceType(pickedJob || pickupJob) === 'food'
+      && !orderIsCash(pickedJob || pickupJob)
+      && riderProfile?.qrCodeUrl
+      && !qrSent) {
+      showToast('⚠️ ส่งยอดโอนพร้อม QR ไม่สำเร็จ แต่ส่งรูปอาหารแล้ว กรุณาตรวจสอบแชท', 'warning', 7000);
+    }
     arrivedShopNotifiedOrderIds.add(jobId);
     if (pickedJob && !orderIsCash(pickedJob)) startPaymentTimers(jobId);
     showToast(orderIsCash(pickedJob)

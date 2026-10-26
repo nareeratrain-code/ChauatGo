@@ -81,6 +81,8 @@ test('ถึงร้านส่งข้อความเตรียมโ�
   assert.equal(capture.messages[0].imagePath, context.riderProfile.qrCodePath);
   assert.equal(capture.messages[0].automationKey, 'shop_arrived_qr');
   assert.equal(capture.updates.length, 1);
+  assert.equal(await context.sendRiderQrPaymentChat('OD-QR-001', 'shop_arrived'), true);
+  assert.equal(capture.messages.length, 1);
 });
 
 test('ส่งรูปอาหารส่งยอดโอนจริงพร้อม QR ให้ลูกค้า', async () => {
@@ -106,11 +108,11 @@ test('ไม่ส่ง QR กับออเดอร์เงินสดห�
 });
 
 test('เหตุการณ์ถึงร้านและส่งรูปอาหารมีจุดเรียก QR Chat ครบ', () => {
-  assert.match(riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip')), /sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
+  assert.match(riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip')), /await sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
   const photoStart = riderSource.indexOf('async function submitFoodPhoto');
   const slipStart = riderSource.indexOf('async function submitShopSlip');
   const photoBlock = riderSource.slice(photoStart, slipStart);
-  assert.match(photoBlock, /sendRiderQrPaymentChat\(jobId, 'food_payment'\)/);
+  assert.match(photoBlock, /await sendRiderQrPaymentChat\(jobId, 'food_payment'\)/);
 });
 
 test('QR Upload ใช้ PNG และ versioned path เพื่อไม่เปลี่ยน QR เก่าในแชท', () => {
