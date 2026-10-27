@@ -1865,6 +1865,30 @@ async function postRiderOrderImage(orderId, blob) {
   return url;
 }
 
+/* The food photo is already stored under orders/{orderId}. Reuse that URL in
+   the chat message instead of uploading the same image a second time. This
+   keeps the customer-readable order asset as the source of truth and avoids
+   a second Storage authorization check on chats/{orderId}/images. */
+async function postRiderOrderImageUrl(orderId, url, imagePath) {
+  const body = await ensureRiderChat(orderId);
+  await db.collection('chats').doc(orderId).collection('messages').add({
+    imageUrl: url,
+    imagePath: imagePath || '',
+    senderId: currentUser.uid,
+    senderRole: 'rider',
+    senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  try {
+    await db.collection('chats').doc(orderId).update({
+      lastMessage: '📷 รูปภาพ',
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (previewErr) {}
+  return url;
+}
+
 /* Food photo goes to the customer with the payment request. The shop slip is the next step. */
 async function confirmPickup() {
   const pickupJob = allJobs.find(j => j.id === pickupOrderId);
@@ -1888,7 +1912,11 @@ async function submitFoodPhoto(pickupJob) {
     const foodRef = storage.ref(foodPath);
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     pickupFoodUrl = await foodRef.getDownloadURL();
-    await postRiderOrderImage(jobId, pickupFoodBlob);
+    try {
+      await postRiderOrderImageUrl(jobId, pickupFoodUrl, foodPath);
+    } catch (chatErr) {
+      console.warn('food photo chat message failed:', chatErr && (chatErr.code || chatErr.message));
+    }
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
       pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
