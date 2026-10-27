@@ -1753,7 +1753,8 @@ function openPickupModal(jobId, job) {
         <img id="pickup-food-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div class="photo-source-row">
-        <button type="button" class="photo-source-btn ripple" style="width:100%" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ เลือกจากคลังภาพ</button>
+        <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('pickup-food-camera').click()">📷 ถ่ายรูปจากกล้อง</button>
+        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ เลือกจากคลังภาพ</button>
       </div>
       <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
       <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">
@@ -1774,7 +1775,8 @@ function openPickupModal(jobId, job) {
         <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div class="photo-source-row">
-        <button type="button" class="photo-source-btn ripple" style="width:100%" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ เลือกสลิปจากคลังภาพ</button>
+        <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('pickup-slip-camera').click()">📷 ถ่ายสลิปจากกล้อง</button>
+        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ เลือกสลิปจากคลังภาพ</button>
       </div>
       <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
       <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
