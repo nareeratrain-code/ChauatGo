@@ -1905,18 +1905,23 @@ async function submitFoodPhoto(pickupJob) {
   }
   const btn = $('pickup-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
+  let uploadStep = 'เตรียมอัปโหลด';
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
     const foodPath = `orders/${jobId}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
+    uploadStep = 'อัปโหลดไฟล์รูป';
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
+    uploadStep = 'ขอ Download URL';
     pickupFoodUrl = await foodRef.getDownloadURL();
     try {
+      uploadStep = 'ส่งรูปเข้าแชท';
       await postRiderOrderImageUrl(jobId, pickupFoodUrl, foodPath);
     } catch (chatErr) {
       console.warn('food photo chat message failed:', chatErr && (chatErr.code || chatErr.message));
     }
+    uploadStep = 'บันทึกรูปลงออเดอร์';
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
       pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1946,7 +1951,8 @@ async function submitFoodPhoto(pickupJob) {
     openPickupModal(jobId, pickedJob || { id: jobId, type: 'food', foodImage: pickupFoodUrl });
   } catch (err) {
     console.error('submitFoodPhoto error:', err);
-    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    const detail = err && (err.code || err.message) || 'unknown-error';
+    showToast(`ไม่สำเร็จขั้นตอน: ${uploadStep} (${detail})`, 'error', 9000);
     if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งรูปอาหารให้ลูกค้า'; }
   }
 }
