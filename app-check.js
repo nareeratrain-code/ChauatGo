@@ -1,4 +1,4 @@
-/* Firebase App Check (reCAPTCHA v3) for the named page app.
+/* Firebase App Check (reCAPTCHA Enterprise) for the named page app.
    A placeholder site key does not activate the SDK, so the app keeps
    working until the key is registered in the Firebase console. */
 (function (root) {
@@ -32,15 +32,15 @@
       console.info('[appcheck] site key not set — App Check stays off');
       return null;
     }
-    if (!root.firebase || !root.firebase.appCheck || !root.firebase.appCheck.ReCaptchaV3Provider) {
-      console.warn('[appcheck] firebase-app-check-compat.js is not loaded');
+    if (!root.firebase || !root.firebase.appCheck || !root.firebase.appCheck.ReCaptchaEnterpriseProvider) {
+      console.warn('[appcheck] Firebase App Check Enterprise provider is not loaded');
       return null;
     }
     try {
       var appCheck = root.firebase.appCheck(app);
-      appCheck.activate(new root.firebase.appCheck.ReCaptchaV3Provider(key), true);
+      appCheck.activate(new root.firebase.appCheck.ReCaptchaEnterpriseProvider(key), true);
       started = appCheck;
-      console.info('[appcheck] reCAPTCHA v3 active');
+      console.info('[appcheck] reCAPTCHA Enterprise active');
       return appCheck;
     } catch (err) {
       console.warn('[appcheck] activate failed', err);
