@@ -775,6 +775,14 @@ button.chat-list-item:active { filter: brightness(.97); }
 .store-detail-menu-list .menu-add-btn { background: var(--store); }
 .store-detail-menu-list .menu-detail-price-normal, .store-detail-menu-list .menu-detail-price-new { color: var(--store); }
 .store-detail-category-title { color: var(--store-dark) !important; border-color: var(--store) !important; }
+.store-detail-cart-toggle { width:100%; min-height:48px; margin:12px 0 4px; border:0; border-radius:14px; background:var(--store); color:#fff; font:900 14px inherit; cursor:pointer; box-shadow:0 6px 16px color-mix(in srgb,var(--store) 28%,transparent); }
+.store-detail-cart-panel { display:none; margin:10px 0 14px; padding:12px; border:1px solid var(--store-border); border-radius:16px; background:var(--store-bg); }
+.store-detail-cart-panel.show { display:block; }
+.store-detail-cart-item { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px dashed var(--store-border); font-size:13px; font-weight:800; }
+.store-detail-cart-item:last-child { border-bottom:0; }
+.store-detail-cart-qty { display:flex; align-items:center; gap:7px; }
+.store-detail-cart-qty button { width:28px; height:28px; border:0; border-radius:50%; background:var(--store); color:#fff; font-weight:900; cursor:pointer; }
+.store-detail-cart-empty { color:var(--store-dark); text-align:center; font-size:12px; font-weight:800; padding:10px 0; }
 .store-detail-footer { display: flex; justify-content: center; margin-top: 16px; }
 .store-detail-close-btn { min-height: 44px; width: 100%; border: 0; border-radius: 14px; background: var(--surface-2); color: var(--text-muted); font: 900 13px inherit; cursor: pointer; }
 @media (max-width: 480px) {
@@ -2680,6 +2688,8 @@ window.openMerchantDetail = async function(merchantId) {
             '<a class="store-detail-action' + (mapsUrl ? '' : ' disabled') + '" href="' + (mapsUrl ? esc(mapsUrl) : '#') + '" target="_blank" rel="noopener">🗺️ แผนที่</a>' +
             '<button class="store-detail-action primary" onclick="document.querySelector(\'.store-detail-menu-list\')?.scrollIntoView({behavior:\'smooth\',block:\'start\'})">🍽️ ดูเมนู</button>' +
           '</div>' +
+          '<button id="store-detail-cart-button" class="store-detail-cart-toggle" onclick="toggleStoreDetailCart()">🛒 ดูตะกร้า <span id="store-detail-cart-count">(0)</span></button>' +
+          '<div id="store-detail-cart-panel" class="store-detail-cart-panel"></div>' +
           '<div class="store-detail-note">สั่งอาหารจากร้านนี้ได้ในแชท/ตะกร้า ChauatGo • ตรวจสอบสถานะร้านและเมนูก่อนสั่งทุกครั้ง</div>' +
           '<div class="store-detail-menu-head"><span class="store-detail-menu-title">เมนูของร้าน</span><span class="store-detail-menu-count">' + menus.length + ' รายการ</span></div>' +
           '<div class="store-detail-menu-list">' + menuListHtml + '</div>' +
@@ -2785,6 +2795,7 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, original
 
 function updateCartBar() {
   var bar = $('cart-bar'); if (!bar) return;
+  _refreshStoreDetailCart();
   if (!cart.length) { bar.classList.remove('show'); return; }
   bar.classList.add('show');
   var subtotal = cart.reduce(function(s, c) { return s + (c.originalPrice || c.price) * c.qty; }, 0);
@@ -2794,6 +2805,40 @@ function updateCartBar() {
   if ($('cart-count')) $('cart-count').textContent = count;
   if ($('cart-total')) $('cart-total').textContent = fmt(netTotal) + '฿';
   if ($('cart-shop')) $('cart-shop').textContent = cart[0] ? cart[0].merchantName : '';
+}
+
+function renderStoreDetailCart() {
+  var panel = $('store-detail-cart-panel');
+  var buttonCount = $('store-detail-cart-count');
+  var count = cart.reduce(function(s, c) { return s + Number(c.qty || 0); }, 0);
+  if (buttonCount) buttonCount.textContent = '(' + count + ')';
+  if (!panel) return;
+  if (!cart.length) {
+    panel.innerHTML = '<div class="store-detail-cart-empty">ยังไม่มีสินค้าในตะกร้า<br>กดปุ่ม + ที่เมนูเพื่อเพิ่มสินค้า</div>';
+    return;
+  }
+  var subtotal = cart.reduce(function(s, c) { return s + (c.originalPrice || c.price) * c.qty; }, 0);
+  var discount = cart.reduce(function(s, c) { return s + (c.discount || 0) * c.qty; }, 0);
+  var rows = cart.map(function(c, i) {
+    return '<div class="store-detail-cart-item">' +
+      '<span style="flex:1">' + esc(c.menuName) + '<br><small>฿' + fmt((c.finalPrice || c.price) * c.qty) + '</small></span>' +
+      '<span class="store-detail-cart-qty"><button type="button" onclick="changeQty(' + i + ',-1)">−</button><b>' + c.qty + '</b><button type="button" onclick="changeQty(' + i + ',1)">+</button></span>' +
+      '</div>';
+  }).join('');
+  panel.innerHTML = rows +
+    '<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--store-border);font-weight:900;color:var(--store-dark)"><span>รวม</span><span>฿' + fmt(subtotal - discount) + '</span></div>' +
+    '<button class="store-detail-action primary" style="width:100%;margin-top:10px" onclick="openCart()">ไปดูรายละเอียดและสั่งซื้อ →</button>';
+}
+
+function _refreshStoreDetailCart() {
+  renderStoreDetailCart();
+}
+
+function toggleStoreDetailCart() {
+  var panel = $('store-detail-cart-panel');
+  if (!panel) return;
+  panel.classList.toggle('show');
+  renderStoreDetailCart();
 }
 
 function _refreshCartViews() {
