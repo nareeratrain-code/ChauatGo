@@ -2245,6 +2245,13 @@ function startWatchingPayment(jobId) {
       if (!snap.exists) return;
       const data = snap.data();
       if (data.customerPaidAt && !window._paymentNotified[jobId]) {
+        const localJob = allJobs.find(job => job.id === jobId);
+        if (localJob) {
+          localJob.customerPaidAt = data.customerPaidAt;
+          if (data.status) localJob.status = data.status;
+          if (data.riderSlipToShop) localJob.riderSlipToShop = data.riderSlipToShop;
+          if (data.riderSlipToShopPath) localJob.riderSlipToShopPath = data.riderSlipToShopPath;
+        }
         window._paymentNotified[jobId] = true;
         soundPaymentReceived();
         showToast('💳 ลูกค้าโอนเงินแล้ว — เริ่มส่งได้');
