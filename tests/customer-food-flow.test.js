@@ -56,6 +56,13 @@ test('Customer UI: มีปุ่มเลือกแผนที่ จุด
   assert.match(app, /paymentMode: selectedPaymentMode/);
 });
 
+test('Customer Checkout: ข้อความร้าน Partner และร้านในพื้นที่ไม่ทำให้สับสน', () => {
+  assert.match(app, /ร้าน Partner เปิดรับออเดอร์แล้ว/);
+  assert.match(app, /กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์/);
+  assert.match(app, /โอนให้ไรเดอร์/);
+  assert.match(app, /ให้ไรเดอร์/);
+});
+
 test('Customer order tracking: หลังสร้างออเดอร์มีจุดติดตาม แชท และยืนยันการโอน', () => {
   assert.match(app, /function confirmCustomerPaid|window\.confirmCustomerPaid/);
   assert.match(app, /customerPaidAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);

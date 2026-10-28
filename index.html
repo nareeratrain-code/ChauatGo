@@ -3001,6 +3001,8 @@ window.checkout = async function() {
 
 function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
   var isCash = selectedPaymentMode === 'cash';
+  var currentCheckoutMerchant = window._currentMerchant && window._currentMerchant.id === cartShop ? window._currentMerchant : null;
+  var isPartnerCheckout = !!(currentCheckoutMerchant && currentCheckoutMerchant.verified === true);
   var netAfterDiscount = subtotal - discountTotal;
   var grandTotal = netAfterDiscount + deliveryFee + (isCash ? cashTip : 0);
   var deliveryInfo = calculateFoodDeliveryFee(foodDropoff);
@@ -3025,7 +3027,9 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
       (isCash ? '<div style="display:flex;justify-content:space-between;padding:4px 0;color:var(--orange)"><span>ค่าบริการพิเศษ (เงินสด)</span><span>฿' + fmt(cashTip) + '</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;padding:10px 0 0;border-top:1px solid var(--border);margin-top:6px;font-size:18px;font-weight:900;color:var(--green)"><span>รวม</span><span>฿' + fmt(grandTotal) + '</span></div>' +
     '</div>' +
-    '<div class="food-service-warning">⚠️ <b>กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์</b><br>ร้านอาจไม่ได้เข้าร่วมบริการ Chauat Go หรืออาจปิดให้บริการ กรุณายืนยันก่อนว่าร้านเปิดและสามารถซื้ออาหารได้ หากเรียกไรเดอร์แล้วร้านปิดหรือไม่สามารถซื้ออาหารได้ ลูกค้ายังคงรับผิดชอบค่าบริการที่เกิดขึ้น</div>' +
+    (isPartnerCheckout
+      ? '<div class="food-service-warning" style="border-left-color:var(--green);background:#E8F5E9;color:var(--green)">✅ <b>ร้าน Partner เปิดรับออเดอร์แล้ว</b><br>ร้านนี้เข้าร่วม ChauatGo และสามารถกดสั่งอาหารได้เลย</div>'
+      : '<div class="food-service-warning">⚠️ <b>กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์</b><br>ร้านอาจไม่ได้เข้าร่วมบริการ ChauatGo หรืออาจปิดให้บริการ กรุณายืนยันก่อนว่าร้านเปิดและสามารถซื้ออาหารได้ หากเรียกไรเดอร์แล้วร้านปิดหรือไม่สามารถซื้ออาหารได้ ลูกค้ายังคงรับผิดชอบค่าบริการที่เกิดขึ้น</div>') +
     (isCash ? '<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">💵 <b>โหมดเงินสด</b><br>• ไรเดอร์ต้องสำรองจ่ายร้านก่อน<br>• ค่าบริการพิเศษ ฿5 จะเป็นทิปให้ไรเดอร์</div>' : '') +
     '<button class="btn-full btn-green press-scale" onclick="confirmCheckout(' + grandTotal + ')">✅ ยืนยันออเดอร์ (฿' + fmt(grandTotal) + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
