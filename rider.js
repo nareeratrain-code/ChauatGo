@@ -2782,6 +2782,7 @@ async function removeRiderQr() {
 function showProfile() {
   const mc = $('modalContent');
   if (!mc) return;
+  setTimeout(refreshCameraPermissionUI, 0);
   mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:16px">👤 ข้อมูลส่วนตัว</h2>
     <div style="line-height:2;font-size:14px">
@@ -2804,9 +2805,50 @@ function showProfile() {
       <input id="rider-qr-input" type="file" accept="image/*" style="display:none" onchange="handleRiderQrFile(event)">
       <button class="action-btn-big ${riderProfile.qrCodeUrl ? 'btn-gray-big' : 'btn-green-big'} ripple" style="width:100%" onclick="document.getElementById('rider-qr-input').click()">${riderProfile.qrCodeUrl ? '🔄 เปลี่ยน QR Code' : '📤 แนบ QR Code ของไรเดอร์'}</button>
     </div>
+    <div style="margin-top:16px;padding:14px;background:var(--surface-2);border-radius:14px">
+      <div style="font-weight:900;margin-bottom:6px">📷 สิทธิ์กล้องสำหรับถ่ายรูปอาหาร</div>
+      <div id="camera-permission-status" style="font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">กำลังตรวจสอบสิทธิ์กล้อง...</div>
+      <button class="action-btn-big btn-orange-big ripple" style="width:100%" onclick="requestCameraPermissionFromSettings()">📷 อนุญาตและทดสอบกล้อง</button>
+      <div style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-top:8px">กดปุ่มนี้ครั้งเดียวก่อนรับงาน ระบบจะขอสิทธิ์กล้องอย่างเป็นทางการ แล้วจึงถ่ายรูปอาหารจากกล้องได้</div>
+    </div>
     <button class="action-btn-big btn-gray-big ripple" style="margin-top:16px;width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
+}
+
+async function refreshCameraPermissionUI() {
+  const el = $('camera-permission-status');
+  if (!el) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    el.textContent = 'เบราว์เซอร์นี้ไม่รองรับกล้องในเว็บ — ยังเลือกจากคลังภาพได้';
+    return;
+  }
+  try {
+    const permission = navigator.permissions && await navigator.permissions.query({ name: 'camera' });
+    const state = permission && permission.state;
+    el.textContent = state === 'granted'
+      ? '✅ อนุญาตกล้องแล้ว พร้อมถ่ายรูปอาหาร'
+      : state === 'denied'
+        ? '⛔ กล้องถูกปฏิเสธ กรุณาเปิดสิทธิ์กล้องของเว็บไซต์ในการตั้งค่าเบราว์เซอร์'
+        : '⚠️ ยังไม่ได้อนุญาตกล้อง กดปุ่มด้านล่างเพื่อขอสิทธิ์';
+  } catch (err) {
+    el.textContent = '⚠️ ยังไม่ได้ตรวจสอบสิทธิ์กล้อง กดปุ่มด้านล่างเพื่อทดสอบ';
+  }
+}
+
+async function requestCameraPermissionFromSettings() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return showToast('เบราว์เซอร์นี้ไม่รองรับกล้องในเว็บ กรุณาเลือกจากคลังภาพ', 'warning', 6000);
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    stream.getTracks().forEach(track => track.stop());
+    showToast('✅ อนุญาตกล้องแล้ว สามารถถ่ายรูปอาหารได้', 'success', 5000);
+    refreshCameraPermissionUI();
+  } catch (err) {
+    showToast('⛔ ยังเปิดกล้องไม่ได้ กรุณาเลือก “อนุญาต” เมื่อเบราว์เซอร์ถามสิทธิ์', 'error', 7000);
+    refreshCameraPermissionUI();
+  }
 }
 
 function showFinance() {
@@ -3546,6 +3588,8 @@ window.openSheet = openSheet;
 window.closeSheet = closeSheet;
 window.closeModal = closeModal;
 window.showProfile = showProfile;
+window.requestCameraPermissionFromSettings = requestCameraPermissionFromSettings;
+window.refreshCameraPermissionUI = refreshCameraPermissionUI;
 window.handleRiderQrFile = handleRiderQrFile;
 window.removeRiderQr = removeRiderQr;
 window.showFinance = showFinance;
