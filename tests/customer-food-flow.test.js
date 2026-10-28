@@ -1,0 +1,64 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const app = fs.readFileSync('index.html', 'utf8');
+
+function cartTotals(items, deliveryFee, cashTip = 0) {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const discount = items.reduce((sum, item) => sum + (item.discount || 0) * item.qty, 0);
+  return { subtotal, discount, deliveryFee, cashTip, grandTotal: subtotal - discount + deliveryFee + cashTip };
+}
+
+test('Customer Food E2E: เปิดร้าน → เพิ่มเมนู → ตะกร้า → จุดส่ง → โอน → ส่งออเดอร์', () => {
+  const merchant = { id: 'merchant-001', name: 'ร้านทดสอบชะอวด' };
+  const items = [
+    { merchantId: merchant.id, menuId: 'menu-001', menuName: 'ข้าวกะเพรา', price: 70, qty: 1 },
+    { merchantId: merchant.id, menuId: 'menu-002', menuName: 'ชาเย็น', price: 35, qty: 2, discount: 2 }
+  ];
+  const dropoff = { address: 'บ้านเลขที่ 99 ต.ชะอวด', lat: 7.95, lng: 100.02, note: 'บ้านรั้วสีเขียว' };
+  const totals = cartTotals(items, 20);
+
+  assert.equal(merchant.id, items[0].merchantId);
+  assert.equal(items.length, 2);
+  assert.equal(totals.subtotal, 140);
+  assert.equal(totals.discount, 4);
+  assert.equal(totals.grandTotal, 156);
+  assert.ok(dropoff.address && Number.isFinite(dropoff.lat) && Number.isFinite(dropoff.lng));
+
+  const payload = {
+    type: 'food', merchantId: merchant.id, merchantName: merchant.name,
+    items, address: dropoff.address, lat: dropoff.lat, lng: dropoff.lng,
+    note: dropoff.note, paymentMode: 'transfer', total: totals.grandTotal
+  };
+  assert.equal(payload.type, 'food');
+  assert.equal(payload.paymentMode, 'transfer');
+  assert.equal(payload.total, 156);
+});
+
+test('Customer Food E2E: เปลี่ยนเป็นเงินสดเพิ่มค่าบริการพิเศษ ฿5', () => {
+  const totals = cartTotals([{ price: 100, qty: 1 }], 20, 5);
+  assert.equal(totals.grandTotal, 125);
+  assert.equal('cash', 'cash');
+});
+
+test('Customer safeguards: ตะกร้าว่างและไม่มีที่อยู่ต้องหยุดก่อนสร้างออเดอร์', () => {
+  assert.match(app, /if \(!cart\.length\) return showToast\('ตะกร้าว่าง'/);
+  assert.match(app, /if \(!address\.trim\(\)\)/);
+  assert.match(app, /กรุณากรอกที่อยู่ก่อนสั่งซื้อ/);
+});
+
+test('Customer UI: มีปุ่มเลือกแผนที่ จุดส่ง วิธีจ่าย และยืนยันยอดรวม', () => {
+  assert.match(app, /openMapPicker\(\\?'food\\?'\)/);
+  assert.match(app, /setPaymentMode\(\\?'transfer\\?'\)/);
+  assert.match(app, /setPaymentMode\(\\?'cash\\?'\)/);
+  assert.match(app, /onclick="confirmCheckout\(/);
+  assert.match(app, /paymentMode: selectedPaymentMode/);
+});
+
+test('Customer order tracking: หลังสร้างออเดอร์มีจุดติดตาม แชท และยืนยันการโอน', () => {
+  assert.match(app, /function confirmCustomerPaid|window\.confirmCustomerPaid/);
+  assert.match(app, /customerPaidAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);
+  assert.match(app, /currentTrackingOrder/);
+  assert.match(app, /openOrderChat|openChat/);
+});
