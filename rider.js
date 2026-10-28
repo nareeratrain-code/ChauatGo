@@ -1753,7 +1753,7 @@ function openPickupModal(jobId, job) {
         <img id="pickup-food-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div class="photo-source-row">
-        <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('pickup-food-camera').click()">📷 ถ่ายรูปจากกล้อง</button>
+        <button type="button" class="photo-source-btn camera ripple" onclick="openLiveCamera('food')">📷 ถ่ายรูปจากกล้อง</button>
         <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ เลือกจากคลังภาพ</button>
       </div>
       <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
@@ -1775,11 +1775,26 @@ function openPickupModal(jobId, job) {
         <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div class="photo-source-row">
-        <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('pickup-slip-camera').click()">📷 ถ่ายสลิปจากกล้อง</button>
+        <button type="button" class="photo-source-btn camera ripple" onclick="openLiveCamera('slip')">📷 ถ่ายสลิปจากกล้อง</button>
         <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ เลือกสลิปจากคลังภาพ</button>
       </div>
       <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
       <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
+    </div>
+
+    <div id="live-camera-panel" style="display:none;position:fixed;inset:0;z-index:1200;background:#101317;align-items:center;justify-content:center;padding:18px">
+      <div style="width:min(100%,520px);background:#fff;border-radius:20px;padding:14px;color:#14221b">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:18px;margin-bottom:10px">
+          <span>📷 ถ่ายรูปจากกล้อง</span>
+          <button type="button" onclick="closeLiveCamera()" style="border:0;background:transparent;font-size:28px">×</button>
+        </div>
+        <video id="live-camera-video" autoplay playsinline muted style="display:block;width:100%;aspect-ratio:3/4;object-fit:cover;background:#000;border-radius:14px"></video>
+        <canvas id="live-camera-canvas" style="display:none"></canvas>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button type="button" class="action-btn-big btn-gray-big" style="flex:1" onclick="closeLiveCamera()">ยกเลิก</button>
+          <button type="button" class="action-btn-big btn-green-big" style="flex:1" onclick="captureLivePhoto()">📸 กดถ่ายรูป</button>
+        </div>
+      </div>
     </div>
 
     <!-- ปุ่ม -->
@@ -1796,9 +1811,13 @@ function openPickupModal(jobId, job) {
 async function handlePickupImage(event, type) {
   const file = event.target.files[0];
   if (!file) return;
+  await processPickupImage(file, type);
+  event.target.value = '';
+}
+
+async function processPickupImage(file, type) {
   if (file.size > MAX_SLIP_SIZE) {
     showToast('รูปใหญ่เกิน 5MB', 'error');
-    event.target.value = '';
     return;
   }
 
@@ -1827,8 +1846,52 @@ async function handlePickupImage(event, type) {
   } catch (err) {
     showToast('ประมวลผลรูปไม่สำเร็จ', 'error');
   }
+}
 
-  event.target.value = '';
+let liveCameraStream = null;
+let liveCameraType = 'food';
+
+async function openLiveCamera(type) {
+  liveCameraType = type === 'slip' ? 'slip' : 'food';
+  const panel = $('live-camera-panel');
+  const video = $('live-camera-video');
+  if (!panel || !video) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('มือถือหรือเบราว์เซอร์นี้ไม่รองรับกล้องในเว็บ กรุณาเลือกจากคลังภาพ', 'warning', 6000);
+    return;
+  }
+  try {
+    liveCameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1706 } },
+      audio: false
+    });
+    video.srcObject = liveCameraStream;
+    panel.style.display = 'flex';
+    await video.play();
+  } catch (err) {
+    showToast('เปิดกล้องไม่ได้ กรุณาอนุญาตกล้องในการตั้งค่าเว็บไซต์ แล้วลองใหม่', 'error', 7000);
+  }
+}
+
+function closeLiveCamera() {
+  if (liveCameraStream) liveCameraStream.getTracks().forEach(track => track.stop());
+  liveCameraStream = null;
+  const video = $('live-camera-video');
+  if (video) video.srcObject = null;
+  const panel = $('live-camera-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+async function captureLivePhoto() {
+  const video = $('live-camera-video');
+  const canvas = $('live-camera-canvas');
+  if (!video || !canvas || !video.videoWidth) return showToast('กล้องยังไม่พร้อม ลองอีกครั้ง', 'warning');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  closeLiveCamera();
+  if (blob) await processPickupImage(new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' }), liveCameraType);
 }
 
 function updatePickupConfirmBtn() {
@@ -3557,6 +3620,9 @@ window.dismissPWA = dismissPWA;
 
 /* Pickup modal */
 window.handlePickupImage = handlePickupImage;
+window.openLiveCamera = openLiveCamera;
+window.closeLiveCamera = closeLiveCamera;
+window.captureLivePhoto = captureLivePhoto;
 window.confirmPickup = confirmPickup;
 window.updatePickupConfirmBtn = updatePickupConfirmBtn;
 
