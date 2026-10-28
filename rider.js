@@ -1407,11 +1407,30 @@ function renderJobCard(j, type) {
 
   const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
   const shopSlip = orderHasShopSlip(j);
+  const customerPaid = orderIsCash(j) || !!j.customerPaidAt || j.status === 'customer_paid';
+  const foodWorkflowHtml = (!isNew && orderNeedsKitchen(j) && ['picked_up', 'customer_paid', 'on_the_way'].includes(j.status))
+    ? `<div style="margin:12px 0;padding:12px;border:1px solid #B9DFA6;border-radius:14px;background:#F4FBF0">
+        <div style="font-size:13px;font-weight:900;color:#237A3B;margin-bottom:8px">🍽️ ขั้นตอนงานอาหาร</div>
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
+          <span>📸 รูปอาหารให้ลูกค้า</span><span style="color:${j.foodImage ? '#168A45' : '#E65100'}">${j.foodImage ? '✅ ส่งแล้ว' : '⏳ ยังไม่ส่ง'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
+          <span>💳 ลูกค้าโอนเงิน</span><span style="color:${customerPaid ? '#168A45' : '#E65100'}">${orderIsCash(j) ? '💵 เงินสดปลายทาง' : (customerPaid ? '✅ ตรวจพบแล้ว' : '⏳ รอลูกค้าโอน')}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
+          <span>🧾 สลิปที่จ่ายร้าน</span><span style="color:${shopSlip ? '#168A45' : '#E65100'}">${shopSlip ? '✅ แนบแล้ว' : '⏳ ยังไม่แนบ'}</span>
+        </div>
+      </div>`
+    : '';
   if (j.status === 'accepted' && foodIsReady) {
     statusInfo = { label: '✅ อาหารพร้อม • ไปรับที่ร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
-  if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
-    statusInfo = { label: '📸 ส่งรูปแล้ว • แนบสลิปก่อนออก', color: '#E65100', bg: '#FFF3E0' };
+  if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !j.foodImage) {
+    statusInfo = { label: '📸 ต้องส่งรูปอาหารให้ลูกค้า', color: '#E65100', bg: '#FFF3E0' };
+  } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip && !customerPaid) {
+    statusInfo = { label: '💳 ส่งรูปแล้ว • รอลูกค้าโอน', color: '#E65100', bg: '#FFF3E0' };
+  } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
+    statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
   const prepHtml = (!foodIsReady && j.prepMinutes)
     ? `<div class="jc-row"><span class="jc-row-icon">⏱️</span><span class="jc-row-text">ร้านใช้เวลาทำประมาณ ${Number(j.prepMinutes)} นาที</span></div>`
@@ -1430,9 +1449,15 @@ function renderJobCard(j, type) {
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
-    if (orderNeedsKitchen(j) && !shopSlip) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
+    if (orderNeedsKitchen(j) && !j.foodImage) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">📸 ส่งรูปอาหารให้ลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (orderNeedsKitchen(j) && !shopSlip && !customerPaid) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>🧾 รอลูกค้าโอนก่อนแนบสลิปร้าน</button>
+        <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
+    } else if (orderNeedsKitchen(j) && !shopSlip) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
+        <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
     } else if (canLeaveShop(j)) {
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
@@ -1477,6 +1502,8 @@ function renderJobCard(j, type) {
       </div>
 
       <div class="jc-payment-row">${payBadge}</div>
+
+      ${foodWorkflowHtml}
 
       <div class="jc-finance">
         <div class="jc-finance-left">
@@ -1680,6 +1707,13 @@ async function arrivedAtShop(jobId) {
 function openShopSlip(jobId) {
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return showToast('ไม่พบงาน', 'error');
+  openPickupModal(jobId, job);
+}
+
+function openFoodPhoto(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return showToast('ไม่พบงาน', 'error');
+  if (job.foodImage) return openPickupModal(jobId, job);
   openPickupModal(jobId, job);
 }
 
@@ -3532,13 +3566,14 @@ function maybeRefreshPush() {
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-slip],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
     if (t.dataset.accept) await acceptJob(t.dataset.accept);
     else if (t.dataset.skip) skipJob(t.dataset.skip);
     else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
+    else if (t.dataset.foodPhoto) openFoodPhoto(t.dataset.foodPhoto);
     else if (t.dataset.slip) openShopSlip(t.dataset.slip);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
