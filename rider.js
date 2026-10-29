@@ -54,6 +54,7 @@ let riderProfile = null;
 var allJobs = [];
 let allHistory = [];
 let riderJobMap = null;
+const riderCardMaps = {};
 let myProfileUnsub = null;
 let myJobsUnsub = null;
 let myHistoryUnsub = null;
@@ -1352,6 +1353,122 @@ function setJobFilter(filter) {
    15. RENDER JOBS
    ⭐ v3.9.1: เห็นทั้ง searching + ready
    ═══════════════════════════════════════════════════════════════════ */
+function riderCoord(lat, lng) {
+  const la = Number(lat);
+  const ln = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
+  if (Math.abs(la) > 90 || Math.abs(ln) > 180) return null;
+  if (la === 0 && ln === 0) return null;
+  return { lat: la, lng: ln };
+}
+
+function riderMapsDirUrl(lat, lng) {
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=driving';
+}
+
+function riderGeoUrl(lat, lng) {
+  return 'geo:' + lat + ',' + lng + '?q=' + lat + ',' + lng;
+}
+
+function riderMapsSearchUrl(name) {
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name);
+}
+
+const RIDER_BEFORE_PICKUP = ['searching', 'pending', 'cooking', 'accepted', 'ready'];
+
+function riderStop(job, role) {
+  const order = job || {};
+  const shop = order.type === 'food' || order.type === 'shopping';
+  if (role === 'pickup') {
+    const point = shop ? riderCoord(order.shopPlaceLat, order.shopPlaceLng) : riderCoord(order.fromLat, order.fromLng);
+    const label = shop
+      ? (order.shopPlaceName || order.merchantName || order.from || '')
+      : (order.from || '');
+    return { role: 'pickup', point: point, label: label, kind: shop ? 'shop' : 'pickup' };
+  }
+  const point = riderCoord(order.lat, order.lng);
+  const label = order.to || order.address || order.destination || '';
+  return { role: 'dropoff', point: point, label: label, kind: 'dropoff' };
+}
+
+function riderNavStage(status) {
+  return RIDER_BEFORE_PICKUP.indexOf(status) === -1 ? 'dropoff' : 'pickup';
+}
+
+function riderNavLink(stop) {
+  const point = stop && stop.point;
+  if (point) {
+    return {
+      href: riderMapsDirUrl(point.lat, point.lng),
+      geo: riderGeoUrl(point.lat, point.lng),
+      missing: false
+    };
+  }
+  const name = String((stop && stop.label) || '').trim();
+  if (!name) return { href: '', geo: '', missing: true };
+  return { href: riderMapsSearchUrl(name), geo: '', missing: true };
+}
+
+function riderNavModel(job) {
+  const pickup = riderStop(job, 'pickup');
+  const dropoff = riderStop(job, 'dropoff');
+  const stage = riderNavStage(job && job.status);
+  return {
+    pickup: pickup,
+    dropoff: dropoff,
+    stage: stage,
+    primary: stage === 'dropoff' ? dropoff : pickup,
+    pickupUrl: riderNavLink(pickup),
+    dropoffUrl: riderNavLink(dropoff)
+  };
+}
+
+function riderMapDomId(type, jobId) {
+  return 'rider-card-map-' + type + '-' + String(jobId || '').replace(/[^A-Za-z0-9_-]/g, '');
+}
+
+function riderNavAnchor(stop, stage) {
+  const primary = stop.role === stage;
+  const cls = 'jc-nav-btn ' + (primary ? 'primary' : 'secondary');
+  const text = stop.role === 'pickup' ? '🧭 นำทางไปจุดรับ' : '🧭 นำทางไปจุดส่ง';
+  const link = riderNavLink(stop);
+  if (!link.href) {
+    return '<button type="button" class="' + cls + '" disabled>' + text + '</button>';
+  }
+  const geo = link.geo ? ' data-geo="' + esc(link.geo) + '"' : '';
+  return '<a class="' + cls + '" href="' + esc(link.href) + '"' + geo + ' target="_blank" rel="noopener">' + text + '</a>';
+}
+
+function riderNavBlock(job, opts) {
+  const options = opts || {};
+  const model = riderNavModel(job);
+  const stage = model.stage;
+  const stops = stage === 'dropoff' ? [model.dropoff, model.pickup] : [model.pickup, model.dropoff];
+  const lines = [model.pickup, model.dropoff].map((stop) => {
+    const title = stop.role === 'pickup' ? 'จุดรับ' : 'จุดส่ง';
+    const name = stop.label || 'ยังไม่ได้ระบุ';
+    const pin = stop.point
+      ? '<small>' + stop.point.lat.toFixed(5) + ', ' + stop.point.lng.toFixed(5) + '</small>'
+      : '';
+    return '<div class="jc-nav-line"><b>' + title + '</b> ' + esc(name) + pin + '</div>';
+  }).join('');
+  const missing = (model.pickupUrl.missing || model.dropoffUrl.missing);
+  const warn = missing
+    ? '<div class="jc-nav-warn">⚠️ ไม่มีพิกัดที่ลูกค้าปักไว้ — นำทางจากชื่อสถานที่</div>'
+    : '';
+  const noteBits = [];
+  if (job && job.note) noteBits.push(String(job.note));
+  if (job && job.itemDescription && String(job.itemDescription) !== String(job.note || '')) noteBits.push(String(job.itemDescription));
+  const note = noteBits.length
+    ? '<div class="jc-note">📝 ' + esc(noteBits.join(' • ')) + '</div>'
+    : '';
+  const map = options.preview
+    ? '<div class="jc-nav-map" id="' + riderMapDomId(options.preview, job.id) + '" data-card-map="' + esc(job.id) + '"></div>'
+    : '';
+  return '<div class="jc-nav">' + lines + note + warn + map +
+    '<div class="jc-nav-actions">' + stops.map((stop) => riderNavAnchor(stop, stage)).join('') + '</div></div>';
+}
+
 function renderJobs() {
   const myId = currentUser?.uid;
 
@@ -1389,6 +1506,7 @@ function renderJobs() {
   if (ajl) ajl.innerHTML = activeJobs.map(j => renderJobCard(j, 'active')).join('');
   const djl = $('done-jobs-list');
   if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
+  mountRiderCardMaps();
 }
 
 function renderJobCard(j, type) {
@@ -1518,10 +1636,7 @@ function renderJobCard(j, type) {
       </div>
 
       <div class="jc-body">
-        <div class="jc-row">
-          <span class="jc-row-icon">📍</span>
-          <span class="jc-row-text">${esc((j.address || j.destination || '—').slice(0, 80))}</span>
-        </div>
+        ${riderNavBlock(j, { preview: type === 'done' ? '' : type })}
         <div class="jc-row">
           <span class="jc-row-icon">🕐</span>
           <span class="jc-row-text">${timeAgo(j.createdAt)}</span>
@@ -2462,9 +2577,8 @@ function showJobDetail(jobId) {
   const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
   if (!job) return;
   const fin = calcOrderFinance(job);
-  const mapUrl = job.lat && job.lng
-    ? `https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`
-    : (job.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}` : null);
+  const nav = riderNavModel(job);
+  const hasMapPoint = !!(nav.pickup.point || nav.dropoff.point);
   const mc = $('modalContent');
   if (!mc) return;
 
@@ -2498,11 +2612,6 @@ function showJobDetail(jobId) {
     ? `<button type="button" class="action-btn-big btn-green-big ripple" style="width:100%;margin-bottom:8px" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`
     : '';
 
-  const hasMapPoint = !!(
-    (job.shopPlaceLat && job.shopPlaceLng) ||
-    (job.lat && job.lng) ||
-    (job.fromLat && job.fromLng)
-  );
   destroyRiderJobMap();
 
   mc.innerHTML = `
@@ -2514,14 +2623,15 @@ function showJobDetail(jobId) {
       <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(job.title || 'งาน')}</div>
       <div style="font-size:13px;font-weight:700;color:var(--text-muted);line-height:1.9">
         <div>👤 ลูกค้า: <b>${esc(job.userName || '—')}</b></div>
-        <div>📍 ${esc(job.address || job.destination || '—')}</div>
-        <div>🏪 ${esc(job.merchantName || '—')}</div>
+        <div>📍 จุดรับ: <b>${esc(nav.pickup.label || '—')}</b></div>
+        <div>🏁 จุดส่ง: <b>${esc(nav.dropoff.label || '—')}</b></div>
+        <div>🏪 ${esc(job.merchantName || job.shopPlaceName || '—')}</div>
         <div>🕐 ${fmtDateTime(job.createdAt)}</div>
         ${job.prepMinutes ? `<div>⏱️ เวลาทำประมาณ ${Number(job.prepMinutes)} นาที</div>` : ''}
         ${(job.foodReady || job.readyAt) ? `<div style="color:var(--green);font-weight:900">✅ อาหารพร้อมแล้ว</div>` : ''}
       </div>
     </div>
-    ${job.note ? `<div style="background:var(--orange-light);border-left:4px solid var(--orange);padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:700">📌 ${esc(job.note)}</div>` : ''}
+    ${riderNavBlock(job)}
     ${foodImgHtml}
     ${slipImgHtml}
     <div style="background:var(--green-light);border-radius:12px;padding:14px;margin-bottom:14px">
@@ -2533,9 +2643,6 @@ function showJobDetail(jobId) {
       </div>
     </div>
     ${job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📍 นำทาง</a>` : ''}
-    </div>
     ${payActionHtml}
     ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
@@ -2550,48 +2657,70 @@ function destroyRiderJobMap() {
   riderJobMap = null;
 }
 
+function riderMapLine(job) {
+  const model = riderNavModel(job);
+  const line = [];
+  if (model.pickup.point) line.push(model.pickup.point);
+  if (model.dropoff.point && !(line.length && window.ChauatMap && ChauatMap.same(line[0], model.dropoff.point))) {
+    line.push(model.dropoff.point);
+  }
+  return { model: model, line: line };
+}
+
+function mountRiderMap(el, job, interactive) {
+  if (!el || typeof L === 'undefined' || !window.ChauatMap) return null;
+  const drawn = riderMapLine(job);
+  if (!drawn.line.length) {
+    el.style.display = 'none';
+    return null;
+  }
+  const map = L.map(el, { zoomControl: !!interactive, attributionControl: !!interactive, dragging: true });
+  ChauatMap.addBaseTiles(map);
+  if (drawn.model.pickup.point) {
+    const pickup = drawn.model.pickup;
+    const icon = pickup.kind === 'shop' ? '🏪' : '📍';
+    L.marker([pickup.point.lat, pickup.point.lng], { icon: ChauatMap.pin(icon, ChauatMap.COLORS.shop), zIndexOffset: 900 })
+      .addTo(map)
+      .bindPopup('<b>' + icon + ' จุดรับ ' + esc(pickup.label || '') + '</b>');
+  }
+  if (drawn.model.dropoff.point) {
+    const drop = drawn.model.dropoff;
+    L.marker([drop.point.lat, drop.point.lng], { icon: ChauatMap.pin('🏠', ChauatMap.COLORS.customer), zIndexOffset: 1000 })
+      .addTo(map)
+      .bindPopup('<b>🏠 จุดส่ง ' + esc(drop.label || '') + '</b>');
+  }
+  if (drawn.line.length >= 2) ChauatMap.route(map, null, drawn.line);
+  ChauatMap.fit(map, drawn.line, interactive ? 17 : 15);
+  setTimeout(() => {
+    try {
+      map.invalidateSize();
+      ChauatMap.fit(map, drawn.line, interactive ? 17 : 15);
+    } catch (e) {}
+  }, 220);
+  return map;
+}
+
+function destroyRiderCardMaps() {
+  Object.keys(riderCardMaps).forEach((id) => {
+    try { riderCardMaps[id].remove(); } catch (e) {}
+    delete riderCardMaps[id];
+  });
+}
+
+function mountRiderCardMaps() {
+  destroyRiderCardMaps();
+  document.querySelectorAll('[data-card-map]').forEach((el) => {
+    const job = findKnownOrder(el.getAttribute('data-card-map'));
+    if (!job) return;
+    const map = mountRiderMap(el, job, false);
+    if (map) riderCardMaps[el.id || job.id] = map;
+  });
+}
+
 function mountRiderJobMap(job) {
   destroyRiderJobMap();
   const el = document.getElementById('rider-job-map');
-  if (!el || typeof L === 'undefined' || !window.ChauatMap) return;
-  const shop = ChauatMap.point(job.shopPlaceLat, job.shopPlaceLng);
-  const drop = ChauatMap.point(job.lat, job.lng);
-  const from = ChauatMap.point(job.fromLat, job.fromLng);
-  const customer = drop || (shop ? from : null);
-  const showFrom = from && !ChauatMap.same(from, shop) && !ChauatMap.same(from, customer);
-  const line = [];
-  if (shop) line.push(shop);
-  if (showFrom) line.push(from);
-  if (customer && !ChauatMap.same(customer, line[line.length - 1])) line.push(customer);
-  if (!line.length && from) line.push(from);
-  if (!line.length) {
-    el.style.display = 'none';
-    return;
-  }
-  riderJobMap = L.map(el, { zoomControl: true });
-  ChauatMap.addBaseTiles(riderJobMap);
-  if (shop) {
-    L.marker([shop.lat, shop.lng], { icon: ChauatMap.pin('🏪', ChauatMap.COLORS.shop), zIndexOffset: 900 })
-      .addTo(riderJobMap)
-      .bindPopup('<b>🏪 ' + esc(job.shopPlaceName || job.merchantName || 'ร้าน') + '</b>');
-  }
-  if (showFrom) {
-    L.marker([from.lat, from.lng], { icon: ChauatMap.pin('📍', ChauatMap.COLORS.user), zIndexOffset: 950 })
-      .addTo(riderJobMap)
-      .bindPopup('<b>📍 จุดรับ</b>');
-  }
-  if (customer) {
-    L.marker([customer.lat, customer.lng], { icon: ChauatMap.pin('🏠', ChauatMap.COLORS.customer), zIndexOffset: 1000 })
-      .addTo(riderJobMap)
-      .bindPopup('<b>🏠 จุดส่ง</b>');
-  }
-  if (line.length >= 2) ChauatMap.route(riderJobMap, null, line);
-  ChauatMap.fit(riderJobMap, line, 17);
-  setTimeout(() => {
-    if (!riderJobMap) return;
-    riderJobMap.invalidateSize();
-    ChauatMap.fit(riderJobMap, line, 17);
-  }, 220);
+  riderJobMap = mountRiderMap(el, job, true);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3662,6 +3791,26 @@ function maybeRefreshPush() {
 /* ═══════════════════════════════════════════════════════════════════
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[data-geo]');
+  if (!link) return;
+  if (!/Android/i.test(navigator.userAgent || '')) return;
+  const geo = link.getAttribute('data-geo');
+  if (!geo) return;
+  e.preventDefault();
+  const google = link.href;
+  let left = false;
+  const mark = () => { left = true; };
+  window.addEventListener('pagehide', mark, { once: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) left = true;
+  }, { once: true });
+  window.location.href = google;
+  setTimeout(() => {
+    if (!left) window.location.href = geo;
+  }, 900);
+});
+
 document.addEventListener('click', async (e) => {
   const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-shop-closed],[data-paid],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;

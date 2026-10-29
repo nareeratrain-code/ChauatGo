@@ -56,7 +56,7 @@ test('clean privacy and terms URLs rewrite to their pages', () => {
   assert.match(sw, /function legalPage\(pathname\)/);
   assert.match(sw, /\/privacy\.html/);
   assert.match(sw, /\/terms\.html/);
-  assert.equal(sw.includes('chauat-app-v3.9.48'), true);
+  assert.equal(sw.includes('chauat-app-v3.9.49'), true);
 });
 
 test('the app links privacy and terms from settings, signup, footer, and the shop disclaimer', () => {

@@ -1529,6 +1529,98 @@ body {
   box-shadow: 0 8px 24px rgba(0,0,0,.18);
 }
 
+.jc-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.jc-nav-line {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  color: var(--text);
+}
+.jc-nav-line b { margin-right: 4px; }
+.jc-nav-line small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.jc-note {
+  background: var(--orange-light);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+.jc-nav-warn {
+  background: #FFF4E5;
+  color: #9A4D00;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+[data-theme="dark"] .jc-nav-warn {
+  background: #3A2A1C;
+  color: #FDBA74;
+}
+.jc-nav-map {
+  height: 148px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #d5dee6;
+}
+[data-theme="dark"] .jc-nav-map { background: #1c2830; }
+.jc-nav-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.jc-nav-btn {
+  min-height: 48px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-weight: 900;
+  font-size: 15px;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  font-family: inherit;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .08);
+  transition: transform .15s, box-shadow .15s, filter .15s;
+}
+.jc-nav-btn:active { transform: scale(.98); }
+.jc-nav-btn.primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--green), var(--green-dark));
+  box-shadow: 0 4px 14px rgba(0, 166, 81, .28);
+}
+.jc-nav-btn.secondary {
+  color: var(--green-dark);
+  background: var(--green-light);
+  border-color: var(--green);
+}
+[data-theme="dark"] .jc-nav-btn.secondary { color: #B7F7C8; }
+.jc-nav-btn:disabled {
+  opacity: .55;
+  cursor: default;
+  box-shadow: none;
+}
+
 @media (max-width: 380px) {
   .app-header { padding-left: 10px; padding-right: 10px; }
   .app-header .cg-brand-name { font-size: 20px; }
