@@ -49,7 +49,10 @@ test('ride, express, shopping, and food can refresh GPS or pick the point on the
   assert.match(html, /id="map-loc-status"/);
   assert.match(html, /if \(mode === 'reference'\)/);
   assert.match(html, /applyReferenceLocation\(point\)/);
-  assert.match(css, /\.loc-action-btn \{[^}]*min-height: 48px/);
+  assert.match(css, /\.loc-action-btn, \.express-swap-btn \{[^}]*min-height: 48px/);
+  assert.match(css, /\.loc-action-btn, \.express-swap-btn \{[^}]*white-space: nowrap/);
+  assert.match(css, /\.loc-action-btn, \.express-swap-btn \{[^}]*border-radius: 999px/);
+  assert.match(css, /data-refresh-gps\] \{[^}]*linear-gradient\(135deg, var\(--brand\), var\(--brand-dark\)\)/);
   assert.match(html, /data-refresh-gps="food"/);
   assert.match(html, /openMapPicker\(\\?'food\\?'\)/);
   assert.match(html, /📍 อัปเดตตำแหน่ง/);
