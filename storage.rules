@@ -186,6 +186,10 @@ service firebase.storage {
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
+    // Any order type, including express whose parcel category is food.
+    // The cross-check is orders/{id}.riderId == auth.uid. Status and type
+    // are not read. Image means image/* or an image filename with an empty
+    // or application/octet-stream type, larger than 0 and at most 5MB.
     match /orders/{orderId}/{fileName} {
       allow read: if signedIn() && (isAdmin() || orderParty(orderId));
       allow create, update: if isImage() && (isOrderRider(orderId) || isAdmin());
