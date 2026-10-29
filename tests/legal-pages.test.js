@@ -22,8 +22,10 @@ test('privacy page names the data, Firebase storage, retention, and rights', () 
   assert.match(privacy, /ระยะเวลาเก็บ/);
   assert.match(privacy, /เข้าถึง/);
   assert.match(privacy, /ลบ/);
-  assert.match(privacy, /\[ชื่อผู้ให้บริการ\]/);
-  assert.match(privacy, /\[อีเมลติดต่อ\]/);
+  assert.match(privacy, /ChauatGoDelivery/);
+  assert.match(privacy, /mailto:adminchauatgo@gmail.com/);
+  assert.equal(privacy.includes('[ชื่อผู้ให้บริการ]'), false);
+  assert.equal(privacy.includes('[อีเมลติดต่อ]'), false);
   assert.match(privacy, /href="\/terms"/);
 });
 
@@ -39,8 +41,10 @@ test('terms page states the platform rules, fee split, and limits', () => {
   assert.match(terms, /การยกเลิก/);
   assert.match(terms, /ความรับผิด/);
   assert.match(terms, /การใช้งานที่ห้าม/);
-  assert.match(terms, /\[ชื่อผู้ให้บริการ\]/);
-  assert.match(terms, /\[อีเมลติดต่อ\]/);
+  assert.match(terms, /ChauatGoDelivery/);
+  assert.match(terms, /mailto:adminchauatgo@gmail.com/);
+  assert.equal(terms.includes('[ชื่อผู้ให้บริการ]'), false);
+  assert.equal(terms.includes('[อีเมลติดต่อ]'), false);
   assert.match(terms, /href="\/privacy"/);
 });
 
