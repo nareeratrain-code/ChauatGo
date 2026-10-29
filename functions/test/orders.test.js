@@ -29,6 +29,15 @@ test('ride, express, and shopping keep their own rates', () => {
   assert.equal(O.shoppingFare(null, to).fare, 30);
 });
 
+test('rider payment confirm tells the customer the transfer was received', () => {
+  const after = O.paymentReceivedText({ total: 35, fare: 35, paymentMode: 'transfer' }, false);
+  assert.match(after, /ได้รับเงินโอน ฿35/);
+  assert.match(after, /กำลังออกไปส่ง/);
+  const early = O.paymentReceivedText({ total: 35, fare: 35 }, true);
+  assert.match(early, /จะรับของแล้วออกส่ง/);
+  assert.equal(after.includes('riderIncome'), false);
+});
+
 test('shop closed charges the delivery fee only', () => {
   const transfer = O.shopClosedText({ fare: 20, paymentMode: 'transfer', foodTotal: 210 });
   assert.match(transfer, /ไม่มีส่วนเกี่ยวข้อง/);
