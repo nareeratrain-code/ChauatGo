@@ -1792,8 +1792,8 @@ function openPickupModal(jobId, job) {
       <div style="font-size:14px;font-weight:900">🏪 ${esc(job.merchantName || 'ร้านค้า')}</div>
       <div style="font-size:11px;color:var(--brand);font-weight:900;margin-top:4px">🧾 ${esc(orderLabel(job))}</div>
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:8px 0 0;margin-top:8px;border-top:1px dashed var(--border)">
-        <span>💰 ยอดที่ต้องโอนร้าน</span>
-        <span style="font-weight:900;color:var(--green)">฿${fmt(fin.foodAmount)}</span>
+        <span>${fin.foodAmount > 0 ? '💰 ยอดที่ต้องโอนร้าน' : '💰 ค่าบริการที่ลูกค้าจ่าย (ไม่โอนร้าน)'}</span>
+        <span style="font-weight:900;color:var(--green)">฿${fmt(fin.foodAmount > 0 ? fin.foodAmount : fin.fare)}</span>
       </div>
     </div>
 
@@ -2120,20 +2120,24 @@ async function confirmCombinedPickup() {
   const btn = $('pickup-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
 
+  let uploadStep = 'รูปของ';
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
 
     const foodPath = `orders/${jobId}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
+    uploadStep = 'รูปของ ' + foodPath;
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     pickupFoodUrl = await foodRef.getDownloadURL();
 
     const slipPath = `slips/riders/${currentUser.uid}/${jobId}_${ts}.jpg`;
     const slipRef = storage.ref(slipPath);
+    uploadStep = 'สลิป ' + slipPath;
     await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
     pickupSlipUrl = await slipRef.getDownloadURL();
 
+    uploadStep = 'บันทึกออเดอร์';
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
       pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -2156,7 +2160,7 @@ async function confirmCombinedPickup() {
     if (!cashPickup) startPaymentTimers(jobId);
   } catch (err) {
     console.error('confirmCombinedPickup error:', err);
-    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast('อัปโหลดไม่สำเร็จ (' + uploadStep + '): ' + (err.code || err.message), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งให้ลูกค้า'; }
   }
 }

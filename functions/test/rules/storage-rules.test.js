@@ -51,6 +51,24 @@ test('storage rules match every client upload path', async () => {
         riderId: 'rider1',
         merchantId: 'shop1'
       });
+      // Express parcel whose category is food. Not type food, no partnerShop,
+      // no food total. Rider already accepted. Fare is the whole charge.
+      await db.doc('orders/ord-express-food').set({
+        type: 'express',
+        parcelType: 'food',
+        parcelTypeLabel: 'อาหาร',
+        title: '📦 ส่งด่วน • อาหาร',
+        status: 'accepted',
+        userId: 'cust1',
+        merchantId: '',
+        merchantName: 'ร้านทดสอบสเต็ก',
+        shopPlaceName: 'ร้านทดสอบสเต็ก',
+        riderId: 'rider1',
+        paymentMode: 'transfer',
+        fare: 35,
+        total: 35,
+        code: 'OD-TEST'
+      });
     });
 
     const rider = env.authenticatedContext('rider1');
@@ -68,6 +86,11 @@ test('storage rules match every client upload path', async () => {
     const ts = stranger.storage();
 
     const checks = [
+      ['express food parcel photo jpeg', () => assertSucceeds(put(rs, 'orders/ord-express-food/food_1710000000000.jpg'))],
+      ['express food parcel photo download', () => assertSucceeds(rs.ref('orders/ord-express-food/food_1710000000000.jpg').getMetadata())],
+      ['express food shop slip jpeg', () => assertSucceeds(put(rs, 'slips/riders/rider1/ord-express-food_1710000000000.jpg'))],
+      ['express food shop slip download', () => assertSucceeds(rs.ref('slips/riders/rider1/ord-express-food_1710000000000.jpg').getMetadata())],
+      ['other rider cannot upload express food photo', () => assertFails(put(os, 'orders/ord-express-food/food_x.jpg'))],
       ['rider pickup photo jpeg', () => assertSucceeds(put(rs, 'orders/ord1/food_1.jpg'))],
       ['rider pickup photo without a type', () => assertSucceeds(put(rs, 'orders/ord1/food_2.jpg', { contentType: 'application/octet-stream' }))],
       ['rider pickup photo empty type', () => assertSucceeds(put(rs, 'orders/ord1/food_3.jpg', { contentType: '' }))],
@@ -134,6 +157,17 @@ test('storage rules match every client upload path', async () => {
         throw new Error(name + ': ' + detail);
       }
     }
+
+    const { serverTimestamp } = require('firebase/firestore');
+    await assertSucceeds(rider.firestore().doc('orders/ord-express-food').update({
+      status: 'picked_up',
+      pickedUpAt: serverTimestamp(),
+      foodImage: 'https://example.com/food.jpg',
+      foodImagePath: 'orders/ord-express-food/food_1710000000000.jpg',
+      riderSlipToShop: 'https://example.com/slip.jpg',
+      riderSlipToShopPath: 'slips/riders/rider1/ord-express-food_1710000000000.jpg',
+      riderPaidShopAt: serverTimestamp()
+    }));
   } finally {
     await env.cleanup();
   }

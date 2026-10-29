@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "chauat-go-b9841"
+  },
+  "targets": {
+    "chauat-go-b9841": {
+      "storage": {
+        "client": [
+          "chauat-go-b9841.firebasestorage.app"
+        ]
+      }
+    }
   }
 }

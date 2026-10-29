@@ -373,5 +373,5 @@ test('committed province files match the split catalog shape', () => {
   const assets = sw.slice(sw.indexOf('const ASSETS'), sw.indexOf('];'));
   assert.equal(assets.includes('/data/nst/'), false);
   assert.equal(assets.includes('/data/chauat-places.json'), true);
-  assert.equal(sw.includes('chauat-app-v3.9.39'), true);
+  assert.equal(sw.includes('chauat-app-v3.9.40'), true);
 });
