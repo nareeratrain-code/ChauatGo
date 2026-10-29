@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chauat-app-v3.9.47';
+const CACHE_NAME = 'chauat-app-v3.9.48';
 const TILE_CACHE = 'chauat-tiles-v1';
 const TILE_CACHE_LIMIT = 300;
 
@@ -13,6 +13,9 @@ const TILE_CACHE_LIMIT = 300;
 const ASSETS = [
   '/',
   '/index.html',
+  '/privacy.html',
+  '/terms.html',
+  '/legal.css',
   '/locations-data.js',
   '/merchant.html',
   '/merchant.js',
@@ -53,6 +56,12 @@ function isFirebaseRequest(url) {
     host.startsWith('fcmregistrations.') ||
     host === 'fcm.googleapis.com' ||
     host.endsWith('firebasestorage.app');
+}
+
+function legalPage(pathname) {
+  if (pathname === '/privacy' || pathname === '/privacy/' || pathname === '/privacy.html') return '/privacy.html';
+  if (pathname === '/terms' || pathname === '/terms/' || pathname === '/terms.html') return '/terms.html';
+  return '';
 }
 
 function isAppCode(url, request) {
@@ -219,6 +228,8 @@ async function matchCached(request, url) {
   if (exact) return exact;
   const path = await caches.match(url.origin + url.pathname);
   if (path) return path;
+  const legal = legalPage(url.pathname);
+  if (legal) return (await caches.match(legal)) || (await caches.match(url.pathname));
   if (request.mode === 'navigate' || url.pathname === '/' || /\.html$/i.test(url.pathname)) {
     if (url.pathname === '/' || url.pathname === '') {
       return (await caches.match('/index.html')) || (await caches.match('/'));

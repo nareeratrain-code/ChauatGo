@@ -361,7 +361,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .pf-info-row .ico { font-size: 18px; width: 28px; flex-shrink: 0; }
 .pf-info-row .lbl { font-size: 11px; color: var(--text-light); font-weight: 700; }
 .pf-info-row .val { font-size: 13px; font-weight: 700; margin-top: 2px; color: var(--text); }
-.pf-menu-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left; }
+.pf-menu-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 0; background: transparent; border: none; cursor: pointer; font-family: inherit; text-align: left; color: inherit; text-decoration: none; }
 .pf-menu-item .ico { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
 .pf-menu-item .ico.g { background: #E8F5E9; }
 .pf-menu-item .ico.b { background: #E3F2FD; }
@@ -756,6 +756,10 @@ button.chat-list-item:active { filter: brightness(.97); }
 .partner-cta-title { font-size: 16px; font-weight: 900; }
 .partner-cta-sub { margin-top: 3px; font-size: 11px; color: rgba(255,255,255,.72); font-weight: 700; }
 .partner-cta-btn { flex: 0 0 auto; border: 0; border-radius: 999px; background: #DFFF69; color: #173D12; padding: 10px 15px; font: 900 12px inherit; cursor: pointer; }
+.home-legal { display: flex; justify-content: center; gap: 16px; margin: 4px 8px 8px; padding: 8px 0 4px; }
+.home-legal a { color: var(--green); font-size: 13px; font-weight: 900; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+.auth-legal { margin: 12px 0 0; font-size: 12px; line-height: 1.5; font-weight: 700; color: var(--text-muted); text-align: center; }
+.auth-legal a { color: var(--green); font-weight: 900; }
 [data-theme="dark"] .home-section { filter: saturate(.85); }
 [data-theme="dark"] .home-section .place-directory-note { background: rgba(20,30,22,.72); }
 
@@ -861,7 +865,8 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="pdpa-notice-item"><i class="pdpa-notice-icon" aria-hidden="true">📍</i><div><b>GPS ขอแยกเมื่อใช้ฟังก์ชัน</b><span>ยังไม่เปิดตำแหน่งอัตโนมัติ คุณเลือกอนุญาตเมื่อปักหมุดหรือคำนวณระยะทาง</span></div></div>
       <div class="pdpa-notice-item"><i class="pdpa-notice-icon" aria-hidden="true">🔐</i><div><b>ควบคุมข้อมูลได้</b><span>คุณอ่านนโยบาย ใช้สิทธิ และถอนความยินยอมที่เป็นทางเลือกได้</span></div></div>
     </div>
-    <a class="pdpa-policy-link" href="/privacy" target="_blank" rel="noopener">📖 อ่าน Privacy Policy ฉบับเต็ม</a>
+    <a class="pdpa-policy-link" href="/privacy" target="_blank" rel="noopener">📖 นโยบายความเป็นส่วนตัว</a>
+    <a class="pdpa-policy-link" href="/terms" target="_blank" rel="noopener">📄 เงื่อนไขการใช้บริการ</a>
     <div class="pdpa-choice-panel" id="pdpa-choice-panel">
       <p class="pdpa-choice-title">ตั้งค่าความเป็นส่วนตัว</p>
       <p class="pdpa-choice-sub">ตัวเลือกเหล่านี้ไม่จำเป็นต่อการเปิดดูแอป และเปลี่ยนได้ภายหลัง</p>
@@ -908,6 +913,7 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="form-group"><label>📱 เบอร์โทรศัพท์</label><input type="tel" id="signup-phone" placeholder="08X-XXX-XXXX"></div>
       <div class="form-group"><label>🔒 รหัสผ่าน</label><input type="password" id="signup-password" placeholder="••••••••"></div>
       <button class="btn-full btn-green press-scale" onclick="handleSignup()">✅ สมัครสมาชิก</button>
+      <p class="auth-legal">การสมัครถือว่าคุณอ่าน <a href="/terms">เงื่อนไขการใช้บริการ</a> และ <a href="/privacy">นโยบายความเป็นส่วนตัว</a></p>
     </div>
     <button class="btn-full btn-gray press-scale" onclick="closeLoginModal()">❌ ยกเลิก</button>
   </div>
@@ -1315,6 +1321,10 @@ button.chat-list-item:active { filter: brightness(.97); }
       <div class="partner-cta-copy"><div class="partner-cta-title">เปิดร้านกับ ChauatGo</div><div class="partner-cta-sub">สมัครเป็นร้านพาร์ทเนอร์ รับออเดอร์ได้ทันที</div></div>
       <button class="partner-cta-btn press-scale" type="button" onclick="window.location.href='merchant.html'">สมัคร</button>
     </div>
+    <footer class="home-legal">
+      <a href="/privacy">นโยบายความเป็นส่วนตัว</a>
+      <a href="/terms">เงื่อนไขการใช้บริการ</a>
+    </footer>
   </div>
 </div>
 
@@ -1389,6 +1399,8 @@ button.chat-list-item:active { filter: brightness(.97); }
         <button class="pf-menu-item" onclick="openEditProfile()"><div class="ico g">✏️</div><div class="txt"><div class="t">แก้ไขโปรไฟล์</div><div class="s">ชื่อ, เบอร์, LINE, ที่อยู่</div></div><div class="arr">›</div></button>
         <button class="pf-menu-item" onclick="event.preventDefault();closeProfileSheet();setTimeout(function(){checkLocationPopup();},300)"><div class="ico b">📍</div><div class="txt"><div class="t">การเข้าถึงตำแหน่ง</div><div class="s">GPS</div></div><div class="arr">›</div></button>
       </div>
+      <a class="pf-menu-item" href="/privacy"><div class="ico g">🛡️</div><div class="txt"><div class="t">นโยบายความเป็นส่วนตัว</div><div class="s">ข้อมูลที่เก็บและสิทธิของคุณ</div></div><div class="arr">›</div></a>
+      <a class="pf-menu-item" href="/terms"><div class="ico o">📄</div><div class="txt"><div class="t">เงื่อนไขการใช้บริการ</div><div class="s">แพลตฟอร์ม การชำระเงิน และการยกเลิก</div></div><div class="arr">›</div></a>
       <button type="button" class="pf-menu-item" id="pf-theme-row" onclick="toggleTheme()">
         <div class="ico b" id="pf-theme-ico">☀️</div>
         <div class="txt"><div class="t">ธีม: <span id="pf-theme-light" class="pf-theme-opt on">สว่าง</span> / <span id="pf-theme-dark" class="pf-theme-opt">มืด</span></div></div>
@@ -3122,7 +3134,7 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
     (isPartnerCheckout
       ? '<div class="food-service-warning" style="border-left-color:var(--green);background:#E8F5E9;color:var(--green)">✅ <b>ร้าน Partner เปิดรับออเดอร์แล้ว</b><br>ร้านนี้เข้าร่วม ChauatGo และสามารถกดสั่งอาหารได้เลย</div>'
       : '<div class="food-service-warning">⚠️ <b>กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์</b><br>ChauatGo ไม่มีส่วนเกี่ยวข้องกับร้านนี้ หากร้านปิด ลูกค้าต้องชำระค่าบริการ</div>' +
-        '<label class="food-service-warning" style="display:flex;gap:10px;align-items:flex-start"><input id="shop-disclaimer-ack" type="checkbox" style="width:18px;height:18px;margin-top:2px;flex-shrink:0"><span>ฉันติดต่อร้านแล้ว และยอมรับว่าหากร้านปิด ฉันต้องชำระค่าบริการ</span></label>') +
+        '<label class="food-service-warning" style="display:flex;gap:10px;align-items:flex-start"><input id="shop-disclaimer-ack" type="checkbox" style="width:18px;height:18px;margin-top:2px;flex-shrink:0"><span>ฉันติดต่อร้านแล้ว และยอมรับว่าหากร้านปิด ฉันต้องชำระค่าบริการ ตาม <a href="/terms">เงื่อนไขการใช้บริการ</a></span></label>') +
     (isCash ? '<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">💵 <b>โหมดเงินสด</b><br>• ไรเดอร์ต้องสำรองจ่ายร้านก่อน<br>• ค่าบริการพิเศษ ฿5 จะเป็นทิปให้ไรเดอร์</div>' : '') +
     '<button class="btn-full btn-green press-scale" onclick="confirmCheckout(' + grandTotal + ')">✅ ยืนยันออเดอร์ (฿' + fmt(grandTotal) + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
