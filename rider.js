@@ -109,10 +109,7 @@ const RIDER_OPEN_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
 const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
 
 function orderNeedsKitchen(j) {
-  if (!j) return false;
-  if (j.type === 'ride' || j.type === 'express' || j.type === 'shopping') return false;
-  if (j.type === 'food') return true;
-  return !!j.merchantId;
+  return !!(j && j.type === 'food' && j.partnerShop === true);
 }
 
 function orderFoodReady(j) {
@@ -1156,6 +1153,14 @@ function subscribeJobs() {
         i + 1
       );
     });
+    watch(
+      db.collection('orders')
+        .where('riderId', '==', null)
+        .where('type', '==', 'food')
+        .where('partnerShop', '==', false)
+        .where('status', 'in', ['searching', 'pending']),
+      4
+    );
   }
   if (!currentUser) return;
   myActiveUnsub = db.collection('orders')
@@ -1172,7 +1177,7 @@ function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
   myHistoryUnsub = db.collection('orders')
     .where('riderId', '==', currentUser.uid)
-    .where('status', 'in', ['done', 'cancelled'])
+    .where('status', 'in', ['done', 'cancelled', 'shop_closed'])
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
@@ -1446,7 +1451,7 @@ function renderJobCard(j, type) {
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ถึงร้าน</button>
-      <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+      ${(j.type === 'food' && !orderNeedsKitchen(j)) ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>` : `<button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`}`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
     if (orderNeedsKitchen(j) && !j.foodImage) {
@@ -1459,8 +1464,11 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
     } else if (canLeaveShop(j)) {
+      const closedShop = (j.type === 'food' && !orderNeedsKitchen(j) && j.status === 'picked_up' && !j.customerPaidAt)
+        ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>`
+        : `<button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
-        <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+        ${closedShop}`;
     } else {
       primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าโอนเงิน</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
@@ -1468,7 +1476,7 @@ function renderJobCard(j, type) {
   } else if (j.status === 'on_the_way') {
     primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
       <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-  } else if (j.status === 'done' || j.status === 'cancelled') {
+  } else if (j.status === 'done' || j.status === 'cancelled' || j.status === 'shop_closed') {
     primaryAction = `<button class="jc-primary-btn jc-gray" data-detail="${esc(j.id)}">📄 ดูรายละเอียด</button>`;
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
@@ -1630,6 +1638,21 @@ function sendAutomatedChatLater(orderId, key) {
 
 /* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้
    The server transaction assigns the rider. The phone cannot write riderId. */
+async function reportShopClosed(jobId) {
+  if (!currentUser) return;
+  const job = allJobs.find(j => j.id === jobId);
+  const fare = Number(job && job.fare) || 0;
+  const tip = job && job.paymentMode === 'cash' ? (job.cashTip != null ? Number(job.cashTip) : 5) : 0;
+  const due = fare + (Number.isFinite(tip) ? tip : 0);
+  if (!confirm('ร้านปิดหรือซื้ออาหารไม่ได้?\nงานจะจบ และลูกค้าต้องชำระค่าบริการ ฿' + due + ' ให้ไรเดอร์\nChauatGo ไม่มีส่วนเกี่ยวข้องกับร้าน')) return;
+  try {
+    await callDispatch('reportShopClosed', { orderId: jobId });
+    showToast('บันทึกร้านปิดแล้ว — ลูกค้าต้องชำระค่าบริการ');
+  } catch (err) {
+    showToast((err && err.message) || 'บันทึกร้านปิดไม่สำเร็จ', 'error');
+  }
+}
+
 async function acceptJob(jobId) {
   if (dispatchMode() === 'auto') {
     return showToast('โหมดอัตโนมัติ — รอกดรับจากใบเสนอ', 'warning');
@@ -3573,7 +3596,7 @@ function maybeRefreshPush() {
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-shop-closed],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
@@ -3582,6 +3605,7 @@ document.addEventListener('click', async (e) => {
     else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
     else if (t.dataset.foodPhoto) openFoodPhoto(t.dataset.foodPhoto);
     else if (t.dataset.slip) openShopSlip(t.dataset.slip);
+    else if (t.dataset.shopClosed) await reportShopClosed(t.dataset.shopClosed);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);

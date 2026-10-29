@@ -47,6 +47,8 @@ test('clients use the order callables and drop the unused fee constants', () => 
   assert.match(rider, /where\('riderId', '==', null\)/);
   assert.match(rider, /where\('status', 'in', \['cooking', 'ready'\]\)/);
   assert.match(rider, /where\('type', '==', type\)/);
+  assert.match(rider, /where\('partnerShop', '==', false\)/);
+  assert.match(rider, /data-shop-closed=/);
   assert.equal(rider.includes("where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])"), false);
 });
 

@@ -22,7 +22,7 @@ const KITCHEN_STATUSES = ['cooking', 'ready'];
 // in this status "รอลูกค้าโอนเงิน": the rider already collected the goods and
 // has not pressed เริ่มส่ง. delivered and done are terminal and do not count.
 const ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
-const TERMINAL = ['done', 'delivered', 'cancelled'];
+const TERMINAL = ['done', 'delivered', 'cancelled', 'shop_closed'];
 const MASTER_EMAILS = [
   'adminchauatgo@gmail.com',
   'admin@chauatgo.com',
@@ -141,11 +141,10 @@ function codePatch(order) {
   };
 }
 
+// Verified partners only. createOrder stores partnerShop from merchant.verified.
+// A missing flag is not a partner, so older and directory food orders dispatch now.
 function needsKitchen(order) {
-  if (!order) return false;
-  if (order.type === 'ride' || order.type === 'express' || order.type === 'shopping') return false;
-  if (order.type === 'food') return true;
-  return !!order.merchantId;
+  return !!(order && order.type === 'food' && order.partnerShop === true);
 }
 
 // The shop accept action is the move to cooking/ready. createOrder leaves food

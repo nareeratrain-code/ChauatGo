@@ -59,6 +59,11 @@ test('Customer UI: มีปุ่มเลือกแผนที่ จุด
 test('Customer Checkout: ข้อความร้าน Partner และร้านในพื้นที่ไม่ทำให้สับสน', () => {
   assert.match(app, /ร้าน Partner เปิดรับออเดอร์แล้ว/);
   assert.match(app, /กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์/);
+  assert.match(app, /ไม่มีส่วนเกี่ยวข้องกับร้านนี้/);
+  assert.match(app, /id="shop-disclaimer-ack"/);
+  assert.match(app, /if \(!ack \|\| !ack\.checked\)/);
+  assert.match(app, /shopDisclaimerAccepted: !partnerNow/);
+  assert.match(app, /verified: m\.verified === true/);
   assert.match(app, /โอนให้ไรเดอร์/);
   assert.match(app, /ให้ไรเดอร์/);
 });
