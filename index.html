@@ -645,6 +645,9 @@ button.chat-list-item:active { filter: brightness(.97); }
 .loc-action-btn:active { filter: brightness(.96); }
 .loc-missing { background: #FFF3E0; border-left: 4px solid #FFA500; border-radius: 10px; padding: 10px 14px; margin: 8px 0; font-size: 12px; font-weight: 700; color: #E65100; }
 .loc-known { display: inline-block; font-size: 12px; font-weight: 800; color: var(--green); background: #E8F5E9; padding: 6px 10px; border-radius: 8px; margin-top: 8px; }
+.reference-loc-bar { padding: 8px 14px 0; background: var(--bg); flex-shrink: 0; }
+.reference-loc-bar .loc-actions { margin-top: 0; }
+#map-page .reference-loc-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
 .travel-body { flex: 1; overflow-y: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
 .travel-section-title { font-size: 13px; font-weight: 900; color: var(--text-muted); padding: 14px 16px 10px; text-transform: uppercase; }
 .travel-suggest-list, .travel-vehicle-list { padding: 0 14px; }
@@ -1071,6 +1074,13 @@ button.chat-list-item:active { filter: brightness(.97); }
     <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
     <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
   </div>
+  <div class="reference-loc-bar" id="map-loc-bar">
+    <div class="loc-actions">
+      <button type="button" class="loc-action-btn" data-refresh-gps="reference">📍 อัปเดตตำแหน่ง GPS</button>
+      <button type="button" class="loc-action-btn" data-pick-map="reference">🗺️ เลือกจากแผนที่</button>
+    </div>
+    <div id="map-loc-status"></div>
+  </div>
   <div class="map-stage">
     <div id="main-map"></div>
     <div class="map-center-pin" id="map-center-pin" aria-hidden="true">
@@ -1156,6 +1166,13 @@ button.chat-list-item:active { filter: brightness(.97); }
     </div>
     <div id="hotel-tools" style="display:none">
       <div class="hotel-directory-note">ที่พักทั้งจังหวัดนครศรีธรรมราช เลือกอำเภอแล้วเลือกตำบล รายการที่ปักหมุดกลางตำบลจะขึ้นว่าตำแหน่งโดยประมาณ</div>
+      <div class="reference-loc-bar">
+        <div class="loc-actions">
+          <button type="button" class="loc-action-btn" data-refresh-gps="reference">📍 อัปเดตตำแหน่ง GPS</button>
+          <button type="button" class="loc-action-btn" data-pick-map="reference">🗺️ เลือกจากแผนที่</button>
+        </div>
+        <div id="hotel-loc-status"></div>
+      </div>
       <select id="hotel-district" class="place-district-select" aria-label="อำเภอของที่พัก" onchange="setHotelDistrict(this.value)"></select>
       <select id="hotel-tambon" class="place-district-select" aria-label="ตำบลของที่พัก" onchange="setHotelTambon(this.value)"></select>
       <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="hotel-search-input" type="search" placeholder="ค้นหาชื่อโรงแรมหรือรีสอร์ท..."></div>
@@ -5115,6 +5132,44 @@ function refreshShopForm() {
   openShopOrderForm(activeShopPlaceId, true);
 }
 
+function referenceLocationStatusHtml() {
+  if (!userLocation || !isFinite(userLocation.lat) || !isFinite(userLocation.lng)) {
+    return '<div class="loc-missing">⚠️ ยังไม่ทราบตำแหน่งของคุณ</div>';
+  }
+  var acc = formatAccuracyMeters(userLocation.accuracy);
+  return '<div class="loc-known">✓ ' + Number(userLocation.lat).toFixed(5) + ', ' + Number(userLocation.lng).toFixed(5) + (acc ? ' • ' + acc : '') + '</div>';
+}
+
+function renderReferenceLocationStatus() {
+  ['hotel-loc-status', 'map-loc-status'].forEach(function(id) {
+    var el = $(id);
+    if (el) el.innerHTML = referenceLocationStatusHtml();
+  });
+}
+
+function refreshListsForReference() {
+  renderReferenceLocationStatus();
+  if (currentCategoryCode === 'h' && $('category-view') && $('category-view').classList.contains('show')) renderHotelDirectory();
+  if ($('search-results') && $('search-results').classList.contains('show')) {
+    doSearch(($('search-input') && $('search-input').value) || '');
+  }
+  if (nearbyShopsCache && nearbyShopsCache.length) renderNearbyShops();
+  if ($('map-page') && $('map-page').classList.contains('show') && (destSearchGen || destCatFilter || destDistrictFilter || destTambonFilter)) {
+    onDestSearchInput();
+  }
+}
+
+function applyReferenceLocation(point) {
+  if (!point || !isFinite(point.lat) || !isFinite(point.lng)) return;
+  userLocation = {
+    lat: point.lat,
+    lng: point.lng,
+    accuracy: point.accuracy,
+    address: point.address || 'ตำแหน่งปัจจุบัน'
+  };
+  refreshListsForReference();
+}
+
 function gpsPoint(pos) {
   return {
     lat: pos.coords.latitude,
@@ -5162,6 +5217,15 @@ function refreshServiceGps(which) {
       var note = (foodDropoff && foodDropoff.note) || '';
       foodDropoff = { lat: point.lat, lng: point.lng, accuracy: point.accuracy, address: point.address, note: note };
       if (typeof setPaymentMode === 'function') setPaymentMode(selectedPaymentMode || 'transfer');
+      showToast('📍 อัปเดตตำแหน่งแล้ว' + (accuracyText ? ' ' + accuracyText : ''));
+      return;
+    }
+    if (which === 'reference') {
+      applyReferenceLocation(point);
+      if (map && $('map-page') && $('map-page').classList.contains('show')) {
+        showCurrentLocationMarker(point.lat, point.lng);
+        panPinTo(point.lat, point.lng, 17);
+      }
       showToast('📍 อัปเดตตำแหน่งแล้ว' + (accuracyText ? ' ' + accuracyText : ''));
     }
   }, function() {
@@ -5281,7 +5345,7 @@ window.showCategory = function(cat){
   if($('tourist-tools')) $('tourist-tools').style.display = cat === 'tourist' ? 'block' : 'none';
   if($('restaurant-tools')) $('restaurant-tools').style.display = cat === 'restaurant' ? 'block' : 'none';
   if (cat !== 'hotel' && $('category-grid')) $('category-grid').className = 'food-grid';
-  if (cat === 'hotel') { hotelSearchQuery = ''; if ($('hotel-search-input')) $('hotel-search-input').value = ''; }
+  if (cat === 'hotel') { hotelSearchQuery = ''; if ($('hotel-search-input')) $('hotel-search-input').value = ''; renderReferenceLocationStatus(); }
   if (cat === 'tourist') { touristSearchQuery = ''; if ($('tourist-search-input')) $('tourist-search-input').value = ''; }
   var filtered = PLACES.filter(function(p){return p.category===code;});
   var grid = $('category-grid'); if(!grid) return;
@@ -6007,6 +6071,10 @@ function updateDestEstimate() {
   if (!selectedDestination) { el.innerHTML = ''; return; }
   var mode = currentMapPickerMode();
   var pin = selectedDestination;
+  if (mode === 'reference') {
+    el.innerHTML = '<span>ใช้จุดนี้คำนวณระยะทางและเรียงสถานที่ใกล้คุณ</span><b>ตำแหน่งของคุณ</b>';
+    return;
+  }
   if (mode === 'food') {
     var foodFee = calculateFoodDeliveryFee({ lat: pin.lat, lng: pin.lng });
     if (foodFee.distance !== null) {
@@ -6424,11 +6492,12 @@ function openOsmDest(lat, lng, name) {
 }
 
 function searchLocalPlaces(q) {
-  var origin = readPinLatLng() || userLocation || CHAUAT_CENTER;
+  var origin = (userLocation && isFinite(userLocation.lat)) ? userLocation : (readPinLatLng() || CHAUAT_CENTER);
   return searchPlaceCatalog(q, destCatFilter, origin, (destCatFilter || destDistrictFilter || destTambonFilter) && !q ? 40 : 16, destDistrictFilter, destTambonFilter).map(function(p) {
     var cat = placeCatInfo(p);
     var where = (p.tambon ? ' • ตำบล' + p.tambon : '') + (p.district ? ' • อำเภอ' + p.district : '');
     if (p.approx) where += ' • ตำแหน่งโดยประมาณ';
+    if (userLocation && isFinite(userLocation.lat) && isFinite(p.lat)) where += ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng));
     return { label: p.label, sub: cat.icon + ' ' + cat.name + where, tambon: p.tambon || '', district: p.district || '', lat: p.lat, lng: p.lng, icon: cat.icon, source: p.source || 'local' };
   });
 }
@@ -6663,6 +6732,7 @@ function mapPickerSeed() {
   if (mapPickerMode === 'travel' && selectedDestination && isFinite(selectedDestination.lat)) return selectedDestination;
   if (mapPickerMode === 'food' && foodDropoff && isFinite(foodDropoff.lat)) return foodDropoff;
   if (mapPickerMode === 'shop-dropoff') return (shoppingDropoff && isFinite(shoppingDropoff.lat)) ? shoppingDropoff : (userLocation && isFinite(userLocation.lat) ? userLocation : null);
+  if (mapPickerMode === 'reference' && userLocation && isFinite(userLocation.lat)) return userLocation;
   if (mapPickerMode === 'shopping' && shoppingMapSelection && isFinite(shoppingMapSelection.lat)) return shoppingMapSelection;
   return null;
 }
@@ -6676,12 +6746,16 @@ function syncMapTitle() {
   var title = document.querySelector('#map-page .map-header-bar h3');
   if (!title) return;
   var mode = currentMapPickerMode();
-  if (mode === 'exp-origin' || mode === 'ride-origin') title.textContent = '🗺️ เลือกจุดรับ';
+  if (mode === 'reference') title.textContent = '🗺️ เลือกตำแหน่งของคุณ';
+  else if (mode === 'exp-origin' || mode === 'ride-origin') title.textContent = '🗺️ เลือกจุดรับ';
   else if (mode === 'exp-destination' || mode === 'shop-dropoff') title.textContent = '🗺️ เลือกจุดส่ง';
   else if (mode === 'ride-dest') title.textContent = '🗺️ เลือกปลายทาง';
   else if (mode === 'food') title.textContent = '🗺️ ที่อยู่จัดส่ง';
   else if (mode === 'shopping') title.textContent = '🗺️ เลือกพื้นที่ร้านของใช้';
   else title.textContent = '🗺️ เลือกตำแหน่งปลายทาง';
+  var bar = $('map-loc-bar');
+  if (bar) bar.style.display = (!mode || mode === 'reference') ? 'block' : 'none';
+  renderReferenceLocationStatus();
 }
 
 window.openMapPage = function(keepPickerMode){
@@ -6745,7 +6819,7 @@ window.closeMapPage = function(){
     delete $('map-page').dataset.picker;
   }
   mapPickerMode = null;
-  if (snap && !snap.committed && snap.destination && (mode === 'ride-origin' || mode === 'ride-dest')) {
+  if (snap && !snap.committed && snap.destination && (mode === 'ride-origin' || mode === 'ride-dest' || mode === 'reference')) {
     selectedDestination = snap.destination;
   }
 };
@@ -6872,6 +6946,12 @@ window.confirmMapLocation = function(){
     selectedDestination = keptDestination;
     renderExpressForm();
     showToast(mode === 'exp-origin' ? 'ตั้งจุดรับแล้ว' : 'ตั้งจุดส่งแล้ว');
+    return;
+  }
+  if (mode === 'reference') {
+    applyReferenceLocation({ lat: picked.lat, lng: picked.lng, address: picked.address, accuracy: null });
+    selectedDestination = keptDestination;
+    showToast('ตั้งตำแหน่งแล้ว ระยะทางอัปเดตตามจุดนี้');
     return;
   }
   if (mode === 'food') {
