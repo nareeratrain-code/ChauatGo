@@ -39,10 +39,11 @@ test('ride, express, shopping, and food can refresh GPS or pick the point on the
   assert.match(html, /data-pick-map="ride-origin"/);
   assert.match(html, /data-pick-map="ride-dest"/);
   assert.match(html, /data-refresh-gps="express"/);
-  assert.match(html, /data-exp-map="exp-origin"/);
-  assert.match(html, /data-exp-map="exp-destination"/);
-  assert.match(html, /data-refresh-gps="shopping"/);
-  assert.match(html, /data-pick-map="shop-dropoff"/);
+  assert.match(html, /data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่/);
+  assert.match(html, /data-exp-map="exp-destination">🗺️ เลือกปลายทางจากแผนที่/);
+  assert.match(html, /data-refresh-gps="shopping">📍 ใช้ตำแหน่งฉัน/);
+  assert.match(html, /data-pick-map="shop-dropoff">🗺️ เลือกจากแผนที่/);
+  assert.match(css, /\.loc-action-btn \{[^}]*min-height: 48px/);
   assert.match(html, /data-refresh-gps="food"/);
   assert.match(html, /openMapPicker\(\\?'food\\?'\)/);
   assert.match(html, /📍 อัปเดตตำแหน่ง/);
