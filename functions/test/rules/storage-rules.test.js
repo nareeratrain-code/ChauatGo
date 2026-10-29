@@ -69,8 +69,31 @@ test('storage rules match every client upload path', async () => {
         total: 35,
         code: 'OD-TEST'
       });
+      // Fields acceptOffer writes onto an express food parcel. No riders
+      // profile is required for the uid-scoped upload.
+      await db.doc('users/plain1').set({ role: 'user' });
+      await db.doc('orders/ord-accept-shape').set({
+        type: 'express',
+        parcelType: 'food',
+        parcelTypeLabel: 'อาหาร',
+        title: '📦 ส่งด่วน • อาหาร',
+        status: 'accepted',
+        riderId: 'rider1',
+        riderName: 'ไรเดอร์ทดสอบ',
+        riderPhone: '0800000000',
+        dispatchState: 'assigned',
+        dispatchCounted: true,
+        userId: 'cust1',
+        merchantName: 'ร้านทดสอบสเต็ก',
+        shopPlaceName: 'ร้านทดสอบสเต็ก',
+        paymentMode: 'transfer',
+        fare: 35,
+        total: 35,
+        code: 'OD-TEST'
+      });
     });
 
+    const plain = env.authenticatedContext('plain1');
     const rider = env.authenticatedContext('rider1');
     const other = env.authenticatedContext('rider2');
     const cust = env.authenticatedContext('cust1');
@@ -86,6 +109,11 @@ test('storage rules match every client upload path', async () => {
     const ts = stranger.storage();
 
     const checks = [
+      ['acceptOffer shape photo under the rider uid', () => assertSucceeds(put(rs, 'orders/ord-accept-shape/riders/rider1/food_1793270000000.jpg'))],
+      ['acceptOffer shape photo download', () => assertSucceeds(rs.ref('orders/ord-accept-shape/riders/rider1/food_1793270000000.jpg').getMetadata())],
+      ['acceptOffer shape slip without a riders-doc check', () => assertSucceeds(put(plain.storage(), 'slips/riders/plain1/ord-accept-shape_1793270000000.jpg'))],
+      ['signed-in user can store a photo under their own uid', () => assertSucceeds(put(plain.storage(), 'orders/ord-accept-shape/riders/plain1/food_1793270000000.jpg'))],
+      ['cannot write another rider folder', () => assertFails(put(plain.storage(), 'orders/ord-accept-shape/riders/rider1/food_x.jpg'))],
       ['express food parcel photo jpeg', () => assertSucceeds(put(rs, 'orders/ord-express-food/food_1710000000000.jpg'))],
       ['express food parcel photo download', () => assertSucceeds(rs.ref('orders/ord-express-food/food_1710000000000.jpg').getMetadata())],
       ['express food shop slip jpeg', () => assertSucceeds(put(rs, 'slips/riders/rider1/ord-express-food_1710000000000.jpg'))],
@@ -115,7 +143,7 @@ test('storage rules match every client upload path', async () => {
 
       ['rider shop-payment slip', () => assertSucceeds(put(rs, 'slips/riders/rider1/ord1_1.jpg'))],
       ['rider shop-payment slip without a type', () => assertSucceeds(put(rs, 'slips/riders/rider1/ord1_2.jpg', { contentType: 'application/octet-stream' }))],
-      ['customer shop-payment slip', () => assertFails(put(cs, 'slips/riders/cust1/ord1_1.jpg'))],
+      ['customer cannot write the rider slip folder', () => assertFails(put(cs, 'slips/riders/rider1/ord1_1.jpg'))],
       ['rider writes another rider slip folder', () => assertFails(put(rs, 'slips/riders/rider2/ord1_1.jpg'))],
       ['stranger reads rider slip', () => assertFails(ts.ref('slips/riders/rider1/ord1_1.jpg').getMetadata())],
       ['admin reads rider slip', () => assertSucceeds(as.ref('slips/riders/rider1/ord1_1.jpg').getMetadata())],

@@ -1963,7 +1963,7 @@ function updatePickupConfirmBtn() {
 
 async function postRiderOrderImage(orderId, blob) {
   const body = await ensureRiderChat(orderId);
-  const path = `chats/${orderId}/images/${Date.now()}_${currentUser.uid}.jpg`;
+  const path = `chats/${orderId}/riders/${currentUser.uid}/${Date.now()}.jpg`;
   const ref = storage.ref(path);
   await ref.put(blob, { contentType: 'image/jpeg' });
   const url = await ref.getDownloadURL();
@@ -2029,7 +2029,7 @@ async function submitFoodPhoto(pickupJob) {
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
-    const foodPath = `orders/${jobId}/food_${ts}.jpg`;
+    const foodPath = `orders/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
     uploadStep = 'อัปโหลดไฟล์รูป';
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
@@ -2125,7 +2125,7 @@ async function confirmCombinedPickup() {
     const jobId = pickupOrderId;
     const ts = Date.now();
 
-    const foodPath = `orders/${jobId}/food_${ts}.jpg`;
+    const foodPath = `orders/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
     uploadStep = 'รูปของ ' + foodPath;
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
@@ -3251,7 +3251,7 @@ async function sendChatImage(file) {
   showToast('⏳ กำลังอัปโหลด...', 'info');
   try {
     const compressed = await compressImage(file, 800, 0.75);
-    const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
+    const path = `chats/${activeChatId}/riders/${currentUser.uid}/${Date.now()}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
