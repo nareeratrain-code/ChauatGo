@@ -1881,7 +1881,11 @@ async function processPickupImage(file, type) {
   showToast('⏳ กำลังประมวลผล...', 'info');
 
   try {
-    const compressed = await compressImage(file, 1000, 0.8);
+    const compressed = await compressImage(file, 800, 0.75);
+    if (!compressed || compressed.size <= 0 || compressed.size > MAX_SLIP_SIZE) {
+      showToast('รูปใหญ่เกิน 5MB หลังย่อ', 'error');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       if (type === 'food') {
@@ -2029,7 +2033,7 @@ async function submitFoodPhoto(pickupJob) {
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
-    const foodPath = `orders/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
+    const foodPath = `chats/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
     uploadStep = 'อัปโหลดไฟล์รูป';
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
@@ -2125,7 +2129,7 @@ async function confirmCombinedPickup() {
     const jobId = pickupOrderId;
     const ts = Date.now();
 
-    const foodPath = `orders/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
+    const foodPath = `chats/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
     uploadStep = 'รูปของ ' + foodPath;
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });

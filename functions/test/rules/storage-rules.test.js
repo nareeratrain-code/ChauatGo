@@ -109,6 +109,9 @@ test('storage rules match every client upload path', async () => {
     const ts = stranger.storage();
 
     const checks = [
+      ['pickup photo on the working chat rule', () => assertSucceeds(put(rs, 'chats/ord-accept-shape/riders/rider1/food_1793270000000.jpg'))],
+      ['chat image on that same rule', () => assertSucceeds(put(rs, 'chats/ord-accept-shape/riders/rider1/1793270000001.jpg'))],
+      ['pickup photo over 5MB on the chat rule', () => assertFails(plain.storage().ref('chats/ord-accept-shape/riders/plain1/food_big.jpg').put(OVER, { contentType: 'image/jpeg' }))],
       ['acceptOffer shape photo under the rider uid', () => assertSucceeds(put(rs, 'orders/ord-accept-shape/riders/rider1/food_1793270000000.jpg'))],
       ['acceptOffer shape photo download', () => assertSucceeds(rs.ref('orders/ord-accept-shape/riders/rider1/food_1793270000000.jpg').getMetadata())],
       ['acceptOffer shape slip without a riders-doc check', () => assertSucceeds(put(plain.storage(), 'slips/riders/plain1/ord-accept-shape_1793270000000.jpg'))],

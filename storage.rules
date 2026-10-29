@@ -192,6 +192,11 @@ service firebase.storage {
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 
+    // Chat images and pickup photos share this match. A photo at
+    // chats/{orderId}/riders/{uid}/food_*.jpg is the same rule as a chat
+    // image at chats/{orderId}/riders/{uid}/{timestamp}.jpg. The orders/
+    // tree also has a shallower match that calls firestore.get; pickup
+    // does not use that path.
     match /chats/{orderId}/riders/{uid}/{fileName} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow create, update: if isImage() && request.auth.uid == uid;
