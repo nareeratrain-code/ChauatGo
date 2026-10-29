@@ -108,6 +108,18 @@ exports.createOrder = onCall(CALL, async (req) => {
   }
 });
 
+exports.reportShopClosed = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'reportShopClosed');
+  const data = req.data || {};
+  if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
+  try {
+    return await Orders.reportShopClosed(db, req.auth.uid, data.orderId);
+  } catch (err) {
+    orderFail(err);
+  }
+});
+
 exports.completeOrder = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
   guardAppCheck(req, 'completeOrder');

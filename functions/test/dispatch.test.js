@@ -24,9 +24,12 @@ test('browser geohash matches geofire-common', () => {
 });
 
 test('food still waiting on the shop is not dispatched', () => {
-  assert.equal(D.needsDispatch({ type: 'food', status: 'searching', merchantName: 'ร้านทดสอบ' }), false);
-  assert.equal(D.shopAccepted({ type: 'food', status: 'searching' }), false);
-  assert.equal(D.shopAccepted({ type: 'food', status: 'cooking' }), true);
+  assert.equal(D.needsDispatch({ type: 'food', status: 'searching', merchantName: 'ร้านทดสอบ', partnerShop: true }), false);
+  assert.equal(D.needsDispatch({ type: 'food', status: 'searching', merchantId: '', partnerShop: false }), true);
+  assert.equal(D.needsDispatch({ type: 'food', status: 'searching' }), true);
+  assert.equal(D.shopAccepted({ type: 'food', status: 'searching', partnerShop: true }), false);
+  assert.equal(D.shopAccepted({ type: 'food', status: 'searching', partnerShop: false }), true);
+  assert.equal(D.shopAccepted({ type: 'food', status: 'cooking', partnerShop: true }), true);
   assert.equal(D.shopAccepted({ type: 'express', status: 'searching' }), true);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', merchantName: 'ร้านทดสอบ' }), true);
   assert.equal(D.needsDispatch({ type: 'food', status: 'cooking', riderId: 'r1' }), false);
@@ -158,6 +161,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       shopPlaceName: shop,
       fare: 40,
       paymentMode: 'transfer',
+      partnerShop: true,
       code: 'OD-TEST'
     }, extra || {});
     assertNoProtectedShop(body);
@@ -304,8 +308,8 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   assert.ok(freed.data().idleSince);
 
   await seedOrder('ord-wait', { status: 'searching', code: '' });
-  await D.onOrderWritten(db, { type: 'food', status: 'pending', merchantName: shop }, {
-    type: 'food', status: 'searching', merchantName: shop, paymentMode: 'transfer',
+  await D.onOrderWritten(db, { type: 'food', status: 'pending', merchantName: shop, partnerShop: true }, {
+    type: 'food', status: 'searching', partnerShop: true, merchantName: shop, paymentMode: 'transfer',
     shopPlaceLat: pickup.lat, shopPlaceLng: pickup.lng
   }, 'ord-wait');
   const waiting = await db.collection('orders').doc('ord-wait').get();
@@ -354,6 +358,66 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const offeredWait = await db.collection('orders').doc('ord-wait').get();
   assert.equal(offeredWait.data().status, 'cooking');
   assert.equal(offeredWait.data().dispatchState, 'offered');
+
+  await seedOrder('ord-directory', {
+    status: 'searching',
+    partnerShop: false,
+    merchantId: '',
+    merchantName: 'ร้านทั่วไป',
+    code: ''
+  });
+  await D.onOrderWritten(db, null, {
+    type: 'food', status: 'searching', partnerShop: false, merchantId: ''
+  }, 'ord-directory');
+  const directory = await db.collection('orders').doc('ord-directory').get();
+  assert.equal(directory.data().dispatchState, 'offered');
+  assert.notEqual(directory.data().dispatchManualReason || '', 'รอร้านรับออเดอร์');
+  const directoryOffers = await db.collection('orders').doc('ord-directory').collection('dispatchOffers').get();
+  assert.ok(directoryOffers.size > 0);
+
+  await seedRider('test-closed', pickup.lat, pickup.lng, { activeJobCount: 1 });
+  await seedOrder('ord-shop-closed', {
+    status: 'accepted',
+    riderId: 'test-closed',
+    partnerShop: false,
+    merchantId: '',
+    merchantName: 'ร้านทั่วไป',
+    fare: 20,
+    foodTotal: 210,
+    total: 230,
+    paymentMode: 'transfer',
+    dispatchCounted: true,
+    code: 'OD-CLOSED'
+  });
+  const closed = await Orders.reportShopClosed(db, 'test-closed', 'ord-shop-closed');
+  assert.equal(closed.riderIncome, 16);
+  assert.equal(closed.riderOwe, 4);
+  assert.equal(closed.gpTotal, 0);
+  assert.equal(closed.chargedTotal, 20);
+  const closedDoc = await db.collection('orders').doc('ord-shop-closed').get();
+  assert.equal(closedDoc.data().status, 'shop_closed');
+  assert.equal(closedDoc.data().foodTotal, 210);
+  assert.equal(closedDoc.data().total, 230);
+  const closedMsg = await db.collection('chats').doc('ord-shop-closed').collection('messages').doc('auto_shop_closed').get();
+  assert.equal(closedMsg.exists, true);
+  assert.match(closedMsg.data().text, /ไม่มีส่วนเกี่ยวข้อง/);
+  assert.match(closedMsg.data().text, /ค่าส่ง ฿20/);
+  await D.onOrderWritten(db, {
+    riderId: 'test-closed', status: 'accepted', dispatchCounted: true, type: 'food', partnerShop: false
+  }, closedDoc.data(), 'ord-shop-closed');
+  const closedRider = await db.collection('riders').doc('test-closed').get();
+  assert.equal(closedRider.data().activeJobCount, 0);
+  await seedOrder('ord-partner-open', {
+    status: 'accepted',
+    riderId: 'test-closed',
+    partnerShop: true,
+    fare: 20,
+    code: 'OD-PART'
+  });
+  await assert.rejects(
+    () => Orders.reportShopClosed(db, 'test-closed', 'ord-partner-open'),
+    (err) => err && err.code === 'failed-precondition'
+  );
 
   await seedOrder('ord-nopick');
   await db.collection('orders').doc('ord-nopick').update({
@@ -801,7 +865,11 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       });
       await root.collection('orders').doc('food-new').set({
         type: 'food', status: 'searching', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ', riderId: null,
-        code: 'OD-NEW'
+        partnerShop: true, code: 'OD-NEW'
+      });
+      await root.collection('orders').doc('food-directory').set({
+        type: 'food', status: 'searching', userId: 'cust1', merchantId: '', merchantName: 'ร้านทั่วไป', riderId: null,
+        partnerShop: false, code: 'OD-DIR'
       });
       await root.collection('orders').doc('ride-open').set({
         type: 'ride', status: 'searching', userId: 'cust1', merchantId: '', riderId: null
@@ -846,6 +914,9 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['shop still reads its waiting order', () => assertSucceeds(sdb.collection('orders').doc('food-new').get())],
       ['rider reads an open ride', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', null).where('type', '==', 'ride').where('status', 'in', ['searching', 'pending']).limit(10).get())],
       ['rider reads that ride', () => assertSucceeds(rdb.collection('orders').doc('ride-open').get())],
+      ['rider reads directory food', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', null).where('type', '==', 'food').where('partnerShop', '==', false).where('status', 'in', ['searching', 'pending']).limit(10).get())],
+      ['rider reads that directory food', () => assertSucceeds(rdb.collection('orders').doc('food-directory').get())],
+      ['rider cannot mark shop closed', () => assertFails(rdb.collection('orders').doc('food-directory').update({ status: 'shop_closed', riderIncome: 16, chargedTotal: 20 }))],
       ['rider open list without empty rider', () => assertFails(rdb.collection('orders').where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
       ['unverified open list', () => assertFails(newbie.firestore().collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
       ['rider get open', () => assertSucceeds(rdb.collection('orders').doc('open1').get())],
@@ -963,11 +1034,11 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       });
       await root.collection('orders').doc('food-ready').set({
         type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1',
-        foodReady: true, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-TEST'
+        partnerShop: true, foodReady: true, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-TEST'
       });
       await root.collection('orders').doc('food-wait').set({
         type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1',
-        foodReady: false, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-WAIT'
+        partnerShop: true, foodReady: false, foodTotal: 210, fare: 20, paymentMode: 'transfer', code: 'OD-WAIT'
       });
       await root.collection('orders').doc('express-hand').set({
         type: 'express', status: 'picked_up', userId: 'cust1', merchantId: '', riderId: 'rider1',

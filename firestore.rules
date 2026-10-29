@@ -19,10 +19,9 @@ rules_version = '2';
 //     (or admin) may read signaling. A participant may create a call as
 //     themselves and write offer, answer, and ICE for that call.
 //   * orders read: customer, shop, assigned rider, admin/boss, or a verified
-//     rider reading an order that has no riderId. Food (and any other kitchen
-//     order) is visible to that rider only after the shop has accepted
-//     (status cooking or ready). Ride, express, and shopping stay visible
-//     from searching/pending.
+//     rider reading an order that has no riderId. Verified-partner food
+//     (partnerShop == true) is visible only after the shop has accepted.
+//     Non-partner food, ride, express, and shopping stay visible from searching.
 //   * orders create: clients cannot set fare or total. createOrder
 //     recomputes them. A direct client create is denied (mismatch).
 //   * orders update: riders cannot write riderIncome, riderOwe, or riderPaid.
@@ -180,7 +179,16 @@ service cloud.firestore {
         && unchanged('netTotal')
         && unchanged('discountTotal')
         && unchanged('cashTip')
-        && unchanged('items');
+        && unchanged('items')
+        && unchanged('riderIncome')
+        && unchanged('riderOwe')
+        && unchanged('riderPaid')
+        && unchanged('gpTotal')
+        && unchanged('gpRider')
+        && unchanged('gpPlatform')
+        && unchanged('chargedTotal')
+        && unchanged('partnerShop')
+        && unchanged('shopDisclaimerAccepted');
     }
 
     function identityFrozen() {
@@ -191,15 +199,9 @@ service cloud.firestore {
       return resource.data.get('type', '');
     }
 
-    // Food, or a legacy doc that has a shop and is not ride/express/shopping.
+    // Only food from a verified partner. createOrder sets partnerShop.
     function needsKitchen() {
-      return orderType() == 'food'
-        || (
-          orderType() != 'ride'
-          && orderType() != 'express'
-          && orderType() != 'shopping'
-          && resource.data.get('merchantId', '') != ''
-        );
+      return orderType() == 'food' && resource.data.partnerShop == true;
     }
 
     function foodIsReady() {
@@ -503,6 +505,13 @@ service cloud.firestore {
       allow read: if isVerifiedRider()
         && resource.data.riderId == null
         && resource.data.type in ['ride', 'express', 'shopping']
+        && resource.data.status in ['searching', 'pending'];
+      // Directory / phone food. partnerShop false is its own query so a
+      // partner order still waiting on the shop is not in the same list.
+      allow read: if isVerifiedRider()
+        && resource.data.riderId == null
+        && resource.data.type == 'food'
+        && resource.data.partnerShop == false
         && resource.data.status in ['searching', 'pending'];
 
       // Fare and total are written only by createOrder. Rules cannot

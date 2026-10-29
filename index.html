@@ -2658,7 +2658,8 @@ window.openMerchantDetail = async function(merchantId) {
       id: merchantId,
       name: m.name || '',
       lat: Number(m.lat),
-      lng: Number(m.lng)
+      lng: Number(m.lng),
+      verified: m.verified === true
     };
     window._menus = menus;
     var theme = merchantCategoryTheme(m.category);
@@ -2999,10 +3000,14 @@ window.checkout = async function() {
   openModal();
 };
 
+function isPartnerFoodCheckout() {
+  var shop = window._currentMerchant && window._currentMerchant.id === cartShop ? window._currentMerchant : null;
+  return !!(shop && shop.verified === true);
+}
+
 function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
   var isCash = selectedPaymentMode === 'cash';
-  var currentCheckoutMerchant = window._currentMerchant && window._currentMerchant.id === cartShop ? window._currentMerchant : null;
-  var isPartnerCheckout = !!(currentCheckoutMerchant && currentCheckoutMerchant.verified === true);
+  var isPartnerCheckout = isPartnerFoodCheckout();
   var netAfterDiscount = subtotal - discountTotal;
   var grandTotal = netAfterDiscount + deliveryFee + (isCash ? cashTip : 0);
   var deliveryInfo = calculateFoodDeliveryFee(foodDropoff);
@@ -3029,7 +3034,8 @@ function renderCheckoutModal(subtotal, discountTotal, deliveryFee, cashTip) {
     '</div>' +
     (isPartnerCheckout
       ? '<div class="food-service-warning" style="border-left-color:var(--green);background:#E8F5E9;color:var(--green)">✅ <b>ร้าน Partner เปิดรับออเดอร์แล้ว</b><br>ร้านนี้เข้าร่วม ChauatGo และสามารถกดสั่งอาหารได้เลย</div>'
-      : '<div class="food-service-warning">⚠️ <b>กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์</b><br>ร้านอาจไม่ได้เข้าร่วมบริการ ChauatGo หรืออาจปิดให้บริการ กรุณายืนยันก่อนว่าร้านเปิดและสามารถซื้ออาหารได้ หากเรียกไรเดอร์แล้วร้านปิดหรือไม่สามารถซื้ออาหารได้ ลูกค้ายังคงรับผิดชอบค่าบริการที่เกิดขึ้น</div>') +
+      : '<div class="food-service-warning">⚠️ <b>กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์</b><br>ChauatGo ไม่มีส่วนเกี่ยวข้องกับร้านนี้ หากร้านปิด ลูกค้าต้องชำระค่าบริการ</div>' +
+        '<label class="food-service-warning" style="display:flex;gap:10px;align-items:flex-start"><input id="shop-disclaimer-ack" type="checkbox" style="width:18px;height:18px;margin-top:2px;flex-shrink:0"><span>ฉันติดต่อร้านแล้ว และยอมรับว่าหากร้านปิด ฉันต้องชำระค่าบริการ</span></label>') +
     (isCash ? '<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;font-weight:700;color:#E65100">💵 <b>โหมดเงินสด</b><br>• ไรเดอร์ต้องสำรองจ่ายร้านก่อน<br>• ค่าบริการพิเศษ ฿5 จะเป็นทิปให้ไรเดอร์</div>' : '') +
     '<button class="btn-full btn-green press-scale" onclick="confirmCheckout(' + grandTotal + ')">✅ ยืนยันออเดอร์ (฿' + fmt(grandTotal) + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
@@ -3160,6 +3166,12 @@ window.confirmCheckout = async function(grandTotal) {
       if (mSnap.exists) merchantData = mSnap.data();
     }
   } catch (e) { console.warn('Cannot fetch merchant:', e); }
+  var partnerNow = merchantData.verified === true;
+  if (window._currentMerchant && window._currentMerchant.id === cartShop) window._currentMerchant.verified = partnerNow;
+  if (!partnerNow) {
+    var ack = $('shop-disclaimer-ack');
+    if (!ack || !ack.checked) return showToast('กรุณายืนยันว่าติดต่อร้านแล้ว และยอมรับค่าบริการหากร้านปิด', 'warning');
+  }
   var deliveryInfo = calculateFoodDeliveryFee(foodDropoff, merchantData);
   var deliveryFee = deliveryInfo.fee;
   var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
@@ -3184,6 +3196,7 @@ window.confirmCheckout = async function(grandTotal) {
       lat: (foodDropoff && isFinite(foodDropoff.lat)) ? foodDropoff.lat : (userLocation ? userLocation.lat : null),
       lng: (foodDropoff && isFinite(foodDropoff.lng)) ? foodDropoff.lng : (userLocation ? userLocation.lng : null),
       paymentMode: selectedPaymentMode,
+      shopDisclaimerAccepted: !partnerNow,
       code: generateOrderCode(),
       deliveryCode: generateDeliveryCode()
     });
@@ -3307,8 +3320,9 @@ window.switchTab = function(tab, el){
 function paintUserOrders(all){
   window._cachedOrders = all || [];
   if (window.ChauatCall) ChauatCall.watch(window._cachedOrders);
-  var active = window._cachedOrders.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)===-1;});
-  var done = window._cachedOrders.filter(function(o){return ['done','delivered','cancelled'].indexOf(o.status)!==-1;});
+  var finished = ['done','delivered','cancelled','shop_closed'];
+  var active = window._cachedOrders.filter(function(o){return finished.indexOf(o.status)===-1;});
+  var done = window._cachedOrders.filter(function(o){return finished.indexOf(o.status)!==-1;});
   if($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
   if($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
   if($('empty-orders')) $('empty-orders').style.display = window._cachedOrders.length===0?'block':'none';
@@ -3327,6 +3341,9 @@ function subscribeUserOrders(){
       all.forEach(function(o){
         if (o.status === 'cancelled' && o.cancelReason && prevStatus[o.id] && prevStatus[o.id] !== 'cancelled') {
           showToast((o.code || 'ออเดอร์') + ' • ' + o.cancelReason, 'warning');
+        }
+        if (o.status === 'shop_closed' && prevStatus[o.id] && prevStatus[o.id] !== 'shop_closed') {
+          showToast((o.code || 'ออเดอร์') + ' • ร้านปิด ต้องชำระค่าบริการ', 'warning');
         }
         prevStatus[o.id] = o.status;
       });
@@ -3523,7 +3540,8 @@ function applyFoodReorderCart(order, merchant, plan) {
     id: merchant.id,
     name: merchant.name || '',
     lat: Number(merchant.lat),
-    lng: Number(merchant.lng)
+    lng: Number(merchant.lng),
+    verified: merchant.verified === true
   };
   foodDropoff = foodReorderDropoff(order);
   foodReorderNotice = reorderFoodNotice(plan);
@@ -3647,8 +3665,9 @@ function renderOrderCard(o){
       '<div style="flex:1;min-width:0">' +
         '<div class="order-track-title">'+esc(o.title||'ออเดอร์')+'</div>' +
         codeHtml +
-        '<div class="order-track-sub">'+((o.type==='food' && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (statusMap[o.status]||o.status))+' • ฿'+fmt(o.total||o.fare||0)+'</div>' +
+        '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด • ชำระค่าบริการ ฿'+fmt(o.chargedTotal||o.fare||0) : (statusMap[o.status]||o.status)))+' • ฿'+fmt(o.status==='shop_closed' ? (o.chargedTotal||o.fare||0) : (o.total||o.fare||0))+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
+        (o.status === 'shop_closed' && o.customerNotice ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px;white-space:pre-wrap">'+esc(o.customerNotice)+'</div>' : '') +
         orderPrepNote(o) +
         '<div style="margin-top:4px">' + payBadge + '</div>' +
       '</div>' +
@@ -3817,10 +3836,11 @@ function renderTrackingInfo(o){
     on_the_way:{icon:'🚀',title:'กำลังส่ง',sub:'ไรเดอร์กำลังมา'},
     delivered:{icon:'✅',title:'ส่งถึงแล้ว',sub:'ขอบคุณที่ใช้บริการ'},
     done:{icon:'✅',title:'สำเร็จ',sub:'ขอบคุณที่ใช้บริการ'},
-    cancelled:{icon:'❌',title:'ยกเลิก',sub:'ออเดอร์ถูกยกเลิก'}
+    cancelled:{icon:'❌',title:'ยกเลิก',sub:'ออเดอร์ถูกยกเลิก'},
+    shop_closed:{icon:'🚫',title:'ร้านปิด',sub:'ชำระค่าบริการให้ไรเดอร์'}
   };
   var s = statusMap[o.status] || {icon:'📍',title:o.status,sub:''};
-  if (o.type === 'food' && (o.status === 'searching' || o.status === 'pending')) {
+  if (o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) {
     s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
   }
   if (o.paymentMode === 'cash' && o.status === 'picked_up') {
@@ -4037,7 +4057,7 @@ window.showOrderBill = async function(orderId) {
         '<div style="font-size:11px;opacity:.9;font-weight:700;margin-top:6px">' + dateStr + '</div>' +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px;text-align:center;font-size:14px;font-weight:900">' +
-        esc((o.type === 'food' && (o.status === 'searching' || o.status === 'pending')) ? '🔔 รอร้านรับออเดอร์' : (statusMap[o.status] || o.status)) +
+        esc((o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status === 'shop_closed' ? 'ร้านปิด • ชำระค่าบริการ' : (statusMap[o.status] || o.status))) +
         (['done','delivered','cancelled'].indexOf(o.status) !== -1 ? '' : ((o.foodReady || o.readyAt) ? '<div style="font-size:12px;color:#168A45;margin-top:6px">✅ อาหารพร้อมแล้ว</div>' : (o.prepMinutes ? '<div style="font-size:12px;color:#E65100;margin-top:6px">⏱️ เวลาทำประมาณ ' + Number(o.prepMinutes) + ' นาที</div>' : ''))) +
       '</div>' +
       '<div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:14px">' +

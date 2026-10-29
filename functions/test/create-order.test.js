@@ -67,10 +67,12 @@ test('a shop without coordinates still uses the ฿20 base fee', async () => {
   assert.equal(Object.prototype.hasOwnProperty.call(saved, 'shopPlaceLat'), false);
   assert.equal(saved.netTotal, 315);
   assert.equal(saved.status, 'searching');
+  assert.equal(saved.partnerShop, true);
+  assert.equal(saved.shopDisclaimerAccepted, undefined);
   assert.equal(JSON.stringify(saved).includes('เหล่าเต๊ง'), false);
 
   const cashDb = memoryDb({
-    'merchants/shop-nocoord': { name: 'ร้านทดสอบไม่มีพิกัด' },
+    'merchants/shop-nocoord': { name: 'ร้านทดสอบไม่มีพิกัด', verified: true },
     'menus/menu-somtum': { merchantId: 'shop-nocoord', name: 'ส้มตำทดสอบ', price: 70 },
     'menus/menu-tea': { merchantId: 'shop-nocoord', name: 'ชาทดสอบ', price: 35 }
   });
@@ -86,4 +88,33 @@ test('a shop without coordinates still uses the ฿20 base fee', async () => {
   assert.equal(cash.fare, 20);
   assert.equal(cash.cashTip, 5);
   assert.equal(cash.total, 340);
+});
+
+test('non-partner food requires the shop disclaimer and is not a partner order', async () => {
+  const db = memoryDb({
+    'merchants/shop-local': { name: 'ร้านทั่วไป', verified: false }
+  });
+  await assert.rejects(
+    () => Orders.createOrder(db, 'customer-fee', {
+      type: 'food',
+      merchantId: 'shop-local',
+      paymentMode: 'transfer',
+      itemsText: 'ข้าว'
+    }),
+    (err) => err && err.message.indexOf('ยอมรับว่าหากร้านปิดต้องชำระค่าบริการ') !== -1
+  );
+  const created = await Orders.createOrder(db, 'customer-fee', {
+    type: 'food',
+    merchantId: 'shop-local',
+    paymentMode: 'transfer',
+    itemsText: 'ข้าว',
+    shopDisclaimerAccepted: true,
+    fare: 1,
+    total: 1
+  });
+  assert.equal(created.fare, 20);
+  const saved = db.written[0];
+  assert.equal(saved.partnerShop, false);
+  assert.equal(saved.shopDisclaimerAccepted, true);
+  assert.equal(saved.merchantId, 'shop-local');
 });

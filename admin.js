@@ -2318,10 +2318,9 @@ function broadcastOfferLine(o) {
 }
 
 function foodWaitingForShop(o) {
-  if (!o || o.riderId) return false;
+  if (!o || o.riderId || o.partnerShop !== true) return false;
   if (o.status !== 'searching' && o.status !== 'pending') return false;
-  if (o.type === 'ride' || o.type === 'express' || o.type === 'shopping') return false;
-  return o.type === 'food' || !!o.merchantId;
+  return o.type === 'food';
 }
 
 function dispatchQueue() {

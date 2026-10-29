@@ -29,6 +29,16 @@ test('ride, express, and shopping keep their own rates', () => {
   assert.equal(O.shoppingFare(null, to).fare, 30);
 });
 
+test('shop closed charges the delivery fee only', () => {
+  const transfer = O.shopClosedText({ fare: 20, paymentMode: 'transfer', foodTotal: 210 });
+  assert.match(transfer, /ไม่มีส่วนเกี่ยวข้อง/);
+  assert.match(transfer, /ค่าส่ง ฿20/);
+  assert.equal(transfer.includes('฿210'), false);
+  const cash = O.shopClosedText({ fare: 20, paymentMode: 'cash', cashTip: 5 });
+  assert.match(cash, /ค่าส่ง ฿20 \+ ค่าบริการเงินสด ฿5 = รวม ฿25/);
+  assert.match(cash, /เงินสด/);
+});
+
 test('GP is 3 percent after the promo, split 2 and 1', () => {
   assert.deepEqual(O.calcGp(200, {}), { total: 0, rider: 0, platform: 0, promo: true });
   const old = { gpStartDate: { seconds: Math.floor((Date.now() - 100 * 86400000) / 1000) } };
