@@ -19,7 +19,15 @@ test('soft mode logs a missing token and does not throw', () => {
   const lines = [];
   const log = { info() {}, warn(msg) { lines.push(msg); } };
   assert.equal(assertAppCheck({}, 'acceptDispatchOffer', false, log), false);
-  assert.match(lines[0], /\[appcheck\] missing acceptDispatchOffer enforce=false/);
+  assert.match(lines[0], /\[appcheck\] missing fn=acceptDispatchOffer/);
+});
+
+test('a presented token that did not verify is invalid, not missing', () => {
+  const lines = [];
+  const log = { info() {}, warn(msg) { lines.push(msg); } };
+  const req = { rawRequest: { headers: { 'x-firebase-appcheck': 'not-a-real-token' } } };
+  assert.equal(assertAppCheck(req, 'createOrder', false, log), false);
+  assert.match(lines[0], /\[appcheck\] invalid fn=createOrder/);
 });
 
 test('soft mode logs a valid token', () => {
@@ -27,7 +35,7 @@ test('soft mode logs a valid token', () => {
   const log = { info(msg) { lines.push(msg); }, warn() {} };
   const req = { app: { appId: '1:1:web:abc' } };
   assert.equal(assertAppCheck(req, 'skipDispatchOffer', false, log), true);
-  assert.match(lines[0], /\[appcheck\] ok skipDispatchOffer 1:1:web:abc/);
+  assert.match(lines[0], /\[appcheck\] ok fn=skipDispatchOffer/);
 });
 
 test('enforce mode rejects a missing token', () => {

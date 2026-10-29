@@ -8,20 +8,30 @@ function appCheckStatus(req) {
   return !!(req && req.app && req.app.appId);
 }
 
+function presentedToken(req) {
+  const raw = req && req.rawRequest;
+  const headers = raw && raw.headers;
+  if (!headers) return '';
+  const value = headers['x-firebase-appcheck'] || headers['X-Firebase-AppCheck'] || '';
+  const token = Array.isArray(value) ? value[0] : value;
+  return String(token || '').trim();
+}
+
 function assertAppCheck(req, name, enforce, log) {
   const logger = log || console;
-  const ok = appCheckStatus(req);
-  if (ok) {
-    logger.info('[appcheck] ok ' + name + ' ' + req.app.appId);
-  } else {
-    logger.warn('[appcheck] missing ' + name + ' enforce=' + !!enforce);
-  }
-  if (!ok && enforce) {
+  const fn = String(name || 'unknown');
+  let state = 'missing';
+  if (appCheckStatus(req)) state = 'ok';
+  else if (presentedToken(req)) state = 'invalid';
+  const line = '[appcheck] ' + state + ' fn=' + fn;
+  if (state === 'ok') logger.info(line);
+  else logger.warn(line);
+  if (state !== 'ok' && enforce) {
     const err = new Error('app-check');
     err.code = 'app-check';
     throw err;
   }
-  return ok;
+  return state === 'ok';
 }
 
 function enforceFromEnv(env) {
