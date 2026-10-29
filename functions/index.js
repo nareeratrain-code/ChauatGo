@@ -23,6 +23,8 @@ const APP_CHECK_ENFORCE = enforceFromEnv(process.env);
 // guardAppCheck still rejects when APP_CHECK_ENFORCE=true, and that error
 // is a normal callable response the page can read.
 const CALL = { invoker: 'public', cors: true, enforceAppCheck: false };
+// Module load only. Firestore triggers such as onOrderDispatch print this
+// and never see an App Check token. Per-call lines are [appcheck] ok|missing|invalid fn=<name>.
 console.info('[appcheck] enforce=' + APP_CHECK_ENFORCE);
 
 function guardAppCheck(req, name) {
