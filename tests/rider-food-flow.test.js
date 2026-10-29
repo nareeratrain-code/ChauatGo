@@ -38,13 +38,23 @@ test('Food E2E: รับงาน → ถึงร้าน → ส่งรู
   assert.equal(order.status, 'done');
 });
 
-test('UI แยกปุ่มรูปอาหารและสลิปร้าน และไม่ซ่อนปุ่มสลิประหว่างรอลูกค้าโอน', () => {
+test('UI แยกปุ่มรูปอาหารและสลิปร้าน และให้ไรเดอร์ยืนยันว่ารับโอนแล้ว', () => {
   assert.match(rider, /data-food-photo="\$\{esc\(j\.id\)\}"/);
-  assert.match(rider, /รอลูกค้าโอนก่อนแนบสลิปร้าน/);
+  assert.match(rider, /ลูกค้าโอนแล้ว \/ ได้รับเงินแล้ว/);
+  assert.match(rider, /data-paid=/);
+  assert.match(rider, /callDispatch\('confirmPaymentReceived'/);
   assert.match(rider, /data-slip="\$\{esc\(j\.id\)\}"/);
   assert.match(rider, /🍽️ ขั้นตอนงานอาหาร/);
   assert.match(rider, /📸 รูปอาหารให้ลูกค้า/);
   assert.match(rider, /🧾 สลิปที่จ่ายร้าน/);
+  assert.match(rider, /!cashPickup && !alreadyPaid\) startPaymentTimers/);
+  const rules = fs.readFileSync('firestore.rules', 'utf8');
+  assert.match(rules, /function moneyFrozen\(\)/);
+  assert.match(rules, /unchanged\('fare'\)/);
+  assert.match(rules, /unchanged\('total'\)/);
+  assert.match(rules, /unchanged\('riderIncome'\)/);
+  const app = fs.readFileSync('index.html', 'utf8');
+  assert.match(app, /window\.confirmCustomerPaid = async function/);
 });
 
 test('Payment Watch อัปเดต allJobs ทันทีเมื่อ Firestore แจ้ง customerPaidAt', () => {

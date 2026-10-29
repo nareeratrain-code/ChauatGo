@@ -129,6 +129,18 @@ function canLeaveShop(order) {
   return !!(order.customerPaidAt || order.status === 'customer_paid');
 }
 
+/* Transfer can be confirmed by the assigned rider before pickup or while
+   the card is waiting. Cash is collected on delivery, so it has no button. */
+function riderMayConfirmPay(j) {
+  if (!j || orderIsCash(j) || !j.riderId) return false;
+  if (j.customerPaidAt || j.status === 'customer_paid') return false;
+  return j.status === 'accepted' || j.status === 'ready' || j.status === 'picked_up';
+}
+
+function payReceivedButton(id) {
+  return `<button type="button" class="jc-primary-btn jc-green" data-paid="${esc(id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`;
+}
+
 function dispatchMode() {
   return dispatchConfig && dispatchConfig.mode === 'auto' ? 'auto' : 'manual';
 }
@@ -1437,6 +1449,9 @@ function renderJobCard(j, type) {
   } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
+  if (!orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderNeedsKitchen(j) && !shopSlip)) {
+    statusInfo = { label: '💳 ได้รับเงินแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' };
+  }
   const prepHtml = (!foodIsReady && j.prepMinutes)
     ? `<div class="jc-row"><span class="jc-row-icon">⏱️</span><span class="jc-row-text">ร้านใช้เวลาทำประมาณ ${Number(j.prepMinutes)} นาที</span></div>`
     : '';
@@ -1458,7 +1473,7 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">📸 ส่งรูปอาหารให้ลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (orderNeedsKitchen(j) && !shopSlip && !customerPaid) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>🧾 รอลูกค้าโอนก่อนแนบสลิปร้าน</button>
+      primaryAction = `${payReceivedButton(j.id)}
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
     } else if (orderNeedsKitchen(j) && !shopSlip) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
@@ -1469,6 +1484,9 @@ function renderJobCard(j, type) {
         : `<button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
         ${closedShop}`;
+    } else if (riderMayConfirmPay(j)) {
+      primaryAction = `${payReceivedButton(j.id)}
+        <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าโอนเงิน</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
@@ -1481,6 +1499,9 @@ function renderJobCard(j, type) {
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
   }
+  const payExtra = (riderMayConfirmPay(j) && primaryAction.indexOf('data-paid=') === -1)
+    ? `<div class="jc-actions" style="margin-bottom:8px">${payReceivedButton(j.id)}</div>`
+    : '';
 
   return `
     <div class="jc-card ${isNew ? 'jc-new' : ''}" data-card-id="${esc(j.id)}">
@@ -1522,6 +1543,7 @@ function renderJobCard(j, type) {
       </div>
 
       ${callRow}
+      ${payExtra}
       <div class="jc-actions">
         ${primaryAction}
       </div>
@@ -1638,6 +1660,30 @@ function sendAutomatedChatLater(orderId, key) {
 
 /* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้
    The server transaction assigns the rider. The phone cannot write riderId. */
+async function confirmPaymentReceived(jobId) {
+  if (!currentUser) return;
+  if (!confirm('ยืนยันว่าได้รับเงินโอนจากลูกค้าแล้ว?')) return;
+  try {
+    await callDispatch('confirmPaymentReceived', { orderId: jobId });
+    const job = allJobs.find(j => j.id === jobId);
+    if (job) {
+      job.customerPaid = true;
+      job.customerPaidAt = job.customerPaidAt || new Date();
+      job.paidConfirmedBy = 'rider';
+      if (job.status === 'picked_up') job.status = 'customer_paid';
+    }
+    window._paymentNotified = window._paymentNotified || {};
+    window._paymentNotified[jobId] = true;
+    clearPaymentTimers();
+    const overlay = $('modalOverlay');
+    if (overlay && overlay.classList.contains('show')) closeModal();
+    showToast('บันทึกว่ารับเงินแล้ว — เริ่มส่งได้');
+    renderJobs();
+  } catch (err) {
+    showToast((err && err.message) || 'ยืนยันรับเงินไม่สำเร็จ', 'error');
+  }
+}
+
 async function reportShopClosed(jobId) {
   if (!currentUser) return;
   const job = allJobs.find(j => j.id === jobId);
@@ -2067,7 +2113,7 @@ async function submitFoodPhoto(pickupJob) {
       showToast('⚠️ ส่งยอดโอนพร้อม QR ไม่สำเร็จ แต่ส่งรูปอาหารแล้ว กรุณาตรวจสอบแชท', 'warning', 7000);
     }
     arrivedShopNotifiedOrderIds.add(jobId);
-    if (pickedJob && !orderIsCash(pickedJob)) startPaymentTimers(jobId);
+    if (pickedJob && !orderIsCash(pickedJob) && !pickedJob.customerPaidAt) startPaymentTimers(jobId);
     showToast(orderIsCash(pickedJob)
       ? '✅ ส่งรูปแล้ว — แจ้งให้เตรียมเงินสดตอนส่ง แล้วแนบสลิปร้าน'
       : '✅ ส่งรูปแล้ว — แจ้งลูกค้าให้โอน แล้วแนบสลิปร้าน');
@@ -2154,14 +2200,23 @@ async function confirmCombinedPickup() {
 
     const pickedJob = allJobs.find(j => j.id === jobId);
     const cashPickup = orderIsCash(pickedJob);
+    const alreadyPaid = !!(pickedJob && pickedJob.customerPaidAt);
+    if (pickedJob) {
+      pickedJob.status = 'picked_up';
+      pickedJob.foodImage = pickupFoodUrl;
+      pickedJob.foodImagePath = foodPath;
+      pickedJob.riderSlipToShop = pickupSlipUrl;
+      pickedJob.riderSlipToShopPath = slipPath;
+    }
     showToast(cashPickup
       ? '✅ รับของแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง'
-      : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน');
+      : (alreadyPaid ? '✅ ส่งให้ลูกค้าแล้ว — ได้รับเงินแล้ว เริ่มส่งได้' : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน'));
     sendAutomatedChatLater(jobId, 'picked_up');
     closeModal();
     arrivedShopNotifiedOrderIds.add(jobId);
+    renderJobs();
 
-    if (!cashPickup) startPaymentTimers(jobId);
+    if (!cashPickup && !alreadyPaid) startPaymentTimers(jobId);
   } catch (err) {
     console.error('confirmCombinedPickup error:', err);
     showToast('อัปโหลดไม่สำเร็จ (' + uploadStep + '): ' + (err.code || err.message), 'error');
@@ -2439,6 +2494,9 @@ function showJobDetail(jobId) {
       : (job.status === 'picked_up'
         ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
         : ''));
+  const payActionHtml = riderMayConfirmPay(job)
+    ? `<button type="button" class="action-btn-big btn-green-big ripple" style="width:100%;margin-bottom:8px" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`
+    : '';
 
   const hasMapPoint = !!(
     (job.shopPlaceLat && job.shopPlaceLng) ||
@@ -2478,6 +2536,7 @@ function showJobDetail(jobId) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📍 นำทาง</a>` : ''}
     </div>
+    ${payActionHtml}
     ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
@@ -3604,7 +3663,7 @@ function maybeRefreshPush() {
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-shop-closed],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-shop-closed],[data-paid],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
@@ -3614,6 +3673,7 @@ document.addEventListener('click', async (e) => {
     else if (t.dataset.foodPhoto) openFoodPhoto(t.dataset.foodPhoto);
     else if (t.dataset.slip) openShopSlip(t.dataset.slip);
     else if (t.dataset.shopClosed) await reportShopClosed(t.dataset.shopClosed);
+    else if (t.dataset.paid) await confirmPaymentReceived(t.dataset.paid);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);

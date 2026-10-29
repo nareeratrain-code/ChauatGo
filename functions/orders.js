@@ -444,6 +444,13 @@ function shopClosedText(order) {
     + pay;
 }
 
+function paymentReceivedText(order, beforePickup) {
+  const total = round2(order && (order.total != null ? order.total : order.fare));
+  const line = '✅ ไรเดอร์ยืนยันว่าได้รับเงินโอน ฿' + total + ' แล้วครับ/ค่ะ';
+  if (beforePickup) return line + '\nจะรับของแล้วออกส่งครับ/ค่ะ';
+  return line + '\nกำลังออกไปส่งครับ/ค่ะ';
+}
+
 function precondition(message) {
   const err = new Error(message);
   err.code = 'failed-precondition';
@@ -542,6 +549,71 @@ async function reportShopClosed(db, uid, orderId) {
   return result;
 }
 
+async function confirmPaymentReceived(db, uid, orderId) {
+  const id = clip(orderId, 128);
+  if (!id) reject('ข้อมูลไม่ครบ');
+  const orderRef = db.collection('orders').doc(id);
+  const chatRef = db.collection('chats').doc(id);
+  const messageRef = chatRef.collection('messages').doc('auto_payment_received');
+  let result = null;
+  await db.runTransaction(async (tx) => {
+    const orderSnap = await tx.get(orderRef);
+    const messageSnap = await tx.get(messageRef);
+    if (!orderSnap.exists) {
+      const err = new Error('missing-order');
+      throw err;
+    }
+    const order = orderSnap.data() || {};
+    if (order.riderId !== uid) {
+      const err = new Error('not-yours');
+      throw err;
+    }
+    if (order.paymentMode === 'cash') {
+      precondition('ออเดอร์เงินสดเก็บเงินตอนส่ง ไม่ต้องกดรับโอน');
+    }
+    const beforePickup = order.status === 'accepted' || order.status === 'ready';
+    const waiting = order.status === 'picked_up';
+    if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup)) {
+      result = { ok: true, already: true, status: order.status };
+      return;
+    }
+    if (!beforePickup && !waiting) {
+      precondition('ยืนยันรับเงินได้ตอนรอโอน หรือก่อนรับของเท่านั้น');
+    }
+    const text = paymentReceivedText(order, beforePickup);
+    const patch = {
+      customerPaid: true,
+      customerPaidAt: FieldValue.serverTimestamp(),
+      paidConfirmedBy: 'rider'
+    };
+    if (waiting) patch.status = 'customer_paid';
+    tx.update(orderRef, patch);
+    if (!messageSnap.exists) {
+      tx.set(messageRef, {
+        text: text,
+        senderId: uid,
+        senderRole: 'rider',
+        senderName: order.riderName || 'ไรเดอร์',
+        systemMessage: true,
+        automated: true,
+        automationKey: 'payment_received',
+        createdAt: FieldValue.serverTimestamp()
+      });
+      tx.set(chatRef, {
+        orderId: id,
+        userId: order.userId || '',
+        riderId: uid,
+        merchantId: order.merchantId || '',
+        lastMessage: text.split('\n')[0].slice(0, 80),
+        lastSenderId: uid,
+        lastMessageAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    result = { ok: true, already: false, status: waiting ? 'customer_paid' : order.status };
+  });
+  return result;
+}
+
 module.exports = {
   FOOD_BASE,
   FOOD_CAP,
@@ -552,7 +624,9 @@ module.exports = {
   calcGp,
   promoActive,
   shopClosedText,
+  paymentReceivedText,
   createOrder,
   completeOrder,
-  reportShopClosed
+  reportShopClosed,
+  confirmPaymentReceived
 };
