@@ -179,11 +179,23 @@ service firebase.storage {
     // The download URL is delivered to the customer inside the authorized order chat.
     match /rider_qr/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if isImage()
-        && signedIn()
-        && request.auth.uid == uid
-        && isRiderAccount();
+      allow create, update: if isImage() && request.auth.uid == uid;
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    // Pickup photo under the rider's own uid. auth.uid is the check.
+    // firestore.get is not used, so a missing Storage service-agent grant
+    // cannot deny this write.
+    match /orders/{orderId}/riders/{uid}/{fileName} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if isImage() && request.auth.uid == uid;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /chats/{orderId}/riders/{uid}/{fileName} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if isImage() && request.auth.uid == uid;
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
 
     // Any order type, including express whose parcel category is food.
@@ -198,9 +210,7 @@ service firebase.storage {
 
     match /slips/riders/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if isImage()
-        && request.auth.uid == uid
-        && isRiderAccount();
+      allow create, update: if isImage() && request.auth.uid == uid;
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 

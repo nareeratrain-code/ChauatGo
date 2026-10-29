@@ -9,7 +9,7 @@ test('อาหารอัปโหลดครั้งเดียวที�
   const end = source.indexOf('\n}\n\nasync function submitShopSlip', start) + 2;
   const block = source.slice(start, end);
 
-  assert.match(block, /const foodPath = `orders\/\$\{jobId\}\/food_/);
+  assert.match(block, /const foodPath = `orders\/\$\{jobId\}\/riders\/\$\{currentUser\.uid\}\/food_/);
   assert.match(block, /await foodRef\.put\(pickupFoodBlob, \{ contentType: 'image\/jpeg' \}\)/);
   assert.match(block, /await postRiderOrderImageUrl\(jobId, pickupFoodUrl, foodPath\)/);
   assert.doesNotMatch(block, /await postRiderOrderImage\(jobId, pickupFoodBlob\)/);
