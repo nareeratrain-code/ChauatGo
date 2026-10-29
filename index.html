@@ -3275,6 +3275,15 @@ window.confirmCheckout = async function(grandTotal) {
   var deliveryFee = deliveryInfo.fee;
   var cashTip = selectedPaymentMode === 'cash' ? 5 : 0;
   grandTotal = (subtotal - discountTotal) + deliveryFee + cashTip;
+  var dropText = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '';
+  var dropSeed = (foodDropoff && isFinite(Number(foodDropoff.lat))) ? foodDropoff : userLocation;
+  var dropPoint = resolveOrderPoint(dropSeed, dropText);
+  var liveShop = (window._currentMerchant && window._currentMerchant.id === cartShop) ? window._currentMerchant : null;
+  var shopPoint = finiteCoord({
+    lat: merchantData.lat != null ? merchantData.lat : (liveShop ? liveShop.lat : null),
+    lng: merchantData.lng != null ? merchantData.lng : (liveShop ? liveShop.lng : null),
+    address: merchantData.name || (liveShop && liveShop.name) || ''
+  });
 
   try {
     var createdFood = await createServerOrder({
@@ -3285,15 +3294,15 @@ window.confirmCheckout = async function(grandTotal) {
       title: '🍽️ สั่งอาหาร: ' + (cart[0] ? cart[0].merchantName : ''),
       merchantId: cartShop,
       merchantName: cart[0] ? cart[0].merchantName : '',
-      shopPlaceLat: merchantData.lat || null,
-      shopPlaceLng: merchantData.lng || null,
-      shopPlaceName: merchantData.name || (cart[0] ? cart[0].merchantName : ''),
+      shopPlaceLat: shopPoint ? shopPoint.lat : null,
+      shopPlaceLng: shopPoint ? shopPoint.lng : null,
+      shopPlaceName: merchantData.name || (liveShop && liveShop.name) || (cart[0] ? cart[0].merchantName : ''),
       items: items,
       itemsText: items.map(function(i) { return i.name + ' x' + i.qty; }).join(', '),
-      address: (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '',
+      address: dropText,
       note: (foodDropoff && foodDropoff.note) || '',
-      lat: (foodDropoff && isFinite(foodDropoff.lat)) ? foodDropoff.lat : (userLocation ? userLocation.lat : null),
-      lng: (foodDropoff && isFinite(foodDropoff.lng)) ? foodDropoff.lng : (userLocation ? userLocation.lng : null),
+      lat: dropPoint ? dropPoint.lat : null,
+      lng: dropPoint ? dropPoint.lng : null,
       paymentMode: selectedPaymentMode,
       shopDisclaimerAccepted: !partnerNow,
       code: generateOrderCode(),
@@ -4685,7 +4694,7 @@ window.pickTravelFromItem = function(el) {
   var lng = parseFloat(el.dataset.lng);
   if (placeId) { var p = PLACES.find(function(x) { return x.id === placeId; }); if (p) { lat = p.lat; lng = p.lng; name = p.name; } }
   if (!lat || !lng) return showToast('ไม่พบตำแหน่ง', 'error');
-  selectedDestination = { lat: lat, lng: lng, address: name };
+  selectedDestination = { lat: lat, lng: lng, address: name, placeId: placeId || (p && p.id) || '' };
   showToast('📍 ' + name);
   document.querySelectorAll('.travel-place-item').forEach(function(i) { i.style.background = ''; });
   el.style.background = 'var(--brand-light)';
@@ -4740,7 +4749,7 @@ window.pickTravelFromSearch = function(el) {
   var lng = p ? p.lng : parseFloat(el.dataset.lng);
   var name = p ? p.name : (el.dataset.name || '');
   if (!isFinite(lat) || !isFinite(lng)) return;
-  selectedDestination = { lat: lat, lng: lng, address: name };
+  selectedDestination = { lat: lat, lng: lng, address: name, placeId: placeId || (p && p.id) || '' };
   showToast('📍 ' + name);
   if ($('travel-dest-input')) $('travel-dest-input').value = name;
   if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
@@ -4817,17 +4826,10 @@ window.submitRideOrder = async function(){
   var from = $('order-from').value.trim();
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกจุดรับ-ปลายทาง','error');
-  var pickup = ridePickupPoint();
-  if (!pointMatchesText(pickup, from)) {
-    var fromHit = exactCatalogPlace(from);
-    pickup = fromHit ? { lat: fromHit.lat, lng: fromHit.lng, address: fromHit.label, accuracy: fromHit.accuracy } : null;
-    rideOrigin = pickup;
-  }
-  var pin = selectedDestination;
-  if (!pointMatchesText(pin, to)) {
-    var hit = exactCatalogPlace(to);
-    pin = hit ? { lat: hit.lat, lng: hit.lng, address: hit.label } : null;
-  }
+  var pickup = resolveOrderPoint(ridePickupPoint(), from);
+  rideOrigin = pickup;
+  var pin = resolveOrderPoint(selectedDestination, to);
+  if (pin) selectedDestination = pin;
   var destLat = pin && isFinite(pin.lat) ? pin.lat : null;
   var destLng = pin && isFinite(pin.lng) ? pin.lng : null;
   var fareInfo = quoteRide(selectedVehicle, pickup, (destLat != null && destLng != null) ? { lat: destLat, lng: destLng } : null);
@@ -4882,6 +4884,8 @@ window.submitOrder = async function(type){
   var to = $('order-to').value.trim();
   if(!from||!to) return showToast('กรอกต้นทาง-ปลายทาง','error');
   var baseFare = {ride: 50, food: 20, shopping: 30}[type] || 30;
+  var originPoint = resolveOrderPoint(userLocation, from);
+  var destPoint = resolveOrderPoint(selectedDestination, to);
   try{
     var createdGeneric = await createServerOrder({
       type:type, userId:currentUser.uid,
@@ -4890,8 +4894,10 @@ window.submitOrder = async function(type){
       title:({ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'})[type]||'📦 ออเดอร์',
       from:from, to:to, address:to,
       note:$('order-note').value.trim(),
-      fromLat: userLocation ? userLocation.lat : null,
-      fromLng: userLocation ? userLocation.lng : null,
+      fromLat: originPoint ? originPoint.lat : null,
+      fromLng: originPoint ? originPoint.lng : null,
+      lat: destPoint ? destPoint.lat : null,
+      lng: destPoint ? destPoint.lng : null,
       paymentMode: 'transfer',
       code: generateOrderCode(),
       deliveryCode: generateDeliveryCode()
@@ -4974,6 +4980,65 @@ function pointMatchesText(point, text) {
   return addr === typed || foldPlaceName(addr) === foldPlaceName(typed);
 }
 
+function finiteCoord(point) {
+  if (!point) return null;
+  var lat = Number(point.lat);
+  var lng = Number(point.lng);
+  if (!isFinite(lat) || !isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  if (lat === 0 && lng === 0) return null;
+  return {
+    lat: lat,
+    lng: lng,
+    address: String(point.address || point.label || point.name || '').trim(),
+    placeId: String(point.placeId || '').trim()
+  };
+}
+
+function directoryPlace(id) {
+  if (!id) return null;
+  if (typeof findHotelById === 'function') {
+    var found = findHotelById(id);
+    if (found && isFinite(Number(found.lat)) && isFinite(Number(found.lng))) return found;
+  }
+  if (typeof PLACES !== 'undefined' && PLACES && PLACES.find) {
+    var row = PLACES.find(function(p) { return p && String(p.id) === String(id); });
+    if (row && isFinite(Number(row.lat)) && isFinite(Number(row.lng))) return row;
+  }
+  return null;
+}
+
+/* A GPS fix or map pin the customer already chose wins over a landmark
+   label the catalog does not list. Typing a different catalog place still
+   replaces the pin. A directory placeId restores that place's coordinates. */
+function resolveOrderPoint(pin, typedText) {
+  var typed = String(typedText || '').trim();
+  var held = finiteCoord(pin);
+  var placeId = String((pin && pin.placeId) || (held && held.placeId) || '').trim();
+  var listed = directoryPlace(placeId);
+  if (listed) {
+    var placeName = String(listed.name || listed.label || '').trim();
+    var nameOk = !typed || typed === placeName || foldPlaceName(typed) === foldPlaceName(placeName)
+      || (held && held.address && (typed === held.address || foldPlaceName(typed) === foldPlaceName(held.address)));
+    var near = !held || haversine(held.lat, held.lng, Number(listed.lat), Number(listed.lng)) <= 0.08;
+    if (nameOk && near) {
+      return {
+        lat: Number(listed.lat),
+        lng: Number(listed.lng),
+        address: placeName || (held && held.address) || typed,
+        placeId: String(listed.id || placeId)
+      };
+    }
+  }
+  if (held && pointMatchesText(held, typed)) return held;
+  var hit = (typeof exactCatalogPlace === 'function') ? exactCatalogPlace(typed) : null;
+  if (hit && isFinite(Number(hit.lat)) && isFinite(Number(hit.lng)) && !(Number(hit.lat) === 0 && Number(hit.lng) === 0)) {
+    return { lat: Number(hit.lat), lng: Number(hit.lng), address: String(hit.label || typed), placeId: String(hit.placeId || '') };
+  }
+  if (held) return held;
+  return null;
+}
+
 function exactCatalogPlace(text) {
   var q = String(text || '').trim();
   if (!q || typeof searchPlaceCatalog !== 'function') return null;
@@ -5046,7 +5111,7 @@ function bindExpressFields() {
 function applyExpressCatalog(which, row) {
   if (!row) return;
   captureExpressDraft();
-  var point = { lat: row.lat, lng: row.lng, address: row.label };
+  var point = { lat: row.lat, lng: row.lng, address: row.label, placeId: row.placeId || '' };
   if (!expressDraft) expressDraft = {};
   if (which === 'from') {
     expOrigin = point;
@@ -5258,7 +5323,7 @@ window.setExpDestinationFromPlace = function(placeId){
   var p = PLACES.find(function(x){return x.id===placeId;});
   if (!p) return;
   captureExpressDraft();
-  expDestination = {lat:p.lat, lng:p.lng, address:p.name};
+  expDestination = {lat:p.lat, lng:p.lng, address:p.name, placeId:p.id || ''};
   if (!expressDraft) expressDraft = {};
   expressDraft.to = p.name;
   renderExpressForm();
@@ -5285,14 +5350,8 @@ window.submitExpressOrder = async function(){
   if (active && active.blur && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
   var fromAddr = expressFieldText('order-from');
   var toAddr = expressFieldText('order-to');
-  if (!pointMatchesText(expOrigin, fromAddr)) {
-    var fromHit = exactCatalogPlace(fromAddr);
-    expOrigin = fromHit ? { lat: fromHit.lat, lng: fromHit.lng, address: fromHit.label } : null;
-  }
-  if (!pointMatchesText(expDestination, toAddr)) {
-    var toHit = exactCatalogPlace(toAddr);
-    expDestination = toHit ? { lat: toHit.lat, lng: toHit.lng, address: toHit.label } : null;
-  }
+  expOrigin = resolveOrderPoint(expOrigin, fromAddr);
+  expDestination = resolveOrderPoint(expDestination, toAddr);
   var fromText = fromAddr || (expOrigin && expOrigin.address) || '';
   var toText = toAddr || (expDestination && expDestination.address) || '';
   if (!fromText) return showToast('กรอกต้นทาง','error');
@@ -5703,12 +5762,8 @@ window.submitShopOrder = async function(placeId){
   var phone = ($('shop-phone') && $('shop-phone').value.trim()) || '';
   if (!phone) return showToast('กรุณากรอกเบอร์ติดต่อ','warning');
   var dropText = ($('shop-dropoff') && $('shop-dropoff').value.trim()) || '';
-  var customer = shoppingCustomerPoint();
-  if (!pointMatchesText(customer, dropText)) {
-    var dropHit = exactCatalogPlace(dropText);
-    customer = dropHit ? { lat: dropHit.lat, lng: dropHit.lng, address: dropHit.label } : null;
-    shoppingDropoff = customer;
-  }
+  var customer = resolveOrderPoint(shoppingCustomerPoint(), dropText);
+  shoppingDropoff = customer;
   var fare = shoppingQuotedFare(customer, p).total;
   try{
     var createdShop = await createServerOrder({
@@ -5927,6 +5982,7 @@ function globalClickHandler(e){
 
 /* ═══ MAP PAGE ═══ */
 var destHoldAddress = '';
+var destHoldPlaceId = '';
 var destSearchTimer = null;
 var destSearchGen = 0;
 var destCatFilter = '';
@@ -6071,11 +6127,13 @@ function onDestMapMoveEnd() {
   var pin = $('map-center-pin');
   if (pin) pin.classList.remove('lift');
   var held = destHoldAddress;
+  var heldId = destHoldPlaceId;
   destHoldAddress = '';
+  destHoldPlaceId = '';
   var ll = readPinLatLng();
   if (!ll) return;
   var note = ($('dest-rider-note') && $('dest-rider-note').value.trim()) || (selectedDestination && selectedDestination.note) || '';
-  selectedDestination = { lat: ll.lat, lng: ll.lng, address: held || '', note: note };
+  selectedDestination = { lat: ll.lat, lng: ll.lng, address: held || '', note: note, placeId: heldId || '' };
   updateConfirmBtnState();
   updateDestEstimate();
   if (held) showDestAddress(held, ll);
@@ -6515,7 +6573,7 @@ function searchLocalPlaces(q) {
     var where = (p.tambon ? ' • ตำบล' + p.tambon : '') + (p.district ? ' • อำเภอ' + p.district : '');
     if (p.approx) where += ' • ตำแหน่งโดยประมาณ';
     if (userLocation && isFinite(userLocation.lat) && isFinite(p.lat)) where += ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng));
-    return { label: p.label, sub: cat.icon + ' ' + cat.name + where, tambon: p.tambon || '', district: p.district || '', lat: p.lat, lng: p.lng, icon: cat.icon, source: p.source || 'local' };
+    return { label: p.label, sub: cat.icon + ' ' + cat.name + where, tambon: p.tambon || '', district: p.district || '', lat: p.lat, lng: p.lng, icon: cat.icon, source: p.source || 'local', placeId: p.placeId || '' };
   });
 }
 
@@ -6565,6 +6623,7 @@ function renderDestSearchResults(items, pending) {
       var item = items[parseInt(btn.dataset.idx, 10)];
       if (!item) return;
       destHoldAddress = item.label;
+      destHoldPlaceId = item.placeId || '';
       destSearchGen++;
       if ($('dest-search-input')) $('dest-search-input').value = item.label;
       hideDestSearchResults();
@@ -6848,12 +6907,13 @@ function showCurrentLocationMarker(lat, lng){
   currentLocationMarker = L.marker([lat,lng],{icon:icon,zIndexOffset:1000}).addTo(map);
 }
 
-function setDestination(lat, lng, openPopup, address){
+function setDestination(lat, lng, openPopup, address, placeId){
   if (address) destHoldAddress = address;
+  destHoldPlaceId = placeId || '';
   if (destinationMarker && map) { map.removeLayer(destinationMarker); destinationMarker = null; }
   if (destinationCircle && map) { map.removeLayer(destinationCircle); destinationCircle = null; }
   if (!map) {
-    selectedDestination = { lat: lat, lng: lng, address: address || '' };
+    selectedDestination = { lat: lat, lng: lng, address: address || '', placeId: placeId || '' };
     updateConfirmBtnState();
     return;
   }
@@ -6903,7 +6963,8 @@ window.confirmMapLocation = function(){
     lat: selectedDestination.lat,
     lng: selectedDestination.lng,
     address: selectedDestination.address || '',
-    note: selectedDestination.note || ''
+    note: selectedDestination.note || '',
+    placeId: selectedDestination.placeId || ''
   };
   if (!picked.address || picked.address.indexOf('กำลังหาที่อยู่') === 0) {
     picked.address = 'พิกัด ' + picked.lat.toFixed(5) + ', ' + picked.lng.toFixed(5);
@@ -6922,7 +6983,7 @@ window.confirmMapLocation = function(){
   }
   if (mode === 'ride-origin' || mode === 'ride-dest') {
     if (mode === 'ride-origin') {
-      rideOrigin = { lat: picked.lat, lng: picked.lng, address: picked.address, accuracy: null };
+      rideOrigin = { lat: picked.lat, lng: picked.lng, address: picked.address, accuracy: null, placeId: picked.placeId || '' };
       selectedDestination = keptDestination;
       if (!rideDraft) rideDraft = {};
       rideDraft.from = picked.address;
@@ -6938,7 +6999,7 @@ window.confirmMapLocation = function(){
   }
   if (mode === 'shop-dropoff') {
     if ($('shop-dropoff')) $('shop-dropoff').value = picked.address;
-    shoppingDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address };
+    shoppingDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address, placeId: picked.placeId || '' };
     selectedDestination = keptDestination;
     refreshShopForm();
     showToast('ตั้งจุดส่งแล้ว');
@@ -6952,11 +7013,11 @@ window.confirmMapLocation = function(){
   }
   if (mode === 'exp-origin' || mode === 'exp-destination') {
     if (mode === 'exp-origin') {
-      expOrigin = { lat: picked.lat, lng: picked.lng, address: picked.address };
+      expOrigin = { lat: picked.lat, lng: picked.lng, address: picked.address, placeId: picked.placeId || '' };
       if (!expressDraft) expressDraft = {};
       expressDraft.from = picked.address;
     } else {
-      expDestination = { lat: picked.lat, lng: picked.lng, address: picked.address };
+      expDestination = { lat: picked.lat, lng: picked.lng, address: picked.address, placeId: picked.placeId || '' };
       if (!expressDraft) expressDraft = {};
       expressDraft.to = picked.address;
     }
@@ -6972,7 +7033,7 @@ window.confirmMapLocation = function(){
     return;
   }
   if (mode === 'food') {
-    foodDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address, note: picked.note || (foodDropoff && foodDropoff.note) || '' };
+    foodDropoff = { lat: picked.lat, lng: picked.lng, address: picked.address, note: picked.note || (foodDropoff && foodDropoff.note) || '', placeId: picked.placeId || '' };
     selectedDestination = keptDestination;
     reopenFoodCheckout();
     showToast('📍 ' + (picked.address || 'เลือกที่อยู่จัดส่งแล้ว'));
@@ -7008,7 +7069,8 @@ window.openMapPicker = function(mode){
       lat: selectedDestination.lat,
       lng: selectedDestination.lng,
       address: selectedDestination.address || '',
-      note: selectedDestination.note || ''
+      note: selectedDestination.note || '',
+      placeId: selectedDestination.placeId || ''
     } : null
   };
   if ($('map-page')) $('map-page').dataset.picker = mapPickerMode;
@@ -7072,8 +7134,9 @@ window.showPlaceDetail = function(placeId){
 window.setDestFromPlace = function(placeId){
   var p = findHotelById(placeId);
   if (!p) return;
+  selectedDestination = { lat: p.lat, lng: p.lng, address: p.name, placeId: p.id || placeId };
   closeModal(); openMapPage();
-  setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name); }, 500);
+  setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name, p.id || placeId); }, 500);
 };
 
 /* ═══ EXPOSE ═══ */
