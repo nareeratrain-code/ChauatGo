@@ -2109,7 +2109,7 @@ function tambonsFor(district) {
   return [];
 }
 function tambonOptions(district, current) {
-  if (!district) return '<option value="">เลือกอำเภอก่อน</option>';
+  if (!district) return '<option value="">ทุกตำบล (ตัวกรองเสริม)</option>';
   var html = '<option value="">ทุกตำบล</option>';
   tambonsFor(district).forEach(function(name) {
     html += '<option value="' + esc(name) + '"' + (current === name ? ' selected' : '') + '>ตำบล' + esc(name) + '</option>';
@@ -6689,9 +6689,10 @@ function openOsmDest(lat, lng, name) {
   }, 450);
 }
 
-function searchLocalPlaces(q) {
+function searchLocalPlaces(q, browseAll) {
   var origin = (userLocation && isFinite(userLocation.lat)) ? userLocation : (readPinLatLng() || CHAUAT_CENTER);
-  return searchPlaceCatalog(q, destCatFilter, origin, (destCatFilter || destDistrictFilter || destTambonFilter) && !q ? 40 : 16, destDistrictFilter, destTambonFilter).map(function(p) {
+  var limit = (destCatFilter || destDistrictFilter || destTambonFilter || browseAll) && !q ? 40 : 16;
+  return searchPlaceCatalog(q, destCatFilter, origin, limit, destDistrictFilter, destTambonFilter, browseAll).map(function(p) {
     var cat = placeCatInfo(p);
     var where = (p.tambon ? ' • ตำบล' + p.tambon : '') + (p.district ? ' • อำเภอ' + p.district : '');
     if (p.approx) where += ' • ตำแหน่งโดยประมาณ';
@@ -6801,11 +6802,11 @@ function onDestSearchInput() {
   clearTimeout(destSearchTimer);
   destSearchGen++;
   var gen = destSearchGen;
-  if (!q && !destCatFilter && !destDistrictFilter && !destTambonFilter) { hideDestSearchResults(); return; }
+  var browseAll = !q && !destCatFilter && !destDistrictFilter && !destTambonFilter;
   setDestSheetExpanded(true);
   var draw = function() {
     if (gen !== destSearchGen) return;
-    var local = searchLocalPlaces(q);
+    var local = searchLocalPlaces(q, browseAll);
     var waitRemote = q.length >= 2 && !destCatFilter && local.length < 4;
     renderDestSearchResults(local, waitRemote);
     if (!waitRemote) return;
@@ -6814,7 +6815,7 @@ function onDestSearchInput() {
       searchNominatim(q, local);
     }, 700);
   };
-  if (!chauatPlaces || !provinceDataReady(destDistrictFilter)) ensurePlaceData(draw, destDistrictFilter);
+  if (!chauatPlaces || !provinceDataReady(destDistrictFilter || '')) ensurePlaceData(draw, destDistrictFilter || '');
   else draw();
 }
 
@@ -6969,6 +6970,9 @@ window.openMapPage = function(keepPickerMode){
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'เลือกตำแหน่งก่อน'; }
   if($('map-page')) $('map-page').classList.add('show');
   bindDestSheet();
+  if (!currentMapPickerMode()) ensurePlaceData(function() {
+    if (token === mapOpenToken && $('map-page') && $('map-page').classList.contains('show')) onDestSearchInput();
+  }, '');
   setTimeout(function(){
     if (token !== mapOpenToken) return;
     if(typeof L === 'undefined') return;
