@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const { FieldPath, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { geohashQueryBounds, distanceBetween } = require('geofire-common');
@@ -253,14 +254,45 @@ function stringifyData(data) {
   return out;
 }
 
-async function notifyRider(db, riderId, msg) {
+function tokenFingerprint(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex').slice(0, 12);
+}
+
+function structuredFcmLog(level, event, fields) {
+  const payload = Object.assign({
+    component: 'fcm',
+    event,
+    timestamp: new Date().toISOString()
+  }, fields || {});
+  const line = JSON.stringify(payload);
+  if (level === 'error' && console.error) return console.error(line);
+  if (level === 'warn' && console.warn) return console.warn(line);
+  return console.log(line);
+}
+
+async function notifyRider(db, riderId, msg, deps) {
+  const options = deps || {};
+  const orderId = msg && msg.data && msg.data.orderId ? String(msg.data.orderId) : null;
+  const log = options.logger || structuredFcmLog;
+  const base = { riderId: String(riderId || ''), orderId };
   try {
     const snap = await db.collection('riders').doc(riderId).get();
-    if (!snap.exists) return;
+    if (!snap.exists) {
+      log('warn', 'rider_not_found', base);
+      return { ok: false, reason: 'rider_not_found' };
+    }
     const tokens = snap.data().fcmTokens;
-    if (!Array.isArray(tokens) || !tokens.length) return;
-    const res = await getMessaging().sendEachForMulticast({
-      tokens: tokens.slice(0, 20),
+    if (!Array.isArray(tokens) || !tokens.length) {
+      log('warn', 'no_tokens', Object.assign({}, base, { tokenCount: 0 }));
+      return { ok: false, reason: 'no_tokens' };
+    }
+    const selectedTokens = tokens.filter(Boolean).slice(0, 20);
+    if (!selectedTokens.length) {
+      log('warn', 'no_tokens', Object.assign({}, base, { tokenCount: 0 }));
+      return { ok: false, reason: 'no_tokens' };
+    }
+    const res = await (options.messaging || getMessaging()).sendEachForMulticast({
+      tokens: selectedTokens,
       notification: { title: msg.title, body: msg.body },
       data: stringifyData(msg.data),
       webpush: {
@@ -269,21 +301,51 @@ async function notifyRider(db, riderId, msg) {
       }
     });
     const bad = [];
+    const failureCodes = {};
     res.responses.forEach((r, i) => {
       if (r.success) return;
       const code = r.error && r.error.code;
+      failureCodes[code || 'unknown'] = (failureCodes[code || 'unknown'] || 0) + 1;
       if (code === 'messaging/registration-token-not-registered'
         || code === 'messaging/invalid-registration-token') {
-        bad.push(tokens[i]);
+        bad.push(selectedTokens[i]);
       }
     });
+    const successCount = Number(res.successCount || res.responses.filter((r) => r.success).length);
+    const failureCount = Number(res.failureCount || res.responses.length - successCount);
+    log(failureCount ? 'warn' : 'info', failureCount ? 'send_partial_failure' : 'send_success', Object.assign({}, base, {
+      tokenCount: selectedTokens.length,
+      successCount,
+      failureCount,
+      failureCodes,
+      invalidTokenCount: bad.length,
+      tokenFingerprints: bad.map(tokenFingerprint)
+    }));
     if (bad.length) {
-      await db.collection('riders').doc(riderId).update({
-        fcmTokens: FieldValue.arrayRemove.apply(FieldValue, bad)
-      });
+      try {
+        await db.collection('riders').doc(riderId).update({
+          fcmTokens: (options.FieldValue || FieldValue).arrayRemove.apply(options.FieldValue || FieldValue, bad)
+        });
+        log('info', 'invalid_tokens_removed', Object.assign({}, base, {
+          removedCount: bad.length,
+          tokenFingerprints: bad.map(tokenFingerprint)
+        }));
+      } catch (cleanupError) {
+        log('error', 'invalid_tokens_cleanup_failed', Object.assign({}, base, {
+          removedCount: bad.length,
+          errorCode: cleanupError && cleanupError.code ? String(cleanupError.code) : 'unknown',
+          errorMessage: cleanupError && cleanupError.message ? String(cleanupError.message).slice(0, 300) : 'unknown'
+        }));
+      }
     }
+    return { ok: failureCount === 0, successCount, failureCount, invalidTokenCount: bad.length };
   } catch (err) {
+    log('error', 'send_exception', Object.assign({}, base, {
+      errorCode: err && err.code ? String(err.code) : 'unknown',
+      errorMessage: err && err.message ? String(err.message).slice(0, 300) : 'unknown'
+    }));
     /* Push is best-effort. Missing credentials or a closed app must not stop dispatch. */
+    return { ok: false, reason: 'send_exception' };
   }
 }
 

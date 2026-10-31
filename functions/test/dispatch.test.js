@@ -9,6 +9,101 @@ const Orders = require('../orders');
 
 const FORBIDDEN = 'เหล่าเต๊ง';
 
+function fcmDb(riderDoc, updates) {
+  return {
+    collection(name) {
+      assert.equal(name, 'riders');
+      return {
+        doc() {
+          return {
+            async get() { return riderDoc; },
+            async update(payload) { updates.push(payload); }
+          };
+        }
+      };
+    }
+  };
+}
+
+function fcmDeps(logs, messaging) {
+  return {
+    messaging,
+    FieldValue: { arrayRemove: (...tokens) => ({ removedTokens: tokens }) },
+    logger(level, event, fields) { logs.push({ level, event, fields }); }
+  };
+}
+
+test('notifyRider logs structured success without exposing full tokens', async () => {
+  const logs = [];
+  const updates = [];
+  const token = 'rider-token-abcdef-1234567890';
+  const result = await D.notifyRider(
+    fcmDb({ exists: true, data: () => ({ fcmTokens: [token] }) }, updates),
+    'rider-logging-1',
+    { title: 'Test', body: 'Body', data: { type: 'customer_slip_uploaded', orderId: 'order-log-1' } },
+    fcmDeps(logs, { async sendEachForMulticast() { return { responses: [{ success: true }], successCount: 1, failureCount: 0 }; } })
+  );
+  assert.deepEqual(result, { ok: true, successCount: 1, failureCount: 0, invalidTokenCount: 0 });
+  assert.equal(logs[0].event, 'send_success');
+  assert.equal(logs[0].fields.orderId, 'order-log-1');
+  assert.equal(logs[0].fields.tokenCount, 1);
+  assert.equal(logs[0].fields.tokenFingerprints.length, 0);
+  assert.doesNotMatch(JSON.stringify(logs), new RegExp(token));
+  assert.equal(updates.length, 0);
+});
+
+test('notifyRider logs partial FCM failures and removes invalid tokens safely', async () => {
+  const logs = [];
+  const updates = [];
+  const invalid = 'invalid-token-123456789';
+  const transient = 'transient-token-123456789';
+  const result = await D.notifyRider(
+    fcmDb({ exists: true, data: () => ({ fcmTokens: [invalid, transient] }) }, updates),
+    'rider-logging-2',
+    { title: 'Test', body: 'Body', data: { orderId: 'order-log-2' } },
+    fcmDeps(logs, { async sendEachForMulticast() {
+      return {
+        responses: [
+          { success: false, error: { code: 'messaging/registration-token-not-registered', message: 'expired' } },
+          { success: false, error: { code: 'messaging/internal-error', message: 'temporary' } }
+        ],
+        successCount: 0,
+        failureCount: 2
+      };
+    } })
+  );
+  assert.deepEqual(result, { ok: false, successCount: 0, failureCount: 2, invalidTokenCount: 1 });
+  assert.equal(logs[0].event, 'send_partial_failure');
+  assert.deepEqual(logs[0].fields.failureCodes, {
+    'messaging/registration-token-not-registered': 1,
+    'messaging/internal-error': 1
+  });
+  assert.equal(logs[1].event, 'invalid_tokens_removed');
+  assert.equal(logs[1].fields.removedCount, 1);
+  assert.equal(updates.length, 1);
+  assert.deepEqual(updates[0].fcmTokens, { removedTokens: [invalid] });
+  assert.doesNotMatch(JSON.stringify(logs), new RegExp(invalid));
+});
+
+test('notifyRider logs FCM exception and keeps dispatch best-effort', async () => {
+  const logs = [];
+  const result = await D.notifyRider(
+    fcmDb({ exists: true, data: () => ({ fcmTokens: ['token-for-exception'] }) }, []),
+    'rider-logging-3',
+    { title: 'Test', body: 'Body', data: { orderId: 'order-log-3' } },
+    fcmDeps(logs, { async sendEachForMulticast() {
+      const error = new Error('FCM credentials unavailable');
+      error.code = 'messaging/authentication-error';
+      throw error;
+    } })
+  );
+  assert.deepEqual(result, { ok: false, reason: 'send_exception' });
+  assert.equal(logs[0].level, 'error');
+  assert.equal(logs[0].event, 'send_exception');
+  assert.equal(logs[0].fields.errorCode, 'messaging/authentication-error');
+  assert.equal(logs[0].fields.errorMessage, 'FCM credentials unavailable');
+});
+
 test('browser geohash matches geofire-common', () => {
   const points = [
     [7.96, 99.99],
