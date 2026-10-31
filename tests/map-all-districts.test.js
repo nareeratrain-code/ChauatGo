@@ -18,8 +18,9 @@ test('map search browses all districts when query and filters are empty', () => 
   assert.match(source, /searchPlaceCatalog\(q, destCatFilter, origin, limit, destDistrictFilter, destTambonFilter, browseAll\)/);
 });
 
-test('district selection remains optional and tambon does not block the map', () => {
-  assert.match(source, /<option value="">ทุกอำเภอ<\/option>/);
-  assert.match(source, /if \(!district\) return '<option value="">ทุกตำบล \(ตัวกรองเสริม\)<\/option>';/);
+test('map menu has only a name search, without district or tambon selectors', () => {
+  assert.match(source, /id="dest-search-input" type="search" placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา\.\.\."/);
+  assert.doesNotMatch(source, /id="dest-district" class="place-district-select"/);
+  assert.doesNotMatch(source, /id="dest-tambon" class="place-district-select"/);
   assert.doesNotMatch(source, /if \(!q && !destCatFilter && !destDistrictFilter && !destTambonFilter\) \{ hideDestSearchResults\(\); return; \}/);
 });
