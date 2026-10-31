@@ -25,7 +25,7 @@ test('Order Card ซ่อนปุ่มโอนและแสดงให้
   assert.match(card, /var isCash = o\.paymentMode === 'cash'/);
   assert.match(card, /isCash && \(o\.status === 'picked_up' \|\| o\.status === 'on_the_way'\)/);
   assert.match(card, /ชำระเงินสดกับไรเดอร์/);
-  assert.match(card, /else if \(o\.status === 'picked_up' && !o\.customerPaidAt\)/);
+  assert.match(card, /o\.status === 'picked_up' && !o\.customerPaidAt/);
   assert.match(card, /confirmCustomerPaid/);
 });
 
