@@ -24,6 +24,8 @@ const APP_CHECK_ENFORCE = enforceFromEnv(process.env);
 // guardAppCheck still rejects when APP_CHECK_ENFORCE=true, and that error
 // is a normal callable response the page can read.
 const CALL = { invoker: 'public', cors: true, enforceAppCheck: false };
+// Module load only. Firestore triggers such as onOrderDispatch print this
+// and never see an App Check token. Per-call lines are [appcheck] ok|missing|invalid fn=<name>.
 console.info('[appcheck] enforce=' + APP_CHECK_ENFORCE);
 
 function guardAppCheck(req, name) {
@@ -171,6 +173,30 @@ exports.createOrder = onCall(CALL, async (req) => {
   guardAppCheck(req, 'createOrder');
   try {
     return await Orders.createOrder(db, req.auth.uid, req.data || {});
+  } catch (err) {
+    orderFail(err);
+  }
+});
+
+exports.confirmPaymentReceived = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'confirmPaymentReceived');
+  const data = req.data || {};
+  if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
+  try {
+    return await Orders.confirmPaymentReceived(db, req.auth.uid, data.orderId);
+  } catch (err) {
+    orderFail(err);
+  }
+});
+
+exports.reportShopClosed = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'reportShopClosed');
+  const data = req.data || {};
+  if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
+  try {
+    return await Orders.reportShopClosed(db, req.auth.uid, data.orderId);
   } catch (err) {
     orderFail(err);
   }

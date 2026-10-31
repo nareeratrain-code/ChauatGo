@@ -213,26 +213,43 @@ async function createOrder(db, uid, data) {
   let food = null;
   let merchantName = clip(src.merchantName, 120);
   let shopPoint = pointOf(src.shopPlaceLat, src.shopPlaceLng);
-  const merchantId = clip(src.merchantId, 128);
+  let merchantId = clip(src.merchantId, 128);
+  let partnerShop = false;
 
-  if (type === 'food' && Array.isArray(src.items) && src.items.length) {
-    if (!merchantId) reject('ไม่พบร้าน');
-    const merchantSnap = await db.collection('merchants').doc(merchantId).get();
-    if (!merchantSnap.exists) reject('ไม่พบร้าน');
-    const merchant = merchantSnap.data() || {};
-    merchantName = clip(merchant.name || merchantName, 120);
-    shopPoint = pointOf(merchant.lat, merchant.lng) || shopPoint;
-    food = await priceFoodItems(db, merchantId, src.items);
-    const quoted = foodDeliveryFee(shopPoint, dest);
-    fare = quoted.fee;
-    distanceKm = quoted.distanceKm || 0;
-    cashTip = mode === 'cash' ? 5 : 0;
-  } else if (type === 'food') {
-    const quoted = foodDeliveryFee(shopPoint, dest);
-    fare = quoted.fee;
-    distanceKm = quoted.distanceKm || 0;
-    cashTip = mode === 'cash' ? 5 : 0;
-    food = { items: [], subtotal: 0, discountTotal: 0, netTotal: 0, itemsText: clip(src.itemsText, 2000) };
+  if (type === 'food') {
+    const hasItems = Array.isArray(src.items) && src.items.length > 0;
+    if (hasItems && !merchantId) reject('ไม่พบร้าน');
+    let merchant = null;
+    if (merchantId) {
+      const merchantSnap = await db.collection('merchants').doc(merchantId).get();
+      if (!merchantSnap.exists) {
+        if (hasItems) reject('ไม่พบร้าน');
+        merchantId = '';
+      } else {
+        merchant = merchantSnap.data() || {};
+      }
+    }
+    partnerShop = !!(merchant && merchant.verified === true);
+    if (merchant) {
+      merchantName = clip(merchant.name || merchantName, 120);
+      shopPoint = pointOf(merchant.lat, merchant.lng) || shopPoint;
+    }
+    if (!partnerShop && src.shopDisclaimerAccepted !== true) {
+      reject('กรุณายืนยันว่าติดต่อร้านแล้ว และยอมรับว่าหากร้านปิดต้องชำระค่าบริการ');
+    }
+    if (hasItems) {
+      food = await priceFoodItems(db, merchantId, src.items);
+      const quoted = foodDeliveryFee(shopPoint, dest);
+      fare = quoted.fee;
+      distanceKm = quoted.distanceKm || 0;
+      cashTip = mode === 'cash' ? 5 : 0;
+    } else {
+      const quoted = foodDeliveryFee(shopPoint, dest);
+      fare = quoted.fee;
+      distanceKm = quoted.distanceKm || 0;
+      cashTip = mode === 'cash' ? 5 : 0;
+      food = { items: [], subtotal: 0, discountTotal: 0, netTotal: 0, itemsText: clip(src.itemsText, 2000) };
+    }
   } else if (type === 'ride') {
     const quoted = rideFare(clip(src.vehicle, 20), from, dest);
     fare = quoted.fare;
@@ -281,6 +298,11 @@ async function createOrder(db, uid, data) {
   }
   if (type === 'food') {
     body.merchantId = merchantId;
+    body.partnerShop = partnerShop;
+    if (!partnerShop) {
+      body.shopDisclaimerAccepted = true;
+      body.shopDisclaimerAcceptedAt = FieldValue.serverTimestamp();
+    }
     body.merchantName = merchantName;
     body.shopPlaceName = clip(src.shopPlaceName, 120) || merchantName;
     if (shopPoint) {
@@ -404,6 +426,194 @@ async function completeOrder(db, uid, orderId) {
   return result;
 }
 
+function shopClosedText(order) {
+  const fare = round2(order && order.fare);
+  const isCash = order && order.paymentMode === 'cash';
+  const tip = order && order.cashTip != null ? round2(order.cashTip) : (isCash ? 5 : 0);
+  const due = round2(fare + tip);
+  const amounts = tip > 0
+    ? ('ค่าส่ง ฿' + fare + ' + ค่าบริการเงินสด ฿' + tip + ' = รวม ฿' + due)
+    : ('ค่าส่ง ฿' + fare);
+  const pay = isCash
+    ? 'กรุณาชำระเงินสดค่าบริการนี้ให้ไรเดอร์ครับ/ค่ะ'
+    : 'กรุณาโอนค่าบริการนี้ให้ไรเดอร์ครับ/ค่ะ';
+  return 'ร้านปิดให้บริการครับ/ค่ะ\n'
+    + 'ChauatGo ไม่มีส่วนเกี่ยวข้องกับร้านนี้\n'
+    + 'หากร้านปิด ลูกค้าต้องชำระค่าบริการ\n'
+    + amounts + '\n'
+    + pay;
+}
+
+function paymentReceivedText(order, beforePickup) {
+  const total = round2(order && (order.total != null ? order.total : order.fare));
+  const line = '✅ ไรเดอร์ยืนยันว่าได้รับเงินโอน ฿' + total + ' แล้วครับ/ค่ะ';
+  if (beforePickup) return line + '\nจะรับของแล้วออกส่งครับ/ค่ะ';
+  return line + '\nกำลังออกไปส่งครับ/ค่ะ';
+}
+
+function precondition(message) {
+  const err = new Error(message);
+  err.code = 'failed-precondition';
+  throw err;
+}
+
+async function reportShopClosed(db, uid, orderId) {
+  const id = clip(orderId, 128);
+  if (!id) reject('ข้อมูลไม่ครบ');
+  const orderRef = db.collection('orders').doc(id);
+  const riderRef = db.collection('riders').doc(uid);
+  const chatRef = db.collection('chats').doc(id);
+  const messageRef = chatRef.collection('messages').doc('auto_shop_closed');
+  let result = null;
+  await db.runTransaction(async (tx) => {
+    const orderSnap = await tx.get(orderRef);
+    const riderSnap = await tx.get(riderRef);
+    if (!orderSnap.exists) {
+      const err = new Error('missing-order');
+      throw err;
+    }
+    if (!riderSnap.exists) {
+      const err = new Error('missing-rider');
+      throw err;
+    }
+    const order = orderSnap.data() || {};
+    const rider = riderSnap.data() || {};
+    if (order.riderId !== uid) {
+      const err = new Error('not-yours');
+      throw err;
+    }
+    if (order.type !== 'food' || order.partnerShop === true) {
+      precondition('ร้าน Partner ใช้การรับออเดอร์ของร้าน ไม่ใช่ปุ่มร้านปิด');
+    }
+    if (order.customerPaidAt || ['customer_paid', 'on_the_way', 'done', 'delivered', 'cancelled', 'shop_closed'].indexOf(order.status) !== -1) {
+      precondition('ปิดงานแบบร้านปิดได้ก่อนลูกค้าชำระและก่อนออกส่งเท่านั้น');
+    }
+    if (order.status !== 'accepted' && order.status !== 'picked_up') {
+      precondition('ปิดงานแบบร้านปิดได้ก่อนลูกค้าชำระและก่อนออกส่งเท่านั้น');
+    }
+    const fare = round2(order.fare);
+    const isCash = order.paymentMode === 'cash';
+    const tip = order.cashTip != null ? round2(order.cashTip) : (isCash ? 5 : 0);
+    const riderShare = round2(fare * 0.8);
+    const platformShare = round2(fare * 0.2);
+    const riderIncome = round2(riderShare + tip);
+    const due = round2(fare + tip);
+    const text = shopClosedText(order);
+    tx.update(orderRef, {
+      status: 'shop_closed',
+      shopClosedAt: FieldValue.serverTimestamp(),
+      shopClosedBy: 'rider',
+      riderIncome: riderIncome,
+      riderOwe: platformShare,
+      riderPaid: false,
+      gpTotal: 0,
+      gpRider: 0,
+      gpPlatform: 0,
+      gpPromo: true,
+      chargedTotal: due,
+      customerNotice: text
+    });
+    tx.set(messageRef, {
+      text: text,
+      senderId: uid,
+      senderRole: 'rider',
+      senderName: rider.name || 'ไรเดอร์',
+      systemMessage: true,
+      automated: true,
+      automationKey: 'shop_closed',
+      createdAt: FieldValue.serverTimestamp()
+    });
+    tx.set(chatRef, {
+      orderId: id,
+      userId: order.userId || '',
+      riderId: uid,
+      merchantId: order.merchantId || '',
+      userName: order.userName || '',
+      riderName: rider.name || '',
+      lastMessage: text.split('\n')[0].slice(0, 80),
+      lastSenderId: uid,
+      lastMessageAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    tx.update(riderRef, {
+      totalJobs: FieldValue.increment(1),
+      totalIncome: FieldValue.increment(riderIncome)
+    });
+    result = {
+      ok: true,
+      riderIncome: riderIncome,
+      riderOwe: platformShare,
+      chargedTotal: due,
+      gpTotal: 0
+    };
+  });
+  return result;
+}
+
+async function confirmPaymentReceived(db, uid, orderId) {
+  const id = clip(orderId, 128);
+  if (!id) reject('ข้อมูลไม่ครบ');
+  const orderRef = db.collection('orders').doc(id);
+  const chatRef = db.collection('chats').doc(id);
+  const messageRef = chatRef.collection('messages').doc('auto_payment_received');
+  let result = null;
+  await db.runTransaction(async (tx) => {
+    const orderSnap = await tx.get(orderRef);
+    const messageSnap = await tx.get(messageRef);
+    if (!orderSnap.exists) {
+      const err = new Error('missing-order');
+      throw err;
+    }
+    const order = orderSnap.data() || {};
+    if (order.riderId !== uid) {
+      const err = new Error('not-yours');
+      throw err;
+    }
+    if (order.paymentMode === 'cash') {
+      precondition('ออเดอร์เงินสดเก็บเงินตอนส่ง ไม่ต้องกดรับโอน');
+    }
+    const beforePickup = order.status === 'accepted' || order.status === 'ready';
+    const waiting = order.status === 'picked_up';
+    if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup)) {
+      result = { ok: true, already: true, status: order.status };
+      return;
+    }
+    if (!beforePickup && !waiting) {
+      precondition('ยืนยันรับเงินได้ตอนรอโอน หรือก่อนรับของเท่านั้น');
+    }
+    const text = paymentReceivedText(order, beforePickup);
+    const patch = {
+      customerPaid: true,
+      customerPaidAt: FieldValue.serverTimestamp(),
+      paidConfirmedBy: 'rider'
+    };
+    if (waiting) patch.status = 'customer_paid';
+    tx.update(orderRef, patch);
+    if (!messageSnap.exists) {
+      tx.set(messageRef, {
+        text: text,
+        senderId: uid,
+        senderRole: 'rider',
+        senderName: order.riderName || 'ไรเดอร์',
+        systemMessage: true,
+        automated: true,
+        automationKey: 'payment_received',
+        createdAt: FieldValue.serverTimestamp()
+      });
+      tx.set(chatRef, {
+        orderId: id,
+        userId: order.userId || '',
+        riderId: uid,
+        merchantId: order.merchantId || '',
+        lastMessage: text.split('\n')[0].slice(0, 80),
+        lastSenderId: uid,
+        lastMessageAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    result = { ok: true, already: false, status: waiting ? 'customer_paid' : order.status };
+  });
+  return result;
+}
+
 module.exports = {
   FOOD_BASE,
   FOOD_CAP,
@@ -413,6 +623,10 @@ module.exports = {
   shoppingFare,
   calcGp,
   promoActive,
+  shopClosedText,
+  paymentReceivedText,
   createOrder,
-  completeOrder
+  completeOrder,
+  reportShopClosed,
+  confirmPaymentReceived
 };

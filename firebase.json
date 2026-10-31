@@ -4,6 +4,7 @@
     "indexes": "firestore.indexes.json"
   },
   "storage": {
+    "target": "client",
     "rules": "storage.rules"
   },
   "functions": {

@@ -92,14 +92,16 @@ test('ride auto-chat is a pickup, and an unknown type falls back to food', () =>
 });
 
 test('a food rider cannot leave before the shop slip', () => {
-  const food = { type: 'food', paymentMode: 'transfer', foodTotal: 210, fare: 20 };
+  const food = { type: 'food', partnerShop: true, paymentMode: 'transfer', foodTotal: 210, fare: 20 };
   assert.equal(gate.canLeaveShop(null), false);
   assert.equal(gate.canLeaveShop(food), false);
   assert.equal(gate.canLeaveShop(Object.assign({ customerPaidAt: {} }, food)), false);
   assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip' }, food)), false);
   assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip', customerPaidAt: {} }, food)), true);
   assert.equal(gate.canLeaveShop(Object.assign({ riderSlipUrl: 'https://slip', status: 'customer_paid' }, food)), true);
-  const cash = { type: 'food', paymentMode: 'cash', foodTotal: 210, fare: 20 };
+  const cash = { type: 'food', partnerShop: true, paymentMode: 'cash', foodTotal: 210, fare: 20 };
+  const directory = { type: 'food', partnerShop: false, paymentMode: 'transfer', fare: 20, customerPaidAt: {} };
+  assert.equal(gate.canLeaveShop(directory), true);
   assert.equal(gate.canLeaveShop(cash), false);
   assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip' }, cash)), true);
   assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'cash' }), true);

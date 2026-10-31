@@ -54,6 +54,7 @@ let riderProfile = null;
 var allJobs = [];
 let allHistory = [];
 let riderJobMap = null;
+const riderCardMaps = {};
 let myProfileUnsub = null;
 let myJobsUnsub = null;
 let myHistoryUnsub = null;
@@ -109,10 +110,7 @@ const RIDER_OPEN_STATUSES = ['searching', 'pending', 'cooking', 'ready'];
 const RIDER_ACTIVE_STATUSES = ['accepted', 'picked_up', 'customer_paid', 'on_the_way'];
 
 function orderNeedsKitchen(j) {
-  if (!j) return false;
-  if (j.type === 'ride' || j.type === 'express' || j.type === 'shopping') return false;
-  if (j.type === 'food') return true;
-  return !!j.merchantId;
+  return !!(j && j.type === 'food' && j.partnerShop === true);
 }
 
 function orderFoodReady(j) {
@@ -130,6 +128,18 @@ function canLeaveShop(order) {
   if (orderNeedsKitchen(order) && !orderHasShopSlip(order)) return false;
   if (order.paymentMode === 'cash') return true;
   return !!(order.customerPaidAt || order.status === 'customer_paid');
+}
+
+/* Transfer can be confirmed by the assigned rider before pickup or while
+   the card is waiting. Cash is collected on delivery, so it has no button. */
+function riderMayConfirmPay(j) {
+  if (!j || orderIsCash(j) || !j.riderId) return false;
+  if (j.customerPaidAt || j.status === 'customer_paid') return false;
+  return j.status === 'accepted' || j.status === 'ready' || j.status === 'picked_up';
+}
+
+function payReceivedButton(id) {
+  return `<button type="button" class="jc-primary-btn jc-green" data-paid="${esc(id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`;
 }
 
 function dispatchMode() {
@@ -1156,6 +1166,14 @@ function subscribeJobs() {
         i + 1
       );
     });
+    watch(
+      db.collection('orders')
+        .where('riderId', '==', null)
+        .where('type', '==', 'food')
+        .where('partnerShop', '==', false)
+        .where('status', 'in', ['searching', 'pending']),
+      4
+    );
   }
   if (!currentUser) return;
   myActiveUnsub = db.collection('orders')
@@ -1172,7 +1190,7 @@ function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
   myHistoryUnsub = db.collection('orders')
     .where('riderId', '==', currentUser.uid)
-    .where('status', 'in', ['done', 'cancelled'])
+    .where('status', 'in', ['done', 'cancelled', 'shop_closed'])
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
@@ -1335,6 +1353,122 @@ function setJobFilter(filter) {
    15. RENDER JOBS
    ⭐ v3.9.1: เห็นทั้ง searching + ready
    ═══════════════════════════════════════════════════════════════════ */
+function riderCoord(lat, lng) {
+  const la = Number(lat);
+  const ln = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
+  if (Math.abs(la) > 90 || Math.abs(ln) > 180) return null;
+  if (la === 0 && ln === 0) return null;
+  return { lat: la, lng: ln };
+}
+
+function riderMapsDirUrl(lat, lng) {
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=driving';
+}
+
+function riderGeoUrl(lat, lng) {
+  return 'geo:' + lat + ',' + lng + '?q=' + lat + ',' + lng;
+}
+
+function riderMapsSearchUrl(name) {
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name);
+}
+
+const RIDER_BEFORE_PICKUP = ['searching', 'pending', 'cooking', 'accepted', 'ready'];
+
+function riderStop(job, role) {
+  const order = job || {};
+  const shop = order.type === 'food' || order.type === 'shopping';
+  if (role === 'pickup') {
+    const point = shop ? riderCoord(order.shopPlaceLat, order.shopPlaceLng) : riderCoord(order.fromLat, order.fromLng);
+    const label = shop
+      ? (order.shopPlaceName || order.merchantName || order.from || '')
+      : (order.from || '');
+    return { role: 'pickup', point: point, label: label, kind: shop ? 'shop' : 'pickup' };
+  }
+  const point = riderCoord(order.lat, order.lng);
+  const label = order.to || order.address || order.destination || '';
+  return { role: 'dropoff', point: point, label: label, kind: 'dropoff' };
+}
+
+function riderNavStage(status) {
+  return RIDER_BEFORE_PICKUP.indexOf(status) === -1 ? 'dropoff' : 'pickup';
+}
+
+function riderNavLink(stop) {
+  const point = stop && stop.point;
+  if (point) {
+    return {
+      href: riderMapsDirUrl(point.lat, point.lng),
+      geo: riderGeoUrl(point.lat, point.lng),
+      missing: false
+    };
+  }
+  const name = String((stop && stop.label) || '').trim();
+  if (!name) return { href: '', geo: '', missing: true };
+  return { href: riderMapsSearchUrl(name), geo: '', missing: true };
+}
+
+function riderNavModel(job) {
+  const pickup = riderStop(job, 'pickup');
+  const dropoff = riderStop(job, 'dropoff');
+  const stage = riderNavStage(job && job.status);
+  return {
+    pickup: pickup,
+    dropoff: dropoff,
+    stage: stage,
+    primary: stage === 'dropoff' ? dropoff : pickup,
+    pickupUrl: riderNavLink(pickup),
+    dropoffUrl: riderNavLink(dropoff)
+  };
+}
+
+function riderMapDomId(type, jobId) {
+  return 'rider-card-map-' + type + '-' + String(jobId || '').replace(/[^A-Za-z0-9_-]/g, '');
+}
+
+function riderNavAnchor(stop, stage) {
+  const primary = stop.role === stage;
+  const cls = 'jc-nav-btn ' + (primary ? 'primary' : 'secondary');
+  const text = stop.role === 'pickup' ? '🧭 นำทางไปจุดรับ' : '🧭 นำทางไปจุดส่ง';
+  const link = riderNavLink(stop);
+  if (!link.href) {
+    return '<button type="button" class="' + cls + '" disabled>' + text + '</button>';
+  }
+  const geo = link.geo ? ' data-geo="' + esc(link.geo) + '"' : '';
+  return '<a class="' + cls + '" href="' + esc(link.href) + '"' + geo + ' target="_blank" rel="noopener">' + text + '</a>';
+}
+
+function riderNavBlock(job, opts) {
+  const options = opts || {};
+  const model = riderNavModel(job);
+  const stage = model.stage;
+  const stops = stage === 'dropoff' ? [model.dropoff, model.pickup] : [model.pickup, model.dropoff];
+  const lines = [model.pickup, model.dropoff].map((stop) => {
+    const title = stop.role === 'pickup' ? 'จุดรับ' : 'จุดส่ง';
+    const name = stop.label || 'ยังไม่ได้ระบุ';
+    const pin = stop.point
+      ? '<small>' + stop.point.lat.toFixed(5) + ', ' + stop.point.lng.toFixed(5) + '</small>'
+      : '';
+    return '<div class="jc-nav-line"><b>' + title + '</b> ' + esc(name) + pin + '</div>';
+  }).join('');
+  const missing = (model.pickupUrl.missing || model.dropoffUrl.missing);
+  const warn = missing
+    ? '<div class="jc-nav-warn">⚠️ ไม่มีพิกัดที่ลูกค้าปักไว้ — นำทางจากชื่อสถานที่</div>'
+    : '';
+  const noteBits = [];
+  if (job && job.note) noteBits.push(String(job.note));
+  if (job && job.itemDescription && String(job.itemDescription) !== String(job.note || '')) noteBits.push(String(job.itemDescription));
+  const note = noteBits.length
+    ? '<div class="jc-note">📝 ' + esc(noteBits.join(' • ')) + '</div>'
+    : '';
+  const map = options.preview
+    ? '<div class="jc-nav-map" id="' + riderMapDomId(options.preview, job.id) + '" data-card-map="' + esc(job.id) + '"></div>'
+    : '';
+  return '<div class="jc-nav">' + lines + note + warn + map +
+    '<div class="jc-nav-actions">' + stops.map((stop) => riderNavAnchor(stop, stage)).join('') + '</div></div>';
+}
+
 function renderJobs() {
   const myId = currentUser?.uid;
 
@@ -1372,6 +1506,7 @@ function renderJobs() {
   if (ajl) ajl.innerHTML = activeJobs.map(j => renderJobCard(j, 'active')).join('');
   const djl = $('done-jobs-list');
   if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
+  mountRiderCardMaps();
 }
 
 function renderJobCard(j, type) {
@@ -1448,6 +1583,9 @@ function renderJobCard(j, type) {
   } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
+  if (!orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderNeedsKitchen(j) && !shopSlip)) {
+    statusInfo = { label: '💳 ได้รับเงินแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' };
+  }
   const prepHtml = (!foodIsReady && j.prepMinutes)
     ? `<div class="jc-row"><span class="jc-row-icon">⏱️</span><span class="jc-row-text">ร้านใช้เวลาทำประมาณ ${Number(j.prepMinutes)} นาที</span></div>`
     : '';
@@ -1462,20 +1600,26 @@ function renderJobCard(j, type) {
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ถึงร้าน</button>
-      <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+      ${(j.type === 'food' && !orderNeedsKitchen(j)) ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>` : `<button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`}`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
     if (orderNeedsKitchen(j) && !j.foodImage) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">📸 ส่งรูปอาหารให้ลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (orderNeedsKitchen(j) && !shopSlip && !customerPaid) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>🧾 รอลูกค้าโอนก่อนแนบสลิปร้าน</button>
+      primaryAction = `${payReceivedButton(j.id)}
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
     } else if (orderNeedsKitchen(j) && !shopSlip) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
     } else if (canLeaveShop(j)) {
+      const closedShop = (j.type === 'food' && !orderNeedsKitchen(j) && j.status === 'picked_up' && !j.customerPaidAt)
+        ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>`
+        : `<button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
       primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
+        ${closedShop}`;
+    } else if (riderMayConfirmPay(j)) {
+      primaryAction = `${payReceivedButton(j.id)}
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าโอนเงิน</button>
@@ -1484,11 +1628,14 @@ function renderJobCard(j, type) {
   } else if (j.status === 'on_the_way') {
     primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ส่งสำเร็จ</button>
       <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-  } else if (j.status === 'done' || j.status === 'cancelled') {
+  } else if (j.status === 'done' || j.status === 'cancelled' || j.status === 'shop_closed') {
     primaryAction = `<button class="jc-primary-btn jc-gray" data-detail="${esc(j.id)}">📄 ดูรายละเอียด</button>`;
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
   }
+  const payExtra = (riderMayConfirmPay(j) && primaryAction.indexOf('data-paid=') === -1)
+    ? `<div class="jc-actions" style="margin-bottom:8px">${payReceivedButton(j.id)}</div>`
+    : '';
 
   return `
     <div class="jc-card ${isNew ? 'jc-new' : ''}" data-card-id="${esc(j.id)}">
@@ -1505,10 +1652,7 @@ function renderJobCard(j, type) {
       </div>
 
       <div class="jc-body">
-        <div class="jc-row">
-          <span class="jc-row-icon">📍</span>
-          <span class="jc-row-text">${esc((j.address || j.destination || '—').slice(0, 80))}</span>
-        </div>
+        ${riderNavBlock(j, { preview: type === 'done' ? '' : type })}
         <div class="jc-row">
           <span class="jc-row-icon">🕐</span>
           <span class="jc-row-text">${timeAgo(j.createdAt)}</span>
@@ -1532,6 +1676,7 @@ function renderJobCard(j, type) {
       </div>
 
       ${callRow}
+      ${payExtra}
       <div class="jc-actions">
         ${primaryAction}
       </div>
@@ -1648,6 +1793,45 @@ function sendAutomatedChatLater(orderId, key) {
 
 /* อาหารรับได้หลังร้านรับ (cooking/ready) — เรียกรถ/ส่งด่วน/ฝากซื้อรับจาก searching ได้
    The server transaction assigns the rider. The phone cannot write riderId. */
+async function confirmPaymentReceived(jobId) {
+  if (!currentUser) return;
+  if (!confirm('ยืนยันว่าได้รับเงินโอนจากลูกค้าแล้ว?')) return;
+  try {
+    await callDispatch('confirmPaymentReceived', { orderId: jobId });
+    const job = allJobs.find(j => j.id === jobId);
+    if (job) {
+      job.customerPaid = true;
+      job.customerPaidAt = job.customerPaidAt || new Date();
+      job.paidConfirmedBy = 'rider';
+      if (job.status === 'picked_up') job.status = 'customer_paid';
+    }
+    window._paymentNotified = window._paymentNotified || {};
+    window._paymentNotified[jobId] = true;
+    clearPaymentTimers();
+    const overlay = $('modalOverlay');
+    if (overlay && overlay.classList.contains('show')) closeModal();
+    showToast('บันทึกว่ารับเงินแล้ว — เริ่มส่งได้');
+    renderJobs();
+  } catch (err) {
+    showToast((err && err.message) || 'ยืนยันรับเงินไม่สำเร็จ', 'error');
+  }
+}
+
+async function reportShopClosed(jobId) {
+  if (!currentUser) return;
+  const job = allJobs.find(j => j.id === jobId);
+  const fare = Number(job && job.fare) || 0;
+  const tip = job && job.paymentMode === 'cash' ? (job.cashTip != null ? Number(job.cashTip) : 5) : 0;
+  const due = fare + (Number.isFinite(tip) ? tip : 0);
+  if (!confirm('ร้านปิดหรือซื้ออาหารไม่ได้?\nงานจะจบ และลูกค้าต้องชำระค่าบริการ ฿' + due + ' ให้ไรเดอร์\nChauatGo ไม่มีส่วนเกี่ยวข้องกับร้าน')) return;
+  try {
+    await callDispatch('reportShopClosed', { orderId: jobId });
+    showToast('บันทึกร้านปิดแล้ว — ลูกค้าต้องชำระค่าบริการ');
+  } catch (err) {
+    showToast((err && err.message) || 'บันทึกร้านปิดไม่สำเร็จ', 'error');
+  }
+}
+
 async function acceptJob(jobId) {
   if (dispatchMode() === 'auto') {
     return showToast('โหมดอัตโนมัติ — รอกดรับจากใบเสนอ', 'warning');
@@ -1787,8 +1971,8 @@ function openPickupModal(jobId, job) {
       <div style="font-size:14px;font-weight:900">🏪 ${esc(job.merchantName || 'ร้านค้า')}</div>
       <div style="font-size:11px;color:var(--brand);font-weight:900;margin-top:4px">🧾 ${esc(orderLabel(job))}</div>
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:8px 0 0;margin-top:8px;border-top:1px dashed var(--border)">
-        <span>💰 ยอดที่ต้องโอนร้าน</span>
-        <span style="font-weight:900;color:var(--green)">฿${fmt(fin.foodAmount)}</span>
+        <span>${fin.foodAmount > 0 ? '💰 ยอดที่ต้องโอนร้าน' : '💰 ค่าบริการที่ลูกค้าจ่าย (ไม่โอนร้าน)'}</span>
+        <span style="font-weight:900;color:var(--green)">฿${fmt(fin.foodAmount > 0 ? fin.foodAmount : fin.fare)}</span>
       </div>
     </div>
 
@@ -1876,7 +2060,11 @@ async function processPickupImage(file, type) {
   showToast('⏳ กำลังประมวลผล...', 'info');
 
   try {
-    const compressed = await compressImage(file, 1000, 0.8);
+    const compressed = await compressImage(file, 800, 0.75);
+    if (!compressed || compressed.size <= 0 || compressed.size > MAX_SLIP_SIZE) {
+      showToast('รูปใหญ่เกิน 5MB หลังย่อ', 'error');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       if (type === 'food') {
@@ -1958,7 +2146,7 @@ function updatePickupConfirmBtn() {
 
 async function postRiderOrderImage(orderId, blob) {
   const body = await ensureRiderChat(orderId);
-  const path = `chats/${orderId}/images/${Date.now()}_${currentUser.uid}.jpg`;
+  const path = `chats/${orderId}/riders/${currentUser.uid}/${Date.now()}.jpg`;
   const ref = storage.ref(path);
   await ref.put(blob, { contentType: 'image/jpeg' });
   const url = await ref.getDownloadURL();
@@ -2024,7 +2212,7 @@ async function submitFoodPhoto(pickupJob) {
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
-    const foodPath = `orders/${jobId}/food_${ts}.jpg`;
+    const foodPath = `chats/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
     uploadStep = 'อัปโหลดไฟล์รูป';
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
@@ -2058,7 +2246,7 @@ async function submitFoodPhoto(pickupJob) {
       showToast('⚠️ ส่งยอดโอนพร้อม QR ไม่สำเร็จ แต่ส่งรูปอาหารแล้ว กรุณาตรวจสอบแชท', 'warning', 7000);
     }
     arrivedShopNotifiedOrderIds.add(jobId);
-    if (pickedJob && !orderIsCash(pickedJob)) startPaymentTimers(jobId);
+    if (pickedJob && !orderIsCash(pickedJob) && !pickedJob.customerPaidAt) startPaymentTimers(jobId);
     showToast(orderIsCash(pickedJob)
       ? '✅ ส่งรูปแล้ว — แจ้งให้เตรียมเงินสดตอนส่ง แล้วแนบสลิปร้าน'
       : '✅ ส่งรูปแล้ว — แจ้งลูกค้าให้โอน แล้วแนบสลิปร้าน');
@@ -2115,20 +2303,24 @@ async function confirmCombinedPickup() {
   const btn = $('pickup-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
 
+  let uploadStep = 'รูปของ';
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
 
-    const foodPath = `orders/${jobId}/food_${ts}.jpg`;
+    const foodPath = `chats/${jobId}/riders/${currentUser.uid}/food_${ts}.jpg`;
     const foodRef = storage.ref(foodPath);
+    uploadStep = 'รูปของ ' + foodPath;
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     pickupFoodUrl = await foodRef.getDownloadURL();
 
     const slipPath = `slips/riders/${currentUser.uid}/${jobId}_${ts}.jpg`;
     const slipRef = storage.ref(slipPath);
+    uploadStep = 'สลิป ' + slipPath;
     await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
     pickupSlipUrl = await slipRef.getDownloadURL();
 
+    uploadStep = 'บันทึกออเดอร์';
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
       pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -2141,17 +2333,26 @@ async function confirmCombinedPickup() {
 
     const pickedJob = allJobs.find(j => j.id === jobId);
     const cashPickup = orderIsCash(pickedJob);
+    const alreadyPaid = !!(pickedJob && pickedJob.customerPaidAt);
+    if (pickedJob) {
+      pickedJob.status = 'picked_up';
+      pickedJob.foodImage = pickupFoodUrl;
+      pickedJob.foodImagePath = foodPath;
+      pickedJob.riderSlipToShop = pickupSlipUrl;
+      pickedJob.riderSlipToShopPath = slipPath;
+    }
     showToast(cashPickup
       ? '✅ รับของแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง'
-      : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน');
+      : (alreadyPaid ? '✅ ส่งให้ลูกค้าแล้ว — ได้รับเงินแล้ว เริ่มส่งได้' : '✅ ส่งให้ลูกค้าแล้ว — รอโอนเงิน'));
     sendAutomatedChatLater(jobId, 'picked_up');
     closeModal();
     arrivedShopNotifiedOrderIds.add(jobId);
+    renderJobs();
 
-    if (!cashPickup) startPaymentTimers(jobId);
+    if (!cashPickup && !alreadyPaid) startPaymentTimers(jobId);
   } catch (err) {
     console.error('confirmCombinedPickup error:', err);
-    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast('อัปโหลดไม่สำเร็จ (' + uploadStep + '): ' + (err.code || err.message), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งให้ลูกค้า'; }
   }
 }
@@ -2394,9 +2595,8 @@ function showJobDetail(jobId) {
   const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
   if (!job) return;
   const fin = calcOrderFinance(job);
-  const mapUrl = job.lat && job.lng
-    ? `https://www.google.com/maps/dir/?api=1&destination=${job.lat},${job.lng}`
-    : (job.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}` : null);
+  const nav = riderNavModel(job);
+  const hasMapPoint = !!(nav.pickup.point || nav.dropoff.point);
   const mc = $('modalContent');
   if (!mc) return;
 
@@ -2426,12 +2626,10 @@ function showJobDetail(jobId) {
       : (job.status === 'picked_up'
         ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
         : ''));
+  const payActionHtml = riderMayConfirmPay(job)
+    ? `<button type="button" class="action-btn-big btn-green-big ripple" style="width:100%;margin-bottom:8px" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`
+    : '';
 
-  const hasMapPoint = !!(
-    (job.shopPlaceLat && job.shopPlaceLng) ||
-    (job.lat && job.lng) ||
-    (job.fromLat && job.fromLng)
-  );
   destroyRiderJobMap();
 
   mc.innerHTML = `
@@ -2443,14 +2641,15 @@ function showJobDetail(jobId) {
       <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(job.title || 'งาน')}</div>
       <div style="font-size:13px;font-weight:700;color:var(--text-muted);line-height:1.9">
         <div>👤 ลูกค้า: <b>${esc(job.userName || '—')}</b></div>
-        <div>📍 ${esc(job.address || job.destination || '—')}</div>
-        <div>🏪 ${esc(job.merchantName || '—')}</div>
+        <div>📍 จุดรับ: <b>${esc(nav.pickup.label || '—')}</b></div>
+        <div>🏁 จุดส่ง: <b>${esc(nav.dropoff.label || '—')}</b></div>
+        <div>🏪 ${esc(job.merchantName || job.shopPlaceName || '—')}</div>
         <div>🕐 ${fmtDateTime(job.createdAt)}</div>
         ${job.prepMinutes ? `<div>⏱️ เวลาทำประมาณ ${Number(job.prepMinutes)} นาที</div>` : ''}
         ${(job.foodReady || job.readyAt) ? `<div style="color:var(--green);font-weight:900">✅ อาหารพร้อมแล้ว</div>` : ''}
       </div>
     </div>
-    ${job.note ? `<div style="background:var(--orange-light);border-left:4px solid var(--orange);padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:700">📌 ${esc(job.note)}</div>` : ''}
+    ${riderNavBlock(job)}
     ${foodImgHtml}
     ${slipImgHtml}
     <div style="background:var(--green-light);border-radius:12px;padding:14px;margin-bottom:14px">
@@ -2462,9 +2661,7 @@ function showJobDetail(jobId) {
       </div>
     </div>
     ${job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      ${mapUrl ? `<a href="${mapUrl}" target="_blank" class="action-btn-big btn-orange-big ripple" style="text-decoration:none;color:#fff;justify-content:center">📍 นำทาง</a>` : ''}
-    </div>
+    ${payActionHtml}
     ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
@@ -2478,48 +2675,70 @@ function destroyRiderJobMap() {
   riderJobMap = null;
 }
 
+function riderMapLine(job) {
+  const model = riderNavModel(job);
+  const line = [];
+  if (model.pickup.point) line.push(model.pickup.point);
+  if (model.dropoff.point && !(line.length && window.ChauatMap && ChauatMap.same(line[0], model.dropoff.point))) {
+    line.push(model.dropoff.point);
+  }
+  return { model: model, line: line };
+}
+
+function mountRiderMap(el, job, interactive) {
+  if (!el || typeof L === 'undefined' || !window.ChauatMap) return null;
+  const drawn = riderMapLine(job);
+  if (!drawn.line.length) {
+    el.style.display = 'none';
+    return null;
+  }
+  const map = L.map(el, { zoomControl: !!interactive, attributionControl: !!interactive, dragging: true });
+  ChauatMap.addBaseTiles(map);
+  if (drawn.model.pickup.point) {
+    const pickup = drawn.model.pickup;
+    const icon = pickup.kind === 'shop' ? '🏪' : '📍';
+    L.marker([pickup.point.lat, pickup.point.lng], { icon: ChauatMap.pin(icon, ChauatMap.COLORS.shop), zIndexOffset: 900 })
+      .addTo(map)
+      .bindPopup('<b>' + icon + ' จุดรับ ' + esc(pickup.label || '') + '</b>');
+  }
+  if (drawn.model.dropoff.point) {
+    const drop = drawn.model.dropoff;
+    L.marker([drop.point.lat, drop.point.lng], { icon: ChauatMap.pin('🏠', ChauatMap.COLORS.customer), zIndexOffset: 1000 })
+      .addTo(map)
+      .bindPopup('<b>🏠 จุดส่ง ' + esc(drop.label || '') + '</b>');
+  }
+  if (drawn.line.length >= 2) ChauatMap.route(map, null, drawn.line);
+  ChauatMap.fit(map, drawn.line, interactive ? 17 : 15);
+  setTimeout(() => {
+    try {
+      map.invalidateSize();
+      ChauatMap.fit(map, drawn.line, interactive ? 17 : 15);
+    } catch (e) {}
+  }, 220);
+  return map;
+}
+
+function destroyRiderCardMaps() {
+  Object.keys(riderCardMaps).forEach((id) => {
+    try { riderCardMaps[id].remove(); } catch (e) {}
+    delete riderCardMaps[id];
+  });
+}
+
+function mountRiderCardMaps() {
+  destroyRiderCardMaps();
+  document.querySelectorAll('[data-card-map]').forEach((el) => {
+    const job = findKnownOrder(el.getAttribute('data-card-map'));
+    if (!job) return;
+    const map = mountRiderMap(el, job, false);
+    if (map) riderCardMaps[el.id || job.id] = map;
+  });
+}
+
 function mountRiderJobMap(job) {
   destroyRiderJobMap();
   const el = document.getElementById('rider-job-map');
-  if (!el || typeof L === 'undefined' || !window.ChauatMap) return;
-  const shop = ChauatMap.point(job.shopPlaceLat, job.shopPlaceLng);
-  const drop = ChauatMap.point(job.lat, job.lng);
-  const from = ChauatMap.point(job.fromLat, job.fromLng);
-  const customer = drop || (shop ? from : null);
-  const showFrom = from && !ChauatMap.same(from, shop) && !ChauatMap.same(from, customer);
-  const line = [];
-  if (shop) line.push(shop);
-  if (showFrom) line.push(from);
-  if (customer && !ChauatMap.same(customer, line[line.length - 1])) line.push(customer);
-  if (!line.length && from) line.push(from);
-  if (!line.length) {
-    el.style.display = 'none';
-    return;
-  }
-  riderJobMap = L.map(el, { zoomControl: true });
-  ChauatMap.addBaseTiles(riderJobMap);
-  if (shop) {
-    L.marker([shop.lat, shop.lng], { icon: ChauatMap.pin('🏪', ChauatMap.COLORS.shop), zIndexOffset: 900 })
-      .addTo(riderJobMap)
-      .bindPopup('<b>🏪 ' + esc(job.shopPlaceName || job.merchantName || 'ร้าน') + '</b>');
-  }
-  if (showFrom) {
-    L.marker([from.lat, from.lng], { icon: ChauatMap.pin('📍', ChauatMap.COLORS.user), zIndexOffset: 950 })
-      .addTo(riderJobMap)
-      .bindPopup('<b>📍 จุดรับ</b>');
-  }
-  if (customer) {
-    L.marker([customer.lat, customer.lng], { icon: ChauatMap.pin('🏠', ChauatMap.COLORS.customer), zIndexOffset: 1000 })
-      .addTo(riderJobMap)
-      .bindPopup('<b>🏠 จุดส่ง</b>');
-  }
-  if (line.length >= 2) ChauatMap.route(riderJobMap, null, line);
-  ChauatMap.fit(riderJobMap, line, 17);
-  setTimeout(() => {
-    if (!riderJobMap) return;
-    riderJobMap.invalidateSize();
-    ChauatMap.fit(riderJobMap, line, 17);
-  }, 220);
+  riderJobMap = mountRiderMap(el, job, true);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3242,7 +3461,7 @@ async function sendChatImage(file) {
   showToast('⏳ กำลังอัปโหลด...', 'info');
   try {
     const compressed = await compressImage(file, 800, 0.75);
-    const path = `chats/${activeChatId}/images/${Date.now()}_${currentUser.uid}.jpg`;
+    const path = `chats/${activeChatId}/riders/${currentUser.uid}/${Date.now()}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed, { contentType: 'image/jpeg' });
     const url = await ref.getDownloadURL();
@@ -3614,8 +3833,28 @@ function maybeRefreshPush() {
 /* ═══════════════════════════════════════════════════════════════════
    25. EVENT DELEGATION
    ═══════════════════════════════════════════════════════════════════ */
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[data-geo]');
+  if (!link) return;
+  if (!/Android/i.test(navigator.userAgent || '')) return;
+  const geo = link.getAttribute('data-geo');
+  if (!geo) return;
+  e.preventDefault();
+  const google = link.href;
+  let left = false;
+  const mark = () => { left = true; };
+  window.addEventListener('pagehide', mark, { once: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) left = true;
+  }, { once: true });
+  window.location.href = google;
+  setTimeout(() => {
+    if (!left) window.location.href = geo;
+  }, 900);
+});
+
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-shop-closed],[data-paid],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
@@ -3624,6 +3863,8 @@ document.addEventListener('click', async (e) => {
     else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
     else if (t.dataset.foodPhoto) openFoodPhoto(t.dataset.foodPhoto);
     else if (t.dataset.slip) openShopSlip(t.dataset.slip);
+    else if (t.dataset.shopClosed) await reportShopClosed(t.dataset.shopClosed);
+    else if (t.dataset.paid) await confirmPaymentReceived(t.dataset.paid);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);
