@@ -5,9 +5,10 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp, getApps } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const D = require('./dispatch');
 const Orders = require('./orders');
+const { customerSlipNotification } = require('./notifications');
 const { recordConsentEvent } = require('./consent');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
@@ -62,6 +63,57 @@ exports.onOrderDispatch = onDocumentWritten('orders/{orderId}', async (event) =>
   await D.onOrderWritten(db, before, after, event.params.orderId);
 });
 
+// Notify the assigned rider exactly once when the customer payment proof is
+// first written. Subsequent order updates must not send duplicate pushes.
+exports.onCustomerSlipUploaded = onDocumentWritten('orders/{orderId}', async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  const message = customerSlipNotification(before, after, event.params.orderId);
+  if (!message) return;
+  await D.notifyRider(db, after.riderId, message);
+});
+
+// GP transfer requests are client-created, but the merchant financial
+// summary/history is server-owned and cannot be forged from the browser.
+exports.onGpTransferCreated = onDocumentCreated('gp_transfers/{transferId}', async (event) => {
+  const transfer = event.data && event.data.data();
+  if (!transfer || !transfer.merchantId) return;
+  const entry = {
+    amount: transfer.amount,
+    slipUrl: transfer.slipUrl || '',
+    slipPath: transfer.slipPath,
+    note: transfer.note || '',
+    roundLabel: transfer.roundLabel || '',
+    verified: false,
+    transferId: event.params.transferId,
+    createdAt: transfer.createdAt || new Date()
+  };
+  await db.collection('merchants').doc(transfer.merchantId).update({
+    gpPending: 0,
+    gpHistory: FieldValue.arrayUnion(entry),
+    lastGpTransferAt: FieldValue.serverTimestamp()
+  });
+});
+
+// Ratings are accepted only for the customer's own completed order by Rules.
+// Aggregates remain server-owned so clients cannot inflate shop scores.
+exports.onRatingCreated = onDocumentCreated('ratings/{ratingId}', async (event) => {
+  const rating = event.data && event.data.data();
+  if (!rating || !rating.merchantId) return;
+  const snap = await db.collection('ratings')
+    .where('merchantId', '==', rating.merchantId).get();
+  let total = 0;
+  let count = 0;
+  snap.forEach((doc) => {
+    const value = Number(doc.data().merchantRating || 0);
+    if (value > 0) { total += value; count += 1; }
+  });
+  await db.collection('merchants').doc(rating.merchantId).update({
+    ratingAvg: count ? Number((total / count).toFixed(2)) : 0,
+    ratingCount: count
+  });
+});
+
 exports.onDispatchOfferCreated = onDocumentCreated({
   document: 'orders/{orderId}/dispatchOffers/{offerId}',
   timeoutSeconds: 120
@@ -87,6 +139,22 @@ exports.onGpsOnline = onDocumentWritten('gps_riders/{riderId}', async (event) =>
   const before = event.data.before.exists ? event.data.before.data() : null;
   const after = event.data.after.exists ? event.data.after.data() : null;
   await D.onGpsWritten(db, before, after, event.params.riderId);
+  if (!after || typeof after.lat !== 'number' || typeof after.lng !== 'number') return;
+  const orders = await db.collection('orders')
+    .where('riderId', '==', event.params.riderId)
+    .where('status', 'in', ['accepted', 'picked_up', 'customer_paid', 'on_the_way'])
+    .limit(10).get();
+  const batch = db.batch();
+  orders.forEach((order) => {
+    batch.set(order.ref.collection('tracking').doc('current'), {
+      riderId: event.params.riderId,
+      lat: after.lat,
+      lng: after.lng,
+      accuracy: after.accuracy == null ? null : after.accuracy,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+  });
+  if (!orders.empty) await batch.commit();
 });
 
 function orderFail(err) {

@@ -88,7 +88,8 @@ try {
 function notificationPath(data) {
   const type = String((data && data.type) || '');
   if (type === 'near_customer' || type === 'customer_order' || type === 'order_update') return '/';
-  if (type === 'food_ready' || type === 'manual_assign' || type === 'dispatch_notice') return '/rider.html';
+  if (type === 'food_ready' || type === 'manual_assign' || type === 'dispatch_notice'
+    || type === 'customer_slip_uploaded') return '/rider.html';
   return '/rider.html';
 }
 

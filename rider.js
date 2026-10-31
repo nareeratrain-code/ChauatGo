@@ -1408,6 +1408,19 @@ function renderJobCard(j, type) {
   const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
   const shopSlip = orderHasShopSlip(j);
   const customerPaid = orderIsCash(j) || !!j.customerPaidAt || j.status === 'customer_paid';
+  const customerConfirmed = j.customerOrderConfirmed === true;
+  const customerSlip = typeof j.customerSlipUrl === 'string' && j.customerSlipUrl.length > 0;
+  const customerConfirmationHtml = (!isNew && j.status === 'accepted')
+    ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid ${customerConfirmed ? '#B9DFA6' : '#F4D58A'};border-radius:13px;background:${customerConfirmed ? '#F4FBF0' : '#FFF8E7'}">
+        <div style="font-size:12px;font-weight:900;color:${customerConfirmed ? '#237A3B' : '#8A5A00'}">${customerConfirmed ? '✅ ลูกค้ายืนยันรายการและยอดแล้ว' : '⏳ รอลูกค้ายืนยันรายการและยอด'}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-top:4px">${customerConfirmed ? 'เมื่อถ่ายรูปอาหาร/สินค้าแล้ว ระบบจะแจ้งยอดและ QR ให้ลูกค้า' : 'ลูกค้าจะต้องยืนยันก่อนเข้าสู่ขั้นตอนชำระเงิน'}</div>
+      </div>` : '';
+  const customerSlipHtml = (!isNew && customerSlip && !customerPaid)
+    ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid #B9DFA6;border-radius:13px;background:#F4FBF0">
+        <div style="font-size:12px;font-weight:900;color:#237A3B;margin-bottom:7px">📄 ลูกค้าแนบสลิปแล้ว</div>
+        <img src="${esc(j.customerSlipUrl)}" alt="สลิปจากลูกค้า" style="width:100%;max-height:170px;object-fit:contain;border-radius:10px;background:#fff;cursor:pointer" onclick="event.stopPropagation();openLightbox('${esc(j.customerSlipUrl)}')">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-top:6px">ตรวจสอบยอดในสลิป แล้วดำเนินการตามขั้นตอนต่อ</div>
+      </div>` : '';
   const foodWorkflowHtml = (!isNew && orderNeedsKitchen(j) && ['picked_up', 'customer_paid', 'on_the_way'].includes(j.status))
     ? `<div style="margin:12px 0;padding:12px;border:1px solid #B9DFA6;border-radius:14px;background:#F4FBF0">
         <div style="font-size:13px;font-weight:900;color:#237A3B;margin-bottom:8px">🍽️ ขั้นตอนงานอาหาร</div>
@@ -1416,6 +1429,9 @@ function renderJobCard(j, type) {
         </div>
         <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
           <span>💳 ลูกค้าโอนเงิน</span><span style="color:${customerPaid ? '#168A45' : '#E65100'}">${orderIsCash(j) ? '💵 เงินสดปลายทาง' : (customerPaid ? '✅ ตรวจพบแล้ว' : '⏳ รอลูกค้าโอน')}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
+          <span>📄 สลิปลูกค้า</span><span style="color:${customerSlip ? '#168A45' : '#E65100'}">${customerSlip ? '✅ แนบแล้ว' : '⏳ ยังไม่แนบ'}</span>
         </div>
         <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
           <span>🧾 สลิปที่จ่ายร้าน</span><span style="color:${shopSlip ? '#168A45' : '#E65100'}">${shopSlip ? '✅ แนบแล้ว' : '⏳ ยังไม่แนบ'}</span>
@@ -1503,6 +1519,8 @@ function renderJobCard(j, type) {
 
       <div class="jc-payment-row">${payBadge}</div>
 
+      ${customerConfirmationHtml}
+      ${customerSlipHtml}
       ${foodWorkflowHtml}
 
       <div class="jc-finance">
@@ -3548,6 +3566,30 @@ async function enableRiderPush(silent) {
   }
   try {
     const messaging = window.ChauatFcm ? ChauatFcm.install(firebaseApp) : firebase.messaging();
+    if (messaging && !messaging.__chauatForegroundPushBound && typeof messaging.onMessage === 'function') {
+      messaging.onMessage((payload) => {
+        const note = (payload && payload.notification) || {};
+        const data = (payload && payload.data) || {};
+        const title = note.title || 'ChauatGo';
+        const body = note.body || '';
+        if (data.type === 'customer_slip_uploaded') {
+          showToast('💸 ลูกค้าโอนเงินแล้ว — กรุณาตรวจสอบสลิป', 'success', 8000);
+        } else if (body) {
+          showToast(title + ' • ' + body, 'info', 6000);
+        }
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            const notification = new Notification(title, {
+              body,
+              icon: '/icons/icon-512.png',
+              tag: data.orderId ? 'customer-slip-' + data.orderId : 'chauat-push'
+            });
+            notification.onclick = () => { window.focus(); notification.close(); };
+          } catch (e) {}
+        }
+      });
+      messaging.__chauatForegroundPushBound = true;
+    }
     const reg = await navigator.serviceWorker.getRegistration('/sw.js') || await navigator.serviceWorker.ready;
     if (!messaging || !reg) throw new Error('no-worker');
     const token = await messaging.getToken({ vapidKey: vapid, serviceWorkerRegistration: reg });
