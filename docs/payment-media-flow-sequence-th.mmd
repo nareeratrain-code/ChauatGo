@@ -1,0 +1,81 @@
+%% ChauatGo — Payment / Media / QR Sequence Diagram
+%% Requirement ใหม่: รับงาน -> สรุปยอด -> ลูกค้ายืนยัน -> QR -> รูป -> ลูกค้าชำระ -> สลิปร้าน -> ออกส่ง
+sequenceDiagram
+    autonumber
+    actor C as ลูกค้า
+    participant R as ไรเดอร์
+    participant A as ChauatGo Web App
+    participant F as Firestore
+    participant S as Firebase Storage
+    participant M as ร้านค้า/จุดรับของ
+
+    Note over C,M: เริ่มต้น: ออเดอร์ถูกสร้าง และผ่านเงื่อนไขการรับงานของระบบ
+
+    R->>A: กด “รับงาน”
+    A->>F: claim/assign order
+    F-->>A: riderId + acceptedAt
+    A->>F: สร้างข้อความสรุปออเดอร์
+    F-->>C: แชทสรุปสินค้า/อาหาร + ค่าบริการ + ยอดประมาณการ
+    A-->>C: แสดงปุ่ม “ยืนยันรายการและยอด”
+
+    C->>A: กดยืนยันรายการและยอด
+    A->>F: customerOrderConfirmed = true
+    F-->>A: ยืนยันสำเร็จ
+    A->>F: สร้างข้อความ “โอนหลังเห็นรูปเท่านั้น”
+    A->>F: แนบ QR Code ของไรเดอร์ในข้อความ
+    F-->>C: แสดง QR Code
+    Note over C: ลูกค้ายังไม่ต้องโอนในขั้นตอนนี้
+
+    R->>A: กด “ถึงร้าน/จุดรับของ”
+    A->>F: บันทึก riderArrivedAt
+    A->>F: ส่งข้อความ “กำลังถ่ายรูปอาหาร/สินค้า”
+    F-->>C: แสดงสถานะกำลังตรวจสอบของ
+
+    alt Food Order / Shopping Order
+        R->>A: เปิดกล้องและถ่ายรูปอาหาร/สินค้า
+        A->>S: อัปโหลดรูปไปยัง orders/{orderId}/...
+        S-->>A: foodImageUrl / itemImageUrl
+        A->>F: บันทึกรูป + pickedUpAt/pickedUp status
+        A->>F: ส่งรูป URL เดิมเข้าแชท
+        A->>F: ส่งข้อความยอดจริง + คำขอชำระเงิน
+        A->>F: แนบ QR Code ในข้อความเดียวกัน
+        F-->>C: รูปอาหาร/สินค้า + ยอดจริง + QR + “กรุณาโอนยอดนี้”
+
+        C->>A: โอนเงินให้ไรเดอร์
+        C->>A: แนบสลิปการโอน (ถ้าระบบเปิดใช้ Proof Upload)
+        A->>S: อัปโหลด customer slip
+        S-->>A: customerSlipUrl
+        A->>F: customerPaid = true + customerPaidAt + customerSlipUrl
+        F-->>R: แจ้งเตือนไรเดอร์ “ลูกค้าชำระแล้ว”
+
+        R->>A: เมนู “แนบสลิปที่จ่ายร้าน” ถูกเปิด
+        R->>A: ถ่าย/เลือกสลิปการโอนให้ร้าน
+        A->>S: อัปโหลด rider shop-payment slip
+        S-->>A: riderSlipToShopUrl
+        A->>F: บันทึกสลิป + riderPaidShopAt
+        A->>F: เปลี่ยนสถานะเป็น on_the_way
+        A->>F: ส่งสลิปร้านเข้าแชท
+        A->>F: ส่งข้อความ “กำลังออกไปส่ง”
+        F-->>C: รูปสลิปร้าน + สถานะกำลังออกไปส่ง
+        F-->>R: สถานะ on_the_way
+    else Express Delivery ที่ไม่มีการซื้อสินค้า
+        R->>A: ถ่ายรูปพัสดุ/สิ่งของ (ถ้าจำเป็น)
+        A->>S: อัปโหลดรูปพัสดุ
+        S-->>A: itemImageUrl
+        A->>F: ส่งรูปเข้าแชท + เปลี่ยนสถานะรับของแล้ว
+        A->>F: เปลี่ยนสถานะเป็น on_the_way
+        A->>F: ส่งข้อความ “กำลังออกไปส่ง”
+        F-->>C: รูปพัสดุ + สถานะกำลังออกไปส่ง
+    end
+
+    R->>A: เดินทางไปปลายทาง
+    A->>F: อัปเดต tracking / proximity events
+    F-->>C: แจ้งเตือนใกล้ถึง/ถึงปลายทาง
+    R->>A: กดส่งสำเร็จ
+    A->>F: status = delivered/done
+    A->>F: ส่งข้อความส่งสำเร็จ
+    F-->>C: แจ้งส่งสำเร็จ + เปิดให้คะแนน
+
+    Note over A,F: ทุกข้อความต้องมี orderId, senderRole, automationKey และ timestamp
+    Note over S,F: URL รูปที่ส่งแชทต้องเป็น URL เดียวกับที่บันทึกใน Order เพื่อลดการอัปโหลดซ้ำ
+    Note over A,F: ห้ามเปลี่ยนเป็น on_the_way ก่อนเงื่อนไขชำระเงิน/สลิปร้านครบตามประเภทบริการ

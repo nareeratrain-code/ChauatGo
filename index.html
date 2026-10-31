@@ -597,6 +597,16 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 .cash-badge { display: inline-flex; align-items: center; gap: 4px; background: #FFF3E0; color: #E65100; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 8px; margin-top: 6px; }
 .transfer-badge { display: inline-flex; align-items: center; gap: 4px; background: #E3F2FD; color: #1976D2; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 8px; margin-top: 6px; }
+.customer-payment-panel { margin: 12px 0 0; padding: 13px; border: 1px solid #B9DFA6; border-radius: 16px; background: linear-gradient(135deg,#F4FBF0,#FFFFFF); }
+.customer-payment-panel.warning { border-color: #F4D58A; background: #FFF8E7; }
+.customer-payment-title { display:flex; align-items:center; gap:8px; color:#237A3B; font-size:13px; font-weight:900; margin-bottom:6px; }
+.customer-payment-panel.warning .customer-payment-title { color:#8A5A00; }
+.customer-payment-copy { color:var(--text-muted); font-size:11px; font-weight:700; line-height:1.55; margin-bottom:10px; }
+.customer-payment-total { display:flex; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.82); color:var(--text); font-size:13px; font-weight:900; margin-bottom:10px; }
+.customer-payment-btn { width:100%; min-height:44px; border:0; border-radius:12px; padding:11px 14px; color:#fff; background:linear-gradient(135deg,#E85B2A,#C83E15); font:900 13px inherit; cursor:pointer; }
+.customer-payment-btn.green { background:linear-gradient(135deg,#4E9F2D,#34751E); }
+.customer-payment-btn:disabled { opacity:.6; cursor:wait; }
+.customer-slip-preview { width:100%; max-height:180px; object-fit:contain; border-radius:12px; background:#fff; margin:4px 0 10px; }
 
 .near-alert-popup { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9700; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
 .near-alert-popup.show { display: flex; }
@@ -993,6 +1003,7 @@ button.chat-list-item:active { filter: brightness(.97); }
     <button class="chat-send-btn press-scale" onclick="sendChatMessage()">➤</button>
   </div>
   <input type="file" id="chat-image-input" accept="image/*" style="display:none" onchange="handleChatImage(event)">
+  <input type="file" id="customer-slip-input" accept="image/*" capture="environment" style="display:none">
 </div>
 
 <div id="tracking-page">
@@ -1463,6 +1474,7 @@ try {
   if (window.__QA_USE_EMULATORS__ && location.hostname === '127.0.0.1') {
     try { auth.useEmulator('http://127.0.0.1:9099'); } catch(e) {}
     try { db.useEmulator('127.0.0.1', 8080); } catch(e) {}
+    try { storage.useEmulator('127.0.0.1', 9199); } catch(e) {}
   }
   if (firebaseApp.functions) {
     // firebase.functions(app, region) ignores the region and stays on
@@ -1578,6 +1590,7 @@ var nearbyShopsCache = [];
 var nearbyShopsLoaded = false;
 var riderGpsUnsubs = {};
 var _cachedOrders = [];
+var pendingCustomerSlipOrderId = '';
 var restaurantFilterState = { query: '', type: 'all', maxDistance: 'all' };
 
 /* ⭐ v3.9.0: 4-level proximity */
@@ -3739,6 +3752,7 @@ function renderOrderCard(o){
   var canChat = !!o.riderId && ['cancelled'].indexOf(o.status) === -1;
   var canTrack = !!o.riderId && ['accepted','picked_up','customer_paid','on_the_way'].indexOf(o.status) !== -1;
   var isCash = o.paymentMode === 'cash';
+  var customerSlipRejected = o.customerSlipStatus === 'rejected';
   var payBadge = isCash
     ? '<span class="cash-badge">💵 เงินสด • จ่าย ฿'+fmt(o.total||0)+'</span>'
     : '<span class="transfer-badge">💳 โอน • ฿'+fmt(o.total||0)+'</span>';
@@ -3759,12 +3773,38 @@ function renderOrderCard(o){
     if (i < 7) progressDots += '<span class="line ' + (i < progressStep ? 'done' : '') + '"></span>';
   }
 
-  /* โอน: ปุ่มยืนยันโอนเมื่อไรเดอร์รับของแล้ว — เงินสดไม่ต้องโอน */
+  /* Payment flow: confirm the summary, then upload proof, then confirm paid. */
   var payBtnHtml = '';
-  if (isCash && (o.status === 'picked_up' || o.status === 'on_the_way')) {
-    payBtnHtml = '<div style="width:100%;margin-top:8px;background:#FFF3E0;color:#E65100;border-radius:12px;padding:12px;font-size:13px;font-weight:900;text-align:center">💵 ชำระเงินสดกับไรเดอร์</div>';
-  } else if (o.status === 'picked_up' && !o.customerPaidAt) {
-    payBtnHtml = '<button class="rate-btn" style="background:linear-gradient(135deg,#E53935,#C62828);margin:0;width:100%;padding:14px;font-size:14px" onclick="confirmCustomerPaid(\''+esc(o.id)+'\')">💳 โอนเงิน ฿'+fmt(o.total||0)+'</button>';
+  if (o.status === 'accepted' && !o.customerOrderConfirmed) {
+    payBtnHtml = '<div class="customer-payment-panel warning">' +
+      '<div class="customer-payment-title">🧾 ตรวจสอบและยืนยันรายการ</div>' +
+      '<div class="customer-payment-copy">ไรเดอร์รับงานแล้ว กรุณาตรวจสอบรายการและยอดรวมก่อนดำเนินการต่อ</div>' +
+      '<div class="customer-payment-total"><span>ยอดที่ต้องชำระ</span><b>฿'+fmt(o.total||o.fare||0)+'</b></div>' +
+      '<button class="customer-payment-btn" onclick="confirmCustomerOrder(\''+esc(o.id)+'\')">✅ ยืนยันรายการและยอด</button>' +
+    '</div>';
+  } else if (o.status === 'accepted' && o.customerOrderConfirmed) {
+    payBtnHtml = '<div class="customer-payment-panel"><div class="customer-payment-title">✅ ยืนยันรายการแล้ว</div><div class="customer-payment-copy">รอไรเดอร์ถ่ายรูปอาหารหรือสินค้า ก่อนแสดง QR และแจ้งยอดให้โอน</div></div>';
+  } else if (isCash && (o.status === 'picked_up' || o.status === 'on_the_way')) {
+    payBtnHtml = '<div class="customer-payment-panel warning"><div class="customer-payment-title">💵 ชำระเงินสดกับไรเดอร์</div><div class="customer-payment-copy">เตรียมเงินสดจำนวน ฿'+fmt(o.total||0)+' ชำระเมื่อได้รับสินค้า</div></div>';
+  } else if (o.status === 'picked_up' && !o.customerPaidAt && customerSlipRejected) {
+    payBtnHtml = '<div class="customer-payment-panel warning" style="border-color:#F0A7A7;background:#FFF5F5">' +
+      '<div class="customer-payment-title" style="color:#B42318">↩️ กรุณาอัปโหลดสลิปใหม่</div>' +
+      '<div class="customer-payment-copy" style="color:#8A2B2B">ไรเดอร์ตรวจสอบแล้วและขอให้ส่งหลักฐานการโอนใหม่</div>' +
+      '<div style="margin:10px 0;padding:10px;border-radius:10px;background:#FFF;border-left:3px solid #D9534F;font-size:12px;font-weight:800;color:#8A2B2B">เหตุผล: '+esc(o.customerSlipRejectionReason || 'ข้อมูลสลิปไม่ครบถ้วน')+'</div>' +
+      '<button class="customer-payment-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100)" onclick="pickCustomerSlip(\''+esc(o.id)+'\')">📷 ถ่ายหรือเลือกสลิปใหม่</button>' +
+    '</div>';
+  } else if (o.status === 'picked_up' && !o.customerPaidAt && !o.customerSlipUrl) {
+    payBtnHtml = '<div class="customer-payment-panel warning">' +
+      '<div class="customer-payment-title">📸 แนบสลิปการโอน</div>' +
+      '<div class="customer-payment-copy">กรุณาโอนหลังเห็นรูปอาหารหรือสินค้าเท่านั้น แล้วแนบสลิปเพื่อแจ้งไรเดอร์</div>' +
+      '<div class="customer-payment-total"><span>ยอดที่ต้องชำระ</span><b>฿'+fmt(o.total||o.fare||0)+'</b></div>' +
+      '<button class="customer-payment-btn" onclick="pickCustomerSlip(\''+esc(o.id)+'\')">📷 ถ่ายหรือเลือกสลิป</button>' +
+    '</div>';
+  } else if (o.status === 'picked_up' && !o.customerPaidAt && o.customerSlipUrl) {
+    payBtnHtml = '<div class="customer-payment-panel"><div class="customer-payment-title">✅ แนบสลิปแล้ว</div>' +
+      '<img class="customer-slip-preview" src="'+esc(o.customerSlipUrl)+'" alt="สลิปการโอนของลูกค้า" onclick="openLightbox(\''+esc(o.customerSlipUrl)+'\')">' +
+      '<div class="customer-payment-copy">ตรวจสอบสลิปให้เรียบร้อย แล้วกดยืนยันเพื่อแจ้งไรเดอร์</div>' +
+      '<button class="customer-payment-btn green" onclick="confirmCustomerPaid(\''+esc(o.id)+'\')">💳 ยืนยันว่าโอนแล้ว ฿'+fmt(o.total||0)+'</button></div>';
   }
 
   return '<div class="order-track-card" style="border-left-color:' + color + '">' +
@@ -3798,11 +3838,105 @@ function renderOrderCard(o){
   '</div>';
 }
 
-/* ⭐ v3.9.0: ลูกค้ากดยืนยันโอนเงินแล้ว */
+/* Customer payment flow: order confirmation -> slip proof -> paid. */
+window.confirmCustomerOrder = async function(orderId) {
+  if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
+  var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
+  if (!cached || cached.userId !== currentUser.uid) return showToast('ไม่พบออเดอร์ของคุณ', 'error');
+  if (cached.status !== 'accepted') return showToast('ยืนยันได้เมื่อไรเดอร์รับงานแล้วเท่านั้น', 'warning');
+  if (cached.customerOrderConfirmed) return showToast('ยืนยันรายการนี้แล้ว', 'info');
+  if (!confirm('ยืนยันรายการและยอด ฿' + fmt(cached.total || cached.fare || 0) + ' ใช่หรือไม่?')) return;
+  try {
+    await db.collection('orders').doc(orderId).update({
+      customerOrderConfirmed: true,
+      customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ ยืนยันรายการแล้ว — รอเห็นรูปก่อนโอนเงิน', 'success');
+  } catch (e) {
+    console.error('confirmCustomerOrder error:', e);
+    showToast('ยืนยันรายการไม่สำเร็จ: ' + (e.code || e.message), 'error');
+  }
+};
+window.pickCustomerSlip = function(orderId) {
+  if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
+  pendingCustomerSlipOrderId = orderId;
+  var input = $('customer-slip-input');
+  if (input) {
+    // Keep the order context on the input itself. Mobile browsers may deliver
+    // the change event after transient global state has changed.
+    input.dataset.orderId = orderId;
+    input.value = '';
+    input.click();
+  }
+};
+window.handleCustomerSlipPick = async function(event) {
+  var file = event && event.target && event.target.files && event.target.files[0];
+  var input = event && event.target;
+  var orderId = pendingCustomerSlipOrderId || (input && input.dataset && input.dataset.orderId) || '';
+  // Copy transient values before resetting the input. Do not silently return:
+  // camera/gallery implementations can produce an empty FileList or lose context.
+  pendingCustomerSlipOrderId = '';
+  if (input) {
+    input.dataset.orderId = '';
+    input.value = '';
+  }
+  if (!file) return showToast('ไม่พบไฟล์สลิป กรุณาถ่ายหรือเลือกใหม่', 'warning');
+  if (!orderId) return showToast('ไม่พบออเดอร์สำหรับสลิป กรุณากดปุ่มแนบสลิปใหม่', 'warning');
+  if (!currentUser) return showToast('กรุณาเข้าสู่ระบบใหม่ก่อนแนบสลิป', 'warning');
+  if (!storage || !db) return showToast('ระบบอัปโหลดยังไม่พร้อม กรุณาลองใหม่อีกครั้ง', 'error');
+  if (file.size > 5 * 1024 * 1024) return showToast('⚠️ สลิปต้องมีขนาดไม่เกิน 5MB', 'error');
+  var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  if (['jpg','jpeg','png','webp','gif','heic','heif'].indexOf(ext) === -1) ext = 'jpg';
+  var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
+  if (!cached || cached.userId !== currentUser.uid || cached.status !== 'picked_up') {
+    return showToast('แนบสลิปได้หลังไรเดอร์รับของแล้วเท่านั้น (กรุณารอสถานะอัปเดต)', 'warning');
+  }
+  showToast('📤 กำลังอัปโหลดสลิป...', 'info');
+  try {
+    var path = 'slips/customers/' + currentUser.uid + '/' + orderId + '/proof_' + Date.now() + '.' + ext;
+    var ref = storage.ref(path);
+    await ref.put(file, { contentType: file.type || 'image/jpeg' });
+    var url = await ref.getDownloadURL();
+    var resubmitting = cached.customerSlipStatus === 'rejected';
+    var slipUpdate = {
+      customerSlipUrl: url,
+      customerSlipPath: path,
+      customerSlipUploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (resubmitting) {
+      slipUpdate.customerSlipStatus = 'pending';
+      slipUpdate.customerSlipRevision = (Number(cached.customerSlipRevision) || 1) + 1;
+    }
+    await db.collection('orders').doc(orderId).update(slipUpdate);
+    cached.customerSlipUrl = url;
+    cached.customerSlipPath = path;
+    if (resubmitting) {
+      cached.customerSlipStatus = 'pending';
+      cached.customerSlipRevision = slipUpdate.customerSlipRevision;
+    }
+    paintUserOrders(window._cachedOrders || []);
+    showToast('✅ แนบสลิปแล้ว — กดยืนยันว่าโอนแล้วเพื่อแจ้งไรเดอร์', 'success');
+  } catch (e) {
+    console.error('handleCustomerSlipPick error:', e);
+    var msg = e && e.code === 'storage/unauthorized' ? 'ไม่มีสิทธิ์อัปโหลดสลิปของออเดอร์นี้' : (e.code || e.message);
+    showToast('แนบสลิปไม่สำเร็จ: ' + msg, 'error');
+  }
+};
+// Bind explicitly after the handler is defined. This is more reliable than
+// an inline onchange when camera/gallery implementations reuse the hidden input.
+(function bindCustomerSlipInput() {
+  var input = $('customer-slip-input');
+  if (input && !input.__customerSlipBound) {
+    input.addEventListener('change', window.handleCustomerSlipPick);
+    input.__customerSlipBound = true;
+  }
+}());
+/* Existing clients remain supported, but the new UI requires a proof first. */
 window.confirmCustomerPaid = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (cached && cached.paymentMode === 'cash') return showToast('ออเดอร์เงินสด — ชำระเงินสดกับไรเดอร์', 'info');
+  if (cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
   if (!confirm('ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
   try {
     await db.collection('orders').doc(orderId).update({
@@ -3833,7 +3967,7 @@ function monitorRiderProximity(activeOrders) {
     if (o.status !== 'on_the_way') return;
     if (!o.riderId) return;
     if (riderGpsUnsubs[o.id]) return;
-    var gpsRef = db.collection('gps_riders').doc(o.riderId);
+    var gpsRef = db.collection('orders').doc(o.id).collection('tracking').doc('current');
     riderGpsUnsubs[o.id] = gpsRef.onSnapshot(function(gpsSnap){
       if (!gpsSnap.exists) return;
       var g = gpsSnap.data();
@@ -3921,7 +4055,7 @@ window.closeTrackingPage = function(){
 function watchTrackingRider(o){
   if (!o.riderId) return;
   if (trackingWatchId) { try { trackingWatchId(); } catch(e){} trackingWatchId = null; }
-  trackingWatchId = db.collection('gps_riders').doc(o.riderId)
+  trackingWatchId = db.collection('orders').doc(o.id).collection('tracking').doc('current')
     .onSnapshot(function(gpsSnap){
       if (!gpsSnap.exists) return;
       var g = gpsSnap.data();
@@ -4284,22 +4418,11 @@ window.submitRating = async function() {
   try {
     await db.collection('ratings').doc(ratingOrder.id).set(payload);
     await db.collection('orders').doc(ratingOrder.id).update({ rated: true, ratedAt: firebase.firestore.FieldValue.serverTimestamp() });
-    if (isFood && ratingOrder.merchantId) await updateMerchantRatingAggregate(ratingOrder.merchantId);
     showToast('⭐ ขอบคุณสำหรับคะแนน!');
     closeRatingModal();
   } catch (e) { showToast('ส่งไม่สำเร็จ: ' + e.message, 'error'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = '✅ ส่งคะแนน'; } }
 };
-
-async function updateMerchantRatingAggregate(merchantId) {
-  try {
-    var snap = await db.collection('ratings').where('merchantId','==',merchantId).get();
-    var total = 0, count = 0;
-    snap.forEach(function(d){ var r = d.data(); if (r.merchantRating > 0) { total += r.merchantRating; count++; } });
-    var avg = count > 0 ? Number((total / count).toFixed(2)) : 0;
-    await db.collection('merchants').doc(merchantId).update({ ratingAvg: avg, ratingCount: count });
-  } catch (e) {}
-}
 
 /* ═══ CHAT ═══ */
 window.openChatPage = async function(orderId) {

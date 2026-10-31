@@ -121,6 +121,119 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
         || request.resource.data.get(field, null) is timestamp;
     }
+    function changedToString(field, minLen, maxLen) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
+        || isValidString(request.resource.data.get(field, ''), minLen, maxLen);
+    }
+    function changedToBool(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
+        || request.resource.data.get(field, false) is bool;
+    }
+    function merchantCreateOk() {
+      return request.resource.data.keys().hasOnly([
+        'merchantId', 'name', 'category', 'phone', 'email', 'address',
+        'openTime', 'closeTime', 'isOpen', 'verified', 'ratingAvg',
+        'ratingCount', 'gpStartDate', 'gpPending', 'gpPaid', 'gpConsent',
+        'soundSettings', 'createdAt'
+      ])
+        && request.resource.data.merchantId == myUid()
+        && request.resource.data.verified == false
+        && request.resource.data.isOpen == false
+        && request.resource.data.ratingAvg == 0
+        && request.resource.data.ratingCount == 0
+        && request.resource.data.gpPending == 0
+        && request.resource.data.gpPaid == 0
+        && request.resource.data.gpConsent == true
+        && request.resource.data.createdAt is timestamp
+        && isValidString(request.resource.data.name, 1, 120)
+        && isValidString(request.resource.data.category, 1, 40)
+        && isValidString(request.resource.data.phone, 1, 30)
+        && isValidString(request.resource.data.email, 3, 200)
+        && isValidString(request.resource.data.address, 1, 300)
+        && isValidString(request.resource.data.openTime, 1, 10)
+        && isValidString(request.resource.data.closeTime, 1, 10)
+        && request.resource.data.soundSettings is map;
+    }
+    function merchantProfileUpdateOk() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'name', 'phone', 'email', 'address', 'category', 'openTime', 'closeTime',
+        'isOpen', 'lastToggle', 'image', 'imagePath', 'imageUpdatedAt',
+        'soundSettings', 'menuCategories'
+      ])
+        && changedToString('name', 1, 120)
+        && changedToString('phone', 0, 30)
+        && changedToString('email', 0, 200)
+        && changedToString('address', 0, 300)
+        && changedToString('category', 0, 40)
+        && changedToString('openTime', 0, 10)
+        && changedToString('closeTime', 0, 10)
+        && changedToString('image', 0, 2000)
+        && changedToString('imagePath', 0, 400)
+        && changedToBool('isOpen')
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['soundSettings'])
+          || request.resource.data.soundSettings is map)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['menuCategories'])
+          || request.resource.data.menuCategories is list)
+        && changedToTimestamp('lastToggle')
+        && changedToTimestamp('imageUpdatedAt');
+    }
+    function cancelFieldsOk(cancelledBy) {
+      return request.resource.data.cancelledBy == cancelledBy
+        && request.resource.data.cancelledAt is timestamp
+        && isValidString(request.resource.data.get('cancelReason', ''), 1, 300);
+    }
+    function riderProfileUpdateOk() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status', 'lastToggle', 'fcmTokens', 'qrCodeUrl', 'qrCodePath'
+      ])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+          || request.resource.data.status in ['active', 'inactive'])
+        && changedToTimestamp('lastToggle')
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['fcmTokens'])
+          || (request.resource.data.fcmTokens is list
+            && request.resource.data.fcmTokens.size() <= 10))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['qrCodeUrl'])
+          || isValidString(request.resource.data.get('qrCodeUrl', ''), 0, 2000))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['qrCodePath'])
+          || isValidString(request.resource.data.get('qrCodePath', ''), 0, 400)
+            && (request.resource.data.get('qrCodePath', '') == ''
+              || request.resource.data.qrCodePath.matches('^rider_qr/' + myUid() + '/[A-Za-z0-9_.-]+$')));
+    }
+    function gpsWriteOk(riderId) {
+      return request.resource.data.keys().hasOnly([
+        'riderId', 'name', 'lat', 'lng', 'accuracy', 'geohash', 'online', 'updatedAt'
+      ])
+        && request.resource.data.riderId == riderId
+        && isValidString(request.resource.data.get('name', ''), 0, 120)
+        && isValidNumber(request.resource.data.lat, 7.7, 9.5)
+        && isValidNumber(request.resource.data.lng, 99.1, 100.5)
+        && (!('accuracy' in request.resource.data)
+          || request.resource.data.accuracy == null
+          || isValidNumber(request.resource.data.accuracy, 0, 10000))
+        && isValidString(request.resource.data.get('geohash', ''), 0, 30)
+        && request.resource.data.online is bool
+        && request.resource.data.updatedAt is timestamp;
+    }
+    function ratingCreateOk(ratingId) {
+      return isAuth()
+        && exists(orderPath(ratingId))
+        && request.resource.data.keys().hasOnly([
+          'orderId', 'userId', 'userName', 'merchantId', 'riderId',
+          'merchantRating', 'riderRating', 'comment', 'createdAt'
+        ])
+        && request.resource.data.orderId == ratingId
+        && request.resource.data.userId == myUid()
+        && get(orderPath(ratingId)).data.get('userId', '') == myUid()
+        && get(orderPath(ratingId)).data.status in ['done', 'delivered']
+        && get(orderPath(ratingId)).data.get('rated', false) != true
+        && request.resource.data.get('merchantId', '') == get(orderPath(ratingId)).data.get('merchantId', '')
+        && request.resource.data.get('riderId', '') == get(orderPath(ratingId)).data.get('riderId', '')
+        && isValidString(request.resource.data.get('userName', ''), 1, 120)
+        && isValidNumber(request.resource.data.get('merchantRating', 0), 0, 5)
+        && isValidNumber(request.resource.data.get('riderRating', 0), 0, 5)
+        && isValidString(request.resource.data.get('comment', ''), 0, 1000)
+        && request.resource.data.createdAt is timestamp;
+    }
 
     function isValidString(value, minLen, maxLen) {
       return value is string && value.size() >= minLen && value.size() <= maxLen;
@@ -231,6 +344,93 @@ service cloud.firestore {
 
     function isOrderCustomer() {
       return isAuth() && resource.data.get('userId', '') == myUid();
+    }
+
+    // New payment-flow fields are customer-owned. Confirmation of the order
+    // is separate from customerPaid/customerPaidAt.
+    function customerOrderConfirmationOk() {
+      return isOrderCustomer()
+        && resource.data.status == 'accepted'
+        && request.resource.data.status == resource.data.status
+        && identityFrozen()
+        && onlyChanged(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
+        && request.resource.data.customerOrderConfirmed == true
+        && request.resource.data.customerOrderConfirmedAt is timestamp;
+    }
+
+    // Upload proof while the order remains picked_up. The following payment
+    // transition may then set customerPaid/customerPaidAt.
+    function customerSlipUploadOk(orderId) {
+      return isOrderCustomer()
+        && resource.data.status == 'picked_up'
+        && request.resource.data.status == resource.data.status
+        && identityFrozen()
+        && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
+        && request.resource.data.customerSlipUrl is string
+        && request.resource.data.customerSlipUrl.size() > 0
+        && request.resource.data.customerSlipUrl.size() <= 2000
+        && request.resource.data.customerSlipPath is string
+        && request.resource.data.customerSlipPath.matches(
+          '^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$'
+        )
+        && request.resource.data.customerSlipUploadedAt is timestamp;
+    }
+
+    function customerSlipAlreadyAttached(orderId) {
+      return resource.data.get('customerSlipUrl', '') is string
+        && resource.data.get('customerSlipUrl', '').size() > 0
+        && resource.data.get('customerSlipPath', '') is string
+        && resource.data.get('customerSlipPath', '').matches(
+          '^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$'
+        )
+        && resource.data.get('customerSlipUploadedAt', null) is timestamp;
+    }
+
+    // Only the assigned rider may reject a customer proof. The rider cannot
+    // change payment state, ownership, or the uploaded file in this action.
+    function riderSlipRejectionOk() {
+      return isAssignedRider()
+        && resource.data.status == 'picked_up'
+        && resource.data.get('customerPaidAt', null) == null
+        && resource.data.get('customerSlipUrl', '') is string
+        && resource.data.get('customerSlipUrl', '').size() > 0
+        && request.resource.data.status == resource.data.status
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged([
+          'customerSlipStatus', 'customerSlipRejectionReason',
+          'customerSlipRejectedAt', 'customerSlipRejectedBy'
+        ])
+        && request.resource.data.customerSlipStatus == 'rejected'
+        && isValidString(request.resource.data.customerSlipRejectionReason, 1, 300)
+        && request.resource.data.customerSlipRejectedAt is timestamp
+        && request.resource.data.customerSlipRejectedBy == myUid();
+    }
+
+    // A rejected proof may be replaced only by the order owner. Revision must
+    // increase exactly by one, and the new path must remain order-scoped.
+    function customerSlipResubmissionOk(orderId) {
+      return isOrderCustomer()
+        && resource.data.status == 'picked_up'
+        && resource.data.get('customerSlipStatus', '') == 'rejected'
+        && request.resource.data.status == resource.data.status
+        && identityFrozen()
+        && onlyChanged([
+          'customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt',
+          'customerSlipStatus', 'customerSlipRevision'
+        ])
+        && request.resource.data.customerSlipUrl is string
+        && request.resource.data.customerSlipUrl.size() > 0
+        && request.resource.data.customerSlipUrl.size() <= 2000
+        && request.resource.data.customerSlipPath is string
+        && request.resource.data.customerSlipPath.matches(
+          '^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$'
+        )
+        && request.resource.data.customerSlipUploadedAt is timestamp
+        && request.resource.data.customerSlipStatus == 'pending'
+        && request.resource.data.customerSlipRevision is int
+        && request.resource.data.customerSlipRevision
+          == resource.data.get('customerSlipRevision', 1) + 1;
     }
 
     function canReadOrder() {
@@ -441,8 +641,7 @@ service cloud.firestore {
 
       allow create: if isAuth()
         && myUid() == merchantId
-        && request.resource.data.verified == false
-        && request.resource.data.merchantId == myUid();
+        && merchantCreateOk();
 
       allow update: if isAdmin()
         || (
@@ -453,13 +652,20 @@ service cloud.firestore {
           && unchanged('ratingCount')
           && unchanged('gpPaid')
           && unchanged('merchantId')
+          && unchanged('gpPending')
+          && unchanged('gpHistory')
+          && merchantProfileUpdateOk()
         );
 
-      allow delete: if isAdmin() || (isAuth() && myUid() == merchantId);
+      // Merchant deletion is an admin/server action. Client-side deletion
+      // would orphan menus and historical orders.
+      allow delete: if isAdmin();
     }
 
     match /riders/{riderId} {
-      allow read: if isAuth();
+      // Rider documents contain FCM tokens, QR paths and earnings. They are
+      // not a public directory; customers receive only order-scoped fields.
+      allow read: if isAdmin() || (isAuth() && myUid() == riderId);
       allow create: if isAuth()
         && myUid() == riderId
         && request.resource.data.verified == false
@@ -477,6 +683,7 @@ service cloud.firestore {
           && unchanged('idleSince')
           && unchanged('totalIncome')
           && unchanged('totalJobs')
+          && riderProfileUpdateOk()
         );
       allow delete: if isAdmin();
     }
@@ -524,8 +731,34 @@ service cloud.firestore {
           isOrderCustomer()
           && resource.data.status in ['searching', 'pending']
           && request.resource.data.status == 'cancelled'
+          && cancelFieldsOk('customer')
           && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
         )
+        // Customer-owned transitions are evaluated before the larger
+        // rider/merchant state machine. This preserves the same permissions
+        // while preventing the Emulator from walking every later branch for
+        // a simple slip/confirmation update.
+        || customerOrderConfirmationOk()
+        || customerSlipUploadOk(orderId)
+        || customerSlipResubmissionOk(orderId)
+        || (
+          isOrderCustomer()
+          && resource.data.status == 'picked_up'
+          && request.resource.data.status == 'customer_paid'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+        )
+        || (
+          isOrderCustomer()
+          && resource.data.status in ['done', 'delivered']
+          && request.resource.data.rated == true
+          && unchanged('status')
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['rated', 'ratedAt'])
+        )
+        || riderSlipRejectionOk()
         // [C] rider pickup — kitchen orders only after the shop marked ready
         || (
           isAssignedRider()
@@ -575,7 +808,7 @@ service cloud.firestore {
           isAssignedRider()
           && resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
           && request.resource.data.status == 'cancelled'
-          && request.resource.data.cancelledBy == 'rider'
+          && cancelFieldsOk('rider')
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
@@ -599,6 +832,14 @@ service cloud.firestore {
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+          && request.resource.data.cookingAt is timestamp
+          && changedToString('code', 7, 7)
+          && changedToString('deliveryCode', 4, 4)
+          && changedToTimestamp('codeCreatedAt')
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['code'])
+            || request.resource.data.code.matches('^OD-[0-9]{4}$'))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deliveryCode'])
+            || request.resource.data.deliveryCode.matches('^[0-9]{4}$'))
           && (
             !request.resource.data.diff(resource.data).affectedKeys().hasAny(['prepMinutes'])
             || request.resource.data.prepMinutes in [10, 15, 20]
@@ -608,7 +849,7 @@ service cloud.firestore {
           isOrderMerchant()
           && resource.data.status in ['searching', 'pending', 'cooking']
           && request.resource.data.status == 'cancelled'
-          && request.resource.data.cancelledBy == 'merchant'
+          && cancelFieldsOk('merchant')
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
@@ -620,6 +861,7 @@ service cloud.firestore {
           && unchanged('riderId')
           && resource.data.status in ['cooking', 'ready', 'accepted']
           && onlyChanged(['foodReady', 'readyAt', 'status'])
+          && request.resource.data.readyAt is timestamp
           && (
             request.resource.data.status == resource.data.status
             || (
@@ -628,25 +870,6 @@ service cloud.firestore {
               && resource.data.status in ['cooking', 'ready']
             )
           )
-        )
-        // [F] customer confirms payment
-        || (
-          isOrderCustomer()
-          && resource.data.status == 'picked_up'
-          && request.resource.data.status == 'customer_paid'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
-        )
-        // [G] customer rating flag
-        || (
-          isOrderCustomer()
-          && resource.data.status in ['done', 'delivered']
-          && request.resource.data.rated == true
-          && unchanged('status')
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['rated', 'ratedAt'])
         )
         // [H] admin / boss — cannot rewrite prices or totals
         || (
@@ -715,25 +938,28 @@ service cloud.firestore {
 
     match /ratings/{ratingId} {
       allow read: if isAuth();
-      allow create: if isAuth()
-        && request.resource.data.userId == myUid()
-        && request.resource.data.orderId == ratingId
-        && isValidNumber(request.resource.data.get('riderRating', 0), 0, 5)
-        && isValidNumber(request.resource.data.get('merchantRating', 0), 0, 5);
+      allow create: if ratingCreateOk(ratingId);
       allow update, delete: if isAdmin();
     }
 
     match /gps_riders/{riderId} {
-      allow read: if isAuth();
-      allow create, update: if isRiderActor() && myUid() == riderId
-        && request.resource.data.riderId == myUid();
-      allow delete: if isAdmin() || (isRiderActor() && myUid() == riderId);
+      // Raw GPS is for the rider and dispatch backend only. Customer tracking
+      // is served from orders/{orderId}/tracking/current below.
+      allow read: if isAdmin() || (isAuth() && myUid() == riderId);
+      allow create, update: if isVerifiedRider() && myUid() == riderId
+        && gpsWriteOk(riderId);
+      allow delete: if isAdmin() || (isVerifiedRider() && myUid() == riderId);
     }
 
     match /rider_locations/{locId} {
-      allow read: if isAuth();
-      allow create, update: if isRiderActor() && myUid() == locId;
-      allow delete: if isAdmin() || (isRiderActor() && myUid() == locId);
+      allow read: if isAdmin() || (isAuth() && myUid() == locId);
+      allow create, update: if isVerifiedRider() && myUid() == locId;
+      allow delete: if isAdmin() || (isVerifiedRider() && myUid() == locId);
+    }
+
+    match /orders/{orderId}/tracking/{trackingId} {
+      allow read: if isAdmin() || isOrderParty(orderId);
+      allow write: if false;
     }
 
     match /chats/{chatId} {
@@ -790,11 +1016,23 @@ service cloud.firestore {
       allow create: if isMerchant()
         && request.resource.data.merchantId == myUid()
         && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'merchantId', 'merchantName', 'amount', 'slipUrl', 'slipPath',
+          'note', 'status', 'roundLabel', 'createdAt'
+        ])
+        && isValidString(request.resource.data.get('merchantName', ''), 1, 120)
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.amount <= 100000
         && request.resource.data.slipPath is string
-        && request.resource.data.slipPath.matches('^gp_slips/' + myUid() + '/[A-Za-z0-9_.-]+$');
+        && request.resource.data.slipPath.matches('^gp_slips/' + myUid() + '/[A-Za-z0-9_.-]+$')
+        && request.resource.data.get('slipUrl', '') is string
+        && request.resource.data.get('slipUrl', '').size() <= 2000
+        && request.resource.data.get('note', '') is string
+        && request.resource.data.get('note', '').size() <= 300
+        && request.resource.data.get('roundLabel', '') is string
+        && request.resource.data.get('roundLabel', '').size() <= 80
+        && request.resource.data.createdAt is timestamp;
       allow update, delete: if isAdmin();
     }
 

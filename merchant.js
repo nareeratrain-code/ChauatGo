@@ -2181,17 +2181,8 @@ async function submitGpTransfer() {
     const note = $('gp-note')?.value.trim() || '';
     const roundLabel = new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
 
-    const historyEntry = {
-      amount: amount, slipUrl: slipUrl, slipPath: path, note: note,
-      roundLabel: roundLabel, verified: false, createdAt: new Date()
-    };
-
-    await db.collection('merchants').doc(currentUser.uid).update({
-      gpPending: 0,
-      gpHistory: firebase.firestore.FieldValue.arrayUnion(historyEntry),
-      lastGpTransferAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-
+    // Financial summaries and GP history are server-owned. The client only
+    // submits a transfer request; the Firestore trigger updates the summary.
     await db.collection('gp_transfers').add({
       merchantId: currentUser.uid,
       merchantName: merchantProfile.name,

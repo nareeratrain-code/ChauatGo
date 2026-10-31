@@ -74,3 +74,23 @@ test('Customer order tracking: หลังสร้างออเดอร์�
   assert.match(app, /currentTrackingOrder/);
   assert.match(app, /openOrderChat|openChat/);
 });
+
+test('Customer payment UI: ยืนยันรายการ → แนบสลิป → ยืนยันโอน', () => {
+  assert.match(app, /window\.confirmCustomerOrder/);
+  assert.match(app, /customerOrderConfirmed: true/);
+  assert.match(app, /customerOrderConfirmedAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);
+  assert.match(app, /id="customer-slip-input"/);
+  assert.match(app, /window\.handleCustomerSlipPick/);
+  assert.match(app, /slips\/customers\/' \+ currentUser\.uid/);
+  assert.match(app, /customerSlipUrl: url/);
+  assert.match(app, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
+});
+
+test('Customer UI: แสดงเหตุผลสลิปถูกปฏิเสธและปุ่มอัปโหลดใหม่', () => {
+  assert.match(app, /customerSlipRejected/);
+  assert.match(app, /กรุณาอัปโหลดสลิปใหม่/);
+  assert.match(app, /customerSlipRejectionReason/);
+  assert.match(app, /ถ่ายหรือเลือกสลิปใหม่/);
+  assert.match(app, /slipUpdate\.customerSlipStatus = 'pending'/);
+  assert.match(app, /slipUpdate\.customerSlipRevision/);
+});

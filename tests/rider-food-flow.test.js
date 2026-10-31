@@ -57,6 +57,22 @@ test('UI แยกปุ่มรูปอาหารและสลิปร�
   assert.match(app, /window\.confirmCustomerPaid = async function/);
 });
 
+test('Rider UI: แสดงสถานะยืนยันรายการและสลิปลูกค้าใน Job Card', () => {
+  assert.match(rider, /customerOrderConfirmed/);
+  assert.match(rider, /ลูกค้ายืนยันรายการและยอดแล้ว/);
+  assert.match(rider, /customerSlipUrl/);
+  assert.match(rider, /📄 ลูกค้าแนบสลิปแล้ว/);
+  assert.match(rider, /📄 สลิปลูกค้า/);
+});
+
+test('Rider UI: ปฏิเสธสลิปพร้อมเหตุผลและล็อกการส่งต่อจนกว่าจะอัปโหลดใหม่', () => {
+  assert.match(rider, /data-reject-slip=/);
+  assert.match(rider, /openSlipRejectModal/);
+  assert.match(rider, /customerSlipRejectionReason/);
+  assert.match(rider, /customerSlipStatus: 'rejected'/);
+  assert.match(rider, /รอลูกค้าอัปโหลดสลิปใหม่/);
+});
+
 test('Payment Watch อัปเดต allJobs ทันทีเมื่อ Firestore แจ้ง customerPaidAt', () => {
   const watch = rider.slice(rider.indexOf('function startWatchingPayment'), rider.indexOf('function autoStartPaymentWatch'));
   assert.match(watch, /const localJob = allJobs\.find\(job => job\.id === jobId\)/);

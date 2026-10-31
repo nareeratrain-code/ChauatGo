@@ -152,6 +152,16 @@ test('storage rules match every client upload path', async () => {
       ['admin reads rider slip', () => assertSucceeds(as.ref('slips/riders/rider1/ord1_1.jpg').getMetadata())],
       ['admin deletes rider slip', () => assertSucceeds(as.ref('slips/riders/rider1/ord1_2.jpg').delete())],
 
+      ['customer payment proof', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord1/proof_1.jpg'))],
+      ['rider cannot upload customer payment proof', () => assertFails(put(rs, 'slips/customers/cust1/ord1/proof_2.jpg'))],
+      ['other rider cannot upload customer payment proof', () => assertFails(put(os, 'slips/customers/cust1/ord1/proof_3.jpg'))],
+      ['customer cannot upload proof for another order', () => assertFails(put(cs, 'slips/customers/cust1/ord2/proof_1.jpg'))],
+      ['rider reads customer payment proof', () => assertSucceeds(rs.ref('slips/customers/cust1/ord1/proof_1.jpg').getMetadata())],
+      ['shop reads customer payment proof', () => assertSucceeds(ss.ref('slips/customers/cust1/ord1/proof_1.jpg').getMetadata())],
+      ['stranger cannot read customer payment proof', () => assertFails(ts.ref('slips/customers/cust1/ord1/proof_1.jpg').getMetadata())],
+      ['customer cannot overwrite customer payment proof', () => assertFails(cs.ref('slips/customers/cust1/ord1/proof_1.jpg').put(JPEG, { contentType: 'image/jpeg' }))],
+      ['customer deletes own payment proof', () => assertSucceeds(cs.ref('slips/customers/cust1/ord1/proof_1.jpg').delete())],
+
       ['customer chat image', () => assertSucceeds(put(cs, 'chats/ord1/images/1_cust1.jpg'))],
       ['rider chat image', () => assertSucceeds(put(rs, 'chats/ord1/images/1_rider1.jpg'))],
       ['shop chat image', () => assertSucceeds(put(ss, 'chats/ord1/images/1_shop1.jpg'))],

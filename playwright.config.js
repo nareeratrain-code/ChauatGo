@@ -26,7 +26,7 @@ module.exports = defineConfig({
       timeout: 30_000
     },
     {
-      command: 'npx --yes firebase-tools emulators:start --only auth,functions,firestore --project chauat-go-b9841',
+      command: 'npx --yes firebase-tools emulators:start --only auth,functions,firestore,storage --project chauat-go-b9841',
       url: 'http://127.0.0.1:9099',
       reuseExistingServer: !process.env.CI,
       timeout: 90_000

@@ -1545,16 +1545,18 @@ function renderJobCard(j, type) {
   const customerPaid = orderIsCash(j) || !!j.customerPaidAt || j.status === 'customer_paid';
   const customerConfirmed = j.customerOrderConfirmed === true;
   const customerSlip = typeof j.customerSlipUrl === 'string' && j.customerSlipUrl.length > 0;
+  const customerSlipRejected = j.customerSlipStatus === 'rejected';
   const customerConfirmationHtml = (!isNew && j.status === 'accepted')
     ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid ${customerConfirmed ? '#B9DFA6' : '#F4D58A'};border-radius:13px;background:${customerConfirmed ? '#F4FBF0' : '#FFF8E7'}">
         <div style="font-size:12px;font-weight:900;color:${customerConfirmed ? '#237A3B' : '#8A5A00'}">${customerConfirmed ? '✅ ลูกค้ายืนยันรายการและยอดแล้ว' : '⏳ รอลูกค้ายืนยันรายการและยอด'}</div>
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-top:4px">${customerConfirmed ? 'เมื่อถ่ายรูปอาหาร/สินค้าแล้ว ระบบจะแจ้งยอดและ QR ให้ลูกค้า' : 'ลูกค้าจะต้องยืนยันก่อนเข้าสู่ขั้นตอนชำระเงิน'}</div>
       </div>` : '';
   const customerSlipHtml = (!isNew && customerSlip && !customerPaid)
-    ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid #B9DFA6;border-radius:13px;background:#F4FBF0">
-        <div style="font-size:12px;font-weight:900;color:#237A3B;margin-bottom:7px">📄 ลูกค้าแนบสลิปแล้ว</div>
+    ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid ${customerSlipRejected ? '#F0A7A7' : '#B9DFA6'};border-radius:13px;background:${customerSlipRejected ? '#FFF5F5' : '#F4FBF0'}">
+        <div style="font-size:12px;font-weight:900;color:${customerSlipRejected ? '#B42318' : '#237A3B'};margin-bottom:7px">${customerSlipRejected ? '↩️ ขอให้ลูกค้าอัปโหลดสลิปใหม่' : '📄 ลูกค้าแนบสลิปแล้ว'}</div>
         <img src="${esc(j.customerSlipUrl)}" alt="สลิปจากลูกค้า" style="width:100%;max-height:170px;object-fit:contain;border-radius:10px;background:#fff;cursor:pointer" onclick="event.stopPropagation();openLightbox('${esc(j.customerSlipUrl)}')">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-top:6px">ตรวจสอบยอดในสลิป แล้วดำเนินการตามขั้นตอนต่อ</div>
+        <div style="font-size:11px;font-weight:700;color:${customerSlipRejected ? '#8A2B2B' : 'var(--text-muted)'};margin-top:6px">${customerSlipRejected ? 'เหตุผล: ' + esc(j.customerSlipRejectionReason || 'ข้อมูลสลิปไม่ครบถ้วน') : 'ตรวจสอบยอดในสลิป แล้วดำเนินการตามขั้นตอนต่อ'}</div>
+        ${customerSlipRejected ? '<div style="font-size:11px;font-weight:800;color:#8A2B2B;margin-top:5px">ระบบจะปลดล็อกขั้นตอนต่อเมื่อลูกค้าส่งสลิปฉบับใหม่</div>' : '<button type="button" class="jc-secondary-btn" style="margin-top:9px;width:100%;border-color:#D9534F;color:#B42318;background:#FFF" data-reject-slip="' + esc(j.id) + '">↩️ ปฏิเสธสลิป / ขออัปโหลดใหม่</button>'}
       </div>` : '';
   const foodWorkflowHtml = (!isNew && orderNeedsKitchen(j) && ['picked_up', 'customer_paid', 'on_the_way'].includes(j.status))
     ? `<div style="margin:12px 0;padding:12px;border:1px solid #B9DFA6;border-radius:14px;background:#F4FBF0">
@@ -1603,7 +1605,10 @@ function renderJobCard(j, type) {
       ${(j.type === 'food' && !orderNeedsKitchen(j)) ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>` : `<button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`}`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
-    if (orderNeedsKitchen(j) && !j.foodImage) {
+    if (!orderIsCash(j) && j.status === 'picked_up' && customerSlipRejected && !customerPaid) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าอัปโหลดสลิปใหม่</button>
+        <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬 แจ้งลูกค้า</button>`;
+    } else if (orderNeedsKitchen(j) && !j.foodImage) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">📸 ส่งรูปอาหารให้ลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (orderNeedsKitchen(j) && !shopSlip && !customerPaid) {
@@ -1814,6 +1819,47 @@ async function confirmPaymentReceived(jobId) {
     renderJobs();
   } catch (err) {
     showToast((err && err.message) || 'ยืนยันรับเงินไม่สำเร็จ', 'error');
+  }
+}
+
+function openSlipRejectModal(jobId) {
+  const job = allJobs.find((item) => item.id === jobId);
+  if (!job || job.riderId !== currentUser?.uid) return showToast('ไม่พบงานหรือคุณไม่ได้รับมอบหมายงานนี้', 'error');
+  if (!job.customerSlipUrl || job.customerPaidAt) return showToast('ออเดอร์นี้ไม่อยู่ในขั้นตอนตรวจสลิป', 'warning');
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `<div style="padding:4px 2px 12px">
+    <div style="font-size:20px;font-weight:950;color:#B42318;margin-bottom:6px">↩️ ปฏิเสธสลิป</div>
+    <div style="font-size:13px;line-height:1.55;color:var(--text-muted);margin-bottom:12px">แจ้งเหตุผลให้ลูกค้าทราบ ลูกค้าจะต้องอัปโหลดสลิปฉบับใหม่ก่อนจึงจะดำเนินงานต่อได้</div>
+    <label for="slip-rejection-reason" style="display:block;font-size:12px;font-weight:900;margin-bottom:6px">เหตุผลที่ขอให้ส่งใหม่</label>
+    <textarea id="slip-rejection-reason" maxlength="300" rows="4" placeholder="เช่น ยอดเงินไม่ตรงกับยอดที่แจ้ง หรือรูปสลิปอ่านไม่ชัด" style="width:100%;box-sizing:border-box;border:1px solid #E4B1B1;border-radius:12px;padding:11px;font:inherit;resize:vertical;background:#FFF9F9"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button type="button" class="jc-secondary-btn" style="flex:1" data-close-modal>ยกเลิก</button>
+      <button type="button" class="jc-primary-btn" style="flex:1;background:#B42318" data-confirm-reject-slip="${esc(jobId)}">ยืนยันปฏิเสธ</button>
+    </div>
+  </div>`;
+  $('modalOverlay')?.classList.add('show');
+  setTimeout(() => $('slip-rejection-reason')?.focus(), 50);
+}
+
+async function rejectCustomerSlip(jobId) {
+  const job = allJobs.find((item) => item.id === jobId);
+  const reason = ($('slip-rejection-reason')?.value || '').trim();
+  if (!job || job.riderId !== currentUser?.uid) return showToast('ไม่พบงานหรือคุณไม่ได้รับมอบหมายงานนี้', 'error');
+  if (reason.length < 1 || reason.length > 300) return showToast('กรุณาระบุเหตุผลไม่เกิน 300 ตัวอักษร', 'warning');
+  if (!job.customerSlipUrl || job.customerPaidAt || job.status !== 'picked_up') return showToast('ออเดอร์นี้ไม่อยู่ในขั้นตอนตรวจสลิปแล้ว', 'warning');
+  try {
+    await db.collection('orders').doc(jobId).update({
+      customerSlipStatus: 'rejected',
+      customerSlipRejectionReason: reason,
+      customerSlipRejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      customerSlipRejectedBy: currentUser.uid
+    });
+    closeModal();
+    showToast('↩️ ขอให้ลูกค้าอัปโหลดสลิปใหม่แล้ว', 'success');
+    renderJobs();
+  } catch (err) {
+    showToast('ปฏิเสธสลิปไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
 }
 
@@ -3854,7 +3900,7 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-shop-closed],[data-paid],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-reject-slip],[data-confirm-reject-slip],[data-close-modal],[data-shop-closed],[data-paid],[data-start-deliver],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
@@ -3863,6 +3909,9 @@ document.addEventListener('click', async (e) => {
     else if (t.dataset.arrived) await arrivedAtShop(t.dataset.arrived);
     else if (t.dataset.foodPhoto) openFoodPhoto(t.dataset.foodPhoto);
     else if (t.dataset.slip) openShopSlip(t.dataset.slip);
+    else if (t.dataset.rejectSlip) openSlipRejectModal(t.dataset.rejectSlip);
+    else if (t.dataset.confirmRejectSlip) await rejectCustomerSlip(t.dataset.confirmRejectSlip);
+    else if (t.hasAttribute('data-close-modal')) closeModal();
     else if (t.dataset.shopClosed) await reportShopClosed(t.dataset.shopClosed);
     else if (t.dataset.paid) await confirmPaymentReceived(t.dataset.paid);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);

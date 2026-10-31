@@ -6,9 +6,10 @@ rules_version = '2';
 //   chats/{orderId}/images/*                            customer, rider, shop chat
 //   chats/{uid}/images/parcel_*                         customer parcel photo
 //   chats/{orderId}/{file}                              admin/boss chat image
+//   slips/customers/{customerUid}/{orderId}/{file}      customer payment proof
 //   gp_slips/{merchantUid}/*                            shop GP slip
 //   menus/{merchantUid}/*  shops/{merchantUid}/*        menu photo and shop avatar
-// Customer "โอนแล้ว" does not upload a file.
+// Customer payment proof is uploaded under slips/customers/{uid}/{orderId}/.
 // Several clients call put(blob) or put(file) with no metadata. The Storage
 // SDK then sends application/octet-stream when the Blob type is empty
 // (common for a camera blob). A .jpg/.png/... name with that type is still
@@ -217,6 +218,22 @@ service firebase.storage {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow create, update: if isImage() && request.auth.uid == uid;
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+    }
+
+    // Customer payment proof is scoped to the customer's own order. The
+    // customer may upload/read/delete their proof; the assigned rider,
+    // merchant, and admins may read it but cannot overwrite it.
+    match /slips/customers/{uid}/{orderId}/{fileName} {
+      allow read: if signedIn() && (isAdmin() || orderParty(orderId));
+      allow create: if isImage()
+        && signedIn()
+        && request.auth.uid == uid
+        && isOrderCustomer(orderId)
+        && resource == null;
+      allow update: if false;
+      allow delete: if signedIn()
+        && request.auth.uid == uid
+        && isOrderCustomer(orderId);
     }
 
     match /slips/orders/{orderId}/{fileName} {

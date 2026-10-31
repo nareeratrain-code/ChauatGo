@@ -892,6 +892,15 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('orders').doc('acc1').set({
         type: 'food', status: 'accepted', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1'
       });
+      await root.collection('orders').doc('done1').set({
+        type: 'food', status: 'done', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1', rated: false
+      });
+      await root.collection('orders').doc('track1').set({
+        type: 'food', status: 'on_the_way', userId: 'cust1', merchantId: 'shop1', riderId: 'rider1'
+      });
+      await root.collection('orders').doc('track1').collection('tracking').doc('current').set({
+        riderId: 'rider1', lat: 8.02, lng: 100.15, updatedAt: new Date()
+      });
     });
 
     const rider = rulesEnv.authenticatedContext('rider1');
@@ -934,11 +943,28 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['rider offer list', () => assertSucceeds(rdb.collectionGroup('dispatchOffers').where('riderId', '==', 'rider1').where('status', '==', 'pending').get())],
       ['rider deny stats', () => assertFails(rdb.collection('riders').doc('rider1').update({ offersAccepted: 9 }))],
       ['rider save token', () => assertSucceeds(rdb.collection('riders').doc('rider1').update({ status: 'active', fcmTokens: ['tok'] }))],
-      ['rider gps', () => assertSucceeds(rdb.collection('gps_riders').doc('rider1').set({ riderId: 'rider1', online: true, lat: 8.02, lng: 100.15, geohash: 'w000000000' }))],
+      ['rider gps', () => assertSucceeds(rdb.collection('gps_riders').doc('rider1').set({ riderId: 'rider1', name: 'ไรเดอร์', online: true, lat: 8.02, lng: 100.15, geohash: 'w000000000', updatedAt: new Date() }))],
+      ['rider reads own profile', () => assertSucceeds(rdb.collection('riders').doc('rider1').get())],
+      ['customer cannot read rider profile', () => assertFails(cdb.collection('riders').doc('rider1').get())],
+      ['customer cannot read raw rider gps', () => assertFails(cdb.collection('gps_riders').doc('rider1').get())],
+      ['customer reads order-scoped tracking', () => assertSucceeds(cdb.collection('orders').doc('track1').collection('tracking').doc('current').get())],
+      ['stranger cannot read order-scoped tracking', () => assertFails(stdb.collection('orders').doc('track1').collection('tracking').doc('current').get())],
       ['rider read config', () => assertSucceeds(rdb.doc('config/dispatch').get())],
       ['rider deny config', () => assertFails(rdb.doc('config/dispatch').set({ mode: 'auto' }))],
       ['customer list', () => assertSucceeds(cdb.collection('orders').where('userId', '==', 'cust1').limit(10).get())],
       ['customer deny secret', () => assertFails(cdb.collection('orders').doc('secret').get())],
+      ['customer rates own completed order', () => assertSucceeds(cdb.collection('ratings').doc('done1').set({
+        orderId: 'done1', userId: 'cust1', userName: 'ลูกค้า', merchantId: 'shop1', riderId: 'rider1',
+        merchantRating: 5, riderRating: 5, comment: 'ดีมาก', createdAt: new Date()
+      }))],
+      ['customer cannot rate another order', () => assertFails(cdb.collection('ratings').doc('secret').set({
+        orderId: 'secret', userId: 'cust1', userName: 'ลูกค้า', merchantId: '', riderId: '',
+        merchantRating: 5, riderRating: 5, comment: '', createdAt: new Date()
+      }))],
+      ['customer cannot rate unfinished order', () => assertFails(cdb.collection('ratings').doc('track1').set({
+        orderId: 'track1', userId: 'cust1', userName: 'ลูกค้า', merchantId: 'shop1', riderId: 'rider1',
+        merchantRating: 5, riderRating: 5, comment: '', createdAt: new Date()
+      }))],
       ['shop list', () => assertSucceeds(sdb.collection('orders').where('merchantId', '==', 'shop1').limit(10).get())],
       ['stranger deny one', () => assertFails(stdb.collection('orders').doc('open1').get())],
       ['stranger deny list', () => assertFails(stdb.collection('orders').limit(5).get())],
@@ -952,7 +978,28 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       }))],
       ['gp transfer bounded', () => assertSucceeds(sdb.collection('gp_transfers').add({
         merchantId: 'shop1', merchantName: 'ร้านทดสอบ', status: 'pending', amount: 20,
-        slipPath: 'gp_slips/shop1/1.jpg', slipUrl: 'https://example.com/slip.jpg'
+        slipPath: 'gp_slips/shop1/1.jpg', slipUrl: 'https://example.com/slip.jpg',
+        note: 'รอบทดสอบ', roundLabel: 'ตุลาคม 2026', createdAt: new Date()
+      }))],
+      ['merchant can toggle own shop', () => assertSucceeds(sdb.collection('merchants').doc('shop1').update({
+        isOpen: true, lastToggle: new Date()
+      }))],
+      ['merchant cannot edit gpPending', () => assertFails(sdb.collection('merchants').doc('shop1').update({ gpPending: 0 }))],
+      ['merchant cannot add profile field', () => assertFails(sdb.collection('merchants').doc('shop1').update({ adminNote: 'ปลอม' }))],
+      ['merchant cannot delete own profile', () => assertFails(sdb.collection('merchants').doc('shop1').delete())],
+      ['merchant cannot mark ready with non-timestamp', () => assertFails(sdb.collection('orders').doc('open1').update({
+        foodReady: true, readyAt: 'now'
+      }))],
+      ['merchant cannot cancel with oversized reason', () => assertFails(sdb.collection('orders').doc('food-new').update({
+        status: 'cancelled', cancelledBy: 'merchant', cancelledAt: new Date(), cancelReason: 'x'.repeat(301)
+      }))],
+      ['merchant cannot forge order code', () => assertFails(sdb.collection('orders').doc('food-new').update({
+        status: 'cooking', cookingAt: new Date(), prepMinutes: 10, code: 'FAKE', deliveryCode: '12', codeCreatedAt: new Date()
+      }))],
+      ['gp transfer rejects extra field', () => assertFails(sdb.collection('gp_transfers').add({
+        merchantId: 'shop1', merchantName: 'ร้านทดสอบ', status: 'pending', amount: 20,
+        slipPath: 'gp_slips/shop1/extra.jpg', slipUrl: 'https://example.com/slip.jpg',
+        note: '', roundLabel: 'ตุลาคม 2026', createdAt: new Date(), verified: true
       }))]
     ];
     for (const [name, run] of checks) {
@@ -1065,6 +1112,14 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['rider message on legacy chat', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(msg('rider1', 'rider', 'กำลังไป')))],
       ['shop system message', () => assertSucceeds(sdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'ยกเลิก'), { systemMessage: true })))],
       ['food photo without a slip, then slip, then leave', async () => {
+        await assertSucceeds(cdb.collection('orders').doc('food-ready').update({
+          customerOrderConfirmed: true,
+          customerOrderConfirmedAt: serverTimestamp()
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          customerOrderConfirmed: true,
+          customerOrderConfirmedAt: serverTimestamp()
+        }));
         await assertFails(rdb.collection('orders').doc('food-wait').update({
           status: 'picked_up',
           pickedUpAt: serverTimestamp(),
@@ -1076,6 +1131,56 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
           pickedUpAt: serverTimestamp(),
           foodImage: 'https://example.com/food.jpg',
           foodImagePath: 'orders/food-ready/food_1.jpg'
+        }));
+        await assertSucceeds(cdb.collection('orders').doc('food-ready').update({
+          customerSlipUrl: 'https://example.com/customer-slip.jpg',
+          customerSlipPath: 'slips/customers/cust1/food-ready/proof_1.jpg',
+          customerSlipUploadedAt: serverTimestamp()
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          customerSlipUrl: 'https://example.com/forged-slip.jpg',
+          customerSlipPath: 'slips/customers/cust1/food-ready/forged.jpg',
+          customerSlipUploadedAt: serverTimestamp()
+        }));
+        await assertFails(cdb.collection('orders').doc('food-ready').update({
+          customerSlipUrl: 'https://example.com/bad-path.jpg',
+          customerSlipPath: 'slips/customers/cust1/other-order/proof.jpg',
+          customerSlipUploadedAt: serverTimestamp()
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('food-ready').update({
+          customerSlipStatus: 'rejected',
+          customerSlipRejectionReason: 'ยอดเงินในสลิปไม่ตรงกับออเดอร์',
+          customerSlipRejectedAt: serverTimestamp(),
+          customerSlipRejectedBy: 'rider1'
+        }));
+        await assertFails(stdb.collection('orders').doc('food-ready').update({
+          customerSlipStatus: 'rejected',
+          customerSlipRejectionReason: 'ปลอมสลิป',
+          customerSlipRejectedAt: serverTimestamp(),
+          customerSlipRejectedBy: 'stranger'
+        }));
+        await assertFails(rdb.collection('orders').doc('food-ready').update({
+          customerSlipStatus: 'rejected',
+          customerSlipRejectionReason: 'แก้สถานะเอง',
+          customerSlipRejectedAt: serverTimestamp(),
+          customerSlipRejectedBy: 'stranger',
+          customerPaidAt: null
+        }));
+        await assertSucceeds(cdb.collection('orders').doc('food-ready').update({
+          customerSlipUrl: 'https://example.com/customer-slip-retry.jpg',
+          customerSlipPath: 'slips/customers/cust1/food-ready/proof_2.jpg',
+          customerSlipUploadedAt: serverTimestamp(),
+          customerSlipStatus: 'pending',
+          customerSlipRevision: 2
+        }));
+        await assertFails(cdb.collection('orders').doc('food-ready').update({
+          customerSlipStatus: 'accepted',
+          customerSlipRevision: 3
+        }));
+        await assertSucceeds(cdb.collection('orders').doc('food-ready').update({
+          status: 'customer_paid',
+          customerPaid: true,
+          customerPaidAt: serverTimestamp()
         }));
         await assertFails(rdb.collection('orders').doc('food-ready').update({
           status: 'on_the_way',
