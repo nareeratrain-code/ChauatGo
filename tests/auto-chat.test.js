@@ -18,7 +18,7 @@ const STATIC_KEYS = ['accepted', 'shop_arrived', 'on_the_way', 'near_customer', 
 const FOOD_BANNED = ['ฝากซื้อ', 'ซื้อของให้', 'ค่าสินค้า'];
 
 function staticFood() {
-  return STATIC_KEYS.map((key) => chat.autoChatText({ type: 'food' }, key));
+  return STATIC_KEYS.map((key) => chat.autoChatText({ type: 'food', partnerShop: true }, key));
 }
 
 test('food status lines stay food-specific until the photo asks for payment', () => {
@@ -28,19 +28,19 @@ test('food status lines stay food-specific until the photo asks for payment', ()
     assert.equal(lines.some((line) => line.includes(word)), false, word);
   }
   assert.match(lines[0], /ไปที่ร้านเพื่อรับอาหาร/);
-  assert.match(chat.autoChatText({ type: 'food' }, 'shop_arrived'), /ถ่ายรูปอาหาร/);
+  assert.match(chat.autoChatText({ type: 'food', partnerShop: true }, 'shop_arrived'), /ถ่ายรูปอาหาร/);
   assert.equal(lines.some((line) => line.includes('โอนเงินให้ไรเดอร์')), false);
 });
 
 test('food photo asks for a transfer of food plus delivery', () => {
-  const order = { type: 'food', paymentMode: 'transfer', foodTotal: 210, fare: 20 };
+  const order = { type: 'food', partnerShop: true, paymentMode: 'transfer', foodTotal: 210, fare: 20 };
   const text = chat.autoChatText(order, 'food_photo');
   assert.equal(text, chat.autoChatText(order, 'picked_up'));
   assert.match(text, /โอนเงินให้ไรเดอร์/);
   assert.match(text, /ค่าอาหาร ฿210 \+ ค่าส่ง ฿20 = รวม ฿230/);
   for (const word of FOOD_BANNED) assert.equal(text.includes(word), false, word);
   const fromItems = chat.autoChatText({
-    type: 'food',
+    type: 'food', partnerShop: true,
     paymentMode: 'transfer',
     fare: 20,
     items: [{ price: 70, qty: 3 }]
@@ -50,14 +50,14 @@ test('food photo asks for a transfer of food plus delivery', () => {
 
 test('cash food asks the customer to pay the rider on delivery', () => {
   const text = chat.autoChatText({
-    type: 'food', paymentMode: 'cash', foodTotal: 210, fare: 20
+    type: 'food', partnerShop: true, paymentMode: 'cash', foodTotal: 210, fare: 20
   }, 'food_photo');
   assert.match(text, /เงินสดจ่ายไรเดอร์ตอนรับอาหาร/);
   assert.match(text, /ค่าอาหาร ฿210 \+ ค่าส่ง ฿20 \+ ค่าบริการเงินสด ฿5 = รวม ฿235/);
   assert.equal(text.includes('โอนเงิน'), false);
   assert.equal(text.includes('ฝากซื้อ'), false);
   const noTip = chat.autoChatText({
-    type: 'food', paymentMode: 'cash', foodTotal: 210, fare: 20, cashTip: 0
+    type: 'food', partnerShop: true, paymentMode: 'cash', foodTotal: 210, fare: 20, cashTip: 0
   }, 'food_photo');
   assert.match(noTip, /ค่าอาหาร ฿210 \+ ค่าส่ง ฿20 = รวม ฿230/);
   assert.equal(noTip.includes('ค่าบริการเงินสด'), false);
@@ -86,9 +86,29 @@ test('ride auto-chat is a pickup, and an unknown type falls back to food', () =>
   assert.match(ride, /เรียกรถ/);
   assert.equal(ride.includes('ฝากซื้อ'), false);
   assert.equal(ride.includes('โอนเงิน'), false);
+  assert.match(chat.autoChatText({ type: 'ride' }, 'shop_arrived'), /จุดนัดหมาย/);
+  assert.match(chat.autoChatText({ type: 'ride' }, 'arrived_customer'), /ถึงที่หมายแล้ว/);
+  assert.match(chat.autoChatText({ type: 'ride' }, 'arrived_customer'), /ชำระค่าบริการ/);
   assert.equal(chat.autoChatText({ type: 'other' }, 'accepted'), chat.autoChatText({ type: 'food' }, 'accepted'));
   assert.equal(chat.autoChatText(null, 'accepted'), chat.autoChatText({ type: 'food' }, 'accepted'));
   assert.equal(chat.autoChatText({ type: 'food' }, 'missing'), '');
+});
+
+test('non-partner services use pickup-point wording and never enter the food workflow', () => {
+  const localFood = { type: 'food', partnerShop: false, paymentMode: 'transfer' };
+  const express = { type: 'express', paymentMode: 'transfer' };
+  const shopping = { type: 'shopping', paymentMode: 'transfer' };
+  assert.equal(gate.orderNeedsKitchen(localFood), false);
+  assert.equal(gate.orderNeedsKitchen(express), false);
+  assert.equal(gate.orderNeedsKitchen(shopping), false);
+  assert.match(chat.autoChatText(localFood, 'shop_arrived'), /จุดนัดหมาย/);
+  assert.match(chat.autoChatText(localFood, 'picked_up'), /รับของจากจุดนัดหมาย/);
+  assert.equal(chat.autoChatText(localFood, 'shop_arrived').includes('ถ่ายรูปอาหาร'), false);
+  assert.equal(chat.autoChatText(express, 'shop_arrived').includes('ถึงร้าน'), false);
+  assert.equal(chat.autoChatText(shopping, 'shop_arrived').includes('ถึงร้าน'), false);
+  assert.match(rider, /if \(!orderNeedsKitchen\(job\)\) \{/);
+  assert.match(rider, /งานนี้ไม่ต้องแนบสลิปร้าน/);
+  assert.match(rider, /งานนี้ไม่ต้องถ่ายรูปอาหาร/);
 });
 
 test('a food rider cannot leave before the shop slip', () => {
@@ -107,6 +127,7 @@ test('a food rider cannot leave before the shop slip', () => {
   assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'cash' }), true);
   assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'transfer' }), false);
   assert.equal(gate.canLeaveShop({ type: 'shopping', paymentMode: 'transfer', customerPaidAt: {} }), true);
+  assert.equal(gate.canLeaveShop({ type: 'ride', paymentMode: 'transfer' }), true);
 });
 
 test('status messages choose the template from the order type', () => {

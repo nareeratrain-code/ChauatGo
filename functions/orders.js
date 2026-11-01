@@ -451,6 +451,11 @@ function paymentReceivedText(order, beforePickup) {
   return line + '\nกำลังออกไปส่งครับ/ค่ะ';
 }
 
+function ridePaymentReceivedText(order) {
+  const total = round2(order && (order.total != null ? order.total : order.fare));
+  return '✅ ไรเดอร์ยืนยันว่าได้รับค่าบริการโอน ฿' + total + ' แล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ ChauatGo ครับ/ค่ะ';
+}
+
 function precondition(message) {
   const err = new Error(message);
   err.code = 'failed-precondition';
@@ -573,14 +578,15 @@ async function confirmPaymentReceived(db, uid, orderId) {
     }
     const beforePickup = order.status === 'accepted' || order.status === 'ready';
     const waiting = order.status === 'picked_up';
+    const rideAtDestination = order.type === 'ride' && order.status === 'on_the_way';
     if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup)) {
       result = { ok: true, already: true, status: order.status };
       return;
     }
-    if (!beforePickup && !waiting) {
+    if (!beforePickup && !waiting && !rideAtDestination) {
       precondition('ยืนยันรับเงินได้ตอนรอโอน หรือก่อนรับของเท่านั้น');
     }
-    const text = paymentReceivedText(order, beforePickup);
+    const text = rideAtDestination ? ridePaymentReceivedText(order) : paymentReceivedText(order, beforePickup);
     const patch = {
       customerPaid: true,
       customerPaidAt: FieldValue.serverTimestamp(),

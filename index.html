@@ -3340,25 +3340,26 @@ window.confirmCheckout = async function(grandTotal) {
    NEAR ALERT — ⭐ v3.9.0: 4 levels
    ═══════════════════════════════════════════════════════════════════ */
 function showNearAlertByLevel(order, level, distMeters) {
+  var isRide = order && order.type === 'ride';
   var config = {
     APPROACHING: {
-      icon: '🟢', title: 'ไรเดอร์กำลังมา',
-      sub: 'อีกประมาณ ' + Math.round(distMeters) + ' ม.',
+      icon: '🟢', title: isRide ? 'ไรเดอร์กำลังไปยังปลายทาง' : 'ไรเดอร์กำลังมา',
+      sub: isRide ? 'อีกประมาณ ' + Math.round(distMeters) + ' ม. — เตรียมชำระค่าบริการ' : 'อีกประมาณ ' + Math.round(distMeters) + ' ม.',
       color: '#168A45', sound: 'soft'
     },
     CLOSE: {
-      icon: '🟡', title: 'ไรเดอร์ใกล้ถึง',
-      sub: 'อีก ' + Math.round(distMeters) + ' ม. — เตรียมตัว',
+      icon: '🟡', title: isRide ? 'ไรเดอร์ใกล้ถึงปลายทาง' : 'ไรเดอร์ใกล้ถึง',
+      sub: isRide ? 'อีก ' + Math.round(distMeters) + ' ม. — เตรียมชำระค่าบริการ' : 'อีก ' + Math.round(distMeters) + ' ม. — เตรียมตัว',
       color: '#FF9800', sound: 'medium'
     },
     NEAR: {
-      icon: '🟠', title: 'อีกนิดเดียว!',
-      sub: 'อีก ' + Math.round(distMeters) + ' ม. — ออกไปรับ',
+      icon: '🟠', title: isRide ? 'ไรเดอร์ใกล้ถึงปลายทางแล้ว' : 'อีกนิดเดียว!',
+      sub: isRide ? 'อีก ' + Math.round(distMeters) + ' ม. — เตรียมรับบริการและชำระเงิน' : 'อีก ' + Math.round(distMeters) + ' ม. — ออกไปรับ',
       color: '#FF6B35', sound: 'loud'
     },
     ARRIVED: {
-      icon: '🔴', title: 'ถึงแล้ว!',
-      sub: 'ไรเดอร์อยู่หน้าบ้าน — ออกไปรับอาหาร',
+      icon: '🔴', title: isRide ? 'ไรเดอร์ถึงปลายทางแล้ว' : 'ถึงแล้ว!',
+      sub: isRide ? 'กรุณาพบไรเดอร์และชำระค่าบริการ' : 'ไรเดอร์อยู่หน้าบ้าน — ออกไปรับอาหาร',
       color: '#E53935', sound: 'urgent'
     }
   }[level];
@@ -3750,6 +3751,8 @@ function renderOrderCard(o){
   var canChat = !!o.riderId && ['cancelled'].indexOf(o.status) === -1;
   var canTrack = !!o.riderId && ['accepted','picked_up','customer_paid','on_the_way'].indexOf(o.status) !== -1;
   var isCash = o.paymentMode === 'cash';
+  var needsCustomerSlip = !isCash && o.type !== 'ride';
+  var isPartnerFood = o.type === 'food' && o.partnerShop === true;
   var customerSlipRejected = o.customerSlipStatus === 'rejected';
   var payBadge = isCash
     ? '<span class="cash-badge">💵 เงินสด • จ่าย ฿'+fmt(o.total||0)+'</span>'
@@ -3781,24 +3784,29 @@ function renderOrderCard(o){
       '<button class="customer-payment-btn" onclick="confirmCustomerOrder(\''+esc(o.id)+'\')">✅ ยืนยันรายการและยอด</button>' +
     '</div>';
   } else if (o.status === 'accepted' && o.customerOrderConfirmed) {
-    payBtnHtml = '<div class="customer-payment-panel"><div class="customer-payment-title">✅ ยืนยันรายการแล้ว</div><div class="customer-payment-copy">รอไรเดอร์ถ่ายรูปอาหารหรือสินค้า ก่อนแสดง QR และแจ้งยอดให้โอน</div></div>';
+    var confirmedCopy = o.type === 'ride'
+      ? 'รอไรเดอร์เดินทางไปรับและนำส่งถึงปลายทาง จากนั้นชำระค่าบริการให้ไรเดอร์'
+      : (isPartnerFood
+        ? 'รอไรเดอร์ถ่ายรูปอาหาร ก่อนแสดง QR และแจ้งยอดให้โอน'
+        : 'รอไรเดอร์รับของก่อนดำเนินการชำระเงิน');
+    payBtnHtml = '<div class="customer-payment-panel"><div class="customer-payment-title">✅ ยืนยันรายการแล้ว</div><div class="customer-payment-copy">' + confirmedCopy + '</div></div>';
   } else if (isCash && (o.status === 'picked_up' || o.status === 'on_the_way')) {
     payBtnHtml = '<div class="customer-payment-panel warning"><div class="customer-payment-title">💵 ชำระเงินสดกับไรเดอร์</div><div class="customer-payment-copy">เตรียมเงินสดจำนวน ฿'+fmt(o.total||0)+' ชำระเมื่อได้รับสินค้า</div></div>';
-  } else if (o.status === 'picked_up' && !o.customerPaidAt && customerSlipRejected) {
+  } else if (needsCustomerSlip && o.status === 'picked_up' && !o.customerPaidAt && customerSlipRejected) {
     payBtnHtml = '<div class="customer-payment-panel warning" style="border-color:#F0A7A7;background:#FFF5F5">' +
       '<div class="customer-payment-title" style="color:#B42318">↩️ กรุณาอัปโหลดสลิปใหม่</div>' +
       '<div class="customer-payment-copy" style="color:#8A2B2B">ไรเดอร์ตรวจสอบแล้วและขอให้ส่งหลักฐานการโอนใหม่</div>' +
       '<div style="margin:10px 0;padding:10px;border-radius:10px;background:#FFF;border-left:3px solid #D9534F;font-size:12px;font-weight:800;color:#8A2B2B">เหตุผล: '+esc(o.customerSlipRejectionReason || 'ข้อมูลสลิปไม่ครบถ้วน')+'</div>' +
       '<button class="customer-payment-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100)" onclick="pickCustomerSlip(\''+esc(o.id)+'\')">📷 ถ่ายหรือเลือกสลิปใหม่</button>' +
     '</div>';
-  } else if (o.status === 'picked_up' && !o.customerPaidAt && !o.customerSlipUrl) {
+  } else if (needsCustomerSlip && o.status === 'picked_up' && !o.customerPaidAt && !o.customerSlipUrl) {
     payBtnHtml = '<div class="customer-payment-panel warning">' +
       '<div class="customer-payment-title">📸 แนบสลิปการโอน</div>' +
-      '<div class="customer-payment-copy">กรุณาโอนหลังเห็นรูปอาหารหรือสินค้าเท่านั้น แล้วแนบสลิปเพื่อแจ้งไรเดอร์</div>' +
+      '<div class="customer-payment-copy">กรุณาโอนค่าบริการให้ไรเดอร์ แล้วแนบสลิปเพื่อแจ้งไรเดอร์</div>' +
       '<div class="customer-payment-total"><span>ยอดที่ต้องชำระ</span><b>฿'+fmt(o.total||o.fare||0)+'</b></div>' +
       '<button class="customer-payment-btn" onclick="pickCustomerSlip(\''+esc(o.id)+'\')">📷 ถ่ายหรือเลือกสลิป</button>' +
     '</div>';
-  } else if (o.status === 'picked_up' && !o.customerPaidAt && o.customerSlipUrl) {
+  } else if (needsCustomerSlip && o.status === 'picked_up' && !o.customerPaidAt && o.customerSlipUrl) {
     payBtnHtml = '<div class="customer-payment-panel"><div class="customer-payment-title">✅ แนบสลิปแล้ว</div>' +
       '<img class="customer-slip-preview" src="'+esc(o.customerSlipUrl)+'" alt="สลิปการโอนของลูกค้า" onclick="openLightbox(\''+esc(o.customerSlipUrl)+'\')">' +
       '<div class="customer-payment-copy">ตรวจสอบสลิปให้เรียบร้อย แล้วกดยืนยันเพื่อแจ้งไรเดอร์</div>' +
@@ -3886,6 +3894,7 @@ window.handleCustomerSlipPick = async function(event) {
   var ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   if (['jpg','jpeg','png','webp','gif','heic','heif'].indexOf(ext) === -1) ext = 'jpg';
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
+  if (cached && cached.type === 'ride') return showToast('งานเรียกรถไม่ต้องแนบสลิป — แจ้งไรเดอร์เมื่อชำระค่าบริการแล้ว', 'info');
   if (!cached || cached.userId !== currentUser.uid || cached.status !== 'picked_up') {
     return showToast('แนบสลิปได้หลังไรเดอร์รับของแล้วเท่านั้น (กรุณารอสถานะอัปเดต)', 'warning');
   }

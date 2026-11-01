@@ -94,3 +94,9 @@ test('Customer UI: แสดงเหตุผลสลิปถูกปฏิ�
   assert.match(app, /slipUpdate\.customerSlipStatus = 'pending'/);
   assert.match(app, /slipUpdate\.customerSlipRevision/);
 });
+
+test('Customer Slip UI is excluded from ride orders', () => {
+  assert.match(app, /var needsCustomerSlip = !isCash && o\.type !== 'ride'/);
+  assert.match(app, /cached\.type === 'ride'/);
+  assert.match(app, /งานเรียกรถไม่ต้องแนบสลิป/);
+});

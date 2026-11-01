@@ -57,6 +57,13 @@ test('UI แยกปุ่มรูปอาหารและสลิปร�
   assert.match(app, /window\.confirmCustomerPaid = async function/);
 });
 
+test('Rider arrival copy keeps shop wording only for partner food', () => {
+  assert.match(rider, /const arrivalText = job\.type === 'ride'/);
+  assert.match(rider, /orderNeedsKitchen\(job\)\s*\?/);
+  assert.match(rider, /ถึงจุดรับพัสดุแล้ว/);
+  assert.match(rider, /ถึงจุดรับแล้ว/);
+});
+
 test('Rider UI: แสดงสถานะยืนยันรายการและสลิปลูกค้าใน Job Card', () => {
   assert.match(rider, /customerOrderConfirmed/);
   assert.match(rider, /ลูกค้ายืนยันรายการและยอดแล้ว/);

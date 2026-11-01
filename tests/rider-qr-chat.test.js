@@ -43,6 +43,7 @@ function loadQrFunctions() {
   const order = {
     id: 'OD-QR-001',
     type: 'food',
+    partnerShop: true,
     paymentMode: 'transfer',
     foodTotal: 105,
     fare: 20,

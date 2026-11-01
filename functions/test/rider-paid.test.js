@@ -104,4 +104,21 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.equal(wayDoc.status, 'on_the_way');
   assert.equal(wayDoc.fare, 35);
   assert.equal(wayDoc.customerPaidAt, undefined);
+
+  await db.collection('orders').doc('ord-ride-arrived').set(Object.assign({}, base, {
+    type: 'ride',
+    title: 'เรียกรถ • motorcycle',
+    status: 'on_the_way',
+    total: 59,
+    fare: 59
+  }));
+  const ridePaid = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-ride-arrived');
+  assert.equal(ridePaid.ok, true);
+  assert.equal(ridePaid.status, 'on_the_way');
+  const rideDoc = (await db.collection('orders').doc('ord-ride-arrived').get()).data();
+  assert.equal(rideDoc.status, 'on_the_way');
+  assert.equal(rideDoc.customerPaid, true);
+  assert.ok(rideDoc.customerPaidAt);
+  const rideMsg = await db.collection('chats').doc('ord-ride-arrived').collection('messages').doc('auto_payment_received').get();
+  assert.match(rideMsg.data().text, /ได้รับค่าบริการโอน ฿59/);
 });
