@@ -466,6 +466,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .dest-estimate b { color: var(--green); font-weight: 900; }
 .dest-extra { display: none; }
 .dest-sheet.expanded .dest-extra { display: block; }
+.dest-sheet.location-picked .dest-search,
+.dest-sheet.location-picked .dest-cat-row,
+.dest-sheet.location-picked .dest-search-results,
+.dest-sheet.location-picked .dest-saved { display: none !important; }
 .dest-note-label { display: block; font-size: 12px; font-weight: 900; margin: 4px 0 6px; }
 #dest-rider-note { width: 100%; box-sizing: border-box; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); border-radius: 12px; padding: 10px 12px; font-family: inherit; font-size: 14px; font-weight: 700; resize: none; margin-bottom: 8px; }
 .dest-save-row { display: flex; gap: 8px; margin-bottom: 8px; }
@@ -6706,6 +6710,7 @@ function openOsmDest(lat, lng, name) {
   destHoldAddress = name || '';
   selectedDestination = { lat: lat, lng: lng, address: name || '' };
   openMapPage();
+  setDestSearchMode(false);
   setTimeout(function() {
     panPinTo(lat, lng, 17);
     showDestAddress(name || 'ตำแหน่งที่เลือก', { lat: lat, lng: lng });
@@ -6731,6 +6736,13 @@ function hideDestSearchResults() {
   if (!box) return;
   box.classList.remove('show');
   box.innerHTML = '';
+}
+
+function setDestSearchMode(show) {
+  var sheet = $('dest-sheet');
+  if (!sheet) return;
+  sheet.classList.toggle('location-picked', !show);
+  if (!show) hideDestSearchResults();
 }
 
 function renderDestSearchResults(items, pending) {
@@ -6775,7 +6787,7 @@ function renderDestSearchResults(items, pending) {
       destHoldPlaceId = item.placeId || '';
       destSearchGen++;
       if ($('dest-search-input')) $('dest-search-input').value = item.label;
-      hideDestSearchResults();
+      setDestSearchMode(false);
       panPinTo(item.lat, item.lng, 17);
     });
   });
@@ -6989,6 +7001,7 @@ window.openMapPage = function(keepPickerMode){
     if ($('map-page')) delete $('map-page').dataset.picker;
   }
   syncMapTitle();
+  setDestSearchMode(true);
   var seed = mapPickerSeed();
   var token = ++mapOpenToken;
   var confirmBtn = $('map-confirm-btn');
@@ -7098,6 +7111,7 @@ window.clearMap = function(){
   destHoldAddress = '';
   if ($('dest-search-input')) $('dest-search-input').value = '';
   if ($('dest-rider-note')) $('dest-rider-note').value = '';
+  setDestSearchMode(true);
   hideDestSearchResults();
   var back = userLocation || CHAUAT_CENTER;
   if (map) panPinTo(back.lat, back.lng, 16);

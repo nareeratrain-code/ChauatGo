@@ -65,6 +65,16 @@ test('ride, express, shopping, and food can refresh GPS or pick the point on the
   assert.match(html, /mode === 'shop-dropoff'/);
 });
 
+test('selecting a searched place switches to map-only pin confirmation for every picker mode', () => {
+  assert.match(html, /\.dest-sheet\.location-picked \.dest-search/);
+  assert.match(html, /\.dest-sheet\.location-picked \.dest-search-results/);
+  assert.match(html, /function setDestSearchMode\(show\)/);
+  assert.match(html, /setDestSearchMode\(false\);\n\s+panPinTo\(item\.lat, item\.lng, 17\)/);
+  assert.match(html, /setDestSearchMode\(true\);\n\s+hideDestSearchResults\(\);/);
+  assert.match(html, /id="map-center-pin"/);
+  assert.match(html, /id="map-confirm-btn" onclick="confirmMapLocation\(\)"/);
+});
+
 test('a chosen pickup changes the quoted fare and keeps the base when GPS is missing', () => {
   context.rideOrigin = null;
   context.userLocation = null;
