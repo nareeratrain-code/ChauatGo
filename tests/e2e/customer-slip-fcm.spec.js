@@ -161,6 +161,7 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
       riderName: 'QA FCM Rider',
       merchantId: 'qa-merchant',
       merchantName: 'ร้าน QA',
+      partnerShop: true,
       title: 'ออเดอร์ทดสอบ FCM',
       address: 'จุดทดสอบชะอวด',
       lat: 8.1701,

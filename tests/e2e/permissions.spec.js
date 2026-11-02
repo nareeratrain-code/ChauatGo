@@ -116,6 +116,10 @@ async function signInAnonymouslyAndWaitForConsentFlush(page) {
         }
       }, 50);
     });
+    if (window.__QA_CONSENT_FLUSH_PROMISE__) {
+      const flushed = await window.__QA_CONSENT_FLUSH_PROMISE__;
+      if (flushed && flushed.eventId) return flushed;
+    }
     let result = { error: 'ไม่มี Pending Consent Event' };
     for (let attempt = 0; attempt < 10; attempt += 1) {
       const pending = JSON.parse(localStorage.getItem('chauat_pending_consent_events') || '[]');

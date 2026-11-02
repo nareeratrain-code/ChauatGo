@@ -228,6 +228,11 @@ function dismissSplash() {
 function showToast(msg, type = 'success') {
   const t = $('toast');
   if (!t) return;
+  t.style.cursor = 'pointer';
+  t.title = 'แตะเพื่อปิด';
+  t.setAttribute('role', 'status');
+  t.setAttribute('aria-label', 'แตะเพื่อปิดข้อความแจ้งเตือน');
+  t.onclick = () => { clearTimeout(t._t); t.className = 'toast'; };
   const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
   t.textContent = (icons[type] || '') + ' ' + msg;
   t.className = 'toast show ' + type;

@@ -68,16 +68,18 @@ service cloud.firestore {
     }
 
     function isBossActive() {
+      let adminDoc = /databases/$(database)/documents/admins/$(myUid());
       return isAuth()
-        && exists(/databases/$(database)/documents/admins/$(myUid()))
-        && get(/databases/$(database)/documents/admins/$(myUid())).data.get('role', '') in ['active', 'super'];
+        && exists(adminDoc)
+        && get(adminDoc).data.get('role', '') in ['active', 'super'];
     }
 
     function isAdminByRole() {
+      let userDoc = /databases/$(database)/documents/users/$(myUid());
       return isAuth()
-        && exists(/databases/$(database)/documents/users/$(myUid()))
-        && get(/databases/$(database)/documents/users/$(myUid())).data.get('role', '') == 'admin'
-        && get(/databases/$(database)/documents/users/$(myUid())).data.get('isPending', false) != true;
+        && exists(userDoc)
+        && get(userDoc).data.get('role', '') == 'admin'
+        && get(userDoc).data.get('isPending', false) != true;
     }
 
     // v3.8.4 named this exists(admins/{uid}). Pending signups must not inherit it.
@@ -86,21 +88,12 @@ service cloud.firestore {
     }
 
     function isMerchant() {
-      return isAuth() && exists(/databases/$(database)/documents/merchants/$(myUid()));
-    }
-
-    function isRider() {
-      return isAuth() && exists(/databases/$(database)/documents/riders/$(myUid()));
-    }
-
-    function isRiderByRole() {
+      let userDoc = /databases/$(database)/documents/users/$(myUid());
+      let merchantDoc = /databases/$(database)/documents/merchants/$(myUid());
       return isAuth()
-        && exists(/databases/$(database)/documents/users/$(myUid()))
-        && get(/databases/$(database)/documents/users/$(myUid())).data.role == 'rider';
-    }
-
-    function isRiderActor() {
-      return isRider() || isRiderByRole();
+        && exists(userDoc)
+        && get(userDoc).data.get('role', '') == 'merchant'
+        && exists(merchantDoc);
     }
 
     function isVerifiedRider() {
@@ -199,6 +192,59 @@ service cloud.firestore {
             && (request.resource.data.get('qrCodePath', '') == ''
               || request.resource.data.qrCodePath.matches('^rider_qr/' + myUid() + '/[A-Za-z0-9_.-]+$')));
     }
+
+    function userSelfUpdateOk(userId) {
+      return isAuth()
+        && myUid() == userId
+        && unchanged('role')
+        && unchanged('isPending');
+    }
+
+    function merchantProfileWriteOk(merchantId) {
+      return isAuth()
+        && myUid() == merchantId
+        && unchanged('verified')
+        && unchanged('ratingAvg')
+        && unchanged('ratingCount')
+        && unchanged('gpPaid')
+        && unchanged('merchantId')
+        && unchanged('gpPending')
+        && unchanged('gpHistory')
+        && merchantProfileUpdateOk();
+    }
+
+    function riderProfileWriteOk(riderId) {
+      return isAuth()
+        && myUid() == riderId
+        && unchanged('verified')
+        && unchanged('riderId')
+        && unchanged('trustScore')
+        && unchanged('offersAccepted')
+        && unchanged('offersTotal')
+        && unchanged('activeJobCount')
+        && unchanged('idleSince')
+        && unchanged('totalIncome')
+        && unchanged('totalJobs')
+        && riderProfileUpdateOk();
+    }
+
+    function menuCreateOk() {
+      return isMerchant()
+        && request.resource.data.merchantId == myUid()
+        && isValidNumber(request.resource.data.price, 0, 100000);
+    }
+
+    function menuUpdateOk() {
+      return isMerchant()
+        && resource.data.merchantId == myUid()
+        && request.resource.data.merchantId == myUid()
+        && isValidNumber(request.resource.data.price, 0, 100000);
+    }
+
+    function menuDeleteOk() {
+      return isMerchant() && resource.data.merchantId == myUid();
+    }
+
     function gpsWriteOk(riderId) {
       return request.resource.data.keys().hasOnly([
         'riderId', 'name', 'lat', 'lng', 'accuracy', 'geohash', 'online', 'updatedAt'
@@ -283,29 +329,24 @@ service cloud.firestore {
       return data.get('riderId', null) == null || data.get('riderId', '') == '';
     }
 
+    // These fields are server-owned. Checking the affected-key set once is
+    // equivalent to checking every field with unchanged(), but uses far fewer
+    // Rules expressions. This matters for denied/negative writes, where the
+    // entire order state machine may otherwise be evaluated before returning
+    // false in the Emulator.
     function moneyFrozen() {
-      return unchanged('fare')
-        && unchanged('total')
-        && unchanged('foodTotal')
-        && unchanged('itemsTotal')
-        && unchanged('subtotal')
-        && unchanged('netTotal')
-        && unchanged('discountTotal')
-        && unchanged('cashTip')
-        && unchanged('items')
-        && unchanged('riderIncome')
-        && unchanged('riderOwe')
-        && unchanged('riderPaid')
-        && unchanged('gpTotal')
-        && unchanged('gpRider')
-        && unchanged('gpPlatform')
-        && unchanged('chargedTotal')
-        && unchanged('partnerShop')
-        && unchanged('shopDisclaimerAccepted');
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'fare', 'total', 'foodTotal', 'itemsTotal', 'subtotal', 'netTotal',
+        'discountTotal', 'cashTip', 'items', 'riderIncome', 'riderOwe',
+        'riderPaid', 'gpTotal', 'gpRider', 'gpPlatform', 'chargedTotal',
+        'partnerShop', 'shopDisclaimerAccepted'
+      ]);
     }
 
     function identityFrozen() {
-      return unchanged('userId') && unchanged('merchantId') && unchanged('type');
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'userId', 'merchantId', 'type'
+      ]);
     }
 
     function orderType() {
@@ -339,7 +380,7 @@ service cloud.firestore {
     }
 
     function isAssignedRider() {
-      return isRiderActor() && resource.data.get('riderId', '') == myUid();
+      return isVerifiedRider() && resource.data.get('riderId', '') == myUid();
     }
 
     function isOrderCustomer() {
@@ -349,8 +390,7 @@ service cloud.firestore {
     // New payment-flow fields are customer-owned. Confirmation of the order
     // is separate from customerPaid/customerPaidAt.
     function customerOrderConfirmationOk() {
-      return isOrderCustomer()
-        && resource.data.status == 'accepted'
+      return resource.data.status == 'accepted'
         && request.resource.data.status == resource.data.status
         && identityFrozen()
         && onlyChanged(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
@@ -361,8 +401,7 @@ service cloud.firestore {
     // Upload proof while the order remains picked_up. The following payment
     // transition may then set customerPaid/customerPaidAt.
     function customerSlipUploadOk(orderId) {
-      return isOrderCustomer()
-        && resource.data.status == 'picked_up'
+      return resource.data.status == 'picked_up'
         && request.resource.data.status == resource.data.status
         && identityFrozen()
         && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
@@ -389,8 +428,7 @@ service cloud.firestore {
     // Only the assigned rider may reject a customer proof. The rider cannot
     // change payment state, ownership, or the uploaded file in this action.
     function riderSlipRejectionOk() {
-      return isAssignedRider()
-        && resource.data.status == 'picked_up'
+      return resource.data.status == 'picked_up'
         && resource.data.get('customerPaidAt', null) == null
         && resource.data.get('customerSlipUrl', '') is string
         && resource.data.get('customerSlipUrl', '').size() > 0
@@ -410,8 +448,7 @@ service cloud.firestore {
     // A rejected proof may be replaced only by the order owner. Revision must
     // increase exactly by one, and the new path must remain order-scoped.
     function customerSlipResubmissionOk(orderId) {
-      return isOrderCustomer()
-        && resource.data.status == 'picked_up'
+      return resource.data.status == 'picked_up'
         && resource.data.get('customerSlipStatus', '') == 'rejected'
         && request.resource.data.status == resource.data.status
         && identityFrozen()
@@ -431,6 +468,345 @@ service cloud.firestore {
         && request.resource.data.customerSlipRevision is int
         && request.resource.data.customerSlipRevision
           == resource.data.get('customerSlipRevision', 1) + 1;
+    }
+
+    // Order update policy is split by actor before evaluating transitions.
+    // Keeping these functions small makes each state transition auditable and
+    // avoids repeating role/financial invariants throughout the match block.
+    function customerOrderUpdateOk(orderId) {
+      return moneyFrozen() && isOrderCustomer() && (
+        (
+          resource.data.status in ['searching', 'pending']
+          && request.resource.data.status == 'cancelled'
+          && cancelFieldsOk('customer')
+          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        )
+        || customerOrderConfirmationOk()
+        || customerSlipUploadOk(orderId)
+        || customerSlipResubmissionOk(orderId)
+        || (
+          resource.data.status == 'picked_up'
+          && request.resource.data.status == 'customer_paid'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+        )
+        || (
+          resource.data.status in ['done', 'delivered']
+          && request.resource.data.rated == true
+          && unchanged('status')
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['rated', 'ratedAt'])
+        )
+      );
+    }
+
+    function riderOrderUpdateOk() {
+      return moneyFrozen() && isAssignedRider() && (
+        riderSlipRejectionOk()
+        || (
+          request.resource.data.status == 'picked_up'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && (
+            (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
+            || (resource.data.status == 'ready' && !noRider(resource.data))
+          )
+        )
+        || (
+          needsKitchen()
+          && resource.data.status in ['picked_up', 'customer_paid']
+          && request.resource.data.status == resource.data.status
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && request.resource.data.riderSlipToShop is string
+          && request.resource.data.riderSlipToShop.size() > 0
+          && request.resource.data.riderSlipToShop.size() <= 2000
+          && request.resource.data.riderPaidShopAt is timestamp
+        )
+        || (
+          resource.data.status in ['picked_up', 'customer_paid']
+          && request.resource.data.status == 'on_the_way'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'onTheWayAt'])
+          && (!needsKitchen() || shopSlipAttached())
+        )
+        || (
+          resource.data.status == 'picked_up'
+          && request.resource.data.status == 'customer_paid'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+        )
+        || (
+          resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
+          && request.resource.data.status == 'cancelled'
+          && cancelFieldsOk('rider')
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        )
+        || (
+          resource.data.status == 'on_the_way'
+          && unchanged('status')
+          && unchanged('riderId')
+          && identityFrozen()
+          && onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
+          && changedToTimestamp('riderNearCustomerAt')
+          && changedToTimestamp('riderNearCustomerChatAt')
+          && changedToTimestamp('riderArrivedCustomerChatAt')
+        )
+      );
+    }
+
+    function merchantOrderUpdateOk() {
+      return moneyFrozen() && isOrderMerchant() && (
+        (
+          resource.data.status in ['searching', 'pending']
+          && request.resource.data.status == 'cooking'
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+          && request.resource.data.cookingAt is timestamp
+          && changedToString('code', 7, 7)
+          && changedToString('deliveryCode', 4, 4)
+          && changedToTimestamp('codeCreatedAt')
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['code'])
+            || request.resource.data.code.matches('^OD-[0-9]{4}$'))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deliveryCode'])
+            || request.resource.data.deliveryCode.matches('^[0-9]{4}$'))
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['prepMinutes'])
+            || request.resource.data.prepMinutes in [10, 15, 20])
+        )
+        || (
+          resource.data.status in ['searching', 'pending', 'cooking']
+          && request.resource.data.status == 'cancelled'
+          && cancelFieldsOk('merchant')
+          && identityFrozen()
+          && unchanged('riderId')
+          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        )
+        || (
+          request.resource.data.foodReady == true
+          && identityFrozen()
+          && unchanged('riderId')
+          && resource.data.status in ['cooking', 'ready', 'accepted']
+          && onlyChanged(['foodReady', 'readyAt', 'status'])
+          && request.resource.data.readyAt is timestamp
+          && (
+            request.resource.data.status == resource.data.status
+            || (
+              noRider(resource.data)
+              && request.resource.data.status == 'ready'
+              && resource.data.status in ['cooking', 'ready']
+            )
+          )
+        )
+      );
+    }
+
+    function adminOrderUpdateOk() {
+      return moneyFrozen() && isAdmin() && identityFrozen();
+    }
+
+    // Keep each client transition in its own expression tree. A role-level
+    // function still expands the whole state machine in the Rules evaluator;
+    // transition-level functions prevent unrelated negative writes from
+    // crossing the 1,000-expression limit.
+    function customerCancelOk() {
+      return moneyFrozen() && isOrderCustomer()
+        && resource.data.status in ['searching', 'pending']
+        && request.resource.data.status == 'cancelled'
+        && cancelFieldsOk('customer')
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+    }
+
+    function customerConfirmOk() {
+      return moneyFrozen() && isOrderCustomer() && customerOrderConfirmationOk();
+    }
+
+    function customerSlipUploadTransitionOk(orderId) {
+      return moneyFrozen() && isOrderCustomer() && customerSlipUploadOk(orderId);
+    }
+
+    function customerSlipResubmissionTransitionOk(orderId) {
+      return moneyFrozen() && isOrderCustomer() && customerSlipResubmissionOk(orderId);
+    }
+
+    function customerPaidOk() {
+      return moneyFrozen() && isOrderCustomer()
+        && resource.data.status == 'picked_up'
+        && request.resource.data.status == 'customer_paid'
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
+    }
+
+    function customerRatingOk() {
+      return moneyFrozen() && isOrderCustomer()
+        && resource.data.status in ['done', 'delivered']
+        && request.resource.data.rated == true
+        && unchanged('status')
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['rated', 'ratedAt']);
+    }
+
+    function riderSlipRejectionTransitionOk() {
+      return moneyFrozen() && isAssignedRider() && riderSlipRejectionOk();
+    }
+
+    function riderPickupOk() {
+      return moneyFrozen() && isAssignedRider()
+        && request.resource.data.status == 'picked_up'
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+        && (
+          (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
+          || (resource.data.status == 'ready' && !noRider(resource.data))
+        );
+    }
+
+    function riderShopSlipOk() {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.type == 'food'
+        && resource.data.get('partnerShop', false) == true
+        && resource.data.status in ['picked_up', 'customer_paid']
+        && request.resource.data.status == resource.data.status
+        && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+        && request.resource.data.riderSlipToShop is string
+        && request.resource.data.riderSlipToShop.size() > 0
+        && request.resource.data.riderSlipToShop.size() <= 2000
+        && request.resource.data.riderPaidShopAt is timestamp;
+    }
+
+    function riderOnTheWayOk() {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.status in ['picked_up', 'customer_paid']
+        && request.resource.data.status == 'on_the_way'
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'onTheWayAt'])
+        && (!needsKitchen() || shopSlipAttached());
+    }
+
+    function riderCustomerPaidOk() {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.status == 'picked_up'
+        && request.resource.data.status == 'customer_paid'
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
+    }
+
+    function riderCancelOk() {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
+        && request.resource.data.status == 'cancelled'
+        && cancelFieldsOk('rider')
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+    }
+
+    function riderNearCustomerOk() {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.status == 'on_the_way'
+        && unchanged('status')
+        && unchanged('riderId')
+        && identityFrozen()
+        && onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
+        && changedToTimestamp('riderNearCustomerAt')
+        && changedToTimestamp('riderNearCustomerChatAt')
+        && changedToTimestamp('riderArrivedCustomerChatAt');
+    }
+
+    function merchantCookingOk() {
+      return moneyFrozen() && isOrderMerchant()
+        && resource.data.status in ['searching', 'pending']
+        && request.resource.data.status == 'cooking'
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+        && request.resource.data.cookingAt is timestamp
+        && changedToString('code', 7, 7)
+        && changedToString('deliveryCode', 4, 4)
+        && changedToTimestamp('codeCreatedAt')
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['code'])
+          || request.resource.data.code.matches('^OD-[0-9]{4}$'))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deliveryCode'])
+          || request.resource.data.deliveryCode.matches('^[0-9]{4}$'))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['prepMinutes'])
+          || request.resource.data.prepMinutes in [10, 15, 20]);
+    }
+
+    function merchantCancelOk() {
+      return moneyFrozen() && isOrderMerchant()
+        && resource.data.status in ['searching', 'pending', 'cooking']
+        && request.resource.data.status == 'cancelled'
+        && cancelFieldsOk('merchant')
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+    }
+
+    function merchantReadyOk() {
+      return moneyFrozen() && isOrderMerchant()
+        && request.resource.data.foodReady == true
+        && identityFrozen()
+        && unchanged('riderId')
+        && resource.data.status in ['cooking', 'ready', 'accepted']
+        && onlyChanged(['foodReady', 'readyAt', 'status'])
+        && request.resource.data.readyAt is timestamp
+        && (
+          request.resource.data.status == resource.data.status
+          || (
+            noRider(resource.data)
+            && request.resource.data.status == 'ready'
+            && resource.data.status in ['cooking', 'ready']
+          )
+        );
+    }
+
+    // Single entry point for order updates. The affected-key allowlists make
+    // ownership/server fields immutable implicitly, so the state branches do
+    // not need to repeat identityFrozen() and unchanged('riderId'). Keeping
+    // the common money invariant here also avoids evaluating it 16 times.
+    function orderUpdateAllowed(orderId) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return (moneyFrozen() && isAdmin() && identityFrozen())
+        || (changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+          ? (customerCancelOk() || riderCancelOk() || merchantCancelOk())
+          : changed.hasOnly(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
+            ? customerConfirmOk()
+            : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
+              ? customerSlipUploadTransitionOk(orderId)
+              : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipStatus', 'customerSlipRevision'])
+                ? customerSlipResubmissionTransitionOk(orderId)
+                : changed.hasOnly(['customerSlipStatus', 'customerSlipRejectionReason', 'customerSlipRejectedAt', 'customerSlipRejectedBy'])
+                  ? riderSlipRejectionTransitionOk()
+                  : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+                    ? riderPickupOk()
+                    : changed.hasAny(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+                      ? riderShopSlipOk()
+                      : changed.hasOnly(['status', 'onTheWayAt'])
+                        ? riderOnTheWayOk()
+                        : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
+                          ? (customerPaidOk() || riderCustomerPaidOk())
+                          : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
+                            ? riderNearCustomerOk()
+                            : changed.hasOnly(['rated', 'ratedAt'])
+                              ? customerRatingOk()
+                              : changed.hasOnly(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+                                ? merchantCookingOk()
+                                : changed.hasOnly(['foodReady', 'readyAt', 'status'])
+                                  ? merchantReadyOk()
+                                  : false);
     }
 
     function canReadOrder() {
@@ -625,12 +1001,7 @@ service cloud.firestore {
         && request.resource.data.role in ['user', 'merchant', 'rider', 'admin']
         && (request.resource.data.role != 'admin' || request.resource.data.isPending == true);
       allow update: if isAdmin()
-        || (
-          isAuth()
-          && myUid() == userId
-          && unchanged('role')
-          && unchanged('isPending')
-        );
+        || userSelfUpdateOk(userId);
       allow delete: if isAdmin() || (isAuth() && myUid() == userId);
     }
 
@@ -644,18 +1015,7 @@ service cloud.firestore {
         && merchantCreateOk();
 
       allow update: if isAdmin()
-        || (
-          isAuth()
-          && myUid() == merchantId
-          && unchanged('verified')
-          && unchanged('ratingAvg')
-          && unchanged('ratingCount')
-          && unchanged('gpPaid')
-          && unchanged('merchantId')
-          && unchanged('gpPending')
-          && unchanged('gpHistory')
-          && merchantProfileUpdateOk()
-        );
+        || merchantProfileWriteOk(merchantId);
 
       // Merchant deletion is an admin/server action. Client-side deletion
       // would orphan menus and historical orders.
@@ -671,20 +1031,7 @@ service cloud.firestore {
         && request.resource.data.verified == false
         && request.resource.data.get('riderId', myUid()) == myUid();
       allow update: if isAdmin()
-        || (
-          isAuth()
-          && myUid() == riderId
-          && unchanged('verified')
-          && unchanged('riderId')
-          && unchanged('trustScore')
-          && unchanged('offersAccepted')
-          && unchanged('offersTotal')
-          && unchanged('activeJobCount')
-          && unchanged('idleSince')
-          && unchanged('totalIncome')
-          && unchanged('totalJobs')
-          && riderProfileUpdateOk()
-        );
+        || riderProfileWriteOk(riderId);
       allow delete: if isAdmin();
     }
 
@@ -692,14 +1039,9 @@ service cloud.firestore {
       // Logged-out shop page queries merchantId == id (and doc-id in).
       // A get() of the parent merchant cannot be proven on that query.
       allow read: if true;
-      allow create: if isMerchant()
-        && request.resource.data.merchantId == myUid()
-        && isValidNumber(request.resource.data.price, 0, 100000);
-      allow update: if isMerchant()
-        && resource.data.merchantId == myUid()
-        && request.resource.data.merchantId == myUid()
-        && isValidNumber(request.resource.data.price, 0, 100000);
-      allow delete: if isMerchant() && resource.data.merchantId == myUid();
+      allow create: if menuCreateOk();
+      allow update: if menuUpdateOk();
+      allow delete: if menuDeleteOk();
     }
 
     match /orders/{orderId} {
@@ -725,158 +1067,20 @@ service cloud.firestore {
       // recompute the kilometre fee, so any client-set fare is a mismatch.
       allow create: if false;
 
-      allow update: if moneyFrozen() && (
-        // [A] customer cancel while still waiting for the shop
-        (
-          isOrderCustomer()
-          && resource.data.status in ['searching', 'pending']
-          && request.resource.data.status == 'cancelled'
-          && cancelFieldsOk('customer')
-          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
-        )
-        // Customer-owned transitions are evaluated before the larger
-        // rider/merchant state machine. This preserves the same permissions
-        // while preventing the Emulator from walking every later branch for
-        // a simple slip/confirmation update.
-        || customerOrderConfirmationOk()
-        || customerSlipUploadOk(orderId)
-        || customerSlipResubmissionOk(orderId)
-        || (
-          isOrderCustomer()
-          && resource.data.status == 'picked_up'
-          && request.resource.data.status == 'customer_paid'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
-        )
-        || (
-          isOrderCustomer()
-          && resource.data.status in ['done', 'delivered']
-          && request.resource.data.rated == true
-          && unchanged('status')
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['rated', 'ratedAt'])
-        )
-        || riderSlipRejectionOk()
-        // [C] rider pickup — kitchen orders only after the shop marked ready
-        || (
-          isAssignedRider()
-          && request.resource.data.status == 'picked_up'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
-          && (
-            (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
-            || (resource.data.status == 'ready' && !noRider(resource.data))
-          )
-        )
-        || (
-          isAssignedRider()
-          && needsKitchen()
-          && resource.data.status in ['picked_up', 'customer_paid']
-          && request.resource.data.status == resource.data.status
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
-          && request.resource.data.riderSlipToShop is string
-          && request.resource.data.riderSlipToShop.size() > 0
-          && request.resource.data.riderSlipToShop.size() <= 2000
-          && request.resource.data.riderPaidShopAt is timestamp
-        )
-        || (
-          isAssignedRider()
-          && resource.data.status in ['picked_up', 'customer_paid']
-          && request.resource.data.status == 'on_the_way'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'onTheWayAt'])
-          && (!needsKitchen() || shopSlipAttached())
-        )
-        || (
-          isAssignedRider()
-          && resource.data.status == 'picked_up'
-          && request.resource.data.status == 'customer_paid'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
-        )
-        // Completion payout is completeOrder only. Clients cannot set
-        // riderIncome, riderOwe, or riderPaid, or flip status to done.
-        // [D] rider cancel
-        || (
-          isAssignedRider()
-          && resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
-          && request.resource.data.status == 'cancelled'
-          && cancelFieldsOk('rider')
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
-        )
-        || (
-          isAssignedRider()
-          && resource.data.status == 'on_the_way'
-          && unchanged('status')
-          && unchanged('riderId')
-          && identityFrozen()
-          && onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
-          && changedToTimestamp('riderNearCustomerAt')
-          && changedToTimestamp('riderNearCustomerChatAt')
-          && changedToTimestamp('riderArrivedCustomerChatAt')
-        )
-        // [E] merchant accept / cancel / mark ready (including after rider accepted)
-        || (
-          isOrderMerchant()
-          && resource.data.status in ['searching', 'pending']
-          && request.resource.data.status == 'cooking'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
-          && request.resource.data.cookingAt is timestamp
-          && changedToString('code', 7, 7)
-          && changedToString('deliveryCode', 4, 4)
-          && changedToTimestamp('codeCreatedAt')
-          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['code'])
-            || request.resource.data.code.matches('^OD-[0-9]{4}$'))
-          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deliveryCode'])
-            || request.resource.data.deliveryCode.matches('^[0-9]{4}$'))
-          && (
-            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['prepMinutes'])
-            || request.resource.data.prepMinutes in [10, 15, 20]
-          )
-        )
-        || (
-          isOrderMerchant()
-          && resource.data.status in ['searching', 'pending', 'cooking']
-          && request.resource.data.status == 'cancelled'
-          && cancelFieldsOk('merchant')
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
-        )
-        || (
-          isOrderMerchant()
-          && request.resource.data.foodReady == true
-          && identityFrozen()
-          && unchanged('riderId')
-          && resource.data.status in ['cooking', 'ready', 'accepted']
-          && onlyChanged(['foodReady', 'readyAt', 'status'])
-          && request.resource.data.readyAt is timestamp
-          && (
-            request.resource.data.status == resource.data.status
-            || (
-              noRider(resource.data)
-              && request.resource.data.status == 'ready'
-              && resource.data.status in ['cooking', 'ready']
-            )
-          )
-        )
-        // [H] admin / boss — cannot rewrite prices or totals
-        || (
-          isAdmin()
-          && identityFrozen()
-        )
-      );
+      // One dispatcher keeps the complete order-update expression tree
+      // bounded instead of evaluating a separate allow branch for every
+      // transition on every denied write.
+      allow update: if moneyFrozen()
+        && isAssignedRider()
+        && resource.data.type == 'food'
+        && resource.data.get('partnerShop', false) == true
+        && resource.data.status in ['picked_up', 'customer_paid']
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.riderSlipToShop is string
+        && request.resource.data.riderSlipToShop.size() > 0
+        && request.resource.data.riderPaidShopAt is timestamp
+        && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath']);
+      allow update: if orderUpdateAllowed(orderId);
 
       allow delete: if isAdmin();
 

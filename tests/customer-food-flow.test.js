@@ -96,7 +96,9 @@ test('Customer UI: แสดงเหตุผลสลิปถูกปฏิ�
 });
 
 test('Customer Slip UI is excluded from ride orders', () => {
-  assert.match(app, /var needsCustomerSlip = !isCash && o\.type !== 'ride'/);
+  assert.match(app, /var needsCustomerSlip = isPartnerFood && !isCash/);
+  assert.match(app, /var nonPartnerRiderPayment = o\.type !== 'food' \|\| o\.partnerShop !== true/);
+  assert.match(app, /สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์/);
   assert.match(app, /cached\.type === 'ride'/);
   assert.match(app, /งานเรียกรถไม่ต้องแนบสลิป/);
 });

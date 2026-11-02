@@ -150,8 +150,8 @@ test('rider navigation uses the stored pin for the current stage', () => {
 });
 
 test('rider cards expose both navigation buttons, the note, and a map preview', () => {
-  assert.match(rider, /🧭 นำทางไปจุดรับ/);
-  assert.match(rider, /🧭 นำทางไปจุดส่ง/);
+  assert.match(rider, /🧭 นำทางไปจุดนัดหมาย/);
+  assert.match(rider, /🧭 นำทางไปที่ลูกค้า/);
   assert.match(rider, /travelmode=driving/);
   assert.match(rider, /geo:' \+ lat \+ ',' \+ lng \+ '\?q='/);
   assert.match(rider, /ไม่มีพิกัดที่ลูกค้าปักไว้/);

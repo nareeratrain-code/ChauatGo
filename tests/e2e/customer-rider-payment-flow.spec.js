@@ -193,6 +193,7 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
       userName: 'QA Customer',
       merchantId: 'qa-merchant',
       merchantName: 'ร้าน QA',
+      partnerShop: true,
       title: 'ออเดอร์ทดสอบ Cross-Role',
       address: 'จุดทดสอบชะอวด',
       lat: 8.1701,

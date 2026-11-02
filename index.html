@@ -331,7 +331,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .cart-summary-row.total { padding: 12px 0 0; margin-top: 8px; border-top: 2px solid var(--green); font-size: 18px; font-weight: 900; color: var(--green); }
 
 .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; max-width: 90%; text-align: center; }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; cursor: pointer; }
 .toast.success { background: linear-gradient(135deg, #168A45, #0D6D35); }
 .toast.error { background: linear-gradient(135deg, #E53935, #C62828); }
 .toast.warning { background: linear-gradient(135deg, #FF6B35, #E55A2B); }
@@ -1629,6 +1629,9 @@ function fmt(n){return Number(n||0).toLocaleString('th-TH',{maximumFractionDigit
 window.showToast = function(msg,type){
   type = type||'success';
   var t = $('toast'); if(!t) return;
+  t.style.cursor = 'pointer';
+  t.title = 'แตะเพื่อปิด';
+  t.onclick = function(){ clearTimeout(t._t); t.className='toast'; };
   var icons = {success:'✅',error:'❌',warning:'⚠️',info:'ℹ️'};
   t.textContent = (icons[type]||'') + ' ' + msg;
   t.className = 'toast show ' + type;
@@ -2288,7 +2291,7 @@ function initAuth(){
         userProfile = snap.exists ? Object.assign({uid:user.uid},snap.data()) : null;
         window.userProfile = userProfile;
       }catch(e){}
-      flushPendingConsentEvents();
+      window.__QA_CONSENT_FLUSH_PROMISE__ = flushPendingConsentEvents();
       var avName = (userProfile && userProfile.name) || user.displayName || '';
       if($('profile-avatar-emoji')) $('profile-avatar-emoji').textContent = getAvatarEmoji(avName);
       subscribeUserOrders();
@@ -3751,8 +3754,10 @@ function renderOrderCard(o){
   var canChat = !!o.riderId && ['cancelled'].indexOf(o.status) === -1;
   var canTrack = !!o.riderId && ['accepted','picked_up','customer_paid','on_the_way'].indexOf(o.status) !== -1;
   var isCash = o.paymentMode === 'cash';
-  var needsCustomerSlip = !isCash && o.type !== 'ride';
+  // Only Partner food transfer uses customer slip verification. Ride,
+  // Express, Shopping and local-food jobs are acknowledged by the rider.
   var isPartnerFood = o.type === 'food' && o.partnerShop === true;
+  var needsCustomerSlip = isPartnerFood && !isCash;
   var customerSlipRejected = o.customerSlipStatus === 'rejected';
   var payBadge = isCash
     ? '<span class="cash-badge">💵 เงินสด • จ่าย ฿'+fmt(o.total||0)+'</span>'
@@ -4285,6 +4290,16 @@ window.showOrderBill = async function(orderId) {
     };
 
     var confirmHtml = '';
+    var nonPartnerRiderPayment = o.type !== 'food' || o.partnerShop !== true;
+    var riderQrHtml = (!isCash && nonPartnerRiderPayment && o.riderQrCodeUrl)
+      ? '<div style="background:#E8F5E9;border:2px solid #168A45;border-radius:14px;padding:14px;margin:14px 0;text-align:center">' +
+        '<div style="font-size:14px;font-weight:900;color:#168A45">📱 สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์</div>' +
+        '<img src="' + esc(o.riderQrCodeUrl) + '" alt="QR รับชำระค่าบริการไรเดอร์" style="display:block;width:min(250px,100%);aspect-ratio:1;object-fit:contain;margin:10px auto;background:#fff;border-radius:12px;padding:8px" onclick="openLightbox(\'' + esc(o.riderQrCodeUrl) + '\')">' +
+        '<div style="font-size:12px;font-weight:800;color:#2E7D32">โอนแล้วไม่ต้องแนบสลิป ให้ไรเดอร์กดยืนยันรับเงิน</div>' +
+      '</div>'
+      : ((!isCash && nonPartnerRiderPayment && o.riderId)
+        ? '<div style="background:#FFF8E1;border-left:4px solid #FFB300;border-radius:10px;padding:12px;margin:14px 0;font-size:12px;font-weight:800;color:#7A5200">ℹ️ ไรเดอร์ยังไม่ได้แนบ QR Code กรุณาติดต่อไรเดอร์ในแชท หรือเลือกชำระเงินสด</div>'
+        : '');
     if (o.deliveryCode) {
       confirmHtml = 
         '<div style="background:linear-gradient(135deg,#FFF3E0,#FFE0B2);border-radius:14px;padding:14px;margin-top:14px;text-align:center">' +
@@ -4333,6 +4348,7 @@ window.showOrderBill = async function(orderId) {
       '<div style="background:' + (isCash?'#FFF3E0':'#E3F2FD') + ';border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">' +
         '<div style="font-size:13px;font-weight:900;color:' + (isCash?'#E65100':'#1976D2') + '">' + (isCash ? '💵 ชำระเงินสด' : '💳 ชำระเงินโอน') + '</div>' +
       '</div>' +
+      riderQrHtml +
       confirmHtml +
       '<button class="btn-full btn-green press-scale" style="margin-top:14px" onclick="copyOrderInfo(\'' + esc(o.id) + '\')">📋 คัดลอกข้อมูล</button>' +
       '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
@@ -5996,10 +6012,12 @@ async function flushPendingConsentEvents(){
   if (!currentUser || !functionsApi) return;
   var pending = consentQueue(); if (!pending.length) return;
   saveConsentQueue([]);
+  var lastResult = null;
   for (var i = 0; i < pending.length; i++) {
-    try { await window.recordConsentEvent(pending[i]); }
+    try { lastResult = await window.recordConsentEvent(pending[i]); }
     catch(e) { var retry = consentQueue(); retry.push(pending[i]); saveConsentQueue(retry); }
   }
+  return lastResult;
 }
 function checkPDPA(){
   if (!localStorage.getItem('chauat_privacy_notice_ack_v1')) { if ($('pdpa-overlay')) $('pdpa-overlay').classList.remove('hidden'); }

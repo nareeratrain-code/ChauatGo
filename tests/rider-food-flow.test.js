@@ -50,9 +50,10 @@ test('UI แยกปุ่มรูปอาหารและสลิปร�
   assert.match(rider, /!cashPickup && !alreadyPaid\) startPaymentTimers/);
   const rules = fs.readFileSync('firestore.rules', 'utf8');
   assert.match(rules, /function moneyFrozen\(\)/);
-  assert.match(rules, /unchanged\('fare'\)/);
-  assert.match(rules, /unchanged\('total'\)/);
-  assert.match(rules, /unchanged\('riderIncome'\)/);
+  assert.match(rules, /affectedKeys\(\)\.hasAny\(\[/);
+  assert.match(rules, /'fare'/);
+  assert.match(rules, /'total'/);
+  assert.match(rules, /'riderIncome'/);
   const app = fs.readFileSync('index.html', 'utf8');
   assert.match(app, /window\.confirmCustomerPaid = async function/);
 });
@@ -60,8 +61,8 @@ test('UI แยกปุ่มรูปอาหารและสลิปร�
 test('Rider arrival copy keeps shop wording only for partner food', () => {
   assert.match(rider, /const arrivalText = job\.type === 'ride'/);
   assert.match(rider, /orderNeedsKitchen\(job\)\s*\?/);
-  assert.match(rider, /ถึงจุดรับพัสดุแล้ว/);
-  assert.match(rider, /ถึงจุดรับแล้ว/);
+  assert.match(rider, /ถึงสถานที่รับพัสดุแล้ว/);
+  assert.match(rider, /ถึงสถานที่รับของแล้ว/);
 });
 
 test('Rider UI: แสดงสถานะยืนยันรายการและสลิปลูกค้าใน Job Card', () => {

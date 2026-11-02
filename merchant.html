@@ -154,7 +154,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 /* TOAST */
 .toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; max-width: 90%; text-align: center; backdrop-filter: blur(8px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; cursor: pointer; }
 .toast.success { background: linear-gradient(135deg, #00A651, #008C45); }
 .toast.error { background: linear-gradient(135deg, #E53935, #C62828); }
 .toast.warning { background: linear-gradient(135deg, #FF9800, #F57C00); }

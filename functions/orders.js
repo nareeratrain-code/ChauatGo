@@ -573,12 +573,18 @@ async function confirmPaymentReceived(db, uid, orderId) {
       const err = new Error('not-yours');
       throw err;
     }
-    if (order.paymentMode === 'cash') {
-      precondition('ออเดอร์เงินสดเก็บเงินตอนส่ง ไม่ต้องกดรับโอน');
+    const isPartnerFood = order.type === 'food' && order.partnerShop === true;
+    // Partner food cash is collected at delivery. All other rider services
+    // may be acknowledged in-app without a customer slip.
+    if (order.paymentMode === 'cash' && isPartnerFood) {
+      precondition('อาหาร Partner แบบเงินสดเก็บเงินตอนส่ง');
     }
     const beforePickup = order.status === 'accepted' || order.status === 'ready';
     const waiting = order.status === 'picked_up';
     const rideAtDestination = order.type === 'ride' && order.status === 'on_the_way';
+    const nonFoodCashWaiting = order.paymentMode === 'cash'
+      && !isPartnerFood
+      && (waiting || rideAtDestination);
     if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup)) {
       result = { ok: true, already: true, status: order.status };
       return;
@@ -586,7 +592,9 @@ async function confirmPaymentReceived(db, uid, orderId) {
     if (!beforePickup && !waiting && !rideAtDestination) {
       precondition('ยืนยันรับเงินได้ตอนรอโอน หรือก่อนรับของเท่านั้น');
     }
-    const text = rideAtDestination ? ridePaymentReceivedText(order) : paymentReceivedText(order, beforePickup);
+    const text = rideAtDestination
+      ? ridePaymentReceivedText(order)
+      : (nonFoodCashWaiting ? '💵 ลูกค้าชำระค่าบริการเงินสดแล้วครับ/ค่ะ\nไรเดอร์ได้รับเงินเรียบร้อย กำลังดำเนินการส่งต่อครับ/ค่ะ' : paymentReceivedText(order, beforePickup));
     const patch = {
       customerPaid: true,
       customerPaidAt: FieldValue.serverTimestamp(),
