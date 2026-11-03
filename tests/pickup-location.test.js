@@ -75,6 +75,24 @@ test('selecting a searched place switches to map-only pin confirmation for every
   assert.match(html, /id="map-confirm-btn" onclick="confirmMapLocation\(\)"/);
 });
 
+test('every destination mode stores a searched name or a nearby-landmark label', () => {
+  assert.match(html, /function isGenericDestinationLabel\(value\)/);
+  assert.match(html, /function nearestLandmarkForPoint\(lat, lng\)/);
+  assert.match(html, /function destinationLabelForPoint\(point, requestedLabel, preferLandmark\)/);
+  assert.match(html, /selectedDestination\.address = destinationLabelForPoint\(selectedDestination/);
+  assert.match(html, /picked\.address = destinationLabelForPoint\(picked, picked\.address, !picked\.placeId\)/);
+  assert.match(html, /return 'ใกล้เคียง ' \+ String\(landmark\.label\)\.trim\(\)/);
+  assert.match(html, /resolveOrderPoint\(selectedDestination, to\)/);
+  assert.match(html, /resolveOrderPoint\(expDestination, toAddr\)/);
+  assert.match(html, /resolveOrderPoint\(shoppingCustomerPoint\(\), dropText\)/);
+  assert.match(html, /resolveOrderPoint\(dropSeed, dropText\)/);
+  assert.match(html, /address: resolvedDropText/);
+  assert.match(html, /from:from, to:resolvedTo, address:resolvedTo/);
+  assert.match(html, /from:from, to:resolvedGenericTo, address:resolvedGenericTo/);
+  assert.match(html, /var toText = \(expDestination && expDestination\.address\) \|\| toAddr/);
+  assert.match(html, /to: resolvedCustomerText \|\| 'ตำแหน่งปัจจุบัน'/);
+});
+
 test('a chosen pickup changes the quoted fare and keeps the base when GPS is missing', () => {
   context.rideOrigin = null;
   context.userLocation = null;

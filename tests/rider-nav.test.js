@@ -22,6 +22,7 @@ const orderContext = {
   Number,
   isFinite,
   String,
+  catalogRows: () => [],
   exactCatalogPlace: () => null
 };
 vm.createContext(orderContext);
@@ -75,6 +76,26 @@ test('a directory place id restores that place when the label still matches', ()
   );
   assert.equal(moved.lat, 8.4);
   assert.equal(moved.lng, 100.4);
+});
+
+test('a selected place keeps its searched name as the destination label', () => {
+  orderContext.exactCatalogPlace = (text) => (
+    text === 'โรงเรียนบ้านห้วยโส'
+      ? { lat: 7.97, lng: 99.99, label: 'โรงเรียนบ้านห้วยโส', placeId: 'school-huai-so' }
+      : null
+  );
+  const named = orderContext.resolveOrderPoint(null, 'โรงเรียนบ้านห้วยโส');
+  assert.equal(named.address, 'โรงเรียนบ้านห้วยโส');
+  assert.equal(named.placeId, 'school-huai-so');
+});
+
+test('an unnamed map pin is labeled near the closest landmark while keeping its exact coordinates', () => {
+  orderContext.exactCatalogPlace = () => null;
+  orderContext.catalogRows = () => [{ label: 'โรงเรียนบ้านห้วยโส', lat: 7.97, lng: 99.99 }];
+  const nearby = orderContext.resolveOrderPoint({ lat: 7.9702, lng: 99.9902, address: '' }, '');
+  assert.equal(nearby.lat, 7.9702);
+  assert.equal(nearby.lng, 99.9902);
+  assert.equal(nearby.address, 'ใกล้เคียง โรงเรียนบ้านห้วยโส');
 });
 
 test('every order form keeps the chosen pickup and drop-off coordinates', () => {

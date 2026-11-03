@@ -3314,6 +3314,7 @@ window.confirmCheckout = async function(grandTotal) {
   var dropText = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || '';
   var dropSeed = (foodDropoff && isFinite(Number(foodDropoff.lat))) ? foodDropoff : userLocation;
   var dropPoint = resolveOrderPoint(dropSeed, dropText);
+  var resolvedDropText = (dropPoint && dropPoint.address) || dropText;
   var liveShop = (window._currentMerchant && window._currentMerchant.id === cartShop) ? window._currentMerchant : null;
   var shopPoint = finiteCoord({
     lat: merchantData.lat != null ? merchantData.lat : (liveShop ? liveShop.lat : null),
@@ -3335,7 +3336,7 @@ window.confirmCheckout = async function(grandTotal) {
       shopPlaceName: merchantData.name || (liveShop && liveShop.name) || (cart[0] ? cart[0].merchantName : ''),
       items: items,
       itemsText: items.map(function(i) { return i.name + ' x' + i.qty; }).join(', '),
-      address: dropText,
+      address: resolvedDropText,
       note: (foodDropoff && foodDropoff.note) || '',
       lat: dropPoint ? dropPoint.lat : null,
       lng: dropPoint ? dropPoint.lng : null,
@@ -5003,6 +5004,7 @@ window.submitRideOrder = async function(){
   rideOrigin = pickup;
   var pin = resolveOrderPoint(selectedDestination, to);
   if (pin) selectedDestination = pin;
+  var resolvedTo = (pin && pin.address) || to;
   var destLat = pin && isFinite(pin.lat) ? pin.lat : null;
   var destLng = pin && isFinite(pin.lng) ? pin.lng : null;
   var fareInfo = quoteRide(selectedVehicle, pickup, (destLat != null && destLng != null) ? { lat: destLat, lng: destLng } : null);
@@ -5014,7 +5016,7 @@ window.submitRideOrder = async function(){
       userName:(userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
       userPhone:$('order-phone').value.trim(),
       title:'🚗 เรียกรถ: '+selectedVehicle.type,
-      from:from, to:to, address:to,
+      from:from, to:resolvedTo, address:resolvedTo,
       note:$('order-note').value.trim(),
       fromLat: pickup ? pickup.lat : null,
       fromLng: pickup ? pickup.lng : null,
@@ -5059,13 +5061,14 @@ window.submitOrder = async function(type){
   var baseFare = {ride: 50, food: 20, shopping: 30}[type] || 30;
   var originPoint = resolveOrderPoint(userLocation, from);
   var destPoint = resolveOrderPoint(selectedDestination, to);
+  var resolvedGenericTo = (destPoint && destPoint.address) || to;
   try{
     var createdGeneric = await createServerOrder({
       type:type, userId:currentUser.uid,
       userName:(userProfile&&userProfile.name)||currentUser.displayName||'ลูกค้า',
       userPhone:$('order-phone').value.trim(),
       title:({ride:'🚗 เรียกรถ',food:'🍽️ สั่งอาหาร',shopping:'🛒 สั่งของ'})[type]||'📦 ออเดอร์',
-      from:from, to:to, address:to,
+      from:from, to:resolvedGenericTo, address:resolvedGenericTo,
       note:$('order-note').value.trim(),
       fromLat: originPoint ? originPoint.lat : null,
       fromLng: originPoint ? originPoint.lng : null,
@@ -5181,6 +5184,44 @@ function directoryPlace(id) {
   return null;
 }
 
+function isGenericDestinationLabel(value) {
+  var label = String(value || '').trim();
+  if (!label) return true;
+  if (/^พิกัด\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?$/i.test(label)) return true;
+  return ['ชะอวด', 'ตำแหน่งที่เลือก', 'จุดที่เลือก', 'ตำแหน่งที่ระบุ', 'ตำแหน่งปัจจุบัน', 'กำลังหาที่อยู่...'].indexOf(label) !== -1;
+}
+
+function nearestLandmarkForPoint(lat, lng) {
+  if (!isFinite(Number(lat)) || !isFinite(Number(lng)) || typeof catalogRows !== 'function') return null;
+  var rows = [];
+  try { rows = catalogRows() || []; } catch (e) { rows = []; }
+  var nearest = null;
+  rows.forEach(function(row) {
+    if (!row || !row.label || !isFinite(Number(row.lat)) || !isFinite(Number(row.lng))) return;
+    var distance = haversine(Number(lat), Number(lng), Number(row.lat), Number(row.lng));
+    if (!nearest || distance < nearest.distance) nearest = { row: row, distance: distance };
+  });
+  return nearest && nearest.distance <= 8 ? nearest.row : null;
+}
+
+function destinationLabelForPoint(point, requestedLabel, preferLandmark) {
+  var requested = String(requestedLabel || '').trim();
+  var current = String(point && (point.address || point.label || point.name) || '').trim();
+  if (!preferLandmark && !isGenericDestinationLabel(requested)) return requested;
+  if (preferLandmark) {
+    var landmark = point && nearestLandmarkForPoint(point.lat, point.lng);
+    if (landmark && landmark.label) return 'ใกล้เคียง ' + String(landmark.label).trim();
+    if (!isGenericDestinationLabel(requested)) return 'ใกล้เคียง ' + requested;
+    if (!isGenericDestinationLabel(current)) return 'ใกล้เคียง ' + current;
+    return 'ใกล้เคียงตำแหน่งที่ระบุ';
+  }
+  if (!preferLandmark && !isGenericDestinationLabel(current)) return current;
+  var landmark = point && nearestLandmarkForPoint(point.lat, point.lng);
+  if (landmark && landmark.label) return 'ใกล้เคียง ' + String(landmark.label).trim();
+  if (!isGenericDestinationLabel(current)) return 'ใกล้เคียง ' + current;
+  return 'ใกล้เคียงตำแหน่งที่ระบุ';
+}
+
 /* A GPS fix or map pin the customer already chose wins over a landmark
    label the catalog does not list. Typing a different catalog place still
    replaces the pin. A directory placeId restores that place's coordinates. */
@@ -5203,12 +5244,14 @@ function resolveOrderPoint(pin, typedText) {
       };
     }
   }
-  if (held && pointMatchesText(held, typed)) return held;
+  if (held && pointMatchesText(held, typed)) {
+    return Object.assign({}, held, { address: destinationLabelForPoint(held, typed, !typed) });
+  }
   var hit = (typeof exactCatalogPlace === 'function') ? exactCatalogPlace(typed) : null;
   if (hit && isFinite(Number(hit.lat)) && isFinite(Number(hit.lng)) && !(Number(hit.lat) === 0 && Number(hit.lng) === 0)) {
-    return { lat: Number(hit.lat), lng: Number(hit.lng), address: String(hit.label || typed), placeId: String(hit.placeId || '') };
+    return { lat: Number(hit.lat), lng: Number(hit.lng), address: destinationLabelForPoint(hit, hit.label || typed, false), placeId: String(hit.placeId || '') };
   }
-  if (held) return held;
+  if (held) return Object.assign({}, held, { address: destinationLabelForPoint(held, typed, false) });
   return null;
 }
 
@@ -5528,7 +5571,7 @@ window.submitExpressOrder = async function(){
   expOrigin = resolveOrderPoint(expOrigin, fromAddr);
   expDestination = resolveOrderPoint(expDestination, toAddr);
   var fromText = fromAddr || (expOrigin && expOrigin.address) || '';
-  var toText = toAddr || (expDestination && expDestination.address) || '';
+  var toText = (expDestination && expDestination.address) || toAddr || '';
   if (!fromText) return showToast('กรอกต้นทาง','error');
   if (!toText) return showToast('กรอกปลายทาง','error');
   var parcelTypeId = ($('express-parcel-type') && $('express-parcel-type').value) || (expressDraft && expressDraft.parcelType) || 'document';
@@ -5946,6 +5989,7 @@ window.submitShopOrder = async function(placeId){
   var dropText = ($('shop-dropoff') && $('shop-dropoff').value.trim()) || '';
   var customer = resolveOrderPoint(shoppingCustomerPoint(), dropText);
   shoppingDropoff = customer;
+  var resolvedCustomerText = (customer && customer.address) || dropText || (userProfile&&userProfile.address) || '';
   var fare = shoppingQuotedFare(customer, p).total;
   try{
     var createdShop = await createServerOrder({
@@ -5956,11 +6000,11 @@ window.submitShopOrder = async function(placeId){
       title: '🛒 ฝากซื้อ: ' + p.name,
       shopPlaceId: p.id, shopPlaceName: p.name,
       shopPlaceLat: p.lat, shopPlaceLng: p.lng,
-      from: dropText || (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
+      from: resolvedCustomerText || 'ตำแหน่งปัจจุบัน',
       fromLat: customer ? customer.lat : null,
       fromLng: customer ? customer.lng : null,
-      to: dropText || (userProfile&&userProfile.address) || 'ตำแหน่งปัจจุบัน',
-      address: dropText || (userProfile&&userProfile.address) || '',
+      to: resolvedCustomerText || 'ตำแหน่งปัจจุบัน',
+      address: resolvedCustomerText,
       lat: customer && isFinite(customer.lat) ? customer.lat : null,
       lng: customer && isFinite(customer.lng) ? customer.lng : null,
       items: items, itemsText: items,
@@ -6293,14 +6337,15 @@ function scheduleReverseGeocode(lat, lng) {
     var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=18&addressdetails=1&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
     nominatimFetch(url).then(function(data) {
       if (token !== destGeocodeToken) return;
-      var label = shortNominatimAddress(data) || (lat.toFixed(5) + ', ' + lng.toFixed(5));
+      var reverseLabel = shortNominatimAddress(data);
+      var label = destinationLabelForPoint({ lat: lat, lng: lng, address: reverseLabel }, '', true);
       if (selectedDestination && Math.abs(selectedDestination.lat - lat) < 0.0002 && Math.abs(selectedDestination.lng - lng) < 0.0002) {
         selectedDestination.address = label;
       }
       showDestAddress(label, { lat: lat, lng: lng });
     }).catch(function() {
       if (token !== destGeocodeToken) return;
-      var label = lat.toFixed(5) + ', ' + lng.toFixed(5);
+      var label = destinationLabelForPoint({ lat: lat, lng: lng }, '', true);
       if (selectedDestination) selectedDestination.address = label;
       showDestAddress(label, { lat: lat, lng: lng });
     });
@@ -7156,6 +7201,7 @@ window.confirmMapLocation = function(){
   if(!selectedDestination) return showToast('เลือกตำแหน่งก่อน','warning');
   var addr = ($('dest-address') && $('dest-address').dataset.address) || selectedDestination.address || '';
   if (addr && addr.indexOf('กำลังหาที่อยู่') !== 0) selectedDestination.address = addr;
+  selectedDestination.address = destinationLabelForPoint(selectedDestination, selectedDestination.address, !selectedDestination.placeId);
   if ($('dest-rider-note')) selectedDestination.note = $('dest-rider-note').value.trim();
   rememberRecentPlace();
   var mode = currentMapPickerMode();
@@ -7167,9 +7213,7 @@ window.confirmMapLocation = function(){
     note: selectedDestination.note || '',
     placeId: selectedDestination.placeId || ''
   };
-  if (!picked.address || picked.address.indexOf('กำลังหาที่อยู่') === 0) {
-    picked.address = 'พิกัด ' + picked.lat.toFixed(5) + ', ' + picked.lng.toFixed(5);
-  }
+  picked.address = destinationLabelForPoint(picked, picked.address, !picked.placeId);
   selectedDestination = picked;
   if (mapPickerSnapshot) mapPickerSnapshot.committed = true;
   closeMapPage();
