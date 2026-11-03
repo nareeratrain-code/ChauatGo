@@ -1705,6 +1705,19 @@ function shoppingCustomerPoint() {
 }
 function hasRealImage(img){return !!(img && img.indexOf('images/')===0);}
 function normalizePlaceName(value){return String(value || '').toLowerCase().replace(/[\s\-_.&'’“”"()]+/g,'').replace(/ร้านอาหาร|ร้าน|สาขา/g,'');}
+function isChauatArea(item){
+  if (!item) return false;
+  var district = String(item.district || item.d || '').trim();
+  if (district) return district === 'ชะอวด';
+  var address = String(item.address || item.location || item.sub || '').trim();
+  return /ชะอวด/.test(address);
+}
+function compareChauatFirst(a, b, tieBreaker){
+  var areaA = isChauatArea(a) ? 0 : 1;
+  var areaB = isChauatArea(b) ? 0 : 1;
+  if (areaA !== areaB) return areaA - areaB;
+  return tieBreaker ? tieBreaker(a, b) : 0;
+}
 var PARTNER_COORDINATE_MATCH_KM = 0.03; // 30 เมตร: ใช้เป็นตัวช่วยยืนยัน ไม่ใช้ระยะ 150 ม. แบบกว้าง
 function hasValidCoordinates(item){
   return item && isFinite(Number(item.lat)) && isFinite(Number(item.lng)) && Math.abs(Number(item.lat)) <= 90 && Math.abs(Number(item.lng)) <= 180;
@@ -1754,8 +1767,10 @@ function renderRestaurantDirectory() {
     if (maxDistance !== null && userLocation && haversine(userLocation.lat, userLocation.lng, p.lat, p.lng) > maxDistance) return false;
     return true;
   });
-  if (userLocation) items.sort(function(a, b) {
-    return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+  items.sort(function(a, b) {
+    return compareChauatFirst(a, b, userLocation ? function(x, y) {
+      return haversine(userLocation.lat, userLocation.lng, x.lat, x.lng) - haversine(userLocation.lat, userLocation.lng, y.lat, y.lng);
+    } : null);
   });
   var visibleItems;
   if (inCategory || q || state.type !== 'all' || maxDistance !== null) {
@@ -2511,7 +2526,8 @@ function placeCreditHtml() {
 function refreshSearchPlaceholder() {
   var input = $('search-input');
   if (!input || !chauatPlaces || !provinceDataReady('')) return;
-  var rows = catalogRows();
+  var rows = catalogRows().filter(function(row) { return (row.district || 'ชะอวด') === 'ชะอวด'; });
+  if (!rows.length) rows = catalogRows();
   if (!rows.length) return;
   var place = rows[Math.floor(Math.random() * rows.length)];
   if (place && place.label) input.placeholder = 'ค้นหา เช่น ' + place.label;
@@ -2532,7 +2548,9 @@ function homeRandomSlice(cat, limit) {
   var key = homeOrderToken + '|' + (cat || '*');
   if (!homeOrderCache || homeOrderCache.key !== key) {
     var rows = catalogRows().filter(function(row) { return rowHasCat(row, cat); });
-    homeOrderCache = { key: key, rows: shufflePlaces(rows) };
+    var chauat = rows.filter(function(row) { return (row.district || 'ชะอวด') === 'ชะอวด'; });
+    var other = rows.filter(function(row) { return (row.district || 'ชะอวด') !== 'ชะอวด'; });
+    homeOrderCache = { key: key, rows: shufflePlaces(chauat).concat(shufflePlaces(other)) };
   }
   var sliced = homeOrderCache.rows.slice(0, limit);
   sliced.total = homeOrderCache.rows.length;
@@ -4812,13 +4830,18 @@ window.closeTravelView = function() {
 
 function renderTravelSuggestions() {
   var list = $('travel-suggest-list'); if (!list) return;
-  var suggestions = TRAVEL_FIXED.slice();
+  var suggestions = TRAVEL_FIXED.filter(function(item) { return /ชะอวด/.test((item.name || '') + ' ' + (item.sub || '')); });
+  var fixedOther = TRAVEL_FIXED.filter(function(item) { return !/ชะอวด/.test((item.name || '') + ' ' + (item.sub || '')); });
   var pool = PLACES.filter(function(p) { return TRAVEL_CATS.indexOf(p.category) !== -1; });
   pool = pool.filter(function(p) { return !TRAVEL_FIXED.some(function(f) { return f.name === p.name; }); });
-  var shuffled = pool.slice();
-  for (var i = shuffled.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = tmp; }
-  var randomPicks = shuffled.slice(0, 10);
+  var localPool = pool.filter(function(p) { return (p.district || 'ชะอวด') === 'ชะอวด'; });
+  var otherPool = pool.filter(function(p) { return (p.district || 'ชะอวด') !== 'ชะอวด'; });
+  var randomPicks = shufflePlaces(localPool).slice(0, 10);
+  var otherPicks = shufflePlaces(otherPool).slice(0, 4);
   var all = suggestions.concat(randomPicks.map(function(p) {
+    var cat = CATS[p.category] || { icon: '📍' };
+    return { name: p.name, sub: cat.name || '', lat: p.lat, lng: p.lng, icon: cat.icon, placeId: p.id };
+  })).concat(fixedOther).concat(otherPicks.map(function(p) {
     var cat = CATS[p.category] || { icon: '📍' };
     return { name: p.name, sub: cat.name || '', lat: p.lat, lng: p.lng, icon: cat.icon, placeId: p.id };
   }));
@@ -5279,8 +5302,10 @@ function applyExpressCatalog(which, row) {
 function renderExpressForm() {
   var suggestions = [];
   if (PLACES.length) {
-    var pool = PLACES.slice();
-    for (var i = 0; i < 4 && pool.length; i++) { var idx = Math.floor(Math.random() * pool.length); suggestions.push(pool.splice(idx, 1)[0]); }
+    var localPool = shufflePlaces(PLACES.filter(function(p) { return isChauatArea(p); }));
+    var otherPool = shufflePlaces(PLACES.filter(function(p) { return !isChauatArea(p); }));
+    suggestions = localPool.slice(0, 4);
+    if (suggestions.length < 4) suggestions = suggestions.concat(otherPool.slice(0, 4 - suggestions.length));
   }
   var sugChipsHtml = suggestions.map(function(p) {
     return '<button type="button" class="sug-chip" data-exp-place="' + esc(p.id) + '">' + esc(p.name.slice(0, 22)) + '</button>';
@@ -5691,8 +5716,9 @@ function renderMerchantList(merchants){
     return matchQ && matchC;
   });
   if (merchantMode === 'food') {
-    if (merchantTab === 'popular') filtered.sort(function(a,b){ var ra = Number(a.ratingAvg||0), rb = Number(b.ratingAvg||0); var ca = Number(a.ratingCount||0), cb = Number(b.ratingCount||0); if (rb !== ra) return rb - ra; return cb - ca; });
-    else if (merchantTab === 'near') filtered.sort(function(a,b){ var da = merchantDistance(a), db = merchantDistance(b); if (da == null && db == null) return 0; if (da == null) return 1; if (db == null) return -1; return da - db; });
+    if (merchantTab === 'popular') filtered.sort(function(a,b){ return compareChauatFirst(a, b, function(x, y) { var ra = Number(x.ratingAvg||0), rb = Number(y.ratingAvg||0), ca = Number(x.ratingCount||0), cb = Number(y.ratingCount||0); if (rb !== ra) return rb - ra; return cb - ca; }); });
+    else if (merchantTab === 'near') filtered.sort(function(a,b){ return compareChauatFirst(a, b, function(x, y) { var da = merchantDistance(x), db = merchantDistance(y); if (da == null && db == null) return 0; if (da == null) return 1; if (db == null) return -1; return da - db; }); });
+    else filtered.sort(function(a, b) { return compareChauatFirst(a, b); });
   }
   if (!filtered.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ไม่พบร้านค้า</div>'; return; }
   list.innerHTML = filtered.map(function(m, i){
@@ -5728,8 +5754,10 @@ function renderLocalRestaurantList() {
   var places = PLACES.filter(function(p) {
     return p.category === 'r' && !isPartnerRestaurant(p) && (!q || String(p.name || '').toLowerCase().indexOf(q) !== -1);
   });
-  if (userLocation) places.sort(function(a, b) {
-    return haversine(userLocation.lat, userLocation.lng, a.lat, a.lng) - haversine(userLocation.lat, userLocation.lng, b.lat, b.lng);
+  places.sort(function(a, b) {
+    return compareChauatFirst(a, b, userLocation ? function(x, y) {
+      return haversine(userLocation.lat, userLocation.lng, x.lat, x.lng) - haversine(userLocation.lat, userLocation.lng, y.lat, y.lng);
+    } : null);
   });
   if (!places.length) {
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ไม่พบร้านอาหารในพื้นที่</div>';
@@ -5824,7 +5852,11 @@ function renderShoppingPlaces(){
   var q = (currentShopSearch || '').trim().toLowerCase();
   if (q) places = places.filter(function(p){ return p.name.toLowerCase().indexOf(q) !== -1; });
   var shopOrigin = shoppingMapSelection || userLocation;
-  if (shopOrigin) places = places.slice().sort(function(a, b){ return haversine(shopOrigin.lat, shopOrigin.lng, a.lat, a.lng) - haversine(shopOrigin.lat, shopOrigin.lng, b.lat, b.lng); });
+  places = places.slice().sort(function(a, b){
+    return compareChauatFirst(a, b, shopOrigin ? function(x, y) {
+      return haversine(shopOrigin.lat, shopOrigin.lng, x.lat, x.lng) - haversine(shopOrigin.lat, shopOrigin.lng, y.lat, y.lng);
+    } : null);
+  });
   if (!places.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">ไม่พบสถานที่</div>'; return; }
   _shoppingPlacesCache = places.slice(0, 50);
   var mapHint = shoppingMapSelection ? '<div style="background:var(--brand-light);color:var(--green);border:1px solid var(--green);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;font-weight:900">🗺️ แสดงร้านใกล้จุดที่เลือกจากแผนที่</div>' : '';
@@ -6658,15 +6690,15 @@ function searchPlaceCatalog(query, cat, origin, limit, district, tambon, browseA
   });
   var o = origin || CHAUAT_CENTER;
   function dist(row) { return haversine(o.lat, o.lng, row.lat, row.lng); }
-  if (!q && !browseAll) {
+  if (!q) {
     var chauat = [];
     var other = [];
     rows.forEach(function(row) {
       if ((row.district || 'ชะอวด') === 'ชะอวด') chauat.push(row);
       else other.push(row);
     });
-    chauat.sort(function(a, b) { return dist(a) - dist(b); });
-    other.sort(function(a, b) { return dist(a) - dist(b); });
+    chauat = shufflePlaces(chauat);
+    other = shufflePlaces(other);
     var curatedCap = want === 'ชะอวด' ? (limit || 40) : 8;
     var curatedSeen = 0;
     var chauatKept = [];
@@ -6680,6 +6712,9 @@ function searchPlaceCatalog(query, cat, origin, limit, district, tambon, browseA
     rows = chauatKept.concat(other);
   } else if (q) {
     rows.sort(function(a, b) {
+      var districtRankA = (a.district || 'ชะอวด') === 'ชะอวด' ? 0 : 1;
+      var districtRankB = (b.district || 'ชะอวด') === 'ชะอวด' ? 0 : 1;
+      if (districtRankA !== districtRankB) return districtRankA - districtRankB;
       var ra = placeMatchRank(a, q);
       var rb = placeMatchRank(b, q);
       if (ra !== rb) return ra - rb;
@@ -7301,7 +7336,7 @@ window.setDestFromPlace = function(placeId){
   var p = findHotelById(placeId);
   if (!p) return;
   selectedDestination = { lat: p.lat, lng: p.lng, address: p.name, placeId: p.id || placeId };
-  closeModal(); openMapPage();
+  closeModal(); openMapPage(); setDestSearchMode(false);
   setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name, p.id || placeId); }, 500);
 };
 

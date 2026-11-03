@@ -24,3 +24,24 @@ test('map menu has only a name search, without district or tambon selectors', ()
   assert.doesNotMatch(source, /id="dest-tambon" class="place-district-select"/);
   assert.doesNotMatch(source, /if \(!q && !destCatFilter && !destDistrictFilter && !destTambonFilter\) \{ hideDestSearchResults\(\); return; \}/);
 });
+
+test('all empty and typed place searches prioritize randomized Chauat places', () => {
+  assert.match(source, /var chauat = rows\.filter\(function\(row\) \{ return \(row\.district \|\| 'ชะอวด'\) === 'ชะอวด'; \}\);/);
+  assert.match(source, /rows: shufflePlaces\(chauat\)\.concat\(shufflePlaces\(other\)\)/);
+  assert.match(source, /if \(!q\) \{[\s\S]*?chauat = shufflePlaces\(chauat\);[\s\S]*?rows = chauatKept\.concat\(other\);/);
+  assert.match(source, /var districtRankA = \(a\.district \|\| 'ชะอวด'\) === 'ชะอวด' \? 0 : 1;/);
+  assert.match(source, /var districtRankB = \(b\.district \|\| 'ชะอวด'\) === 'ชะอวด' \? 0 : 1;/);
+  assert.match(source, /closeModal\(\); openMapPage\(\); setDestSearchMode\(false\);/);
+});
+
+test('restaurant, local food, shopping, partner, and express suggestions use Chauat-first ordering', () => {
+  assert.match(source, /function isChauatArea\(item\)/);
+  assert.match(source, /function compareChauatFirst\(a, b, tieBreaker\)/);
+  assert.ok((source.match(/compareChauatFirst\(/g) || []).length >= 7);
+  assert.match(source, /var localPool = shufflePlaces\(PLACES\.filter\(function\(p\) \{ return isChauatArea\(p\); \}\)\);/);
+  assert.match(source, /suggestions = localPool\.slice\(0, 4\);/);
+  assert.match(source, /renderRestaurantDirectory/);
+  assert.match(source, /renderLocalRestaurantList/);
+  assert.match(source, /renderShoppingPlaces/);
+  assert.match(source, /renderMerchantList/);
+});
