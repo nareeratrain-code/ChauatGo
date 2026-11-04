@@ -1553,7 +1553,7 @@ function renderJobCard(j, type) {
     ready: { label: '✅ อาหารพร้อม • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
     accepted: { label: '🛵 รับแล้ว • ร้านกำลังทำ', color: 'var(--blue)', bg: '#E3F2FD' },
     picked_up: { label: j.type === 'ride' ? '🚗 รับผู้โดยสารแล้ว • ไปปลายทาง' : (orderIsCash(j) ? '💵 รับของแล้ว • เก็บเงินสดตอนส่ง' : '📦 รอลูกค้าโอนเงิน'), color: '#E65100', bg: '#FFF3E0' },
-    customer_paid: { label: '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
+    customer_paid: { label: j.type === 'ride' ? '💳 ได้รับค่าบริการแล้ว • จบงานได้' : '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
     done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' },
     cancelled: { label: 'ยกเลิกแล้ว', color: '#8A3A3A', bg: '#FDECEC' }
@@ -1618,7 +1618,7 @@ function renderJobCard(j, type) {
   } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
-  if (!orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderNeedsKitchen(j) && !shopSlip)) {
+  if (j.type !== 'ride' && !orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderNeedsKitchen(j) && !shopSlip)) {
     statusInfo = { label: '💳 ได้รับเงินแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' };
   }
   const prepHtml = (!foodIsReady && j.prepMinutes)
@@ -1868,7 +1868,9 @@ async function confirmPaymentReceived(jobId) {
     clearPaymentTimers();
     const overlay = $('modalOverlay');
     if (overlay && overlay.classList.contains('show')) closeModal();
-    showToast('บันทึกว่ารับเงินแล้ว — เริ่มส่งได้');
+    showToast(job?.type === 'ride'
+      ? '✅ บันทึกว่าได้รับค่าบริการแล้ว — จบงานได้'
+      : 'บันทึกว่ารับเงินแล้ว — เริ่มส่งได้');
     renderJobs();
   } catch (err) {
     showToast((err && err.message) || 'ยืนยันรับเงินไม่สำเร็จ', 'error');
@@ -2004,6 +2006,18 @@ async function arrivedAtShop(jobId) {
   if (!job) return showToast('ไม่พบงาน', 'error');
   if (job.type === 'ride') {
     try {
+      const latest = await db.collection('orders').doc(jobId).get();
+      const latestJob = latest.exists ? latest.data() : null;
+      if (latestJob && latestJob.status !== 'accepted' && latestJob.status !== 'ready') {
+        Object.assign(job, latestJob);
+        renderJobs();
+        if (['picked_up', 'customer_paid', 'on_the_way'].includes(latestJob.status)) {
+          return showToast(latestJob.status === 'on_the_way'
+            ? '✅ ไรเดอร์กำลังเดินทางไปหาลูกค้าแล้ว'
+            : '✅ รับลูกค้าแล้ว — เดินทางไปปลายทางได้');
+        }
+        return showToast('งานนี้เปลี่ยนสถานะแล้ว กรุณารีเฟรชรายการ', 'warning');
+      }
       await db.collection('orders').doc(jobId).update({
         status: 'picked_up',
         pickedUpAt: firebase.firestore.FieldValue.serverTimestamp()

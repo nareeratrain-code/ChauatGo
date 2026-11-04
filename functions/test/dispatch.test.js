@@ -1325,6 +1325,11 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         riderQrCodeUrl: 'https://example.com/rider-qr.png',
         riderQrCodePath: 'rider_qr/rider1/payment-qr.png'
       }))],
+      ['rider stamps arrival with URL and no QR path', () => assertSucceeds(rdb.collection('orders').doc('near1').update({
+        riderArrivedCustomerChatAt: serverTimestamp(),
+        riderQrCodeUrl: 'https://example.com/rider-qr-without-path.png',
+        riderQrCodePath: ''
+      }))],
       ['customer cannot stamp arrival', () => assertFails(cdb.collection('orders').doc('near1').update({
         riderArrivedCustomerChatAt: serverTimestamp()
       }))],

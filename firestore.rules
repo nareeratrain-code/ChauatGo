@@ -736,7 +736,8 @@ service cloud.firestore {
             && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['riderQrCodePath'])
               || (request.resource.data.riderQrCodePath is string
                 && request.resource.data.riderQrCodePath.size() <= 400
-                && request.resource.data.riderQrCodePath.matches('^rider_qr/' + myUid() + '/[A-Za-z0-9_.-]+$')))
+                && (request.resource.data.riderQrCodePath == ''
+                  || request.resource.data.riderQrCodePath.matches('^rider_qr/' + myUid() + '/[A-Za-z0-9_.-]+$'))))
           )
         );
     }

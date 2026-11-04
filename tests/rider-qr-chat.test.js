@@ -121,6 +121,12 @@ test('Ride ส่ง QR พร้อมยอดบริการเมื่�
   assert.equal(capture.messages[0].automationKey, 'arrived_customer_qr');
 });
 
+test('Ride รับเงินแล้วต้องแสดงว่าจบงานได้ ไม่ใช่เริ่มส่งได้', () => {
+  assert.match(riderSource, /j\.type === 'ride' \? '💳 ได้รับค่าบริการแล้ว • จบงานได้'/);
+  assert.match(riderSource, /job\?\.type === 'ride'\s+\? '✅ บันทึกว่าได้รับค่าบริการแล้ว — จบงานได้'/);
+  assert.match(riderSource, /if \(j\.type !== 'ride' && !orderIsCash\(j\)/);
+});
+
 test('เหตุการณ์ถึงร้านและส่งรูปอาหารมีจุดเรียก QR Chat ครบ', () => {
   assert.match(riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip')), /await sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
   const photoStart = riderSource.indexOf('async function submitFoodPhoto');
