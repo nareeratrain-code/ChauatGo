@@ -62,6 +62,7 @@ function loadQrFunctions() {
     firebase: { firestore: { FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' } } },
     orderForAutoChat: async () => order,
     orderServiceType: (value) => value.type,
+    fmt: (value) => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }),
     foodPayParts: () => ({ food: 105, fare: 20, tip: 0, total: 125 }),
     foodPayEquation: () => 'ค่าอาหาร ฿105 + ค่าส่ง ฿20 = รวม ฿125',
     ensureRiderChat: async () => ({ riderName: 'ไรเดอร์ทดสอบ' }),
@@ -106,6 +107,18 @@ test('ไม่ส่ง QR กับออเดอร์เงินสดห�
   context.orderForAutoChat = async () => ({ type: 'shopping', paymentMode: 'transfer' });
   await context.sendRiderQrPaymentChat('OD-QR-001', 'food_payment');
   assert.equal(capture.messages.length, 0);
+});
+
+test('Ride ส่ง QR พร้อมยอดบริการเมื่อถึงปลายทาง', async () => {
+  const { context, capture } = loadQrFunctions();
+  context.orderForAutoChat = async () => ({ type: 'ride', paymentMode: 'transfer', total: 31, fare: 31 });
+  await context.sendRiderQrPaymentChat('OD-QR-001', 'arrived_customer');
+
+  assert.equal(capture.messages.length, 1);
+  assert.match(capture.messages[0].text, /ถึงปลายทางเรียบร้อยแล้ว/);
+  assert.match(capture.messages[0].text, /฿31/);
+  assert.equal(capture.messages[0].imageUrl, context.riderProfile.qrCodeUrl);
+  assert.equal(capture.messages[0].automationKey, 'arrived_customer_qr');
 });
 
 test('เหตุการณ์ถึงร้านและส่งรูปอาหารมีจุดเรียก QR Chat ครบ', () => {

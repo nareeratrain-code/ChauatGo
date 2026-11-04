@@ -3440,6 +3440,12 @@ function showNearAlertByLevel(order, level, distMeters) {
     } catch(e){}
   }
 }
+
+window.closeNearAlert = function() {
+  var pop = $('nearAlertPopup');
+  if (pop) pop.classList.remove('show');
+  if (navigator.vibrate) navigator.vibrate(0);
+};
 </script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════

@@ -1316,6 +1316,15 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         riderNearCustomerChatAt: serverTimestamp(),
         riderArrivedCustomerChatAt: serverTimestamp()
       }))],
+      ['rider stamps near without arrival', () => assertSucceeds(rdb.collection('orders').doc('near1').update({
+        riderNearCustomerAt: serverTimestamp(),
+        riderNearCustomerChatAt: serverTimestamp()
+      }))],
+      ['rider stamps arrival with order-scoped QR', () => assertSucceeds(rdb.collection('orders').doc('near1').update({
+        riderArrivedCustomerChatAt: serverTimestamp(),
+        riderQrCodeUrl: 'https://example.com/rider-qr.png',
+        riderQrCodePath: 'rider_qr/rider1/payment-qr.png'
+      }))],
       ['customer cannot stamp arrival', () => assertFails(cdb.collection('orders').doc('near1').update({
         riderArrivedCustomerChatAt: serverTimestamp()
       }))],

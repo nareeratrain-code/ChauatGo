@@ -720,10 +720,25 @@ service cloud.firestore {
         && unchanged('status')
         && unchanged('riderId')
         && identityFrozen()
-        && onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
-        && changedToTimestamp('riderNearCustomerAt')
-        && changedToTimestamp('riderNearCustomerChatAt')
-        && changedToTimestamp('riderArrivedCustomerChatAt');
+        && (
+          (
+            onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt'])
+            && changedToTimestamp('riderNearCustomerAt')
+            && changedToTimestamp('riderNearCustomerChatAt')
+          )
+          || (
+            onlyChanged(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
+            && changedToTimestamp('riderArrivedCustomerChatAt')
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['riderNearCustomerAt', 'riderNearCustomerChatAt'])
+              || (changedToTimestamp('riderNearCustomerAt') && changedToTimestamp('riderNearCustomerChatAt')))
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['riderQrCodeUrl'])
+              || (request.resource.data.riderQrCodeUrl is string && request.resource.data.riderQrCodeUrl.size() <= 2000))
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['riderQrCodePath'])
+              || (request.resource.data.riderQrCodePath is string
+                && request.resource.data.riderQrCodePath.size() <= 400
+                && request.resource.data.riderQrCodePath.matches('^rider_qr/' + myUid() + '/[A-Za-z0-9_.-]+$')))
+          )
+        );
     }
 
     function merchantCookingOk() {
@@ -798,7 +813,7 @@ service cloud.firestore {
                         ? riderOnTheWayOk()
                         : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
                           ? (customerPaidOk() || riderCustomerPaidOk())
-                          : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt'])
+                          : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
                             ? riderNearCustomerOk()
                             : changed.hasOnly(['rated', 'ratedAt'])
                               ? customerRatingOk()

@@ -1783,7 +1783,12 @@ async function sendAutomatedChat(orderId, key) {
 }
 
 function riderQrPaymentText(order, phase) {
-  if (!order || order.type !== 'food' || order.partnerShop !== true || order.paymentMode === 'cash') return '';
+  if (!order || order.paymentMode === 'cash') return '';
+  const nonPartnerService = order.type !== 'food' || order.partnerShop !== true;
+  if (phase === 'arrived_customer' && nonPartnerService) {
+    return '📍 ไรเดอร์ถึงปลายทางเรียบร้อยแล้วครับ/ค่ะ\nกรุณาชำระค่าบริการให้ไรเดอร์ โดยโอนตามยอดนี้ครับ/ค่ะ\n💳 ยอดค่าบริการทั้งหมด ฿' + fmt(order.total || order.fare || 0) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนค่าบริการ แล้วแจ้งไรเดอร์ได้เลยครับ/ค่ะ';
+  }
+  if (order.type !== 'food' || order.partnerShop !== true) return '';
   if (phase === 'shop_arrived') {
     return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
   }
@@ -1793,8 +1798,11 @@ function riderQrPaymentText(order, phase) {
 async function sendRiderQrPaymentChat(orderId, phase) {
   if (!orderId || !currentUser || !riderProfile?.qrCodeUrl) return false;
   const order = await orderForAutoChat(orderId);
-  if (!order || orderServiceType(order) !== 'food' || order.partnerShop !== true || order.paymentMode === 'cash') return false;
-  const key = phase === 'shop_arrived' ? 'shop_arrived_qr' : 'food_payment_qr';
+  if (!order || order.paymentMode === 'cash') return false;
+  const nonPartnerService = order.type !== 'food' || order.partnerShop !== true;
+  if (phase === 'arrived_customer' && !nonPartnerService) return false;
+  if (phase !== 'arrived_customer' && (orderServiceType(order) !== 'food' || order.partnerShop !== true)) return false;
+  const key = phase === 'shop_arrived' ? 'shop_arrived_qr' : (phase === 'arrived_customer' ? 'arrived_customer_qr' : 'food_payment_qr');
   const text = riderQrPaymentText(order, phase);
   const token = orderId + ':' + key;
   if (!text) return false;
@@ -3119,10 +3127,20 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
       const dist = haversine(myLat, myLng, job.lat, job.lng) * 1000;
       if (dist <= CUSTOMER_ARRIVAL_RADIUS_M) {
         arrivedCustomerNotifiedOrderIds.add(job.id);
-        await db.collection('orders').doc(job.id).update({
+        const arrivalUpdate = {
           riderArrivedCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(() => {});
+        };
+        if (!orderIsCash(job) && riderProfile?.qrCodeUrl && (job.type !== 'food' || job.partnerShop !== true)) {
+          arrivalUpdate.riderQrCodeUrl = riderProfile.qrCodeUrl;
+          arrivalUpdate.riderQrCodePath = riderProfile.qrCodePath || '';
+        }
+        await db.collection('orders').doc(job.id).update(arrivalUpdate).catch((err) => {
+          console.warn('arrival marker', err && err.code);
+        });
         sendAutomatedChatLater(job.id, 'arrived_customer');
+        if (!orderIsCash(job) && (job.type !== 'food' || job.partnerShop !== true)) {
+          await sendRiderQrPaymentChat(job.id, 'arrived_customer');
+        }
         if (job.type === 'ride' && !job.customerPaidAt) renderJobs();
       }
     }
