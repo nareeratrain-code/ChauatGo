@@ -65,6 +65,19 @@ test('ride, express, shopping, and food can refresh GPS or pick the point on the
   assert.match(html, /mode === 'shop-dropoff'/);
 });
 
+test('Ride search stays destination while pickup uses an explicit origin label', () => {
+  assert.match(html, /id="travel-dest-input" placeholder="ค้นหาตำแหน่งปลายทาง/);
+  assert.match(html, /สถานที่ปลายทางแนะนำ/);
+  assert.match(html, /selectedDestination = \{ lat: lat, lng: lng, address: name/);
+  assert.match(html, /กรุณาเลือกตำแหน่งปลายทางก่อน/);
+  assert.match(html, /mode === 'travel'\) title\.textContent = '🗺️ เลือกตำแหน่งปลายทาง'/);
+  assert.match(html, /mode === 'ride-origin'\) title\.textContent = '🗺️ เลือกตำแหน่งต้นทาง \/ สถานที่รับลูกค้า'/);
+  assert.match(html, /ตำแหน่งต้นทาง \/ สถานที่รับลูกค้า/);
+  assert.match(html, /ตำแหน่งปลายทาง/);
+  assert.match(html, /data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่/);
+  assert.match(html, /data-exp-map="exp-destination">🗺️ เลือกปลายทางจากแผนที่/);
+});
+
 test('selecting a searched place switches to map-only pin confirmation for every picker mode', () => {
   assert.match(html, /\.dest-sheet\.location-picked \.dest-search/);
   assert.match(html, /\.dest-sheet\.location-picked \.dest-search-results/);

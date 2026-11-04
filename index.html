@@ -1045,7 +1045,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   <div class="travel-search-row">
     <div class="travel-search-bar">
       <span style="font-size:18px;opacity:.6">🔍</span>
-      <input type="text" id="travel-dest-input" placeholder="ไปที่..." autocomplete="off">
+      <input type="text" id="travel-dest-input" placeholder="ค้นหาตำแหน่งปลายทาง..." autocomplete="off">
     </div>
     <button type="button" class="travel-map-btn press-scale" onclick="openMapPicker('travel')" aria-label="แผนที่">
       🗺️ <span>แผนที่</span>
@@ -1053,7 +1053,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   </div>
   <div class="travel-search-results" id="travel-search-results"></div>
   <div class="travel-body">
-    <div class="travel-section-title">📍 สถานที่แนะนำ</div>
+    <div class="travel-section-title">📍 สถานที่ปลายทางแนะนำ</div>
     <div class="travel-suggest-list" id="travel-suggest-list">
       <div style="text-align:center;padding:30px;color:var(--text-light);font-weight:700">กำลังโหลด...</div>
     </div>
@@ -4875,7 +4875,7 @@ window.pickTravelFromItem = function(el) {
   if (placeId) { var p = PLACES.find(function(x) { return x.id === placeId; }); if (p) { lat = p.lat; lng = p.lng; name = p.name; } }
   if (!lat || !lng) return showToast('ไม่พบตำแหน่ง', 'error');
   selectedDestination = { lat: lat, lng: lng, address: name, placeId: placeId || (p && p.id) || '' };
-  showToast('📍 ' + name);
+  showToast('📍 ตั้งตำแหน่งปลายทางแล้ว: ' + name);
   document.querySelectorAll('.travel-place-item').forEach(function(i) { i.style.background = ''; });
   el.style.background = 'var(--brand-light)';
   var body = document.querySelector('#travel-view .travel-body');
@@ -4884,7 +4884,7 @@ window.pickTravelFromItem = function(el) {
 
 window.selectTravelVehicle = function(type, baseFare) {
   if (!selectedDestination) {
-    showToast('⚠️ กรุณาเลือกปลายทางก่อน', 'warning');
+    showToast('⚠️ กรุณาเลือกตำแหน่งปลายทางก่อน', 'warning');
     var body = document.querySelector('#travel-view .travel-body');
     if (body) body.scrollTo({ top: 0, behavior: 'smooth' });
     return;
@@ -4930,7 +4930,7 @@ window.pickTravelFromSearch = function(el) {
   var name = p ? p.name : (el.dataset.name || '');
   if (!isFinite(lat) || !isFinite(lng)) return;
   selectedDestination = { lat: lat, lng: lng, address: name, placeId: placeId || (p && p.id) || '' };
-  showToast('📍 ' + name);
+  showToast('📍 ตั้งตำแหน่งปลายทางแล้ว: ' + name);
   if ($('travel-dest-input')) $('travel-dest-input').value = name;
   if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
   var body = document.querySelector('#travel-view .travel-body');
@@ -4980,10 +4980,10 @@ window.openRideOrderForm = function(vehicle){
       (fareInfo.distance > 0 ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ระยะทาง '+fareInfo.distance.toFixed(2)+' กม. × ฿'+fareInfo.perKm+'</span><span>฿'+Math.round(fareInfo.distance * fareInfo.perKm)+'</span></div>' : '') +
       '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>' +
     '</div>' +
-    '<div class="form-group"><label>📍 จุดรับ</label><input id="order-from" value="'+esc(fromVal)+'">' +
+    '<div class="form-group"><label>📍 ตำแหน่งต้นทาง / สถานที่รับลูกค้า</label><input id="order-from" value="'+esc(fromVal)+'">' +
       locationStatusHtml(pickup) +
       '<div class="loc-actions"><button type="button" class="loc-action-btn" data-refresh-gps="ride">📍 อัปเดตตำแหน่ง</button><button type="button" class="loc-action-btn" data-pick-map="ride-origin">🗺️ เลือกจากแผนที่</button></div></div>' +
-    '<div class="form-group"><label>🎯 ปลายทาง</label><input id="order-to" value="'+esc(toVal)+'" placeholder="พิมพ์ปลายทาง หรือเลือกจากแผนที่" autocomplete="off">' +
+    '<div class="form-group"><label>🎯 ตำแหน่งปลายทาง</label><input id="order-to" value="'+esc(toVal)+'" placeholder="พิมพ์ปลายทาง หรือเลือกจากแผนที่" autocomplete="off">' +
       (selectedDestination && isFinite(selectedDestination.lat) ? '<div class="loc-known">✓ ' + selectedDestination.lat.toFixed(5) + ', ' + selectedDestination.lng.toFixed(5) + '</div>' : '') +
       '<div class="loc-actions"><button type="button" class="loc-action-btn" data-pick-map="ride-dest">🗺️ เลือกจากแผนที่</button></div></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">'+esc(noteVal)+'</textarea></div>' +
@@ -7070,9 +7070,11 @@ function syncMapTitle() {
   if (!title) return;
   var mode = currentMapPickerMode();
   if (mode === 'reference') title.textContent = '🗺️ เลือกตำแหน่งของคุณ';
-  else if (mode === 'exp-origin' || mode === 'ride-origin') title.textContent = '🗺️ เลือกจุดรับ';
+  else if (mode === 'ride-origin') title.textContent = '🗺️ เลือกตำแหน่งต้นทาง / สถานที่รับลูกค้า';
+  else if (mode === 'exp-origin') title.textContent = '🗺️ เลือกตำแหน่งต้นทาง / จุดรับของ';
   else if (mode === 'exp-destination' || mode === 'shop-dropoff') title.textContent = '🗺️ เลือกจุดส่ง';
   else if (mode === 'ride-dest') title.textContent = '🗺️ เลือกปลายทาง';
+  else if (mode === 'travel') title.textContent = '🗺️ เลือกตำแหน่งปลายทาง';
   else if (mode === 'food') title.textContent = '🗺️ ที่อยู่จัดส่ง';
   else if (mode === 'shopping') title.textContent = '🗺️ เลือกพื้นที่ร้านของใช้';
   else title.textContent = '🗺️ เลือกตำแหน่งปลายทาง';
@@ -7227,7 +7229,7 @@ window.confirmMapLocation = function(){
     selectedDestination = picked;
     if ($('travel-dest-input')) $('travel-dest-input').value = picked.address;
     if ($('travel-view')) $('travel-view').classList.add('show');
-    showToast('📍 ' + (picked.address || 'เลือกปลายทางแล้ว'));
+    showToast('📍 ' + (picked.address || 'เลือกตำแหน่งปลายทางแล้ว'));
     var body = document.querySelector('#travel-view .travel-body');
     if (body) setTimeout(function(){ body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 250);
     return;
