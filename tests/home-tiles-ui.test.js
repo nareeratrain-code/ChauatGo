@@ -40,8 +40,9 @@ test('home tiles stay compact and the partner banner is a soft card', () => {
   assert.match(css, /\.nearby-title \{[^}]*border-radius: 22px/);
   assert.match(css, /\[data-theme="dark"\] \.nearby-title/);
   assert.match(css, /\[data-theme="dark"\] \.menu-icon\.food/);
-  assert.match(html, /--bg: #F2F7EC/);
-  assert.match(css, /\.menu-icon\.food \{ background: #E3F3D6/);
+  assert.match(css, /#tab-home \{ background: #3F8E26/);
+  assert.match(css, /\.menu-item \{[^}]*background: #fff/);
+  assert.match(css, /\.menu-icon\.food \{ background: #E7F6DF/);
   assert.match(css, /\.section-restaurant \{ --section: #2F7D32/);
   assert.equal(css.includes('#FFF1E6'), false);
   assert.equal(css.includes('#E85B2A'), false);
