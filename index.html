@@ -4149,7 +4149,12 @@ window.handleCustomerSlipPick = async function(event) {
   try {
     var path = 'slips/customers/' + currentUser.uid + '/' + orderId + '/proof_' + Date.now() + '.' + ext;
     var ref = storage.ref(path);
-    await ref.put(file, { contentType: file.type || 'image/jpeg' });
+    // Gallery files often arrive as application/octet-stream or an empty type.
+    // Storage allows image/* (and a named image with an empty type). Sending
+    // the raw gallery type was denied as storage/unauthorized.
+    var rawType = String(file.type || '').toLowerCase().split(';')[0].trim();
+    var mime = rawType.indexOf('image/') === 0 ? rawType : 'image/jpeg';
+    await ref.put(file, { contentType: mime });
     var url = await ref.getDownloadURL();
     var resubmitting = cached.customerSlipStatus === 'rejected';
     var slipUpdate = {

@@ -35,6 +35,16 @@ test('storage rules match every client upload path', async () => {
       await db.doc('riders/rider1').set({ verified: true, riderId: 'rider1' });
       await db.doc('riders/rider2').set({ verified: true, riderId: 'rider2' });
       await db.doc('merchants/shop1').set({ verified: true, name: 'shop' });
+      await db.doc('orders/ord-express-way').set({
+        type: 'express',
+        status: 'on_the_way',
+        userId: 'cust1',
+        riderId: 'rider1',
+        paymentMode: 'transfer',
+        fare: 32,
+        total: 32,
+        code: 'OD-WAY'
+      });
       await db.doc('orders/ord1').set({
         type: 'food',
         status: 'accepted',
@@ -153,6 +163,10 @@ test('storage rules match every client upload path', async () => {
       ['admin deletes rider slip', () => assertSucceeds(as.ref('slips/riders/rider1/ord1_2.jpg').delete())],
 
       ['customer payment proof', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord1/proof_1.jpg'))],
+      ['express customer slip while on the way', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord-express-way/proof_gallery.jpg', { contentType: 'image/jpeg' }))],
+      ['express gallery slip with an octet-stream type and image name', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord-express-way/proof_gallery.png', { contentType: 'application/octet-stream' }))],
+      ['rider cannot upload an express customer slip', () => assertFails(put(rs, 'slips/customers/cust1/ord-express-way/proof_rider.jpg'))],
+      ['stranger cannot upload an express customer slip', () => assertFails(put(ts, 'slips/customers/cust1/ord-express-way/proof_stranger.jpg'))],
       ['rider cannot upload customer payment proof', () => assertFails(put(rs, 'slips/customers/cust1/ord1/proof_2.jpg'))],
       ['other rider cannot upload customer payment proof', () => assertFails(put(os, 'slips/customers/cust1/ord1/proof_3.jpg'))],
       ['customer cannot upload proof for another order', () => assertFails(put(cs, 'slips/customers/cust1/ord2/proof_1.jpg'))],
