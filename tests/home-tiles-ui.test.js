@@ -25,18 +25,22 @@ test('home tiles keep the same destinations and Thai labels', () => {
   assert.match(home, /สั่งอาหาร เรียกรถ ส่งของ/);
   assert.match(home, /อาหาร • เดินทาง • ส่งด่วน • ร้านค้า ในชะอวด/);
   assert.match(home, /เปิดร้านกับ ChauatGo/);
+  assert.match(home, /ร้านพาร์ทเนอร์ ChauatGo พร้อมรับออเดอร์/);
+  assert.match(home, /เปิดอยู่ พร้อมส่ง ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย/);
 });
 
-test('home tiles use a phone-sized surface card in light and dark', () => {
-  assert.match(css, /\.menu-item \{[^}]*min-height: 112px/);
-  assert.match(css, /\.menu-item \{[^}]*border-radius: 22px/);
-  assert.match(css, /\.menu-emoji \{[^}]*font-size: 28px/);
+test('home tiles stay compact and the partner banner is a soft card', () => {
+  assert.match(css, /\.menu-item \{[^}]*min-height: 78px/);
+  assert.match(css, /\.menu-icon \{[^}]*width: 44px/);
+  assert.match(css, /\.menu-emoji \{[^}]*font-size: 22px/);
   assert.match(css, /\.header-top \.search-bar \{[^}]*border-radius: 999px/);
   assert.match(css, /\.home-section \.section-more \{[^}]*border-radius: 999px[^}]*min-height: 44px/);
   assert.match(css, /\.partner-cta-btn \{[^}]*border-radius: 999px[^}]*min-height: 48px/);
   assert.match(css, /\.brand-hero \.t \{[^}]*white-space: normal/);
+  assert.match(css, /\.nearby-title \{[^}]*border-radius: 22px/);
+  assert.match(css, /\[data-theme="dark"\] \.nearby-title/);
   assert.match(css, /\[data-theme="dark"\] \.menu-icon\.food/);
-  assert.match(css, /\[data-theme="dark"\] \.section-restaurant/);
+  assert.equal(css.includes('#FF6B35 0%'), false);
   assert.equal(css.includes('border: 4px solid #D9601A'), false);
   assert.equal(css.includes('font-size: 58cqi'), false);
 });
