@@ -648,7 +648,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .travel-header { background: var(--header-grad); color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; box-sizing: border-box; }
 .travel-header h3 { font-size: 16px; font-weight: 900; flex: 1; text-align: center; min-width: 0; }
 .travel-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; flex: 0 0 auto; }
-.travel-search-row { padding: 12px 14px; display: flex; gap: 8px; align-items: stretch; background: var(--bg); flex-shrink: 0; width: 100%; min-width: 0; box-sizing: border-box; }
+.travel-search-row { padding: 12px 14px; display: flex; gap: 8px; align-items: stretch; background: transparent; flex-shrink: 0; width: 100%; min-width: 0; box-sizing: border-box; }
 .travel-search-bar { flex: 1 1 auto; min-width: 0; min-height: 48px; box-sizing: border-box; background: var(--surface); border-radius: 14px; padding: 8px 14px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm); border: 2px solid var(--border); }
 .travel-search-bar input { flex: 1 1 auto; min-width: 0; width: 100%; border: none; outline: none; background: transparent; font-size: 15px; font-weight: 700; font-family: inherit; color: var(--text); }
 .travel-map-btn, .merchant-map-btn { border: 0; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); padding: 0 16px; border-radius: 999px; font-weight: 900; font-size: 14px; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box; flex: 0 0 auto; min-width: 48px; min-height: 48px; height: 48px; line-height: 1; box-shadow: 0 6px 16px rgba(78,159,45,.28); transition: transform .16s ease, filter .16s ease, box-shadow .16s ease; }
@@ -695,7 +695,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .express-photo-name { color: var(--text-muted); font-size: 11px; font-weight: 700; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ═══ HOME V2 — category-led mobile layout ═══ */
-.header { padding: 14px 14px 16px; }
+.header { padding: 14px 14px 16px; border-radius: 0; box-shadow: none; }
 .header .cg-brand { flex: 0 0 100%; width: 100%; padding: 2px 0 12px; gap: 6px; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .header .cg-brand-copy { width: 100%; text-align: center; }
 .header .cg-logo { width: 52px; height: 52px; border: 3px solid #fff; border-radius: 16px; box-shadow: 0 8px 18px rgba(0,0,0,.18); animation: headerLogoBob 3.4s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
@@ -707,7 +707,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .header-top .search-bar input { min-width: 0; width: 100%; font-size: 14px; color: var(--text); }
 .header-top .search-bar input::placeholder { color: var(--text-muted); }
 .profile-avatar { flex: 0 0 48px; width: 48px; height: 48px; background: #fff; }
-#tab-home { background: #3F8E26; min-height: calc(100vh - 120px); }
+#tab-home { background: #3F8E26; min-height: calc(100vh - 120px); margin-top: -1px; }
 #home-content { padding: 12px 14px 18px; }
 .brand-hero { min-height: 0; margin: 2px 0 6px; padding: 14px 16px; border-radius: 22px; background: #fff; color: #1A1A1A; border: 0; box-shadow: 0 8px 18px rgba(0,0,0,.14); align-items: flex-start; }
 .brand-hero::before { content: none; }
@@ -908,21 +908,21 @@ button.chat-list-item:active { filter: brightness(.97); }
 }
 
 /* ═══ MENU ENTRY — first screen of each home menu ═══ */
-/* White halo so orange lettering stays readable on the green page. */
+/* Black outline so orange lettering stays readable on the green page. */
 .on-green-orange,
 .header .cg-brand-tag,
 .merchant-view .section-title,
 .category-view .section-title,
 [data-theme="dark"] .travel-section-title {
   text-shadow:
-    0 1px 0 #fff,
-    1px 0 0 #fff,
-    -1px 0 0 #fff,
-    0 -1px 0 #fff,
-    1px 1px 0 #fff,
-    -1px 1px 0 #fff,
-    1px -1px 0 #fff,
-    -1px -1px 0 #fff;
+    0 1px 0 #000,
+    1px 0 0 #000,
+    -1px 0 0 #000,
+    0 -1px 0 #000,
+    1px 1px 0 #000,
+    -1px 1px 0 #000,
+    1px -1px 0 #000,
+    -1px -1px 0 #000;
 }
 .merchant-view .section-title,
 .category-view .section-title { color: #E85C00; font-size: 22px; font-weight: 900; }
