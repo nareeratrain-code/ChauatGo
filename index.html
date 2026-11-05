@@ -3786,7 +3786,8 @@ function renderOrderCard(o){
   // Only Partner food transfer uses customer slip verification. Ride,
   // Express, Shopping and local-food jobs are acknowledged by the rider.
   var isPartnerFood = o.type === 'food' && o.partnerShop === true;
-  var needsCustomerSlip = isPartnerFood && !isCash;
+  var buysGoods = o.type === 'food' || o.type === 'shopping';
+  var needsCustomerSlip = buysGoods && !isCash;
   var customerSlipRejected = o.customerSlipStatus === 'rejected';
   var payBadge = isCash
     ? '<span class="cash-badge">💵 เงินสด • จ่าย ฿'+fmt(o.total||0)+'</span>'
@@ -3900,11 +3901,9 @@ window.confirmCustomerOrder = async function(orderId) {
 };
 async function postConfirmPayNote(order) {
   if (!order || !currentUser || order.paymentMode === 'cash') return;
-  if (order.type === 'ride') return;
-  var total = order.type === 'express' ? (order.fare || order.total || 0) : (order.total || order.fare || 0);
-  var text = (order.type === 'food' && order.partnerShop === true)
-    ? 'กรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nยอดที่ต้องโอน ฿' + fmt(total)
-    : 'กรุณาโอนค่าบริการ ฿' + fmt(total) + ' ให้ไรเดอร์';
+  if (order.type !== 'food' && order.type !== 'shopping') return;
+  var total = order.total || order.fare || 0;
+  var text = 'กรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nยอดที่ต้องโอน ฿' + fmt(total);
   try {
     await ensureOrderChat(order.id, order);
     var ref = db.collection('chats').doc(order.id).collection('messages').doc('auto_confirm_qr');
@@ -4350,14 +4349,14 @@ window.showOrderBill = async function(orderId) {
     };
 
     var confirmHtml = '';
-    var nonPartnerRiderPayment = o.type !== 'food' || o.partnerShop !== true;
-    var riderQrHtml = (!isCash && nonPartnerRiderPayment && o.riderQrCodeUrl)
+    var feeAtEnd = o.type === 'express' || o.type === 'ride';
+    var riderQrHtml = (!isCash && feeAtEnd && o.riderQrCodeUrl)
       ? '<div style="background:#E8F5E9;border:2px solid #168A45;border-radius:14px;padding:14px;margin:14px 0;text-align:center">' +
         '<div style="font-size:14px;font-weight:900;color:#168A45">📱 สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์</div>' +
         '<img src="' + esc(o.riderQrCodeUrl) + '" alt="QR รับชำระค่าบริการไรเดอร์" style="display:block;width:min(250px,100%);aspect-ratio:1;object-fit:contain;margin:10px auto;background:#fff;border-radius:12px;padding:8px" onclick="openLightbox(\'' + esc(o.riderQrCodeUrl) + '\')">' +
         '<div style="font-size:12px;font-weight:800;color:#2E7D32">โอนแล้วไม่ต้องแนบสลิป ให้ไรเดอร์กดยืนยันรับเงิน</div>' +
       '</div>'
-      : ((!isCash && nonPartnerRiderPayment && o.riderId)
+      : ((!isCash && feeAtEnd && o.riderId)
         ? '<div style="background:#FFF8E1;border-left:4px solid #FFB300;border-radius:10px;padding:12px;margin:14px 0;font-size:12px;font-weight:800;color:#7A5200">ℹ️ ไรเดอร์ยังไม่ได้แนบ QR Code กรุณาติดต่อไรเดอร์ในแชท หรือเลือกชำระเงินสด</div>'
         : '');
     if (o.deliveryCode) {
@@ -4580,7 +4579,7 @@ function subscribeChatMessages(orderId) {
         if (m.automationKey === 'pay_summary' && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
           action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">ยืนยัน</button>';
         }
-        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr') && live && live.userId === currentUser.uid && live.type === 'food' && live.partnerShop === true && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
+        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +

@@ -62,6 +62,7 @@ function loadQrFunctions() {
     firebase: { firestore: { FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' } } },
     orderForAutoChat: async () => order,
     orderServiceType: (value) => value.type,
+    orderBuysGoods: (value) => !!(value && (value.type === 'food' || value.type === 'shopping')),
     fmt: (value) => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }),
     foodPayParts: () => ({ food: 105, fare: 20, tip: 0, total: 125 }),
     foodPayEquation: () => 'ค่าอาหาร ฿105 + ค่าส่ง ฿20 = รวม ฿125',
@@ -104,9 +105,14 @@ test('ไม่ส่ง QR กับออเดอร์เงินสดห�
   await context.sendRiderQrPaymentChat('OD-QR-001', 'food_payment');
   assert.equal(capture.messages.length, 0);
 
-  context.orderForAutoChat = async () => ({ type: 'shopping', paymentMode: 'transfer' });
+  context.orderForAutoChat = async () => ({ type: 'express', paymentMode: 'transfer', fare: 35 });
   await context.sendRiderQrPaymentChat('OD-QR-001', 'food_payment');
   assert.equal(capture.messages.length, 0);
+
+  context.orderForAutoChat = async () => ({ type: 'shopping', paymentMode: 'transfer', total: 80, fare: 30, foodTotal: 50 });
+  const sent = await context.sendRiderQrPaymentChat('OD-QR-001', 'food_payment');
+  assert.equal(sent, true);
+  assert.match(capture.messages[0].text, /อาหาร\/สินค้าพร้อมแล้ว/);
 });
 
 test('Ride ส่ง QR พร้อมยอดบริการเมื่อถึงปลายทาง', async () => {

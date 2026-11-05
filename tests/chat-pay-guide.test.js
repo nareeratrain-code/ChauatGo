@@ -38,8 +38,12 @@ test('photo and shop slip move into chat and express still skips them', () => {
   assert.match(rider, /id="pickup-slip-gallery"/);
   assert.match(rider, /รอลูกค้าส่งสลิป หรือกดยืนยันว่ารับเงินแล้ว/);
   const arrived = rider.slice(rider.indexOf('async function arrivedAtShop'), rider.indexOf('function paySummaryText'));
-  assert.match(arrived, /if \(!orderNeedsKitchen\(job\)\)/);
+  assert.match(arrived, /if \(orderBuysGoods\(job\)\)/);
   assert.match(arrived, /openPayGuide\(jobId, 'food'\)/);
   assert.equal(arrived.includes('openPickupModal(jobId, job)'), false);
   assert.match(rider, /กำลังออกไปส่งสินค้า/);
+  const rules = fs.readFileSync('firestore.rules', 'utf8');
+  assert.match(rules, /function customerSlipNotRejected\(\)/);
+  assert.match(rules, /customerSlipNotRejected\(\)/);
+  assert.match(rules, /buysGoods\(\)[\s\S]{0,180}customerPaidAt/);
 });

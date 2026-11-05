@@ -7,11 +7,12 @@ const rider = fs.readFileSync('rider.js', 'utf8');
 const dispatch = fs.readFileSync('functions/dispatch.js', 'utf8');
 const orders = fs.readFileSync('functions/orders.js', 'utf8');
 
-test('Non-food bill renders order-scoped rider QR and does not request customer slip', () => {
-  assert.match(app, /var nonPartnerRiderPayment = o\.type !== 'food' \|\| o\.partnerShop !== true/);
+test('Express and ride pay the fee at the end, while food and shopping require a slip', () => {
+  assert.match(app, /var feeAtEnd = o\.type === 'express' \|\| o\.type === 'ride'/);
   assert.match(app, /riderQrCodeUrl/);
   assert.match(app, /โอนแล้วไม่ต้องแนบสลิป/);
-  assert.match(app, /var needsCustomerSlip = isPartnerFood && !isCash/);
+  assert.match(app, /var needsCustomerSlip = buysGoods && !isCash/);
+  assert.match(app, /var buysGoods = o\.type === 'food' \|\| o\.type === 'shopping'/);
 });
 
 test('Rider assignment copies only the QR URL to the order for Customer bill display', () => {
@@ -19,11 +20,10 @@ test('Rider assignment copies only the QR URL to the order for Customer bill dis
   assert.doesNotMatch(dispatch, /riderQrCodePath: rider\.qrCodePath/);
 });
 
-test('Non-partner cash payment can be confirmed, while Partner food cash remains delivery-only', () => {
-  assert.match(orders, /const isPartnerFood = order\.type === 'food' && order\.partnerShop === true/);
-  assert.match(orders, /order\.paymentMode === 'cash' && isPartnerFood/);
-  assert.match(orders, /const nonFoodCashWaiting = order\.paymentMode === 'cash'/);
-  assert.match(rider, /if \(orderIsCash\(j\) && j\.type === 'food' && j\.partnerShop === true\) return false/);
+test('Cash received can be recorded before a goods purchase, including partner food', () => {
+  assert.match(orders, /const cashWaiting = order\.paymentMode === 'cash'/);
+  assert.doesNotMatch(orders, /อาหาร Partner แบบเงินสดเก็บเงินตอนส่ง/);
+  assert.doesNotMatch(rider, /orderIsCash\(j\) && j\.type === 'food' && j\.partnerShop === true/);
 });
 
 test('Customer and Rider Toasts can be dismissed with one tap', () => {
