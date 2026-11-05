@@ -575,16 +575,16 @@ async function confirmPaymentReceived(db, uid, orderId) {
     }
     const beforePickup = order.status === 'accepted' || order.status === 'ready';
     const waiting = order.status === 'picked_up';
-    const rideAtDestination = order.type === 'ride' && order.status === 'on_the_way';
-    const cashWaiting = order.paymentMode === 'cash' && (waiting || rideAtDestination);
-    if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup)) {
+    const fareAtDestination = (order.type === 'ride' || order.type === 'express') && order.status === 'on_the_way';
+    const cashWaiting = order.paymentMode === 'cash' && (waiting || fareAtDestination);
+    if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup || fareAtDestination)) {
       result = { ok: true, already: true, status: order.status };
       return;
     }
-    if (!beforePickup && !waiting && !rideAtDestination) {
+    if (!beforePickup && !waiting && !fareAtDestination) {
       precondition('ยืนยันรับเงินได้ตอนรอโอน หรือก่อนรับของเท่านั้น');
     }
-    const text = rideAtDestination
+    const text = fareAtDestination
       ? ridePaymentReceivedText(order)
       : (cashWaiting ? '💵 ลูกค้าชำระเงินสดให้ไรเดอร์แล้วครับ/ค่ะ\nไรเดอร์ได้รับเงินแล้ว จึงซื้อหรือจ่ายร้านได้ครับ/ค่ะ' : paymentReceivedText(order, beforePickup));
     const patch = {

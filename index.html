@@ -3984,8 +3984,8 @@ function renderOrderCard(o){
       '<button class="customer-payment-btn" onclick="confirmCustomerOrder(\''+esc(o.id)+'\')">✅ ยืนยันรายการและยอด</button>' +
     '</div>';
   } else if (o.status === 'accepted' && o.customerOrderConfirmed) {
-    var confirmedCopy = o.type === 'ride'
-      ? 'รอไรเดอร์เดินทางไปรับและนำส่งถึงปลายทาง จากนั้นชำระค่าบริการให้ไรเดอร์'
+    var confirmedCopy = o.type === 'ride' || o.type === 'express'
+      ? 'รอไรเดอร์รับของและนำส่งถึงปลายทาง จากนั้นชำระค่าบริการให้ไรเดอร์'
       : (isPartnerFood
         ? 'รอไรเดอร์ถ่ายรูปอาหาร ก่อนแสดง QR และแจ้งยอดให้โอน'
         : 'รอไรเดอร์รับของก่อนดำเนินการชำระเงิน');
@@ -4019,7 +4019,7 @@ function renderOrderCard(o){
       '<div style="flex:1;min-width:0">' +
         '<div class="order-track-title">'+esc(o.title||'ออเดอร์')+'</div>' +
         codeHtml +
-        '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด • ชำระค่าบริการ ฿'+fmt(o.chargedTotal||o.fare||0) : (statusMap[o.status]||o.status)))+' • ฿'+fmt(o.status==='shop_closed' ? (o.chargedTotal||o.fare||0) : (o.total||o.fare||0))+'</div>' +
+        '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด • ชำระค่าบริการ ฿'+fmt(o.chargedTotal||o.fare||0) : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status)))))+' • ฿'+fmt(o.status==='shop_closed' ? (o.chargedTotal||o.fare||0) : (o.total||o.fare||0))+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
         (o.status === 'shop_closed' && o.customerNotice ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px;white-space:pre-wrap">'+esc(o.customerNotice)+'</div>' : '') +
         orderPrepNote(o) +
@@ -4321,7 +4321,11 @@ function renderTrackingInfo(o){
   if (o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) {
     s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
   }
-  if (o.paymentMode === 'cash' && o.status === 'picked_up') {
+  if (o.type === 'express' && o.status === 'picked_up') {
+    s = { icon: '📦', title: 'รับพัสดุแล้ว', sub: 'ไรเดอร์กำลังไปส่ง' };
+  } else if (o.type === 'ride' && o.status === 'picked_up') {
+    s = { icon: '🚗', title: 'รับผู้โดยสารแล้ว', sub: 'กำลังไปปลายทาง' };
+  } else if (o.paymentMode === 'cash' && o.status === 'picked_up') {
     s = { icon: '💵', title: 'ไรเดอร์รับของแล้ว', sub: 'ชำระเงินสดกับไรเดอร์' };
   } else if (o.paymentMode === 'cash' && o.status === 'on_the_way') {
     s = { icon: '🚀', title: 'กำลังส่ง', sub: 'ชำระเงินสดกับไรเดอร์' };

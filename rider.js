@@ -132,7 +132,8 @@ function canLeaveShop(order) {
   // A ride has no shop or merchant payment step. The rider may leave the
   // pickup point immediately after picking up the passenger; fare is settled
   // at the destination.
-  if (order.type === 'ride') return true;
+  // Ride and express settle the fee at the destination, not before leaving pickup.
+  if (order.type === 'ride' || order.type === 'express') return true;
   if (orderBuysGoods(order)) {
     if (!orderHasShopSlip(order)) return false;
     return !!(order.customerPaidAt || order.status === 'customer_paid');
@@ -146,8 +147,9 @@ function canLeaveShop(order) {
 function riderMayConfirmPay(j) {
   if (!j || !j.riderId) return false;
   if (j.customerPaidAt || j.status === 'customer_paid') return false;
-  // Ride customers pay only after reaching the destination, not at pickup.
+  // Ride and express transfer are confirmed at the destination, not at pickup.
   if (j.type === 'ride') return j.status === 'on_the_way';
+  if (j.type === 'express') return j.status === 'on_the_way' && j.paymentMode !== 'cash';
   return j.status === 'accepted' || j.status === 'ready' || j.status === 'picked_up';
 }
 
@@ -1558,7 +1560,7 @@ function renderJobCard(j, type) {
     cooking: { label: '🍳 ร้านกำลังทำ • รับได้เลย', color: '#E65100', bg: '#FFF3E0' },
     ready: { label: '✅ อาหารพร้อม • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
     accepted: { label: '🛵 รับแล้ว • ร้านกำลังทำ', color: 'var(--blue)', bg: '#E3F2FD' },
-    picked_up: { label: j.type === 'ride' ? '🚗 รับผู้โดยสารแล้ว • ไปปลายทาง' : (orderIsCash(j) ? '💵 รับของแล้ว • เก็บเงินสดตอนส่ง' : '📦 รอลูกค้าโอนเงิน'), color: '#E65100', bg: '#FFF3E0' },
+    picked_up: { label: j.type === 'ride' ? '🚗 รับผู้โดยสารแล้ว • ไปปลายทาง' : (j.type === 'express' ? '📦 รับพัสดุแล้ว • กำลังไปส่ง' : (orderIsCash(j) ? '💵 รับของแล้ว • เก็บเงินสดตอนส่ง' : '📦 รอลูกค้าโอนเงิน')), color: '#E65100', bg: '#FFF3E0' },
     customer_paid: { label: j.type === 'ride' ? '💳 ได้รับค่าบริการแล้ว • จบงานได้' : '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
     done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' },
@@ -1624,7 +1626,7 @@ function renderJobCard(j, type) {
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
-  if (j.type !== 'ride' && !orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderBuysGoods(j) && !shopSlip)) {
+  if (j.type !== 'ride' && j.type !== 'express' && !orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderBuysGoods(j) && !shopSlip)) {
     statusInfo = { label: '💳 ได้รับเงินแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' };
   }
   const prepHtml = (!foodIsReady && j.prepMinutes)
@@ -1647,7 +1649,10 @@ function renderJobCard(j, type) {
     if (j.type === 'ride') {
       primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚗 เริ่มไปปลายทางลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-    } else if (!orderIsCash(j) && j.status === 'picked_up' && customerSlipRejected && !customerPaid) {
+    } else if (j.type === 'express') {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (orderBuysGoods(j) && !orderIsCash(j) && j.status === 'picked_up' && customerSlipRejected && !customerPaid) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าอัปโหลดสลิปใหม่</button>
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬 แจ้งลูกค้า</button>`;
     } else if (orderBuysGoods(j) && !j.foodImage) {
@@ -1675,6 +1680,9 @@ function renderJobCard(j, type) {
   } else if (j.status === 'on_the_way') {
     if (j.type === 'ride' && !customerPaid) {
       primaryAction = `${ridePayReceivedButton(j.id)}
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (j.type === 'express' && !orderIsCash(j) && !customerPaid) {
+      primaryAction = `${payReceivedButton(j.id)}
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ${j.type === 'ride' ? 'ถึงที่หมายแล้ว' : 'ส่งสำเร็จ'}</button>
@@ -1876,7 +1884,9 @@ async function confirmPaymentReceived(jobId) {
     if (overlay && overlay.classList.contains('show')) closeModal();
     showToast(job?.type === 'ride'
       ? '✅ บันทึกว่าได้รับค่าบริการแล้ว — จบงานได้'
-      : 'บันทึกว่ารับเงินแล้ว — เริ่มส่งได้');
+      : (job?.type === 'express'
+        ? '✅ บันทึกว่าได้รับค่าบริการแล้ว — ส่งสำเร็จได้'
+        : 'บันทึกว่ารับเงินแล้ว — เริ่มส่งได้'));
     renderJobs();
   } catch (err) {
     showToast((err && err.message) || 'ยืนยันรับเงินไม่สำเร็จ', 'error');
@@ -2781,7 +2791,7 @@ async function cancelJobAfterTimeout(jobId) {
   }
 }
 
-/* เริ่มส่ง — โอนต้องมี customerPaidAt, เงินสดเริ่มได้ทันทีหลังรับของ */
+/* เริ่มส่ง — อาหาร/ฝากซื้อโอนต้องมี customerPaidAt, ส่งด่วนและเรียกรถเริ่มได้หลังรับของ */
 async function startDelivery(jobId) {
   try {
     const snap = await db.collection('orders').doc(jobId).get();
@@ -2846,6 +2856,7 @@ function autoStartPaymentWatch() {
     j.riderId === currentUser?.uid &&
     j.status === 'picked_up' &&
     j.type !== 'ride' &&
+    j.type !== 'express' &&
     !j.customerPaidAt &&
     !orderIsCash(j)
   );
@@ -2981,12 +2992,16 @@ function showJobDetail(jobId) {
       </div>`
     : '';
 
-  const payStatusHtml = job.type === 'ride' && job.status === 'on_the_way' && !job.customerPaidAt
+  const payStatusHtml = job.type === 'express' && job.status === 'picked_up'
+    ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">📦 รับพัสดุแล้ว — กดเริ่มส่ง</div>`
+    : job.type === 'ride' && job.status === 'on_the_way' && !job.customerPaidAt
     ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — กรุณาเก็บค่าบริการจากลูกค้า</div>`
+    : job.type === 'express' && job.status === 'on_the_way' && !orderIsCash(job) && !job.customerPaidAt
+    ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — รับค่าบริการจากลูกค้า</div>`
     : orderIsCash(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
     ? `<div style="background:#FFF3E0;border-left:4px solid #E65100;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">💵 ชำระเงินสดกับไรเดอร์ — เก็บเงินตอนส่ง</div>`
     : (job.customerPaidAt
-      ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">✅ ${job.type === 'ride' ? 'ได้รับค่าบริการแล้ว — จบงานได้' : 'ลูกค้าโอนเงินแล้ว — เริ่มส่งได้'}</div>`
+      ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">✅ ${job.type === 'ride' ? 'ได้รับค่าบริการแล้ว — จบงานได้' : (job.type === 'express' ? 'ได้รับค่าบริการแล้ว — ส่งสำเร็จได้' : 'ลูกค้าโอนเงินแล้ว — เริ่มส่งได้')}</div>`
       : (job.status === 'picked_up'
         ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
         : ''));

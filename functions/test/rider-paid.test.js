@@ -94,7 +94,10 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.ok(cashDoc.customerPaidAt);
   assert.equal(cashDoc.fare, 35);
 
-  await db.collection('orders').doc('ord-pay-way').set(Object.assign({}, base, { status: 'on_the_way' }));
+  await db.collection('orders').doc('ord-pay-way').set(Object.assign({}, base, {
+    type: 'food',
+    status: 'on_the_way'
+  }));
   await assert.rejects(
     () => Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-way'),
     (err) => err && err.code === 'failed-precondition'
@@ -103,6 +106,17 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.equal(wayDoc.status, 'on_the_way');
   assert.equal(wayDoc.fare, 35);
   assert.equal(wayDoc.customerPaidAt, undefined);
+
+  await db.collection('orders').doc('ord-express-way').set(Object.assign({}, base, { status: 'on_the_way' }));
+  const expressPaid = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-express-way');
+  assert.equal(expressPaid.ok, true);
+  assert.equal(expressPaid.status, 'on_the_way');
+  const expressWay = (await db.collection('orders').doc('ord-express-way').get()).data();
+  assert.equal(expressWay.status, 'on_the_way');
+  assert.equal(expressWay.customerPaid, true);
+  assert.ok(expressWay.customerPaidAt);
+  const expressMsg = await db.collection('chats').doc('ord-express-way').collection('messages').doc('auto_payment_received').get();
+  assert.match(expressMsg.data().text, /ได้รับค่าบริการโอน ฿35/);
 
   await db.collection('orders').doc('ord-ride-arrived').set(Object.assign({}, base, {
     type: 'ride',
