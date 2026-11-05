@@ -56,9 +56,9 @@ test('home tiles stay compact and the partner banner is a soft card', () => {
   assert.match(css, /\[data-theme="dark"\] \.brand-hero \.t \{[^}]*color: #FF9E3D/);
   assert.match(css, /#tab-home \{ background: #3F8E26/);
   assert.match(css, /\.header \.cg-brand-tag \{[^}]*color: #FF8A1A[^}]*font-weight: 900/);
-  assert.match(css, /\.home-section \.section-title \{[^}]*color: #8B1A1A[^}]*font-size: 22px[^}]*font-weight: 900/);
+  assert.match(css, /\.home-section \.section-title \{[^}]*color: #E85C00[^}]*font-size: 22px[^}]*font-weight: 900/);
   assert.match(css, /\[data-theme="dark"\] \.header \.cg-brand-tag \{[^}]*color: #FF8A1A/);
-  assert.match(css, /\[data-theme="dark"\] \.home-section \.section-title \{[^}]*color: #E44545/);
+  assert.match(css, /\[data-theme="dark"\] \.home-section \.section-title \{[^}]*color: #FF9E3D/);
   assert.match(css, /\.section-restaurant \{ --section: #2F7D32/);
   assert.equal(css.includes('#FFF1E6'), false);
   assert.equal(css.includes('#E85B2A'), false);
