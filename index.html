@@ -64,9 +64,9 @@
   --brand: #4E9F2D; --brand-dark: #34751E; --brand-light: #EAF6DF;
   --accent: #F36B21; --green: #168A45; --red: #E53935; --blue: #2196F3;
   --orange: #F28C28;
-  --bg: #FFF4EA; --surface: #FFFFFF; --surface-2: #FFF9F4;
+  --bg: #F2F7EC; --surface: #FFFFFF; --surface-2: #EAF3E2;
   --text: #1A1A1A; --text-muted: #6B7280; --text-light: #9CA3AF;
-  --border: #F0DED0; --header-grad: linear-gradient(135deg, #62B331, #34751E);
+  --border: #D5E6C8; --header-grad: linear-gradient(135deg, #62B331, #34751E);
   --shadow-xs: 0 1px 2px rgba(0,0,0,.04);
   --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
   --shadow-md: 0 4px 16px rgba(0,0,0,.08);
@@ -98,7 +98,7 @@
   --promo-grad: linear-gradient(135deg, #F36B21, #A92E19);
 }
 
-html { height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }
+html { height: auto !important; overflow-y: auto !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; background: var(--bg); }
 body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !important; height: auto !important; overflow-x: hidden !important; overflow-y: auto !important; position: static !important; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; padding-bottom: 90px !important; transition: background .3s, color .3s; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -706,7 +706,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .header-top .search-bar input { min-width: 0; width: 100%; font-size: 14px; }
 .profile-avatar { flex: 0 0 48px; width: 48px; height: 48px; }
 #home-content { padding: 12px 14px 18px; }
-.brand-hero { min-height: 0; margin: 2px 0 6px; padding: 14px 16px; border-radius: 22px; background: var(--surface); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow-xs); align-items: flex-start; }
+.brand-hero { min-height: 0; margin: 2px 0 6px; padding: 14px 16px; border-radius: 22px; background: #FBFDF8; color: var(--text); border: 1px solid #D5E6C8; box-shadow: var(--shadow-xs); align-items: flex-start; }
 .brand-hero::before { content: none; }
 .brand-hero > div { min-width: 0; }
 .brand-kicker { display: inline-flex; align-items: center; min-height: 26px; margin-bottom: 8px; padding: 0 10px; border-radius: 999px; background: var(--brand-light); color: var(--green); font-size: 11px; font-weight: 800; }
@@ -715,12 +715,12 @@ button.chat-list-item:active { filter: brightness(.97); }
 .menu-grid { gap: 2px 0; margin: 0 0 16px; }
 .menu-item { min-height: 78px; background: transparent; border: 0; border-radius: 16px; box-shadow: none; padding: 6px 2px 2px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
 .menu-icon { width: 44px; height: 44px; aspect-ratio: auto; border-radius: 16px; border: 0; margin: 0 auto 6px; box-shadow: none; display: flex; align-items: center; justify-content: center; transition: transform .12s ease; }
-.menu-icon.food { background: #FFF1E6; }
-.menu-icon.shopping { background: #E7F0FF; }
-.menu-icon.travel { background: #FFEBEE; }
-.menu-icon.express { background: #F4E8FF; }
-.menu-icon.hotel { background: #FFF4D6; }
-.menu-icon.map { background: #E7F6EA; }
+.menu-icon.food { background: #E3F3D6; }
+.menu-icon.shopping { background: #D7EED0; }
+.menu-icon.travel { background: #EAF6DF; }
+.menu-icon.express { background: #DCEFD4; }
+.menu-icon.hotel { background: #E7F4DE; }
+.menu-icon.map { background: #F1F8EC; }
 .menu-emoji { display: block; font-size: 22px; line-height: 1; animation: none; will-change: auto; backface-visibility: hidden; }
 .menu-item:nth-child(2) .menu-emoji { animation-delay: .18s; }
 .menu-item:nth-child(3) .menu-emoji { animation-delay: .36s; }
@@ -751,7 +751,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   .menu-emoji { transform: none; }
   .menu-icon { transition: none; }
 }
-.nearby-title { position: relative; overflow: hidden; background: linear-gradient(165deg, #F7FCEB 0%, var(--surface) 58%, #E7F6C8 100%); color: var(--text); padding: 16px; border-radius: 22px; border: 1px solid rgba(78,159,45,.2); box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 12px; font-weight: 800; }
+.nearby-title { position: relative; overflow: hidden; background: linear-gradient(165deg, #F4FBE8 0%, #FBFDF8 55%, #E3F3C4 100%); color: var(--text); padding: 16px; border-radius: 22px; border: 1px solid #C9E2B4; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 12px; font-weight: 800; }
 .nearby-title::after { content: none; }
 .nearby-title-copy { position: relative; z-index: 1; flex: 1; min-width: 0; }
 .partner-banner-kicker { display: inline-flex; align-items: center; min-height: 24px; margin-bottom: 8px; padding: 0 10px; border-radius: 999px; background: var(--brand); color: #fff; font-size: 11px; font-weight: 800; }
@@ -760,7 +760,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .partner-banner-mark { flex: 0 0 52px; width: 52px; height: 52px; border-radius: 18px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: var(--shadow-xs); }
 .nearby-section .nearby-blank { min-height: 108px; padding: 12px; }
 .nearby-section .nearby-shop-img, .nearby-section .nearby-shop-img-fallback { height: 88px; }
-.home-section { margin: 0 0 12px; padding: 2px 0 4px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow-xs); }
+.home-section { margin: 0 0 12px; padding: 2px 0 4px; border: 1px solid #D5E6C8; border-radius: 20px; background: #FBFDF8; overflow: hidden; box-shadow: var(--shadow-xs); }
 .home-section .section-header { padding: 12px 12px 6px; margin: 0; gap: 8px; flex-wrap: wrap; align-items: center; }
 .home-section .section-title { color: var(--text); font-size: 15px; line-height: 1.3; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .home-section .section-title::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: var(--section); flex: 0 0 auto; }
@@ -774,12 +774,12 @@ button.chat-list-item:active { filter: brightness(.97); }
 .home-section .food-name { font-size: 13px; }
 .home-section .food-meta { color: var(--section); background: color-mix(in srgb, var(--section-bg) 65%, white); display: inline-block; padding: 4px 7px; border-radius: 999px; margin-top: 5px; }
 .home-section .food-price { color: var(--section); }
-.section-restaurant { --section: #E85B2A; --section-dark: #873517; --section-bg: #FFF0E8; --section-border: #F5C2AD; }
-.section-convenience { --section: #2F6DE1; --section-dark: #1E438D; --section-bg: #EAF1FF; --section-border: #B8CBF6; }
-.section-cafe { --section: #9A46CF; --section-dark: #64258D; --section-bg: #F6EAFF; --section-border: #DDBBEE; }
-.section-tourist { --section: #159BA7; --section-dark: #11636B; --section-bg: #E4F8F8; --section-border: #B5E0E2; }
-.section-hotel { --section: #DEA800; --section-dark: #806100; --section-bg: #FFF7D9; --section-border: #F0D98A; }
-.partner-cta { margin: 8px 0 12px; padding: 14px; border-radius: 22px; background: var(--surface); color: var(--text); border: 1px solid var(--border); display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-xs); }
+.section-restaurant { --section: #2F7D32; --section-dark: #1B5E20; --section-bg: #E8F5E9; --section-border: #C8E6C9; }
+.section-convenience { --section: #1F8A45; --section-dark: #146332; --section-bg: #E5F4EA; --section-border: #C3E4CE; }
+.section-cafe { --section: #3D8B40; --section-dark: #246028; --section-bg: #EAF6E4; --section-border: #CDE6C4; }
+.section-tourist { --section: #168A45; --section-dark: #0D6D35; --section-bg: #E7F6EC; --section-border: #C4E6D0; }
+.section-hotel { --section: #4E9F2D; --section-dark: #34751E; --section-bg: #F0F8E8; --section-border: #D3E8C0; }
+.partner-cta { margin: 8px 0 12px; padding: 14px; border-radius: 22px; background: #FBFDF8; color: var(--text); border: 1px solid #D5E6C8; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-xs); }
 .partner-cta-icon { width: 44px; height: 44px; border-radius: 16px; background: var(--brand-light); display: flex; align-items: center; justify-content: center; font-size: 22px; flex: 0 0 auto; }
 .partner-cta-copy { flex: 1; min-width: 0; }
 .partner-cta-title { font-size: 15px; font-weight: 900; color: var(--text); }
@@ -798,16 +798,19 @@ button.chat-list-item:active { filter: brightness(.97); }
 [data-theme="dark"] .nearby-title-main { color: #E7F6C8; }
 [data-theme="dark"] .nearby-title-sub { color: #C5D4C0; }
 [data-theme="dark"] .partner-banner-mark { background: #1C2A20; }
-[data-theme="dark"] .section-restaurant { --section: #FF8A5B; --section-dark: #FFD0BC; --section-bg: #2A1812; --section-border: #5A3324; }
-[data-theme="dark"] .section-convenience { --section: #8EB4FF; --section-dark: #D5E4FF; --section-bg: #121C30; --section-border: #2A3E68; }
-[data-theme="dark"] .section-cafe { --section: #D7A6F2; --section-dark: #F0D9FF; --section-bg: #241430; --section-border: #4A2C5C; }
-[data-theme="dark"] .section-tourist { --section: #7ED4DC; --section-dark: #D2F4F6; --section-bg: #102428; --section-border: #1E4A50; }
-[data-theme="dark"] .section-hotel { --section: #F0C84A; --section-dark: #FFE9A8; --section-bg: #2A220C; --section-border: #5A4A18; }
-[data-theme="dark"] .menu-icon.food { background: #3A2416; }
-[data-theme="dark"] .menu-icon.shopping { background: #16243C; }
-[data-theme="dark"] .menu-icon.travel { background: #3A1C22; }
-[data-theme="dark"] .menu-icon.express { background: #2A1840; }
-[data-theme="dark"] .menu-icon.hotel { background: #33280E; }
+[data-theme="dark"] .brand-hero,
+[data-theme="dark"] .home-section,
+[data-theme="dark"] .partner-cta { background: #121A14; border-color: #2A4030; }
+[data-theme="dark"] .section-restaurant { --section: #8FCB7A; --section-dark: #D7F0CC; --section-bg: #17301C; --section-border: #2E5236; }
+[data-theme="dark"] .section-convenience { --section: #7FBF78; --section-dark: #D2EDCB; --section-bg: #16301C; --section-border: #2C4E34; }
+[data-theme="dark"] .section-cafe { --section: #9AD48A; --section-dark: #E0F5D6; --section-bg: #1A3420; --section-border: #335C3A; }
+[data-theme="dark"] .section-tourist { --section: #6FBF84; --section-dark: #D0F0D8; --section-bg: #14301E; --section-border: #2A4E36; }
+[data-theme="dark"] .section-hotel { --section: #A6D48A; --section-dark: #E4F6D4; --section-bg: #1C3822; --section-border: #365C3C; }
+[data-theme="dark"] .menu-icon.food { background: #1E3A22; }
+[data-theme="dark"] .menu-icon.shopping { background: #244A2C; }
+[data-theme="dark"] .menu-icon.travel { background: #1A3324; }
+[data-theme="dark"] .menu-icon.express { background: #16301C; }
+[data-theme="dark"] .menu-icon.hotel { background: #2A4A30; }
 [data-theme="dark"] .menu-icon.map { background: #14301C; }
 [data-theme="dark"] .home-section .place-directory-note { background: rgba(0,0,0,.28); color: var(--section-dark); }
 [data-theme="dark"] .home-section .food-meta { background: rgba(0,0,0,.28); }
