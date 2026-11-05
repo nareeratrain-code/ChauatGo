@@ -30,19 +30,23 @@ test('home tiles keep the same destinations and Thai labels', () => {
 });
 
 test('home tiles stay compact and the partner banner is a soft card', () => {
-  assert.match(css, /\.menu-item \{[^}]*min-height: 78px/);
-  assert.match(css, /\.menu-icon \{[^}]*width: 44px/);
-  assert.match(css, /\.menu-emoji \{[^}]*font-size: 22px/);
-  assert.match(css, /\.header-top \.search-bar \{[^}]*border-radius: 999px/);
+  assert.match(html, /สั่งครบ จบที่เดียว/);
+  assert.match(css, /\.header \.cg-brand \{[^}]*flex-direction: column[^}]*text-align: center/);
+  assert.match(css, /\.header \.cg-brand-name \{[^}]*text-align: center/);
+  assert.match(css, /\.menu-grid \{ gap: 0/);
+  assert.match(css, /\.menu-item \{[^}]*min-height: 64px/);
+  assert.match(css, /\.menu-item \{[^}]*background: #FF9E3D/);
+  assert.match(css, /\.menu-icon \{[^}]*width: 30px/);
+  assert.match(css, /\.menu-emoji \{[^}]*font-size: 16px/);
+  assert.match(css, /\.header-top \.search-bar \{[^}]*border-radius: 999px[^}]*background: #FFB15A/);
   assert.match(css, /\.home-section \.section-more \{[^}]*border-radius: 999px[^}]*min-height: 44px/);
   assert.match(css, /\.partner-cta-btn \{[^}]*border-radius: 999px[^}]*min-height: 48px/);
-  assert.match(css, /\.brand-hero \.t \{[^}]*white-space: normal/);
-  assert.match(css, /\.nearby-title \{[^}]*border-radius: 22px/);
-  assert.match(css, /\[data-theme="dark"\] \.nearby-title/);
-  assert.match(css, /\[data-theme="dark"\] \.menu-icon\.food/);
+  assert.match(css, /\.brand-hero \{[^}]*background: #FF9E3D/);
+  assert.match(css, /\.nearby-title \{[^}]*background: #FF9E3D/);
+  assert.match(css, /\.home-section \{[^}]*background: #FF9E3D/);
+  assert.match(css, /\[data-theme="dark"\] \.nearby-title \{[^}]*background: #E07A1A/);
+  assert.match(css, /\[data-theme="dark"\] \.menu-item \{[^}]*background: #E07A1A/);
   assert.match(css, /#tab-home \{ background: #3F8E26/);
-  assert.match(css, /\.menu-item \{[^}]*background: #fff/);
-  assert.match(css, /\.menu-icon\.food \{ background: #E7F6DF/);
   assert.match(css, /\.section-restaurant \{ --section: #2F7D32/);
   assert.equal(css.includes('#FFF1E6'), false);
   assert.equal(css.includes('#E85B2A'), false);
