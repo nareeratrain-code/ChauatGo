@@ -20,7 +20,7 @@ test('อาหารอัปโหลดครั้งเดียวที�
 
 test('หากสร้างข้อความรูปในแชทไม่สำเร็จ ออเดอร์ยังเดินหน้าด้วยรูปหลักที่อัปโหลดแล้ว', () => {
   const start = source.indexOf('await postRiderOrderImageUrl');
-  const block = source.slice(start, start + 420);
+  const block = source.slice(start, start + 900);
   assert.match(block, /catch \(chatErr\)/);
   assert.match(block, /food photo chat message failed/);
   assert.match(block, /await db\.collection\('orders'\)\.doc\(jobId\)\.update/);

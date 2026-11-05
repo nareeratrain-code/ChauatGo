@@ -2093,7 +2093,12 @@ function paySummaryText(order) {
     lines.push('ค่าบริการ ฿' + fmt(fare || order.total || 0));
     if (order.type === 'shopping' || order.type === 'food') lines.push('ค่าสินค้าตามบิลร้าน จะรวมเมื่อมีรูปสินค้า');
   }
-  if (order.paymentMode === 'cash') lines.push('ชำระเงินสดกับไรเดอร์ตอนรับของ');
+  if (order.paymentMode === 'cash' && (order.type === 'food' || order.type === 'shopping')) {
+    lines.push('ไรเดอร์จะส่งรูปสินค้าในแชท');
+    lines.push('ชำระเงินสดกับไรเดอร์ตอนรับของ ไม่ต้องโอนหรือแนบสลิปก่อน');
+  } else if (order.paymentMode === 'cash') {
+    lines.push('ชำระเงินสดกับไรเดอร์ตอนรับของ');
+  }
   lines.push('กรุณากดยืนยัน');
   return lines.join('\n');
 }
@@ -2200,6 +2205,42 @@ function pickupStage(job) {
   if (!job || !orderBuysGoods(job)) return 'none';
   if (job.foodImage) return 'slip';
   return 'food';
+}
+
+function goodsReadyChatText(order) {
+  const due = Number(foodPayParts(order).total) || 0;
+  const dueText = Math.abs(due % 1) < 1e-9 ? String(Math.round(due)) : due.toFixed(2);
+  if (order && order.paymentMode === 'cash') {
+    return 'อาหาร/สินค้าพร้อมแล้ว กรุณาเตรียมเงินสด ฿' + dueText + ' (รวมค่าบริการ) ชำระตอนรับของ';
+  }
+  return 'อาหาร/สินค้าพร้อมแล้ว กรุณาโอนยอด ฿' + dueText + ' (รวมค่าบริการ)';
+}
+
+async function postGoodsReadyChat(orderId, order) {
+  const text = goodsReadyChatText(order || {});
+  const body = await ensureRiderChat(orderId);
+  const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_goods_ready');
+  if ((await messageRef.get()).exists) return;
+  const message = {
+    text,
+    senderId: currentUser.uid,
+    senderRole: 'rider',
+    senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
+    systemMessage: true,
+    automated: true,
+    automationKey: 'goods_ready',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if (order && order.paymentMode !== 'cash' && riderProfile?.qrCodeUrl) {
+    message.imageUrl = riderProfile.qrCodeUrl;
+    message.imagePath = riderProfile.qrCodePath || '';
+  }
+  await messageRef.set(message);
+  await db.collection('chats').doc(orderId).update({
+    lastMessage: text.split('\n')[0].slice(0, 80),
+    lastSenderId: currentUser.uid,
+    lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 }
 
 /* Food: photo first (payment message), then the shop slip. Other services still send both together. */
@@ -2504,19 +2545,30 @@ async function submitFoodPhoto(pickupJob) {
       await postRiderOrderImageUrl(jobId, pickupFoodUrl, foodPath);
     } catch (chatErr) {
       console.warn('food photo chat message failed:', chatErr && (chatErr.code || chatErr.message));
+      showToast('รูปอัปโหลดแล้ว แต่ส่งเข้าแชทไม่สำเร็จ', 'warning', 6000);
     }
     uploadStep = 'บันทึกรูปลงออเดอร์';
-    await db.collection('orders').doc(jobId).update({
-      status: 'picked_up',
-      pickedUpAt: firebase.firestore.FieldValue.serverTimestamp(),
+    const alreadyPicked = !!(pickupJob && (pickupJob.status === 'picked_up' || pickupJob.status === 'customer_paid' || pickupJob.status === 'on_the_way'));
+    const photoPatch = {
       foodImage: pickupFoodUrl,
       foodImagePath: foodPath
-    });
+    };
+    if (!alreadyPicked) {
+      photoPatch.status = 'picked_up';
+      photoPatch.pickedUpAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
+    await db.collection('orders').doc(jobId).update(photoPatch);
     const pickedJob = allJobs.find(j => j.id === jobId) || pickupJob;
     if (pickedJob) {
-      pickedJob.status = 'picked_up';
+      if (!alreadyPicked) pickedJob.status = 'picked_up';
       pickedJob.foodImage = pickupFoodUrl;
       pickedJob.foodImagePath = foodPath;
+    }
+    try {
+      uploadStep = 'แจ้งยอดในแชท';
+      await postGoodsReadyChat(jobId, pickedJob || pickupJob);
+    } catch (readyErr) {
+      console.warn('goods ready chat', readyErr && (readyErr.code || readyErr.message));
     }
     sendAutomatedChatLater(jobId, 'food_photo');
     const qrSent = await sendRiderQrPaymentChat(jobId, 'food_payment');
@@ -3293,11 +3345,14 @@ function openSheet() {
   $('sheetOverlay')?.classList.add('show');
 }
 function closeSheet() { $('sheetOverlay')?.classList.remove('show'); }
-function closeModal() {
+function closeModal(opts) {
   destroyRiderJobMap();
   $('modalOverlay')?.classList.remove('show');
   const mc = $('modalContent');
   if (mc) mc.innerHTML = '';
+  // Opening the customer chat used to call this and wipe the goods-photo
+  // draft, so ส่งรูปให้ลูกค้า stayed disabled or sent nothing.
+  if (opts && opts.keepPickup) return;
   pickupFoodBlob = null;
   pickupSlipBlob = null;
   pickupOrderId = null;
@@ -3581,7 +3636,7 @@ async function openChatWithCustomer(orderId) {
   const cn = $('chatName'); if (cn) cn.textContent = activeChatPartnerName;
   const cs = $('chatSub'); if (cs) cs.textContent = '🧾 ' + orderLabel(job) + (job.title ? ' • ' + job.title : '');
   $('chatContainer')?.classList.add('show');
-  closeModal();
+  closeModal({ keepPickup: true });
 
   if (activeChatUnsub) activeChatUnsub();
   activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')

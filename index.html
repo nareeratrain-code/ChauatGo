@@ -4579,7 +4579,7 @@ function subscribeChatMessages(orderId) {
         if (m.automationKey === 'pay_summary' && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
           action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">ยืนยัน</button>';
         }
-        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
+        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +

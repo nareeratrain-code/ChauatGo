@@ -528,7 +528,10 @@ service cloud.firestore {
         )
         || (
           buysGoods()
-          && resource.data.get('customerPaidAt', null) != null
+          && (
+            resource.data.get('customerPaidAt', null) != null
+            || resource.data.get('paymentMode', '') == 'cash'
+          )
           && resource.data.status in ['picked_up', 'customer_paid']
           && request.resource.data.status == resource.data.status
           && identityFrozen()
@@ -675,13 +678,17 @@ service cloud.firestore {
         && (
           (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
           || (resource.data.status == 'ready' && !noRider(resource.data))
+          || (buysGoods() && resource.data.status == 'picked_up' && resource.data.get('foodImage', '') == '')
         );
     }
 
     function riderShopSlipOk() {
       return moneyFrozen() && isAssignedRider()
         && buysGoods()
-        && resource.data.get('customerPaidAt', null) != null
+        && (
+          resource.data.get('customerPaidAt', null) != null
+          || resource.data.get('paymentMode', '') == 'cash'
+        )
         && resource.data.status in ['picked_up', 'customer_paid']
         && request.resource.data.status == resource.data.status
         && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
@@ -1096,7 +1103,10 @@ service cloud.firestore {
       allow update: if moneyFrozen()
         && isAssignedRider()
         && buysGoods()
-        && resource.data.get('customerPaidAt', null) != null
+        && (
+          resource.data.get('customerPaidAt', null) != null
+          || resource.data.get('paymentMode', '') == 'cash'
+        )
         && resource.data.status in ['picked_up', 'customer_paid']
         && request.resource.data.status == resource.data.status
         && request.resource.data.riderSlipToShop is string
