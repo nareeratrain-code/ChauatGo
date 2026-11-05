@@ -702,28 +702,33 @@ button.chat-list-item:active { filter: brightness(.97); }
 .header .header-brand-shimmer { display: inline-block; background: linear-gradient(100deg, #ffffff 0%, #ffffff 32%, #ffe27a 48%, #ffffff 58%, #c9f4ff 74%, #ffffff 100%); background-size: 240% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: headerShimmer 3.2s ease-in-out infinite; will-change: background-position; transform: translate3d(0, 0, 0); backface-visibility: hidden; }
 .header .cg-brand-tag { margin-top: 5px; color: #DFFF8C; font-size: 15px; font-weight: 800; }
 .header-top { gap: 8px; width: 100%; min-width: 0; }
-.header-top .search-bar { flex: 1; min-width: 0; min-height: 52px; border-radius: 18px; padding: 0 15px; }
+.header-top .search-bar { flex: 1; min-width: 0; min-height: 48px; border-radius: 999px; padding: 0 16px; border: 1px solid rgba(255,255,255,.45); }
 .header-top .search-bar input { min-width: 0; width: 100%; font-size: 14px; }
-.profile-avatar { flex: 0 0 46px; }
+.profile-avatar { flex: 0 0 48px; width: 48px; height: 48px; }
 #home-content { padding: 14px 12px 22px; }
-.brand-hero { min-height: 70px; margin: 0 2px 16px; padding: 14px 16px; border-radius: 22px; background: var(--header-grad); color: #fff; box-shadow: 0 8px 18px rgba(52,117,30,.22); }
-.brand-hero::before { content: '🛵'; font-size: 38px; line-height: 1; flex: 0 0 auto; }
+.brand-hero { min-height: 72px; margin: 0 0 16px; padding: 16px 16px; border-radius: 24px; background: var(--header-grad); color: #fff; box-shadow: 0 8px 18px rgba(52,117,30,.22); align-items: flex-start; }
+.brand-hero::before { content: '🛵'; font-size: 28px; line-height: 1.2; flex: 0 0 auto; }
 .brand-hero > div { min-width: 0; }
-.brand-hero .t { font-size: 20px; line-height: 1.25; color: #fff; white-space: nowrap; }
-.brand-hero .s { font-size: 11px; line-height: 1.2; letter-spacing: -0.25px; color: rgba(255,255,255,.92); opacity: 1; white-space: nowrap; }
-.menu-grid { gap: 12px; margin: 0 2px 18px; }
-.menu-item { background: transparent; box-shadow: none; padding: 0; container-type: inline-size; }
-.menu-icon { width: 100%; aspect-ratio: 1; height: auto; border-radius: 18px; background: #fff; border: 4px solid #D9601A; margin: 0 auto 8px; box-shadow: none; display: flex; align-items: center; justify-content: center; transition: transform .12s ease; }
-.menu-icon.food, .menu-icon.shopping, .menu-icon.travel, .menu-icon.express, .menu-icon.hotel, .menu-icon.map { background: #fff; }
-.menu-emoji { display: block; font-size: 58cqi; line-height: 1; animation: tileEmoji 2.2s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
+.brand-hero .t { font-size: 18px; line-height: 1.35; color: #fff; white-space: normal; }
+.brand-hero .s { font-size: 12px; line-height: 1.45; letter-spacing: 0; color: rgba(255,255,255,.92); opacity: 1; white-space: normal; margin-top: 4px; }
+.menu-grid { gap: 10px; margin: 0 0 18px; }
+.menu-item { min-height: 112px; background: var(--surface); border: 1px solid var(--border); border-radius: 22px; box-shadow: var(--shadow-xs); padding: 12px 6px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.menu-icon { width: 52px; height: 52px; aspect-ratio: auto; border-radius: 18px; border: 0; margin: 0 auto 8px; box-shadow: none; display: flex; align-items: center; justify-content: center; transition: transform .12s ease; }
+.menu-icon.food { background: #FFF1E6; }
+.menu-icon.shopping { background: #E7F0FF; }
+.menu-icon.travel { background: #FFEBEE; }
+.menu-icon.express { background: #F4E8FF; }
+.menu-icon.hotel { background: #FFF4D6; }
+.menu-icon.map { background: #E7F6EA; }
+.menu-emoji { display: block; font-size: 28px; line-height: 1; animation: tileEmoji 3.2s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
 .menu-item:nth-child(2) .menu-emoji { animation-delay: .18s; }
 .menu-item:nth-child(3) .menu-emoji { animation-delay: .36s; }
 .menu-item:nth-child(4) .menu-emoji { animation-delay: .54s; }
 .menu-item:nth-child(5) .menu-emoji { animation-delay: .72s; }
 .menu-item:nth-child(6) .menu-emoji { animation-delay: .9s; }
-.menu-item:active .menu-icon { transform: scale(.9); }
+.menu-item:active .menu-icon { transform: scale(.96); }
 .menu-item:active .menu-emoji { animation-play-state: paused; }
-.menu-label { font-size: 12px; font-weight: 900; color: var(--text); margin-top: 0; }
+.menu-label { font-size: 12px; font-weight: 900; line-height: 1.25; color: var(--text); margin-top: 0; min-height: 2.5em; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 2px; }
 @keyframes headerLogoBob {
   0%, 100% { transform: translate3d(0, 0, 0); }
   50% { transform: translate3d(0, -8px, 0); }
@@ -733,9 +738,8 @@ button.chat-list-item:active { filter: brightness(.97); }
   50% { background-position: 100% 50%; }
 }
 @keyframes tileEmoji {
-  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
-  40% { transform: translate3d(0, -8px, 0) rotate(-6deg); }
-  70% { transform: translate3d(0, 2px, 0) rotate(5deg); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -3px, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .header .cg-logo,
@@ -747,10 +751,10 @@ button.chat-list-item:active { filter: brightness(.97); }
   .menu-icon { transition: none; }
 }
 .home-section { margin: 0 0 16px; padding: 4px 0 2px; border: 2px solid var(--section-border); border-radius: 26px; background: var(--section-bg); overflow: hidden; }
-.home-section .section-header { padding: 12px 14px 8px; margin: 0; }
-.home-section .section-title { color: var(--section); font-size: 18px; display: flex; align-items: center; gap: 8px; }
-.home-section .section-title::first-letter { font-size: 25px; }
-.home-section .section-more { background: var(--section); color: #fff; border-radius: 999px; padding: 9px 13px; min-height: 38px; font-size: 11px; }
+.home-section .section-header { padding: 12px 14px 8px; margin: 0; gap: 8px; flex-wrap: wrap; align-items: center; }
+.home-section .section-title { color: var(--section); font-size: 17px; line-height: 1.3; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.home-section .section-title::first-letter { font-size: 22px; }
+.home-section .section-more { background: var(--section); color: #fff; border-radius: 999px; padding: 0 14px; min-height: 44px; font-size: 12px; flex: 0 0 auto; }
 .home-section .place-directory-note { margin: 0 14px 10px; background: rgba(255,255,255,.76); color: var(--section-dark); border: 0; }
 .home-section .food-grid { padding: 0 12px 12px; gap: 10px; }
 .home-section .food-card { border-radius: 20px; box-shadow: 0 5px 14px rgba(0,0,0,.07); }
@@ -769,13 +773,28 @@ button.chat-list-item:active { filter: brightness(.97); }
 .partner-cta-copy { flex: 1; min-width: 0; }
 .partner-cta-title { font-size: 16px; font-weight: 900; }
 .partner-cta-sub { margin-top: 3px; font-size: 11px; color: rgba(255,255,255,.72); font-weight: 700; }
-.partner-cta-btn { flex: 0 0 auto; border: 0; border-radius: 999px; background: #DFFF69; color: #173D12; padding: 10px 15px; font: 900 12px inherit; cursor: pointer; }
+.partner-cta-btn { flex: 0 0 auto; border: 0; border-radius: 999px; background: #DFFF69; color: #173D12; min-height: 48px; padding: 0 16px; font: 900 14px/1 inherit; cursor: pointer; }
+.nearby-more-btn { min-height: 48px; border-radius: 999px; border-style: solid; }
+.bottom-nav .nav-item { min-height: 48px; }
+.bottom-nav .nav-item.active .nav-icon-wrap { background: var(--brand-light); border-radius: 999px; min-width: 48px; min-height: 32px; padding: 2px 10px; }
 .home-legal { display: flex; justify-content: center; gap: 16px; margin: 4px 8px 8px; padding: 8px 0 4px; }
 .home-legal a { color: var(--green); font-size: 13px; font-weight: 900; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
 .auth-legal { margin: 12px 0 0; font-size: 12px; line-height: 1.5; font-weight: 700; color: var(--text-muted); text-align: center; }
 .auth-legal a { color: var(--green); font-weight: 900; }
-[data-theme="dark"] .home-section { filter: saturate(.85); }
-[data-theme="dark"] .home-section .place-directory-note { background: rgba(20,30,22,.72); }
+[data-theme="dark"] .home-section { filter: none; }
+[data-theme="dark"] .section-restaurant { --section: #FF8A5B; --section-dark: #FFD0BC; --section-bg: #2A1812; --section-border: #5A3324; }
+[data-theme="dark"] .section-convenience { --section: #8EB4FF; --section-dark: #D5E4FF; --section-bg: #121C30; --section-border: #2A3E68; }
+[data-theme="dark"] .section-cafe { --section: #D7A6F2; --section-dark: #F0D9FF; --section-bg: #241430; --section-border: #4A2C5C; }
+[data-theme="dark"] .section-tourist { --section: #7ED4DC; --section-dark: #D2F4F6; --section-bg: #102428; --section-border: #1E4A50; }
+[data-theme="dark"] .section-hotel { --section: #F0C84A; --section-dark: #FFE9A8; --section-bg: #2A220C; --section-border: #5A4A18; }
+[data-theme="dark"] .menu-icon.food { background: #3A2416; }
+[data-theme="dark"] .menu-icon.shopping { background: #16243C; }
+[data-theme="dark"] .menu-icon.travel { background: #3A1C22; }
+[data-theme="dark"] .menu-icon.express { background: #2A1840; }
+[data-theme="dark"] .menu-icon.hotel { background: #33280E; }
+[data-theme="dark"] .menu-icon.map { background: #14301C; }
+[data-theme="dark"] .home-section .place-directory-note { background: rgba(0,0,0,.28); color: var(--section-dark); }
+[data-theme="dark"] .home-section .food-meta { background: rgba(0,0,0,.28); }
 
 /* Store detail page — reuses the same category palette as the home sections. */
 #modal:has(.store-detail-page) { align-items: flex-end; padding: 0; }
@@ -837,6 +856,15 @@ button.chat-list-item:active { filter: brightness(.97); }
   .nearby-title { font-size: 14px; padding: 13px 13px 12px; }
   .nearby-title-icon { font-size: 21px; }
   .nearby-title-sub { font-size: 10px; }
+  .menu-grid { gap: 8px; }
+  .menu-item { min-height: 104px; padding: 10px 4px 8px; border-radius: 18px; }
+  .menu-icon { width: 44px; height: 44px; border-radius: 16px; }
+  .menu-emoji { font-size: 24px; }
+  .menu-label { font-size: 11px; }
+  .brand-hero { padding: 14px 12px; }
+  .brand-hero .t { font-size: 16px; }
+  .home-section .section-title { font-size: 15px; }
+  .home-section .section-more { font-size: 11px; padding: 0 10px; }
 }
 </style>
 </head>
