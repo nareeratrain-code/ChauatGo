@@ -347,6 +347,9 @@ async function createOrder(db, uid, data) {
     body.paymentMode = mode;
   }
 
+  if ((type === 'food' || type === 'shopping') && mode === 'transfer') {
+    body.transferDue = total;
+  }
   const ref = db.collection('orders').doc();
   await ref.set(body);
   return {
@@ -590,7 +593,8 @@ async function confirmPaymentReceived(db, uid, orderId) {
     const patch = {
       customerPaid: true,
       customerPaidAt: FieldValue.serverTimestamp(),
-      paidConfirmedBy: 'rider'
+      paidConfirmedBy: 'rider',
+      paymentConfirmSource: 'rider_manual'
     };
     if (waiting) patch.status = 'customer_paid';
     tx.update(orderRef, patch);

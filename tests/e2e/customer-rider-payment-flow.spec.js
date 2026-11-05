@@ -289,6 +289,8 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
       { timeout: 5_000, message: 'Customer ยังไม่ได้ผูก Input สลิปกับ Order ที่กำลังทดสอบ' }
     ).toBe(orderId);
     await uploadImage(customer, '#customer-slip-input', 'qa-customer-slip.png');
+    await customer.locator('#slip-amount-input').fill('140');
+    await customer.locator('#slip-amount-submit').click();
     await waitForOrderState(
       customer,
       orderId,

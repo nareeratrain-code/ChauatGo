@@ -1447,6 +1447,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 <script src="locations-data.js"></script>
 <script src="voice-call.js"></script>
+<script src="slip-amount.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════
    CHAUAT GO v3.9.0 — Main JavaScript Part 1
@@ -1593,6 +1594,7 @@ var nearbyShopsLoaded = false;
 var riderGpsUnsubs = {};
 var _cachedOrders = [];
 var pendingCustomerSlipOrderId = '';
+var pendingSlipUpload = null;
 var restaurantFilterState = { query: '', type: 'all', maxDistance: 'all' };
 
 /* ⭐ v3.9.0: 4-level proximity */
@@ -3962,37 +3964,85 @@ window.handleCustomerSlipPick = async function(event) {
   if (!cached || cached.userId !== currentUser.uid || cached.status !== 'picked_up') {
     return showToast('แนบสลิปได้หลังไรเดอร์รับของแล้วเท่านั้น (กรุณารอสถานะอัปเดต)', 'warning');
   }
+    if (cached.paymentMode !== 'cash' && (cached.type === 'food' || cached.type === 'shopping')) {
+      pendingSlipUpload = { orderId: orderId, file: file, ext: ext };
+      openSlipAmountModal(cached);
+      return;
+    }
+    await saveCustomerSlip(orderId, file, ext, cached, null);
+};
+function openSlipAmountModal(order) {
+  var expected = window.ChauatSlipAmount.expectedTransferAmount(order);
+  var shown = window.ChauatSlipAmount.formatBaht(expected);
+  if ($('modal-body')) {
+    $('modal-body').innerHTML =
+      '<div style="text-align:center;margin-bottom:12px"><div style="font-size:40px">🧾</div><h2 style="font-size:18px;font-weight:900;margin:6px 0">ยอดในสลิป</h2></div>' +
+      '<div class="customer-payment-copy" style="margin-bottom:12px">กรอกยอดที่โอนตามสลิป ต้องตรงกับยอดในแชท ฿' + esc(shown) + ' (คลาดเคลื่อนได้ 1 บาท)</div>' +
+      '<div class="form-group"><label>ยอดที่โอน (บาท)</label><input id="slip-amount-input" inputmode="decimal" placeholder="' + esc(shown) + '" autocomplete="off"></div>' +
+      '<div id="slip-amount-error" style="display:none;margin:8px 0 12px;font-size:13px;font-weight:900;color:#B42318"></div>' +
+      '<button type="button" class="btn-full btn-green press-scale" id="slip-amount-submit" onclick="submitSlipAmount()">ส่งสลิป</button>' +
+      '<button type="button" class="btn-full btn-gray press-scale" onclick="closeModal()" style="margin-top:8px">ยกเลิก</button>';
+  }
+  if ($('modal')) $('modal').style.zIndex = '9800';
+  openModal();
+  setTimeout(function(){ var input = $('slip-amount-input'); if (input) input.focus(); }, 50);
+}
+window.submitSlipAmount = async function() {
+  var pending = pendingSlipUpload;
+  if (!pending || !pending.file) return showToast('ไม่พบไฟล์สลิป กรุณาเลือกใหม่', 'warning');
+  var cached = (window._cachedOrders || []).filter(function(o){ return o.id === pending.orderId; })[0];
+  var expected = window.ChauatSlipAmount.expectedTransferAmount(cached || {});
+  var entered = window.ChauatSlipAmount.parseSlipAmount($('slip-amount-input') && $('slip-amount-input').value);
+  var error = $('slip-amount-error');
+  if (entered == null) {
+    if (error) { error.style.display = 'block'; error.textContent = 'กรุณากรอกยอดที่โอนเป็นตัวเลข'; }
+    return;
+  }
+  if (!window.ChauatSlipAmount.slipAmountsMatch(entered, expected)) {
+    var mismatch = window.ChauatSlipAmount.slipMismatchText(expected);
+    if (error) { error.style.display = 'block'; error.textContent = mismatch; }
+    return showToast(mismatch, 'error', 6000);
+  }
+  closeModal();
+  pendingSlipUpload = null;
+  await saveCustomerSlip(pending.orderId, pending.file, pending.ext, cached, entered);
+};
+async function saveCustomerSlip(orderId, file, ext, cached, amount) {
   showToast('📤 กำลังอัปโหลดสลิป...', 'info');
   try {
     var path = 'slips/customers/' + currentUser.uid + '/' + orderId + '/proof_' + Date.now() + '.' + ext;
     var ref = storage.ref(path);
     await ref.put(file, { contentType: file.type || 'image/jpeg' });
     var url = await ref.getDownloadURL();
-    var resubmitting = cached.customerSlipStatus === 'rejected';
+    var resubmitting = cached && cached.customerSlipStatus === 'rejected';
     var slipUpdate = {
       customerSlipUrl: url,
       customerSlipPath: path,
       customerSlipUploadedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    if (amount != null) slipUpdate.customerSlipAmount = amount;
     if (resubmitting) {
       slipUpdate.customerSlipStatus = 'pending';
       slipUpdate.customerSlipRevision = (Number(cached.customerSlipRevision) || 1) + 1;
     }
     await db.collection('orders').doc(orderId).update(slipUpdate);
-    cached.customerSlipUrl = url;
-    cached.customerSlipPath = path;
-    if (resubmitting) {
-      cached.customerSlipStatus = 'pending';
-      cached.customerSlipRevision = slipUpdate.customerSlipRevision;
+    if (cached) {
+      cached.customerSlipUrl = url;
+      cached.customerSlipPath = path;
+      if (amount != null) cached.customerSlipAmount = amount;
+      if (resubmitting) {
+        cached.customerSlipStatus = 'pending';
+        cached.customerSlipRevision = slipUpdate.customerSlipRevision;
+      }
     }
     paintUserOrders(window._cachedOrders || []);
     showToast('✅ แนบสลิปแล้ว — กดยืนยันว่าโอนแล้วเพื่อแจ้งไรเดอร์', 'success');
   } catch (e) {
-    console.error('handleCustomerSlipPick error:', e);
+    console.error('saveCustomerSlip error:', e);
     var msg = e && e.code === 'storage/unauthorized' ? 'ไม่มีสิทธิ์อัปโหลดสลิปของออเดอร์นี้' : (e.code || e.message);
     showToast('แนบสลิปไม่สำเร็จ: ' + msg, 'error');
   }
-};
+}
 // Bind explicitly after the handler is defined. This is more reliable than
 // an inline onchange when camera/gallery implementations reuse the hidden input.
 (function bindCustomerSlipInput() {
@@ -4008,13 +4058,21 @@ window.confirmCustomerPaid = async function(orderId) {
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (cached && cached.paymentMode === 'cash') return showToast('ออเดอร์เงินสด — ชำระเงินสดกับไรเดอร์', 'info');
   if (cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
+  var paidUpdate = {
+    customerPaidAt: firebase.firestore.FieldValue.serverTimestamp(),
+    customerPaid: true,
+    status: 'customer_paid'
+  };
+  if (cached && cached.paymentMode !== 'cash' && (cached.type === 'food' || cached.type === 'shopping')) {
+    var expected = window.ChauatSlipAmount.expectedTransferAmount(cached);
+    if (!window.ChauatSlipAmount.slipAmountsMatch(cached.customerSlipAmount, expected)) {
+      return showToast(window.ChauatSlipAmount.slipMismatchText(expected), 'error', 6000);
+    }
+    paidUpdate.paymentConfirmSource = 'customer_slip';
+  }
   if (!confirm('ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
   try {
-    await db.collection('orders').doc(orderId).update({
-      customerPaidAt: firebase.firestore.FieldValue.serverTimestamp(),
-      customerPaid: true,
-      status: 'customer_paid'
-    });
+    await db.collection('orders').doc(orderId).update(paidUpdate);
     showToast('✅ แจ้งไรเดอร์แล้ว — กำลังเริ่มส่ง');
   } catch (e) {
     console.error('confirmCustomerPaid error:', e);
@@ -6071,7 +6129,10 @@ window.submitShopOrder = async function(placeId){
 window.openModal = function(){ if($('modal')) $('modal').classList.add('show'); };
 window.closeModal = function(){
   if (placeDetailMap) { try { placeDetailMap.remove(); } catch (e) {} placeDetailMap = null; }
-  if($('modal')) $('modal').classList.remove('show');
+  if($('modal')) {
+    $('modal').classList.remove('show');
+    $('modal').style.zIndex = '';
+  }
   if($('modal-body')) $('modal-body').innerHTML = '';
 };
 window.openLightbox = function(src){ if($('lightbox-img')) $('lightbox-img').src = src; if($('img-lightbox')) $('img-lightbox').classList.add('show'); };

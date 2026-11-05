@@ -281,6 +281,16 @@ function foodPayParts(order) {
   };
 }
 
+function shownTransferDue(order) {
+  if (!order) return 0;
+  const preferred = order.transferDue != null && order.transferDue !== ''
+    ? order.transferDue
+    : order.total;
+  const due = Number(preferred);
+  if (preferred != null && preferred !== '' && Number.isFinite(due)) return due;
+  return Number(foodPayParts(order).total) || 0;
+}
+
 function foodPayEquation(parts) {
   const food = 'ค่าอาหาร ' + bahtText(parts.food);
   const fare = 'ค่าส่ง ' + bahtText(parts.fare);
@@ -1797,7 +1807,7 @@ function riderQrPaymentText(order, phase) {
   if (phase === 'shop_arrived') {
     return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
   }
-  const due = Number(foodPayParts(order).total) || 0;
+  const due = shownTransferDue(order);
   const dueText = Math.abs(due % 1) < 1e-9 ? String(Math.round(due)) : due.toFixed(2);
   return 'อาหาร/สินค้าพร้อมแล้ว กรุณาโอนยอด ฿' + dueText + ' (รวมค่าบริการ)\n📸 ไรเดอร์ส่งรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์เพื่อชำระค่าอาหารและค่าบริการตามยอดนี้ครับ/ค่ะ\n' + foodPayEquation(foodPayParts(order)) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนเงินให้ไรเดอร์ครับ/ค่ะ';
 }
@@ -2208,7 +2218,9 @@ function pickupStage(job) {
 }
 
 function goodsReadyChatText(order) {
-  const due = Number(foodPayParts(order).total) || 0;
+  const due = order && order.paymentMode === 'cash'
+    ? (Number(foodPayParts(order).total) || 0)
+    : shownTransferDue(order);
   const dueText = Math.abs(due % 1) < 1e-9 ? String(Math.round(due)) : due.toFixed(2);
   if (order && order.paymentMode === 'cash') {
     return 'อาหาร/สินค้าพร้อมแล้ว กรุณาเตรียมเงินสด ฿' + dueText + ' (รวมค่าบริการ) ชำระตอนรับของ';

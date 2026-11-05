@@ -68,6 +68,7 @@ test('a shop without coordinates still uses the ฿20 base fee', async () => {
   assert.equal(saved.netTotal, 315);
   assert.equal(saved.status, 'searching');
   assert.equal(saved.partnerShop, true);
+  assert.equal(saved.transferDue, 335);
   assert.equal(saved.shopDisclaimerAccepted, undefined);
   assert.equal(JSON.stringify(saved).includes('เหล่าเต๊ง'), false);
 
@@ -88,6 +89,7 @@ test('a shop without coordinates still uses the ฿20 base fee', async () => {
   assert.equal(cash.fare, 20);
   assert.equal(cash.cashTip, 5);
   assert.equal(cash.total, 340);
+  assert.equal(cashDb.written[0].transferDue, undefined);
 });
 
 test('non-partner food requires the shop disclaimer and is not a partner order', async () => {
@@ -117,4 +119,5 @@ test('non-partner food requires the shop disclaimer and is not a partner order',
   assert.equal(saved.partnerShop, false);
   assert.equal(saved.shopDisclaimerAccepted, true);
   assert.equal(saved.merchantId, 'shop-local');
+  assert.equal(saved.transferDue, created.total);
 });

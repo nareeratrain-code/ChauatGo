@@ -249,6 +249,8 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
       await slipButton.click();
       await expect.poll(() => customer.evaluate(() => window.pendingCustomerSlipOrderId)).toBe(orderId);
       await uploadImage(customer, '#customer-slip-input', 'qa-customer-slip-fcm.png');
+      await customer.locator('#slip-amount-input').fill('140');
+      await customer.locator('#slip-amount-submit').click();
 
       // Verify the browser really uploaded a file to Storage Emulator. The
       // current Firestore Emulator can hit its 1000-expression rule-evaluator

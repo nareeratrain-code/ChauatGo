@@ -18,7 +18,8 @@ test('cash and transfer goods photos both post the ready amount', () => {
   const start = rider.indexOf('function goodsReadyChatText');
   const end = rider.indexOf('async function postGoodsReadyChat');
   const context = {
-    foodPayParts: (order) => ({ total: Number(order.total) || 0 })
+    foodPayParts: (order) => ({ total: Number(order.total) || 0 }),
+    shownTransferDue: (order) => Number(order.total) || 0
   };
   vm.runInNewContext(rider.slice(start, end), context);
   const cash = context.goodsReadyChatText({ paymentMode: 'cash', type: 'shopping', total: 31 });

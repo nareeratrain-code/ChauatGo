@@ -339,7 +339,7 @@ service cloud.firestore {
         'fare', 'total', 'foodTotal', 'itemsTotal', 'subtotal', 'netTotal',
         'discountTotal', 'cashTip', 'items', 'riderIncome', 'riderOwe',
         'riderPaid', 'gpTotal', 'gpRider', 'gpPlatform', 'chargedTotal',
-        'partnerShop', 'shopDisclaimerAccepted'
+        'partnerShop', 'shopDisclaimerAccepted', 'transferDue'
       ]);
     }
 
@@ -366,6 +366,31 @@ service cloud.firestore {
       return resource.data.get('customerSlipUrl', '') is string
         && resource.data.get('customerSlipUrl', '').size() > 0
         && resource.data.get('customerSlipStatus', '') != 'rejected';
+    }
+
+    function transferGoodsOrder() {
+      return resource.data.get('paymentMode', '') != 'cash'
+        && (orderType() == 'food' || orderType() == 'shopping');
+    }
+
+    // createOrder stores transferDue (net goods + service fee). Older orders
+    // fall back to total, then foodTotal/itemsTotal + fare. ±1 baht.
+    function expectedTransferBaht() {
+      return resource.data.get('transferDue', null) is number
+        ? resource.data.transferDue
+        : (resource.data.get('total', null) is number
+          ? resource.data.total
+          : (
+            (resource.data.get('foodTotal', null) is number
+              ? resource.data.foodTotal
+              : (resource.data.get('itemsTotal', null) is number ? resource.data.itemsTotal : 0))
+            + (resource.data.get('fare', null) is number ? resource.data.fare : 0)
+          ));
+    }
+
+    function slipAmountNear(amount) {
+      let due = expectedTransferBaht();
+      return amount is number && amount >= due - 1 && amount <= due + 1;
     }
 
     function foodIsReady() {
@@ -414,7 +439,10 @@ service cloud.firestore {
       return resource.data.status == 'picked_up'
         && request.resource.data.status == resource.data.status
         && identityFrozen()
-        && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
+        && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipAmount'])
+        && (!transferGoodsOrder()
+          || (request.resource.data.diff(resource.data).affectedKeys().hasAll(['customerSlipAmount'])
+            && slipAmountNear(request.resource.data.customerSlipAmount)))
         && request.resource.data.customerSlipUrl is string
         && request.resource.data.customerSlipUrl.size() > 0
         && request.resource.data.customerSlipUrl.size() <= 2000
@@ -464,8 +492,11 @@ service cloud.firestore {
         && identityFrozen()
         && onlyChanged([
           'customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt',
-          'customerSlipStatus', 'customerSlipRevision'
+          'customerSlipStatus', 'customerSlipRevision', 'customerSlipAmount'
         ])
+        && (!transferGoodsOrder()
+          || (request.resource.data.diff(resource.data).affectedKeys().hasAll(['customerSlipAmount'])
+            && slipAmountNear(request.resource.data.customerSlipAmount)))
         && request.resource.data.customerSlipUrl is string
         && request.resource.data.customerSlipUrl.size() > 0
         && request.resource.data.customerSlipUrl.size() <= 2000
@@ -494,14 +525,6 @@ service cloud.firestore {
         || customerOrderConfirmationOk()
         || customerSlipUploadOk(orderId)
         || customerSlipResubmissionOk(orderId)
-        || (
-          resource.data.status == 'picked_up'
-          && request.resource.data.status == 'customer_paid'
-          && customerSlipNotRejected()
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
-        )
         || (
           resource.data.status in ['done', 'delivered']
           && request.resource.data.rated == true
@@ -649,10 +672,19 @@ service cloud.firestore {
       return moneyFrozen() && isOrderCustomer()
         && resource.data.status == 'picked_up'
         && request.resource.data.status == 'customer_paid'
+        && request.resource.data.customerPaid == true
         && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
+        && onlyChanged(['status', 'customerPaid', 'customerPaidAt', 'paymentConfirmSource'])
+        && (
+          !transferGoodsOrder()
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasAll(['paymentConfirmSource'])
+            && request.resource.data.paymentConfirmSource == 'customer_slip'
+            && slipAmountNear(resource.data.get('customerSlipAmount', null))
+          )
+        );
     }
 
     function customerRatingOk() {
@@ -715,7 +747,9 @@ service cloud.firestore {
         && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
+        && onlyChanged(['status', 'customerPaid', 'customerPaidAt', 'paymentConfirmSource'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasAll(['paymentConfirmSource'])
+        && request.resource.data.paymentConfirmSource == 'rider_manual';
     }
 
     function riderCancelOk() {
@@ -814,9 +848,9 @@ service cloud.firestore {
           ? (customerCancelOk() || riderCancelOk() || merchantCancelOk())
           : changed.hasOnly(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
             ? customerConfirmOk()
-            : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
+            : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipAmount'])
               ? customerSlipUploadTransitionOk(orderId)
-              : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipStatus', 'customerSlipRevision'])
+              : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipStatus', 'customerSlipRevision', 'customerSlipAmount'])
                 ? customerSlipResubmissionTransitionOk(orderId)
                 : changed.hasOnly(['customerSlipStatus', 'customerSlipRejectionReason', 'customerSlipRejectedAt', 'customerSlipRejectedBy'])
                   ? riderSlipRejectionTransitionOk()
@@ -826,7 +860,7 @@ service cloud.firestore {
                       ? riderShopSlipOk()
                       : changed.hasOnly(['status', 'onTheWayAt'])
                         ? riderOnTheWayOk()
-                        : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
+                        : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt', 'paymentConfirmSource'])
                           ? (customerPaidOk() || riderCustomerPaidOk())
                           : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
                             ? riderNearCustomerOk()

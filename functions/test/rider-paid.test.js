@@ -38,6 +38,7 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.equal(paid.customerPaid, true);
   assert.ok(paid.customerPaidAt);
   assert.equal(paid.paidConfirmedBy, 'rider');
+  assert.equal(paid.paymentConfirmSource, 'rider_manual');
   assert.equal(paid.fare, 35);
   assert.equal(paid.total, 35);
   assert.equal(paid.riderIncome, undefined);

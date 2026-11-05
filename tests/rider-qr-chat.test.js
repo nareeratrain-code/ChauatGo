@@ -64,6 +64,14 @@ function loadQrFunctions() {
     orderServiceType: (value) => value.type,
     orderBuysGoods: (value) => !!(value && (value.type === 'food' || value.type === 'shopping')),
     fmt: (value) => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }),
+    shownTransferDue: (order) => {
+      const preferred = order && order.transferDue != null && order.transferDue !== ''
+        ? order.transferDue
+        : order && order.total;
+      const due = Number(preferred);
+      if (preferred != null && preferred !== '' && Number.isFinite(due)) return due;
+      return 125;
+    },
     foodPayParts: () => ({ food: 105, fare: 20, tip: 0, total: 125 }),
     foodPayEquation: () => 'ค่าอาหาร ฿105 + ค่าส่ง ฿20 = รวม ฿125',
     ensureRiderChat: async () => ({ riderName: 'ไรเดอร์ทดสอบ' }),
