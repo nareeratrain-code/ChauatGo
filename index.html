@@ -701,7 +701,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 .header .cg-logo { width: 52px; height: 52px; border: 3px solid #fff; border-radius: 16px; box-shadow: 0 8px 18px rgba(0,0,0,.18); animation: headerLogoBob 3.4s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
 .header .cg-brand-name { display: block; width: 100%; font-size: clamp(40px, 12vw, 54px); line-height: 1.05; letter-spacing: .2px; text-align: center; animation: none; transform: none; background: none; color: #fff; }
 .header .header-brand-shimmer { display: block; width: 100%; text-align: center; background: none; -webkit-background-clip: border-box; background-clip: border-box; color: #fff; animation: none; will-change: auto; transform: none; }
-.header .cg-brand-tag { display: block; width: 100%; margin-top: 2px; color: #FFF4D2; font-size: clamp(18px, 5.6vw, 26px); font-weight: 800; text-align: center; line-height: 1.25; }
+.header .cg-brand-tag { display: block; width: 100%; margin-top: 4px; color: #FF8A1A; font-size: clamp(24px, 7vw, 34px); font-weight: 900; text-align: center; line-height: 1.25; }
 .header-top { gap: 8px; width: 100%; min-width: 0; }
 .header-top .search-bar { flex: 1; min-width: 0; min-height: 48px; border-radius: 999px; padding: 0 16px; border: 0; background: #fff; }
 .header-top .search-bar input { min-width: 0; width: 100%; font-size: 14px; color: var(--text); }
@@ -767,7 +767,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 #home-content .nearby-shop-card,
 #home-content .food-card { background: #fff; color: #1A1A1A; }
 .home-section .section-header { padding: 12px 12px 6px; margin: 0; gap: 8px; flex-wrap: wrap; align-items: center; }
-.home-section .section-title { color: var(--text); font-size: 15px; line-height: 1.3; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.home-section .section-title { color: #8B1A1A; font-size: 22px; font-weight: 900; line-height: 1.3; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .home-section .section-title::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: var(--section); flex: 0 0 auto; }
 .home-section .section-title::first-letter { font-size: inherit; }
 .home-section .section-more { background: var(--brand-light); color: var(--green); border-radius: 999px; padding: 0 12px; min-height: 44px; font-size: 12px; flex: 0 0 auto; }
@@ -806,6 +806,8 @@ button.chat-list-item:active { filter: brightness(.97); }
 [data-theme="dark"] .profile-avatar { background: #101713; }
 [data-theme="dark"] .header-top .search-bar input { color: var(--text); }
 [data-theme="dark"] .brand-hero .t { color: #FF9E3D; }
+[data-theme="dark"] .header .cg-brand-tag { color: #FF8A1A; }
+[data-theme="dark"] .home-section .section-title { color: #E44545; }
 [data-theme="dark"] .partner-banner-kicker { background: #E53935; color: #fff; }
 [data-theme="dark"] .home-legal a { color: #D7F0CC; }
 [data-theme="dark"] .home-section { filter: none; }
@@ -876,7 +878,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   .header .cg-logo { width: 48px; height: 48px; border-radius: 14px; }
   .header .cg-brand-name,
   .header .header-brand-shimmer { font-size: clamp(36px, 11.5vw, 48px); }
-  .header .cg-brand-tag { font-size: clamp(16px, 5vw, 22px); }
+  .header .cg-brand-tag { font-size: clamp(20px, 6.4vw, 28px); }
 }
 
 @media (max-width: 360px) {
@@ -901,7 +903,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   .menu-label { font-size: 11px; }
   .brand-hero { padding: 12px; }
   .brand-hero .t { font-size: 20px; }
-  .home-section .section-title { font-size: 15px; }
+  .home-section .section-title { font-size: 18px; }
   .home-section .section-more { font-size: 11px; padding: 0 10px; }
 }
 </style>
