@@ -81,7 +81,7 @@ test('Customer payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /customerOrderConfirmedAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);
   assert.match(app, /id="customer-slip-input"/);
   assert.match(app, /window\.handleCustomerSlipPick/);
-  assert.match(app, /slips\/customers\/' \+ currentUser\.uid/);
+  assert.match(app, /orders\/' \+ orderId \+ '\/riders\/' \+ currentUser\.uid \+ '\/slip_/);
   assert.match(app, /customerSlipUrl: url/);
   assert.match(app, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
 });

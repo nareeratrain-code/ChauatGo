@@ -32,7 +32,7 @@ test('storage lets the order owner upload a slip in any status and blocks everyo
 
 test('customer slip upload sends an image content type for gallery files', () => {
   const upload = app.slice(app.indexOf('window.handleCustomerSlipPick'), app.indexOf('bindCustomerSlipInput'));
-  assert.match(upload, /slips\/customers\/' \+ currentUser\.uid \+ '\/' \+ orderId \+ '\/proof_/);
+  assert.match(upload, /orders\/' \+ orderId \+ '\/riders\/' \+ currentUser\.uid \+ '\/slip_/);
   assert.match(upload, /rawType\.indexOf\('image\/'\) === 0 \? rawType : 'image\/jpeg'/);
   assert.match(upload, /contentType: mime/);
   assert.equal(upload.includes('contentType: file.type'), false);
@@ -60,6 +60,8 @@ test('food and shopping still attach the slip only while picked_up', () => {
 test('express can attach a slip and mark the fee paid while on the way', () => {
   assert.match(rules, /function customerMayAttachSlip\(\)/);
   assert.match(rules, /resource\.data\.get\('type', ''\) == 'express' && resource\.data\.status == 'on_the_way'/);
+  assert.match(rules, /function customerSlipPathOk\(path, orderId\)/);
+  assert.match(rules, /orders\/' \+ orderId \+ '\/riders\/' \+ myUid\(\) \+ '\/slip_/);
   assert.match(rules, /function expressFarePaidOk\(\)/);
   assert.match(rules, /changed\.hasOnly\(\['customerPaid', 'customerPaidAt'\]\)[\s\S]{0,80}expressFarePaidOk\(\)/);
   const fn = orders.slice(orders.indexOf('async function confirmPaymentReceived'), orders.indexOf('module.exports'));

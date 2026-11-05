@@ -4147,7 +4147,11 @@ window.handleCustomerSlipPick = async function(event) {
   }
   showToast('📤 กำลังอัปโหลดสลิป...', 'info');
   try {
-    var path = 'slips/customers/' + currentUser.uid + '/' + orderId + '/proof_' + Date.now() + '.' + ext;
+    // slips/customers/ is absent from the Storage rules deployed with the
+    // pickup photos, so that write is storage/unauthorized in production.
+    // orders/{orderId}/riders/{uid}/ is allowed for the signed-in uid only,
+    // with no Firestore lookup.
+    var path = 'orders/' + orderId + '/riders/' + currentUser.uid + '/slip_' + Date.now() + '.' + ext;
     var ref = storage.ref(path);
     // Gallery files often arrive as application/octet-stream or an empty type.
     // Storage allows image/* (and a named image with an empty type). Sending
