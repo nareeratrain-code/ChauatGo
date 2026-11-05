@@ -62,3 +62,12 @@ test('storage rules are wired and App Check stays off', () => {
   assert.match(env, /APP_CHECK_ENFORCE=false/);
   assert.equal(env.includes('เหล่าเต๊ง'), false);
 });
+
+test('Firebase permission errors are mapped to actionable Thai messages', () => {
+  assert.match(rider, /function riderFirebaseErrorText\(err, fallback\)/);
+  assert.match(rider, /ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบว่าเป็นงานที่มอบหมายให้คุณ/);
+  assert.match(rider, /showToast\(riderFirebaseErrorText\(err, 'ยืนยันรับเงินไม่สำเร็จ'\), 'error'\)/);
+  assert.match(indexHtml, /function customerFirebaseErrorText\(err, fallback\)/);
+  assert.match(indexHtml, /ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบว่าเป็นออเดอร์ของคุณ/);
+  assert.match(indexHtml, /showToast\(customerFirebaseErrorText\(e, 'ยืนยันการโอนไม่สำเร็จ'\), 'error'\)/);
+});

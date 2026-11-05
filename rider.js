@@ -953,7 +953,7 @@ async function handleSignup(e) {
   } catch (err) {
     console.error('❌ Signup error:', err.code, err.message);
     if (createdUser) { try { await createdUser.delete(); } catch (e) {} }
-    showToast('สมัครไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'สมัครไม่สำเร็จ'), 'error');
   }
   isSigningUp = false;
   btn.disabled = false;
@@ -966,7 +966,7 @@ async function handleForgotPassword() {
   try {
     await auth.sendPasswordResetEmail(email);
     showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
-  } catch (err) { showToast('ส่งไม่สำเร็จ: ' + err.message, 'error'); }
+  } catch (err) { showToast(riderFirebaseErrorText(err, 'ส่งลิงก์รีเซ็ตไม่สำเร็จ'), 'error'); }
 }
 
 async function handleLogout() {
@@ -1889,8 +1889,26 @@ async function confirmPaymentReceived(jobId) {
         : 'บันทึกว่ารับเงินแล้ว — เริ่มส่งได้'));
     renderJobs();
   } catch (err) {
-    showToast((err && err.message) || 'ยืนยันรับเงินไม่สำเร็จ', 'error');
+    showToast(riderFirebaseErrorText(err, 'ยืนยันรับเงินไม่สำเร็จ'), 'error');
   }
+}
+
+function riderFirebaseErrorText(err, fallback) {
+  const code = String((err && err.code) || '').toLowerCase();
+  const message = String((err && err.message) || '').toLowerCase();
+  const raw = code + ' ' + message;
+  if (raw.includes('permission-denied') || raw.includes('insufficient permission')) {
+    return 'ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบว่าเป็นงานที่มอบหมายให้คุณและสถานะออเดอร์ถูกต้อง';
+  }
+  if (raw.includes('storage/unauthorized') || raw.includes('unauthorized')) {
+    return 'ไม่มีสิทธิ์อัปโหลดไฟล์นี้ — ตรวจสอบบัญชีและไฟล์ แล้วลองใหม่';
+  }
+  if (raw.includes('failed-precondition')) return 'สถานะออเดอร์เปลี่ยนแล้ว — รีเฟรชรายการก่อนลองใหม่';
+  if (raw.includes('unavailable') || raw.includes('network') || raw.includes('failed to fetch')) {
+    return 'เชื่อมต่อระบบไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  }
+  if (raw.includes('not-found')) return 'ไม่พบออเดอร์นี้แล้ว — รีเฟรชรายการ';
+  return fallback || (err && err.message) || 'ทำรายการไม่สำเร็จ';
 }
 
 function openSlipRejectModal(jobId) {
@@ -1930,7 +1948,7 @@ async function rejectCustomerSlip(jobId) {
     showToast('↩️ ขอให้ลูกค้าอัปโหลดสลิปใหม่แล้ว', 'success');
     renderJobs();
   } catch (err) {
-    showToast('ปฏิเสธสลิปไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'ปฏิเสธสลิปไม่สำเร็จ'), 'error');
   }
 }
 
@@ -1945,7 +1963,7 @@ async function reportShopClosed(jobId) {
     await callDispatch('reportShopClosed', { orderId: jobId });
     showToast('บันทึกร้านปิดแล้ว — ลูกค้าต้องชำระค่าบริการ');
   } catch (err) {
-    showToast((err && err.message) || 'บันทึกร้านปิดไม่สำเร็จ', 'error');
+    showToast(riderFirebaseErrorText(err, 'บันทึกร้านปิดไม่สำเร็จ'), 'error');
   }
 }
 
@@ -2062,7 +2080,7 @@ async function recordShopArrival(jobId, job) {
       showToast('✅ ถึงจุดนัดหมายแล้ว — รับลูกค้าและกดเริ่มไปปลายทาง');
       renderJobs();
     } catch (err) {
-      showToast('บันทึกถึงจุดนัดหมายไม่สำเร็จ: ' + (err.code || err.message), 'error');
+      showToast(riderFirebaseErrorText(err, 'บันทึกถึงจุดนัดหมายไม่สำเร็จ'), 'error');
     }
     return;
   }
@@ -2106,7 +2124,7 @@ async function recordShopArrival(jobId, job) {
     showToast('✅ ถึงจุดนัดหมายแล้ว — รับของเรียบร้อย');
     renderJobs();
   } catch (err) {
-    showToast('บันทึกถึงจุดนัดหมายไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'บันทึกถึงจุดนัดหมายไม่สำเร็จ'), 'error');
   }
 }
 
@@ -2661,7 +2679,7 @@ async function submitShopSlip(pickupJob) {
     openPayGuide(jobId, 'done');
   } catch (err) {
     console.error('submitShopSlip error:', err);
-    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'อัปโหลดสลิปไม่สำเร็จ'), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '🧾 ส่งสลิปให้ลูกค้า'; }
   }
 }
@@ -2723,7 +2741,7 @@ async function confirmCombinedPickup() {
     if (!cashPickup && !alreadyPaid) startPaymentTimers(jobId);
   } catch (err) {
     console.error('confirmCombinedPickup error:', err);
-    showToast('อัปโหลดไม่สำเร็จ (' + uploadStep + '): ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'อัปโหลดไม่สำเร็จ (' + uploadStep + ')'), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งให้ลูกค้า'; }
   }
 }
@@ -2787,7 +2805,7 @@ async function cancelJobAfterTimeout(jobId) {
     clearPaymentTimers();
     stopGPS();
   } catch (err) {
-    showToast('ยกเลิกไม่สำเร็จ: ' + (err.message || ''), 'error');
+    showToast(riderFirebaseErrorText(err, 'ยกเลิกไม่สำเร็จ'), 'error');
   }
 }
 
@@ -2813,7 +2831,7 @@ async function startDelivery(jobId) {
     sendAutomatedChatLater(jobId, 'on_the_way');
     clearPaymentTimers();
   } catch (err) {
-    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'เริ่มเดินทางไม่สำเร็จ'), 'error');
   }
 }
 
@@ -2957,7 +2975,7 @@ async function confirmDeliver(jobId) {
     clearPaymentTimers();
     stopGPS();
   } catch (err) {
-    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'ส่งงานไม่สำเร็จ'), 'error');
   }
 }
 /* ═══════════════════════════════════════════════════════════════════
@@ -3432,7 +3450,7 @@ async function handleRiderQrFile(event) {
   } catch (err) {
     if (newPath) await storage.ref(newPath).delete().catch(() => {});
     console.error('handleRiderQrFile error:', err);
-    showToast('บันทึก QR ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'บันทึก QR ไม่สำเร็จ'), 'error');
   }
 }
 
@@ -3454,7 +3472,7 @@ async function removeRiderQr() {
     showToast('ลบ QR Code แล้ว', 'success');
     showProfile();
   } catch (err) {
-    showToast('ลบ QR ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'ลบ QR ไม่สำเร็จ'), 'error');
   }
 }
 
@@ -3887,7 +3905,7 @@ async function sendChatImage(file) {
     showToast('✅ ส่งรูปแล้ว');
   } catch (err) {
     console.warn('sendChatImage error:', err);
-    showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(riderFirebaseErrorText(err, 'อัปโหลดรูปไม่สำเร็จ'), 'error');
   }
 }
 
@@ -4161,7 +4179,7 @@ async function skipDispatchOffer() {
     await callDispatch('skipDispatchOffer', { orderId: o.orderId, offerId: o.id });
     showToast('ข้ามงานนี้', 'info');
   } catch (err) {
-    showToast((err && err.message) || 'ข้ามไม่สำเร็จ — งานจะหมดเวลาเอง', 'error', 6000);
+    showToast(riderFirebaseErrorText(err, 'ข้ามไม่สำเร็จ — งานจะหมดเวลาเอง'), 'error', 6000);
   }
 }
 

@@ -2529,7 +2529,7 @@ window.handleSignup = async function(){
     });
     showToast('✅ สมัครสำเร็จ');
     closeLoginModal();
-  }catch(err){showToast('สมัครไม่สำเร็จ: '+err.message,'error');}
+  }catch(err){showToast(customerFirebaseErrorText(err, 'สมัครไม่สำเร็จ'),'error');}
 };
 
 window.handleLogout = async function(){
@@ -2647,7 +2647,7 @@ window.saveProfile = async function(){
   }catch(e){
     console.error('saveProfile error:', e);
     if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = '💾 บันทึก'; }
-    showToast('บันทึกไม่สำเร็จ: '+e.message,'error');
+    showToast(customerFirebaseErrorText(e, 'บันทึกไม่สำเร็จ'),'error');
   }
 };
 
@@ -3374,6 +3374,24 @@ function checkoutErrorText(err) {
   return ('ส่งไม่สำเร็จ: ' + text).slice(0, 180);
 }
 
+function customerFirebaseErrorText(err, fallback) {
+  var code = String(err && err.code || '').toLowerCase();
+  var message = String(err && err.message || '').toLowerCase();
+  var raw = code + ' ' + message;
+  if (raw.indexOf('permission-denied') !== -1 || raw.indexOf('insufficient permission') !== -1) {
+    return 'ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบว่าเป็นออเดอร์ของคุณและสถานะออเดอร์ถูกต้อง';
+  }
+  if (raw.indexOf('storage/unauthorized') !== -1 || raw.indexOf('unauthorized') !== -1) {
+    return 'ไม่มีสิทธิ์อัปโหลดไฟล์นี้ — ตรวจสอบบัญชีและไฟล์ แล้วลองใหม่';
+  }
+  if (raw.indexOf('failed-precondition') !== -1) return 'สถานะออเดอร์เปลี่ยนแล้ว — รีเฟรชรายการก่อนลองใหม่';
+  if (raw.indexOf('unavailable') !== -1 || raw.indexOf('network') !== -1 || raw.indexOf('failed to fetch') !== -1) {
+    return 'เชื่อมต่อระบบไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  }
+  if (raw.indexOf('not-found') !== -1) return 'ไม่พบออเดอร์นี้แล้ว — รีเฟรชรายการ';
+  return fallback || (err && err.message) || 'ทำรายการไม่สำเร็จ';
+}
+
 function createOrderUrl() {
   var project = 'chauat-go-b9841';
   var region = 'asia-southeast1';
@@ -4078,7 +4096,7 @@ window.confirmCustomerOrder = async function(orderId) {
     postConfirmPayNote(cached);
   } catch (e) {
     console.error('confirmCustomerOrder error:', e);
-    showToast('ยืนยันรายการไม่สำเร็จ: ' + (e.code || e.message), 'error');
+    showToast(customerFirebaseErrorText(e, 'ยืนยันรายการไม่สำเร็จ'), 'error');
   }
 };
 async function postConfirmPayNote(order) {
@@ -4217,7 +4235,7 @@ window.confirmCustomerPaid = async function(orderId) {
     showToast(expressDropoff ? '✅ แจ้งไรเดอร์แล้วว่าโอนค่าบริการแล้ว' : '✅ แจ้งไรเดอร์แล้ว — กำลังเริ่มส่ง');
   } catch (e) {
     console.error('confirmCustomerPaid error:', e);
-    showToast('ไม่สำเร็จ: ' + e.message, 'error');
+    showToast(customerFirebaseErrorText(e, 'ยืนยันการโอนไม่สำเร็จ'), 'error');
   }
 };
 
@@ -4706,7 +4724,7 @@ window.submitRating = async function() {
     await db.collection('orders').doc(ratingOrder.id).update({ rated: true, ratedAt: firebase.firestore.FieldValue.serverTimestamp() });
     showToast('⭐ ขอบคุณสำหรับคะแนน!');
     closeRatingModal();
-  } catch (e) { showToast('ส่งไม่สำเร็จ: ' + e.message, 'error'); }
+  } catch (e) { showToast(customerFirebaseErrorText(e, 'ส่งไม่สำเร็จ'), 'error'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = '✅ ส่งคะแนน'; } }
 };
 

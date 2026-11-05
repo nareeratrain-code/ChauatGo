@@ -47,6 +47,16 @@ let dispatchMap = null;
 let dispatchMarkers = null;
 
 /* Master admin emails — bypass role check */
+
+function adminFirebaseErrorText(err, fallback) {
+  const raw = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+  const text = raw.toLowerCase();
+  if (text.includes('permission-denied') || text.includes('insufficient permission')) return 'ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบสิทธิ์แอดมิน';
+  if (text.includes('unavailable') || text.includes('network') || text.includes('failed to fetch')) return 'เชื่อมต่อระบบไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  if (text.includes('failed-precondition')) return 'สถานะข้อมูลเปลี่ยนแล้ว — รีเฟรชหน้าก่อนลองใหม่';
+  return fallback || 'ทำรายการไม่สำเร็จ';
+}
+
 const MASTER_ADMINS = [
   'adminchauatgo@gmail.com',
   'admin@chauatgo.com',
@@ -386,7 +396,7 @@ async function handleSignup(e) {
     $('login-email').value = email;
   } catch (err) {
     if (createdUser) { try { await createdUser.delete(); } catch (e) {} }
-    showToast('สมัครไม่สำเร็จ: ' + err.message, 'error');
+    showToast(adminFirebaseErrorText(err, 'สมัครไม่สำเร็จ'), 'error');
     btn.disabled = false;
     btn.textContent = '✅ สมัครสมาชิก';
   }
@@ -2523,7 +2533,7 @@ async function confirmShopByPhone(orderId) {
     });
     showToast('บันทึกว่าร้านรับแล้ว — ระบบจะเสนอให้ไรเดอร์');
   } catch (err) {
-    showToast('บันทึกไม่สำเร็จ: ' + ((err && (err.code || err.message)) || ''), 'error');
+    showToast(adminFirebaseErrorText(err, 'บันทึกไม่สำเร็จ'), 'error');
   }
 }
 
@@ -2536,7 +2546,7 @@ async function assignDispatchRider() {
     await ChauatFn.callFunction('manualAssignRider', { orderId: orderId, riderId: riderId }, auth);
     showToast('จ่ายงานแล้ว');
   } catch (err) {
-    showToast((err && err.message) || 'จ่ายงานไม่สำเร็จ', 'error');
+    showToast(adminFirebaseErrorText(err, 'จ่ายงานไม่สำเร็จ'), 'error');
   }
 }
 

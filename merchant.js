@@ -137,6 +137,17 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({
 
 const fmt = (n) => Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
 
+function merchantFirebaseErrorText(err, fallback) {
+  const raw = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+  const text = raw.toLowerCase();
+  if (text.includes('permission-denied') || text.includes('insufficient permission')) return 'ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบบัญชีและสถานะร้านค้า';
+  if (text.includes('storage/unauthorized') || text.includes('unauthorized')) return 'ไม่มีสิทธิ์อัปโหลดไฟล์นี้ — ตรวจสอบบัญชีและไฟล์ แล้วลองใหม่';
+  if (text.includes('failed-precondition')) return 'สถานะข้อมูลเปลี่ยนแล้ว — รีเฟรชหน้าก่อนลองใหม่';
+  if (text.includes('unavailable') || text.includes('network') || text.includes('failed to fetch')) return 'เชื่อมต่อระบบไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  return fallback || 'ทำรายการไม่สำเร็จ';
+}
+
+
 const toDate = (t) => {
   if (!t) return null;
   const d = t.toDate ? t.toDate() : new Date(t);
@@ -532,7 +543,7 @@ async function handleSignup(e) {
       try { await db.collection('users').doc(createdUser.uid).delete(); } catch (e) {}
       try { await createdUser.delete(); } catch (e) {}
     }
-    showToast('สมัครไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(merchantFirebaseErrorText(err, 'สมัครไม่สำเร็จ'), 'error');
   }
   isSigningUp = false;
   btn.disabled = false;
@@ -545,7 +556,7 @@ async function handleForgotPassword() {
   try {
     await auth.sendPasswordResetEmail(email);
     showToast('📧 ส่งลิงก์รีเซ็ตไปที่อีเมลแล้ว');
-  } catch (err) { showToast('ส่งไม่สำเร็จ: ' + err.message, 'error'); }
+  } catch (err) { showToast(merchantFirebaseErrorText(err, 'ส่งไม่สำเร็จ'), 'error'); }
 }
 
 async function handleMerchantLogout() {
@@ -638,7 +649,7 @@ auth.onAuthStateChanged(async (user) => {
   } catch (err) {
     if (stale()) return;
     console.error('❌ Auth state error:', err);
-    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+    showToast(merchantFirebaseErrorText(err, 'เกิดข้อผิดพลาด'), 'error');
   }
 });
 
@@ -1158,7 +1169,7 @@ async function cancelOrder(orderId) {
     showToast('❌ ยกเลิกออเดอร์ + แจ้งลูกค้าแล้ว');
   } catch (err) {
     console.error('cancelOrder error:', err);
-    showToast('ไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(merchantFirebaseErrorText(err, 'ทำรายการไม่สำเร็จ'), 'error');
   }
 }
 
@@ -1605,7 +1616,7 @@ async function saveMenu() {
     closeSheet('menu-form-sheet');
   } catch (err) {
     console.error('saveMenu error:', err);
-    showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error');
+    showToast(merchantFirebaseErrorText(err, 'บันทึกไม่สำเร็จ'), 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกเมนู'; }
   }
@@ -1715,7 +1726,7 @@ async function saveSoundSettings() {
     showToast('✅ บันทึกการตั้งค่าเสียงแล้ว');
     closeSheet('sound-settings-sheet');
     setTimeout(() => soundNewOrder(), 300);
-  } catch (err) { showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error'); }
+  } catch (err) { showToast(merchantFirebaseErrorText(err, 'บันทึกไม่สำเร็จ'), 'error'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกการตั้งค่า'; } }
 }
 
@@ -1826,7 +1837,7 @@ async function saveShopAvatar() {
     showToast('✅ บันทึกรูปโปรไฟล์แล้ว!');
   } catch (err) {
     console.error('saveShopAvatar error:', err);
-    showToast('บันทึกไม่สำเร็จ: ' + (err.code || err.message), 'error');
+    showToast(merchantFirebaseErrorText(err, 'บันทึกไม่สำเร็จ'), 'error');
     if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกรูปโปรไฟล์'; }
   }
 }
@@ -1971,7 +1982,7 @@ async function saveCategoryChanges() {
       const current = $('mf-category')?.value;
       renderCategoryDropdown(current);
     }
-  } catch (err) { showToast('บันทึกไม่สำเร็จ: ' + err.message, 'error'); }
+  } catch (err) { showToast(merchantFirebaseErrorText(err, 'บันทึกไม่สำเร็จ'), 'error'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกหมวดหมู่'; } }
 }
 
@@ -2053,7 +2064,7 @@ async function confirmCrop() {
       closeCropModal();
       showToast('✅ ปรับขนาดรูปแล้ว');
     }, 'image/jpeg', 0.85);
-  } catch (err) { showToast('ไม่สำเร็จ: ' + err.message, 'error'); }
+  } catch (err) { showToast(merchantFirebaseErrorText(err, 'ประมวลผลรูปไม่สำเร็จ'), 'error'); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2198,7 +2209,7 @@ async function submitGpTransfer() {
 
     showToast('✅ ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
     closeSheet('gp-transfer-sheet');
-  } catch (err) { showToast('ส่งไม่สำเร็จ: ' + err.message, 'error'); }
+  } catch (err) { showToast(merchantFirebaseErrorText(err, 'ส่งไม่สำเร็จ'), 'error'); }
   finally { if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันโอนแล้ว'; } }
 }
 
