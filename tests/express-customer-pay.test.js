@@ -6,6 +6,18 @@ const app = fs.readFileSync('index.html', 'utf8');
 const rules = fs.readFileSync('firestore.rules', 'utf8');
 const orders = fs.readFileSync('functions/orders.js', 'utf8');
 
+test('โอนเงินแล้ว opens the photo library, not a camera-only capture', () => {
+  const tag = app.match(/<input[^>]*id="customer-slip-input"[^>]*>/);
+  assert.ok(tag, 'customer slip input');
+  assert.match(tag[0], /accept="image\/\*"/);
+  assert.equal(/capture\s*=/.test(tag[0]), false);
+  assert.match(app, /window\.pickCustomerSlip = function\(orderId\)/);
+  const picker = app.slice(app.indexOf('window.pickCustomerSlip'), app.indexOf('window.handleCustomerSlipPick'));
+  assert.match(picker, /\$\('customer-slip-input'\)/);
+  assert.equal(picker.includes('getUserMedia'), false);
+  assert.equal(picker.includes('capture'), false);
+});
+
 test('express transfer shows โอนเงินแล้ว on the order card and the bill', () => {
   assert.match(app, /function expressTransferOwed\(o\)/);
   assert.match(app, /o\.type === 'express' && o\.paymentMode !== 'cash' && o\.status === 'on_the_way'/);
