@@ -4,6 +4,7 @@ const test = require('node:test');
 
 const app = fs.readFileSync('index.html', 'utf8');
 const rules = fs.readFileSync('firestore.rules', 'utf8');
+const storage = fs.readFileSync('storage.rules', 'utf8');
 const orders = fs.readFileSync('functions/orders.js', 'utf8');
 
 test('โอนเงินแล้ว opens the photo library, not a camera-only capture', () => {
@@ -16,6 +17,25 @@ test('โอนเงินแล้ว opens the photo library, not a camera-on
   assert.match(picker, /\$\('customer-slip-input'\)/);
   assert.equal(picker.includes('getUserMedia'), false);
   assert.equal(picker.includes('capture'), false);
+});
+
+test('storage lets the order owner upload a slip in any status and blocks everyone else', () => {
+  const block = storage.slice(storage.indexOf('match /slips/customers/'), storage.indexOf('match /slips/orders/'));
+  assert.match(block, /request\.auth\.uid == uid/);
+  assert.match(block, /isOrderCustomer\(orderId\)/);
+  assert.match(block, /allow update: if false/);
+  assert.equal(block.includes('on_the_way'), false);
+  assert.equal(block.includes('picked_up'), false);
+  assert.match(storage, /function isOrderCustomer\(orderId\)/);
+  assert.match(storage, /orderFieldIsMe\(orderId, 'userId'\)/);
+});
+
+test('customer slip upload sends an image content type for gallery files', () => {
+  const upload = app.slice(app.indexOf('window.handleCustomerSlipPick'), app.indexOf('bindCustomerSlipInput'));
+  assert.match(upload, /slips\/customers\/' \+ currentUser\.uid \+ '\/' \+ orderId \+ '\/proof_/);
+  assert.match(upload, /rawType\.indexOf\('image\/'\) === 0 \? rawType : 'image\/jpeg'/);
+  assert.match(upload, /contentType: mime/);
+  assert.equal(upload.includes('contentType: file.type'), false);
 });
 
 test('express transfer shows โอนเงินแล้ว on the order card and the bill', () => {
