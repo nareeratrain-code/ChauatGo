@@ -849,10 +849,12 @@ service cloud.firestore {
                       ? riderShopSlipOk()
                       : changed.hasOnly(['status', 'onTheWayAt'])
                         ? riderOnTheWayOk()
-                        : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
-                          ? (customerPaidOk() || riderCustomerPaidOk())
-                          : changed.hasOnly(['customerPaid', 'customerPaidAt'])
-                            ? expressFarePaidOk()
+                      // hasOnly() is a subset check, so the two-field Express
+                      // payment route must come before the three-field route.
+                      : changed.hasOnly(['customerPaid', 'customerPaidAt'])
+                          ? expressFarePaidOk()
+                          : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
+                            ? (customerPaidOk() || riderCustomerPaidOk())
                             : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
                             ? riderNearCustomerOk()
                             : changed.hasOnly(['rated', 'ratedAt'])
