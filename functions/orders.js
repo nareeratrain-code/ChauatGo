@@ -582,7 +582,7 @@ async function confirmPaymentReceived(db, uid, orderId) {
       return;
     }
     if (!beforePickup && !waiting && !fareAtDestination) {
-      precondition('ยืนยันรับเงินได้ตอนรอโอน หรือก่อนรับของเท่านั้น');
+      precondition('ยืนยันรับเงินได้ระหว่างกำลังส่ง หรือตอนรอโอนก่อนรับของเท่านั้น');
     }
     const text = fareAtDestination
       ? ridePaymentReceivedText(order)
