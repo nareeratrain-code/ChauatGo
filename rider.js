@@ -1640,7 +1640,7 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอร้านทำให้เสร็จ</button>
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ${orderBuysGoods(j) ? 'ถึงร้าน' : 'ถึงจุดนัดหมาย'}</button>
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}">📍 ${orderBuysGoods(j) ? 'ถึงร้าน' : 'ถึงจุดนัดหมาย'}</button>
       ${(j.type === 'food' && !orderNeedsKitchen(j)) ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>` : `<button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`}`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
@@ -2007,10 +2007,26 @@ function alertFoodReady(job) {
 }
 
 /* ⭐ v3.9.1: ถึงร้าน → Modal ถ่ายรูป */
+const arrivalInFlight = new Set();
+
+function arrivalAlreadyRecorded(status) {
+  return status === 'picked_up' || status === 'customer_paid' || status === 'on_the_way';
+}
+
 async function arrivedAtShop(jobId) {
   if (pickupOrderId === jobId && $('modalOverlay')?.classList.contains('show')) return;
+  if (arrivalInFlight.has(jobId)) return;
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return showToast('ไม่พบงาน', 'error');
+  arrivalInFlight.add(jobId);
+  try {
+    await recordShopArrival(jobId, job);
+  } finally {
+    arrivalInFlight.delete(jobId);
+  }
+}
+
+async function recordShopArrival(jobId, job) {
   if (job.type === 'ride') {
     try {
       const latest = await db.collection('orders').doc(jobId).get();
@@ -2055,9 +2071,20 @@ async function arrivedAtShop(jobId) {
     openPayGuide(jobId, 'food');
     return;
   }
-  // Express is a pickup-point workflow. The fee is paid at the end, with no
-  // goods photo and no shop slip. Ride already returned above.
+  // Express uses the same orders/{id} status write as ride. A second tap, or
+  // the same click delivered twice, must not write picked_up again: rules only
+  // allow accepted/ready → picked_up, and the order is already waiting for payment.
   try {
+    const latest = await db.collection('orders').doc(jobId).get();
+    const latestJob = latest.exists ? latest.data() : null;
+    if (latestJob && latestJob.status !== 'accepted' && latestJob.status !== 'ready') {
+      Object.assign(job, latestJob);
+      renderJobs();
+      if (arrivalAlreadyRecorded(latestJob.status)) {
+        return showToast('✅ ถึงจุดนัดหมายแล้ว — รับของเรียบร้อย');
+      }
+      return showToast('งานนี้เปลี่ยนสถานะแล้ว กรุณารีเฟรชรายการ', 'warning');
+    }
     await db.collection('orders').doc(jobId).update({
       status: 'picked_up',
       pickedUpAt: firebase.firestore.FieldValue.serverTimestamp()
