@@ -906,6 +906,101 @@ button.chat-list-item:active { filter: brightness(.97); }
   .home-section .section-title { font-size: 18px; }
   .home-section .section-more { font-size: 11px; padding: 0 10px; }
 }
+
+/* ═══ MENU ENTRY — first screen of each home menu ═══ */
+/* White halo so orange lettering stays readable on the green page. */
+.on-green-orange,
+.header .cg-brand-tag,
+.merchant-view .section-title,
+.category-view .section-title,
+[data-theme="dark"] .travel-section-title {
+  text-shadow:
+    0 1px 0 #fff,
+    1px 0 0 #fff,
+    -1px 0 0 #fff,
+    0 -1px 0 #fff,
+    1px 1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px -1px 0 #fff;
+}
+.merchant-view .section-title,
+.category-view .section-title { color: #E85C00; font-size: 22px; font-weight: 900; }
+.merchant-view .section-more,
+.category-view .section-more { background: #E53935; color: #fff; border-radius: 999px; min-height: 44px; padding: 0 16px; font-size: 14px; }
+.merchant-view .search-bar { background: #fff; border: 2px solid #111; border-radius: 999px; min-height: 52px; }
+.merchant-source-tabs { background: transparent; gap: 10px; padding: 0; }
+.merchant-source-tab { background: #fff; color: #111; border-radius: 18px; min-height: 64px; box-shadow: 0 6px 14px rgba(0,0,0,.1); }
+.merchant-source-tab.active { background: #fff; color: #0D6D35; box-shadow: 0 0 0 3px #168A45; }
+.merchant-source-note { background: #fff; color: #111; border-left: 5px solid #E85C00; border-radius: 16px; }
+.merchant-view .m-tab { background: #fff; color: #111; border: 2px solid #111; border-radius: 999px; min-height: 48px; }
+.merchant-view .m-tab.active { background: #168A45; color: #fff; border-color: #168A45; }
+.merchant-view[data-entry="shopping"] .m-filter-chip { background: #fff; color: #111; border: 2px solid #111; border-radius: 999px; min-height: 44px; }
+.merchant-view[data-entry="shopping"] .m-filter-chip.active { background: #E85C00; color: #fff; border-color: #E85C00; }
+.merchant-view[data-entry="shopping"] .merchant-map-btn { background: linear-gradient(135deg, #FF8A1A, #E85C00); }
+.merchant-card, .local-place-card, .place-card-shop { border-radius: 18px; background: #fff; box-shadow: 0 6px 16px rgba(0,0,0,.1); }
+.merchant-card-icon, .local-place-icon { background: #FFF3E0; }
+.local-place-pin, .place-card-shop-btn { min-height: 44px; border-radius: 999px; padding: 0 14px; }
+.travel-view { background: #3F8E26; }
+.travel-search-row { background: transparent; }
+.travel-search-bar { background: #fff; border: 2px solid #111; border-radius: 999px; }
+.travel-view .travel-map-btn { background: linear-gradient(135deg, #FF8A1A, #E85C00); }
+.travel-back-btn { background: #fff; color: #111; border-radius: 999px; min-height: 40px; }
+.travel-section-title { color: #fff; font-size: 16px; font-weight: 900; text-transform: none; }
+.travel-place-item, .travel-vehicle-card { background: #fff; border-radius: 18px; box-shadow: 0 6px 16px rgba(0,0,0,.1); }
+.travel-place-icon { background: #FFF3E0; }
+.travel-place-dist { background: #E8F5E9; color: #0D6D35; border-radius: 999px; min-height: 32px; display: inline-flex; align-items: center; }
+.travel-vehicle-card:nth-child(1) .travel-vehicle-icon { background: #FFF3E0; }
+.travel-vehicle-card:nth-child(2) .travel-vehicle-icon { background: #FDE7EC; }
+.travel-vehicle-card:nth-child(3) .travel-vehicle-icon { background: #111; }
+.travel-vehicle-card:nth-child(4) .travel-vehicle-icon { background: #E8F5E9; }
+#modal:has(#express-parcel-type) .modal-content { border-radius: 28px; border-top: 6px solid #E85C00; }
+#modal-body:has(#express-parcel-type) h2 { color: #E85C00; font-size: 28px; }
+#modal-body:has(#express-parcel-type) .form-group label { color: #111; font-weight: 900; }
+#modal-body:has(#express-parcel-type) .form-group input,
+#modal-body:has(#express-parcel-type) .form-group textarea { background: #fff; border: 2px solid #111; border-radius: 16px; color: #111; }
+#modal-body:has(#express-parcel-type) .express-swap-btn { background: #E85C00; color: #fff; border: 0; }
+#modal-body:has(#express-parcel-type) .loc-action-btn[data-refresh-gps] { background: linear-gradient(135deg, #E53935, #B71C1C); }
+#modal-body:has(#express-parcel-type) .loc-action-btn[data-exp-map] { background: #fff; color: #111; border: 2px solid #111; }
+#hotel-tools .hotel-directory-note { background: #fff; color: #111; border-left: 5px solid #E85C00; border-radius: 16px; }
+#hotel-tools .loc-action-btn[data-refresh-gps] { background: linear-gradient(135deg, #E53935, #B71C1C); }
+#hotel-tools .loc-action-btn[data-pick-map] { background: #fff; color: #111; border: 2px solid #111; }
+#hotel-tools .place-district-select,
+#hotel-tools .hotel-search-wrap input { background: #fff; border: 2px solid #111; border-radius: 16px; color: #111; }
+#map-page .map-back-btn { background: #fff; color: #111; border-radius: 999px; min-height: 40px; }
+#map-page .map-header-bar h3 { font-size: 18px; }
+#map-page .dest-sheet { border-top: 5px solid #E85C00; }
+#map-page .dest-search { background: #fff; border: 2px solid #111; border-radius: 999px; min-height: 48px; }
+#map-page .dest-cat-chip.on { background: #E85C00; color: #fff; border-color: #E85C00; }
+#map-page .reference-loc-bar .loc-action-btn[data-refresh-gps] { background: linear-gradient(135deg, #E53935, #B71C1C); }
+#map-page .reference-loc-bar .loc-action-btn[data-pick-map] { background: #fff; color: #111; border: 2px solid #111; }
+#map-page .map-confirm-btn { border-radius: 999px; background: #111; }
+[data-theme="dark"] .merchant-view .section-title,
+[data-theme="dark"] .category-view .section-title,
+[data-theme="dark"] .travel-section-title,
+[data-theme="dark"] #modal-body:has(#express-parcel-type) h2 { color: #FF9E3D; }
+[data-theme="dark"] .merchant-card,
+[data-theme="dark"] .local-place-card,
+[data-theme="dark"] .place-card-shop,
+[data-theme="dark"] .travel-place-item,
+[data-theme="dark"] .travel-vehicle-card,
+[data-theme="dark"] .merchant-source-tab,
+[data-theme="dark"] .merchant-source-note,
+[data-theme="dark"] .merchant-view .search-bar,
+[data-theme="dark"] .travel-search-bar,
+[data-theme="dark"] #hotel-tools .hotel-directory-note,
+[data-theme="dark"] #hotel-tools .place-district-select,
+[data-theme="dark"] #hotel-tools .hotel-search-wrap input,
+[data-theme="dark"] #map-page .dest-sheet,
+[data-theme="dark"] #map-page .dest-search,
+[data-theme="dark"] #modal:has(#express-parcel-type) .modal-content { background: #121A14; color: #F5F5F5; border-color: #FF9E3D; }
+[data-theme="dark"] .merchant-view .m-tab,
+[data-theme="dark"] .merchant-view[data-entry="shopping"] .m-filter-chip { background: #17261B; color: #F5F5F5; border-color: #2A4030; }
+[data-theme="dark"] .merchant-view .m-tab.active { background: #168A45; color: #fff; }
+[data-theme="dark"] .merchant-view[data-entry="shopping"] .m-filter-chip.active { background: #E85C00; color: #fff; }
+[data-theme="dark"] #modal-body:has(#express-parcel-type) .form-group input,
+[data-theme="dark"] #modal-body:has(#express-parcel-type) .form-group textarea { background: #17261B; color: #F5F5F5; border-color: #FF9E3D; }
+[data-theme="dark"] .travel-view { background: #07140C; }
 </style>
 </head>
 <body>
@@ -5779,7 +5874,10 @@ window.openMerchantView = async function(type){
   if ($('home-content')) $('home-content').style.display = 'none';
   if ($('search-results')) $('search-results').classList.remove('show');
   if ($('category-view')) $('category-view').classList.remove('show');
-  if ($('merchant-view')) $('merchant-view').classList.add('show');
+  if ($('merchant-view')) {
+    $('merchant-view').classList.add('show');
+    $('merchant-view').dataset.entry = merchantMode;
+  }
   var titleEl = $('merchant-view-title');
   if (titleEl) titleEl.textContent = merchantMode === 'food' ? '🍽️ สั่งอาหาร' : '🛒 เลือกสถานที่ฝากซื้อ';
   if (merchantMode === 'food') merchantSource = 'partner';
