@@ -163,6 +163,9 @@ test('storage rules match every client upload path', async () => {
       ['admin deletes rider slip', () => assertSucceeds(as.ref('slips/riders/rider1/ord1_2.jpg').delete())],
 
       ['customer payment proof', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord1/proof_1.jpg'))],
+      ['express customer slip on the deployed rider-folder rule', () => assertSucceeds(put(cs, 'orders/ord-express-way/riders/cust1/slip_1.jpg', { contentType: 'image/jpeg' }))],
+      ['rider cannot write the customer slip folder', () => assertFails(put(rs, 'orders/ord-express-way/riders/cust1/slip_2.jpg'))],
+      ['customer cannot write the rider slip folder', () => assertFails(put(cs, 'orders/ord-express-way/riders/rider1/slip_3.jpg'))],
       ['express customer slip while on the way', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord-express-way/proof_gallery.jpg', { contentType: 'image/jpeg' }))],
       ['express gallery slip with an octet-stream type and image name', () => assertSucceeds(put(cs, 'slips/customers/cust1/ord-express-way/proof_gallery.png', { contentType: 'application/octet-stream' }))],
       ['rider cannot upload an express customer slip', () => assertFails(put(rs, 'slips/customers/cust1/ord-express-way/proof_rider.jpg'))],

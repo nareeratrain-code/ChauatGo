@@ -416,6 +416,17 @@ service cloud.firestore {
         || (resource.data.get('type', '') == 'express' && resource.data.status == 'on_the_way');
     }
 
+    // slips/customers/ is not in the Storage rules that were deployed with
+    // the pickup-photo fix, so that path is denied live. The order-scoped
+    // folder under the customer's own uid is allowed there without a
+    // Firestore lookup. Keep the older path so an existing proof still matches.
+    function customerSlipPathOk(path, orderId) {
+      return path is string && (
+        path.matches('^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$')
+        || path.matches('^orders/' + orderId + '/riders/' + myUid() + '/slip_[A-Za-z0-9_.-]+$')
+      );
+    }
+
     function customerSlipUploadOk(orderId) {
       return customerMayAttachSlip()
         && request.resource.data.status == resource.data.status
@@ -424,20 +435,14 @@ service cloud.firestore {
         && request.resource.data.customerSlipUrl is string
         && request.resource.data.customerSlipUrl.size() > 0
         && request.resource.data.customerSlipUrl.size() <= 2000
-        && request.resource.data.customerSlipPath is string
-        && request.resource.data.customerSlipPath.matches(
-          '^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$'
-        )
+        && customerSlipPathOk(request.resource.data.customerSlipPath, orderId)
         && request.resource.data.customerSlipUploadedAt is timestamp;
     }
 
     function customerSlipAlreadyAttached(orderId) {
       return resource.data.get('customerSlipUrl', '') is string
         && resource.data.get('customerSlipUrl', '').size() > 0
-        && resource.data.get('customerSlipPath', '') is string
-        && resource.data.get('customerSlipPath', '').matches(
-          '^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$'
-        )
+        && customerSlipPathOk(resource.data.get('customerSlipPath', ''), orderId)
         && resource.data.get('customerSlipUploadedAt', null) is timestamp;
     }
 
@@ -475,10 +480,7 @@ service cloud.firestore {
         && request.resource.data.customerSlipUrl is string
         && request.resource.data.customerSlipUrl.size() > 0
         && request.resource.data.customerSlipUrl.size() <= 2000
-        && request.resource.data.customerSlipPath is string
-        && request.resource.data.customerSlipPath.matches(
-          '^slips/customers/' + myUid() + '/' + orderId + '/[A-Za-z0-9_.-]+$'
-        )
+        && customerSlipPathOk(request.resource.data.customerSlipPath, orderId)
         && request.resource.data.customerSlipUploadedAt is timestamp
         && request.resource.data.customerSlipStatus == 'pending'
         && request.resource.data.customerSlipRevision is int

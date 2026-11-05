@@ -257,13 +257,13 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
       // blocks the normal client update.
       const uploadedSlip = await customer.evaluate(async ({ uid, orderId }) => {
         const folder = firebase.storage(firebase.app('customer'))
-          .ref(`slips/customers/${uid}/${orderId}`);
+          .ref(`orders/${orderId}/riders/${uid}`);
         const listing = await folder.listAll();
         if (!listing.items.length) return null;
         const ref = listing.items[0];
         return { path: ref.fullPath, url: await ref.getDownloadURL() };
       }, { uid: customerUser.uid, orderId });
-      expect(uploadedSlip && uploadedSlip.path).toContain(`slips/customers/${customerUser.uid}/${orderId}/`);
+      expect(uploadedSlip && uploadedSlip.path).toContain(`orders/${orderId}/riders/${customerUser.uid}/slip_`);
 
       let updatedOrder = await getOrder(customer, orderId, 'customer');
       if (!updatedOrder.customerSlipUrl) {
@@ -278,7 +278,7 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
         (order) => typeof order.customerSlipUrl === 'string' && order.customerSlipUrl.length > 0,
         'รอ customerSlipUrl หลัง Customer Upload'
       );
-      expect(updatedOrder.customerSlipPath).toContain(`slips/customers/${customerUser.uid}/${orderId}/`);
+      expect(updatedOrder.customerSlipPath).toContain(`orders/${orderId}/riders/${customerUser.uid}/slip_`);
 
       // Deliver the exact backend contract to the Rider foreground handler.
       const payload = {
