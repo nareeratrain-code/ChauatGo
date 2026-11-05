@@ -199,7 +199,12 @@ service firebase.storage {
     // tree also has a shallower match that calls firestore.get; pickup
     // does not use that path.
     match /chats/{orderId}/riders/{uid}/{fileName} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      // The uploading rider can always read their own file without a
+      // Firestore lookup. The customer and shop can read it too, so the
+      // goods photo in chat is not rider-only.
+      allow read: if signedIn() && (
+        request.auth.uid == uid || isAdmin() || orderParty(orderId)
+      );
       allow create, update: if isImage() && request.auth.uid == uid;
       allow delete: if signedIn() && request.auth.uid == uid;
     }

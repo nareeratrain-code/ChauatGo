@@ -144,7 +144,7 @@ test('status messages choose the template from the order type', () => {
   assert.match(rider, /data-slip=/);
   const photo = rider.slice(rider.indexOf('async function submitFoodPhoto'), rider.indexOf('async function submitShopSlip'));
   assert.equal(photo.includes('riderSlipToShop'), false);
-  assert.match(photo, /status: 'picked_up'/);
+  assert.match(photo, /photoPatch\.status = 'picked_up'/);
   const slip = rider.slice(rider.indexOf('async function submitShopSlip'), rider.indexOf('async function confirmCombinedPickup'));
   assert.equal(slip.includes("status: 'on_the_way'"), false);
   assert.match(slip, /riderSlipToShop: pickupSlipUrl/);
