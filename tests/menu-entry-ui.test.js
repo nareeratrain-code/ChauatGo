@@ -21,7 +21,10 @@ test('each home menu keeps its entry behavior', () => {
 });
 
 test('entry screens use orange, red, green, white, and black accents', () => {
-  assert.match(css, /\.on-green-orange[\s\S]*text-shadow:[\s\S]*#fff/);
+  const shadowStart = css.indexOf('.on-green-orange');
+  const shadow = css.slice(shadowStart, css.indexOf('}', shadowStart) + 1);
+  assert.match(shadow, /text-shadow:[\s\S]*#000/);
+  assert.equal(shadow.includes('#fff'), false);
   assert.match(css, /\.merchant-view \.section-title[\s\S]*color: #E85C00/);
   assert.match(css, /\.merchant-view \.section-more[\s\S]*background: #E53935/);
   assert.match(css, /\.merchant-view\[data-entry="shopping"\] \.merchant-map-btn[\s\S]*#E85C00/);
