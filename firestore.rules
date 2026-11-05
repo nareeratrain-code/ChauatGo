@@ -358,6 +358,16 @@ service cloud.firestore {
       return orderType() == 'food' && resource.data.partnerShop == true;
     }
 
+    function buysGoods() {
+      return orderType() == 'food' || orderType() == 'shopping';
+    }
+
+    function customerSlipNotRejected() {
+      return resource.data.get('customerSlipUrl', '') is string
+        && resource.data.get('customerSlipUrl', '').size() > 0
+        && resource.data.get('customerSlipStatus', '') != 'rejected';
+    }
+
     function foodIsReady() {
       return resource.data.get('foodReady', false) == true
         || (hasField(resource.data, 'readyAt') && resource.data.readyAt != null)
@@ -487,6 +497,7 @@ service cloud.firestore {
         || (
           resource.data.status == 'picked_up'
           && request.resource.data.status == 'customer_paid'
+          && customerSlipNotRejected()
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
@@ -509,14 +520,15 @@ service cloud.firestore {
           request.resource.data.status == 'picked_up'
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath'])
           && (
             (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
             || (resource.data.status == 'ready' && !noRider(resource.data))
           )
         )
         || (
-          needsKitchen()
+          buysGoods()
+          && resource.data.get('customerPaidAt', null) != null
           && resource.data.status in ['picked_up', 'customer_paid']
           && request.resource.data.status == resource.data.status
           && identityFrozen()
@@ -533,14 +545,7 @@ service cloud.firestore {
           && identityFrozen()
           && unchanged('riderId')
           && onlyChanged(['status', 'onTheWayAt'])
-          && (!needsKitchen() || shopSlipAttached())
-        )
-        || (
-          resource.data.status == 'picked_up'
-          && request.resource.data.status == 'customer_paid'
-          && identityFrozen()
-          && unchanged('riderId')
-          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+          && (!buysGoods() || shopSlipAttached())
         )
         || (
           resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
@@ -641,6 +646,7 @@ service cloud.firestore {
       return moneyFrozen() && isOrderCustomer()
         && resource.data.status == 'picked_up'
         && request.resource.data.status == 'customer_paid'
+        && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
         && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
@@ -665,7 +671,7 @@ service cloud.firestore {
         && request.resource.data.status == 'picked_up'
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+        && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath'])
         && (
           (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
           || (resource.data.status == 'ready' && !noRider(resource.data))
@@ -674,8 +680,8 @@ service cloud.firestore {
 
     function riderShopSlipOk() {
       return moneyFrozen() && isAssignedRider()
-        && resource.data.type == 'food'
-        && resource.data.get('partnerShop', false) == true
+        && buysGoods()
+        && resource.data.get('customerPaidAt', null) != null
         && resource.data.status in ['picked_up', 'customer_paid']
         && request.resource.data.status == resource.data.status
         && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
@@ -692,13 +698,14 @@ service cloud.firestore {
         && identityFrozen()
         && unchanged('riderId')
         && onlyChanged(['status', 'onTheWayAt'])
-        && (!needsKitchen() || shopSlipAttached());
+        && (!buysGoods() || shopSlipAttached());
     }
 
     function riderCustomerPaidOk() {
       return moneyFrozen() && isAssignedRider()
         && resource.data.status == 'picked_up'
         && request.resource.data.status == 'customer_paid'
+        && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
         && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
@@ -1088,8 +1095,8 @@ service cloud.firestore {
       // transition on every denied write.
       allow update: if moneyFrozen()
         && isAssignedRider()
-        && resource.data.type == 'food'
-        && resource.data.get('partnerShop', false) == true
+        && buysGoods()
+        && resource.data.get('customerPaidAt', null) != null
         && resource.data.status in ['picked_up', 'customer_paid']
         && request.resource.data.status == resource.data.status
         && request.resource.data.riderSlipToShop is string

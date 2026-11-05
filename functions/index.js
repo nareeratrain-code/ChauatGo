@@ -65,8 +65,8 @@ exports.onOrderDispatch = onDocumentWritten('orders/{orderId}', async (event) =>
   await D.onOrderWritten(db, before, after, event.params.orderId);
 });
 
-// Notify the assigned rider exactly once when the customer payment proof is
-// first written. Subsequent order updates must not send duplicate pushes.
+// Notify the assigned rider once the customer confirms payment, or the rider
+// records it. Uploading a slip alone does not send this push.
 exports.onCustomerSlipUploaded = onDocumentWritten('orders/{orderId}', async (event) => {
   const before = event.data.before.exists ? event.data.before.data() : null;
   const after = event.data.after.exists ? event.data.after.data() : null;

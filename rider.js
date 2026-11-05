@@ -113,6 +113,10 @@ function orderNeedsKitchen(j) {
   return !!(j && j.type === 'food' && j.partnerShop === true);
 }
 
+function orderBuysGoods(j) {
+  return !!(j && (j.type === 'food' || j.type === 'shopping'));
+}
+
 function orderFoodReady(j) {
   return !!(j && (j.foodReady || j.readyAt || j.status === 'ready'));
 }
@@ -129,7 +133,10 @@ function canLeaveShop(order) {
   // pickup point immediately after picking up the passenger; fare is settled
   // at the destination.
   if (order.type === 'ride') return true;
-  if (orderNeedsKitchen(order) && !orderHasShopSlip(order)) return false;
+  if (orderBuysGoods(order)) {
+    if (!orderHasShopSlip(order)) return false;
+    return !!(order.customerPaidAt || order.status === 'customer_paid');
+  }
   if (order.paymentMode === 'cash') return true;
   return !!(order.customerPaidAt || order.status === 'customer_paid');
 }
@@ -138,7 +145,6 @@ function canLeaveShop(order) {
    Partner food cash remains a delivery-time collection handled separately. */
 function riderMayConfirmPay(j) {
   if (!j || !j.riderId) return false;
-  if (orderIsCash(j) && j.type === 'food' && j.partnerShop === true) return false;
   if (j.customerPaidAt || j.status === 'customer_paid') return false;
   // Ride customers pay only after reaching the destination, not at pickup.
   if (j.type === 'ride') return j.status === 'on_the_way';
@@ -190,7 +196,7 @@ const AUTO_CHAT_BY_TYPE = {
     accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปที่ร้านเพื่อรับอาหารของลูกค้าครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
     shop_arrived: '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกำลังถ่ายรูปอาหารเพื่อส่งให้ลูกค้าตรวจสอบครับ/ค่ะ',
     picked_up: '✅ ไรเดอร์รับของจากจุดนัดหมายแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งให้ลูกค้าครับ/ค่ะ',
-    on_the_way: '🚀 ไรเดอร์รับอาหารจากร้านแล้ว และกำลังนำอาหารไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    on_the_way: '🚀 กำลังออกไปส่งสินค้า\nไรเดอร์รับอาหารจากร้านแล้ว และกำลังนำอาหารไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
     near_customer: '🔔 ไรเดอร์อยู่ห่างจากลูกค้าประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับอาหารนะครับ/ค่ะ',
     arrived_customer: '📍 ไรเดอร์ถึงลูกค้าแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับอาหารด้วยนะครับ/ค่ะ',
     delivered: '✅ ส่งอาหารเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐',
@@ -200,7 +206,7 @@ const AUTO_CHAT_BY_TYPE = {
     accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานส่งด่วนแล้ว และกำลังเดินทางไปรับพัสดุครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
     shop_arrived: '📍 ไรเดอร์ถึงสถานที่รับพัสดุแล้วครับ/ค่ะ\nกำลังรับของ และจะเดินทางไปส่งตามปลายทางครับ/ค่ะ',
     picked_up: '✅ ไรเดอร์รับพัสดุแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามปลายทางครับ/ค่ะ',
-    on_the_way: '🚀 ไรเดอร์กำลังนำพัสดุไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    on_the_way: '🚀 กำลังออกไปส่งสินค้า\nไรเดอร์กำลังนำพัสดุไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
     near_customer: '🔔 ไรเดอร์อยู่ห่างจากลูกค้าประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับของนะครับ/ค่ะ',
     arrived_customer: '📍 ไรเดอร์ถึงลูกค้าแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับพัสดุด้วยนะครับ/ค่ะ',
     delivered: '✅ ส่งพัสดุเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
@@ -209,7 +215,7 @@ const AUTO_CHAT_BY_TYPE = {
     accepted: 'สวัสดีครับ/ค่ะ ลูกค้า 🙏\nไรเดอร์รับงานแล้ว และกำลังเดินทางไปยังร้านหรือสถานที่ที่ลูกค้าปักหมุดไว้เพื่อซื้อของให้ครับ/ค่ะ\nกรุณารอรับสายจากไรเดอร์ด้วยนะครับ/ค่ะ',
     shop_arrived: '📍 ไรเดอร์ถึงจุดนัดหมายแล้วครับ/ค่ะ\nกรุณาเตรียมรับสาย เพื่อยืนยันรายการฝากซื้อ และเตรียมโอนเงินค่าอาหารหรือค่าสินค้าให้ไรเดอร์ครับ/ค่ะ',
     picked_up: '✅ ไรเดอร์ซื้อของตามรายการฝากซื้อเรียบร้อยแล้วครับ/ค่ะ\nกำลังเดินทางไปส่งตามที่อยู่ลูกค้าครับ/ค่ะ',
-    on_the_way: '🚀 ไรเดอร์กำลังนำของฝากซื้อไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
+    on_the_way: '🚀 กำลังออกไปส่งสินค้า\nไรเดอร์กำลังนำของฝากซื้อไปส่งครับ/ค่ะ\nกรุณากดเปิดเสียงแจ้งเตือนไว้ เมื่อไรเดอร์ใกล้ถึงจะมีข้อความแจ้งครับ/ค่ะ',
     near_customer: '🔔 ไรเดอร์อยู่ห่างจากลูกค้าประมาณ 300 เมตรแล้วครับ/ค่ะ\nกรุณาเตรียมรับของนะครับ/ค่ะ',
     arrived_customer: '📍 ไรเดอร์ถึงลูกค้าแล้วครับ/ค่ะ\nกรุณารับสายหรือออกมารับของด้วยนะครับ/ค่ะ',
     delivered: '✅ ส่งของฝากซื้อเรียบร้อยแล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ Chauat Go ก่อนจบงานกรุณากดให้คะแนนความพึงพอใจและประเมินการบริการของไรเดอร์ด้วยนะครับ/ค่ะ ⭐'
@@ -1575,7 +1581,7 @@ function renderJobCard(j, type) {
 
   const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
   const shopSlip = orderHasShopSlip(j);
-  const customerPaid = orderIsCash(j) || !!j.customerPaidAt || j.status === 'customer_paid';
+  const customerPaid = !!j.customerPaidAt || j.status === 'customer_paid';
   const customerConfirmed = j.customerOrderConfirmed === true;
   const customerSlip = typeof j.customerSlipUrl === 'string' && j.customerSlipUrl.length > 0;
   const customerSlipRejected = j.customerSlipStatus === 'rejected';
@@ -1591,7 +1597,7 @@ function renderJobCard(j, type) {
         <div style="font-size:11px;font-weight:700;color:${customerSlipRejected ? '#8A2B2B' : 'var(--text-muted)'};margin-top:6px">${customerSlipRejected ? 'เหตุผล: ' + esc(j.customerSlipRejectionReason || 'ข้อมูลสลิปไม่ครบถ้วน') : 'ตรวจสอบยอดในสลิป แล้วดำเนินการตามขั้นตอนต่อ'}</div>
         ${customerSlipRejected ? '<div style="font-size:11px;font-weight:800;color:#8A2B2B;margin-top:5px">ระบบจะปลดล็อกขั้นตอนต่อเมื่อลูกค้าส่งสลิปฉบับใหม่</div>' : '<button type="button" class="jc-secondary-btn" style="margin-top:9px;width:100%;border-color:#D9534F;color:#B42318;background:#FFF" data-reject-slip="' + esc(j.id) + '">↩️ ปฏิเสธสลิป / ขออัปโหลดใหม่</button>'}
       </div>` : '';
-  const foodWorkflowHtml = (!isNew && orderNeedsKitchen(j) && ['picked_up', 'customer_paid', 'on_the_way'].includes(j.status))
+  const foodWorkflowHtml = (!isNew && orderBuysGoods(j) && ['picked_up', 'customer_paid', 'on_the_way'].includes(j.status))
     ? `<div style="margin:12px 0;padding:12px;border:1px solid #B9DFA6;border-radius:14px;background:#F4FBF0">
         <div style="font-size:13px;font-weight:900;color:#237A3B;margin-bottom:8px">🍽️ ขั้นตอนงานอาหาร</div>
         <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
@@ -1611,14 +1617,14 @@ function renderJobCard(j, type) {
   if (j.status === 'accepted' && foodIsReady) {
     statusInfo = { label: '✅ อาหารพร้อม • ไปรับที่ร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
-  if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !j.foodImage) {
+  if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !j.foodImage) {
     statusInfo = { label: '📸 ต้องส่งรูปอาหารให้ลูกค้า', color: '#E65100', bg: '#FFF3E0' };
-  } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip && !customerPaid) {
+  } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip && !customerPaid) {
     statusInfo = { label: '💳 ส่งรูปแล้ว • รอลูกค้าโอน', color: '#E65100', bg: '#FFF3E0' };
-  } else if (orderNeedsKitchen(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
+  } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
-  if (j.type !== 'ride' && !orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderNeedsKitchen(j) && !shopSlip)) {
+  if (j.type !== 'ride' && !orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderBuysGoods(j) && !shopSlip)) {
     statusInfo = { label: '💳 ได้รับเงินแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' };
   }
   const prepHtml = (!foodIsReady && j.prepMinutes)
@@ -1634,7 +1640,7 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอร้านทำให้เสร็จ</button>
       <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ${j.type === 'food' && orderNeedsKitchen(j) ? 'ถึงร้าน' : 'ถึงจุดนัดหมาย'}</button>
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-arrived="${esc(j.id)}" onclick="arrivedAtShop('${esc(j.id)}')">📍 ${orderBuysGoods(j) ? 'ถึงร้าน' : 'ถึงจุดนัดหมาย'}</button>
       ${(j.type === 'food' && !orderNeedsKitchen(j)) ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>` : `<button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`}`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
@@ -1644,14 +1650,14 @@ function renderJobCard(j, type) {
     } else if (!orderIsCash(j) && j.status === 'picked_up' && customerSlipRejected && !customerPaid) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าอัปโหลดสลิปใหม่</button>
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬 แจ้งลูกค้า</button>`;
-    } else if (orderNeedsKitchen(j) && !j.foodImage) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">📸 ส่งรูปอาหารให้ลูกค้า</button>
+    } else if (orderBuysGoods(j) && !j.foodImage) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">💬 ถ่ายรูปอาหารในแชท</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-    } else if (orderNeedsKitchen(j) && !shopSlip && !customerPaid) {
+    } else if (orderBuysGoods(j) && !shopSlip && !customerPaid) {
       primaryAction = `${payReceivedButton(j.id)}
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
-    } else if (orderNeedsKitchen(j) && !shopSlip) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>
+    } else if (orderBuysGoods(j) && !shopSlip) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">💬 แนบสลิปร้านในแชท</button>
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
     } else if (canLeaveShop(j)) {
       const closedShop = (j.type === 'food' && !orderNeedsKitchen(j) && j.status === 'picked_up' && !j.customerPaidAt)
@@ -1784,24 +1790,24 @@ async function sendAutomatedChat(orderId, key) {
 
 function riderQrPaymentText(order, phase) {
   if (!order || order.paymentMode === 'cash') return '';
-  const nonPartnerService = order.type !== 'food' || order.partnerShop !== true;
-  if (phase === 'arrived_customer' && nonPartnerService) {
+  if (phase === 'arrived_customer' && (order.type === 'ride' || order.type === 'express')) {
     return '📍 ไรเดอร์ถึงปลายทางเรียบร้อยแล้วครับ/ค่ะ\nกรุณาชำระค่าบริการให้ไรเดอร์ โดยโอนตามยอดนี้ครับ/ค่ะ\n💳 ยอดค่าบริการทั้งหมด ฿' + fmt(order.total || order.fare || 0) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนค่าบริการ แล้วแจ้งไรเดอร์ได้เลยครับ/ค่ะ';
   }
-  if (order.type !== 'food' || order.partnerShop !== true) return '';
+  if (!orderBuysGoods(order)) return '';
   if (phase === 'shop_arrived') {
-    return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
+    return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
   }
-  return '📸 ไรเดอร์ส่งรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์เพื่อชำระค่าอาหารและค่าบริการตามยอดนี้ครับ/ค่ะ\n' + foodPayEquation(foodPayParts(order)) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนเงินให้ไรเดอร์ครับ/ค่ะ';
+  const due = Number(foodPayParts(order).total) || 0;
+  const dueText = Math.abs(due % 1) < 1e-9 ? String(Math.round(due)) : due.toFixed(2);
+  return 'อาหาร/สินค้าพร้อมแล้ว กรุณาโอนยอด ฿' + dueText + ' (รวมค่าบริการ)\n📸 ไรเดอร์ส่งรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์เพื่อชำระค่าอาหารและค่าบริการตามยอดนี้ครับ/ค่ะ\n' + foodPayEquation(foodPayParts(order)) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนเงินให้ไรเดอร์ครับ/ค่ะ';
 }
 
 async function sendRiderQrPaymentChat(orderId, phase) {
   if (!orderId || !currentUser || !riderProfile?.qrCodeUrl) return false;
   const order = await orderForAutoChat(orderId);
   if (!order || order.paymentMode === 'cash') return false;
-  const nonPartnerService = order.type !== 'food' || order.partnerShop !== true;
-  if (phase === 'arrived_customer' && !nonPartnerService) return false;
-  if (phase !== 'arrived_customer' && (orderServiceType(order) !== 'food' || order.partnerShop !== true)) return false;
+  if (phase === 'arrived_customer' && order.type !== 'ride' && order.type !== 'express') return false;
+  if (phase !== 'arrived_customer' && !orderBuysGoods(order)) return false;
   const key = phase === 'shop_arrived' ? 'shop_arrived_qr' : (phase === 'arrived_customer' ? 'arrived_customer_qr' : 'food_payment_qr');
   const text = riderQrPaymentText(order, phase);
   const token = orderId + ':' + key;
@@ -1954,6 +1960,7 @@ async function acceptJob(jobId) {
       ? '✅ รับงานแล้ว — อาหารพร้อม ไปที่ร้าน'
       : ('✅ รับงานแล้ว — ร้านกำลังทำ' + (prepMinutes ? ' ประมาณ ' + prepMinutes + ' นาที' : '')));
     sendAutomatedChatLater(jobId, 'accepted');
+    postPaySummaryLater(jobId);
     closeNewJobPopup();
     scheduleGPSIfActive();
   } catch (err) {
@@ -2033,59 +2040,166 @@ async function arrivedAtShop(jobId) {
     }
     return;
   }
-  if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
-    return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
-  }
-  // Express, shopping, and non-partner food are pickup-point workflows.
-  // They do not require food photos or a shop-payment slip.
-  if (!orderNeedsKitchen(job)) {
-    try {
-      await db.collection('orders').doc(jobId).update({
-        status: 'picked_up',
-        pickedUpAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      job.status = 'picked_up';
-      job.pickedUpAt = new Date();
-      sendAutomatedChatLater(jobId, 'shop_arrived');
-      sendAutomatedChatLater(jobId, 'picked_up');
-      showToast('✅ ถึงจุดนัดหมายแล้ว — รับของเรียบร้อย');
-      renderJobs();
-    } catch (err) {
-      showToast('บันทึกถึงจุดนัดหมายไม่สำเร็จ: ' + (err.code || err.message), 'error');
+  if (orderBuysGoods(job)) {
+    if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
+      return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
     }
+    if (job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
+      showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
+    }
+    sendAutomatedChatLater(jobId, 'shop_arrived');
+    const qrSent = await sendRiderQrPaymentChat(jobId, 'shop_arrived');
+    if (job.paymentMode !== 'cash' && riderProfile?.qrCodeUrl && !qrSent) {
+      showToast('⚠️ ส่ง QR ให้ลูกค้าไม่สำเร็จ กรุณาตรวจสอบแชทหรือส่งใหม่', 'warning', 6000);
+    }
+    openPayGuide(jobId, 'food');
     return;
   }
-  if (orderServiceType(job) === 'food' && job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
-    showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
+  // Express is a pickup-point workflow. The fee is paid at the end, with no
+  // goods photo and no shop slip. Ride already returned above.
+  try {
+    await db.collection('orders').doc(jobId).update({
+      status: 'picked_up',
+      pickedUpAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    job.status = 'picked_up';
+    job.pickedUpAt = new Date();
+    sendAutomatedChatLater(jobId, 'shop_arrived');
+    sendAutomatedChatLater(jobId, 'picked_up');
+    showToast('✅ ถึงจุดนัดหมายแล้ว — รับของเรียบร้อย');
+    renderJobs();
+  } catch (err) {
+    showToast('บันทึกถึงจุดนัดหมายไม่สำเร็จ: ' + (err.code || err.message), 'error');
   }
-  sendAutomatedChatLater(jobId, 'shop_arrived');
-  const qrSent = await sendRiderQrPaymentChat(jobId, 'shop_arrived');
-  if (orderServiceType(job) === 'food' && job.paymentMode !== 'cash' && riderProfile?.qrCodeUrl && !qrSent) {
-    showToast('⚠️ ส่ง QR ให้ลูกค้าไม่สำเร็จ กรุณาตรวจสอบแชทหรือส่งใหม่', 'warning', 6000);
+}
+
+function paySummaryText(order) {
+  const lines = ['รับงานแล้วครับ/ค่ะ'];
+  if (order.title) lines.push(order.title);
+  if (order.code) lines.push('รหัส ' + order.code);
+  const shop = order.shopPlaceName || order.merchantName;
+  if (shop && order.type !== 'express') lines.push('ร้าน: ' + shop);
+  if (order.from) lines.push('จุดรับ: ' + order.from);
+  if (order.to || order.address) lines.push('จุดส่ง: ' + (order.to || order.address));
+  if (order.itemsText) lines.push('รายการ: ' + String(order.itemsText).slice(0, 240));
+  if (order.note) lines.push('หมายเหตุ: ' + String(order.note).slice(0, 200));
+  const goods = Number(order.foodTotal != null ? order.foodTotal : order.itemsTotal) || 0;
+  const fare = Number(order.fare || 0);
+  if (order.type === 'express' || order.type === 'ride') {
+    lines.push('ยอดที่ต้องโอนให้ไรเดอร์ ฿' + fmt(order.fare || order.total || 0) + ' (ค่าบริการ)');
+  } else if (goods > 0) {
+    lines.push('ค่าสินค้า ฿' + fmt(goods) + ' + ค่าบริการ ฿' + fmt(fare) + ' = รวม ฿' + fmt(goods + fare));
+  } else {
+    lines.push('ค่าบริการ ฿' + fmt(fare || order.total || 0));
+    if (order.type === 'shopping' || order.type === 'food') lines.push('ค่าสินค้าตามบิลร้าน จะรวมเมื่อมีรูปสินค้า');
   }
-  openPickupModal(jobId, job);
+  if (order.paymentMode === 'cash') lines.push('ชำระเงินสดกับไรเดอร์ตอนรับของ');
+  lines.push('กรุณากดยืนยัน');
+  return lines.join('\n');
+}
+
+function postPaySummaryLater(orderId) {
+  const order = allJobs.find((job) => job.id === orderId);
+  if (!order || !currentUser) return;
+  const text = paySummaryText(order);
+  const token = orderId + ':pay_summary';
+  if (autoChatSent.has(token)) return;
+  autoChatSent.add(token);
+  ensureRiderChat(orderId).then(async (body) => {
+    const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_pay_summary');
+    if ((await messageRef.get()).exists) return;
+    await messageRef.set({
+      text,
+      senderId: currentUser.uid,
+      senderRole: 'rider',
+      senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
+      systemMessage: true,
+      automated: true,
+      automationKey: 'pay_summary',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(orderId).update({
+      lastMessage: text.split('\n')[0].slice(0, 80),
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).catch((err) => {
+    autoChatSent.delete(token);
+    console.warn('pay summary', err && (err.code || err.message));
+  });
+}
+
+function openPayGuide(jobId, stage) {
+  const job = allJobs.find((item) => item.id === jobId);
+  if (!job) return;
+  const mc = $('modalContent');
+  if (mc) mc.innerHTML = '';
+  $('modalOverlay')?.classList.remove('show');
+  pickupOrderId = jobId;
+  pickupFoodBlob = null;
+  pickupSlipBlob = null;
+  const paid = !!job.customerPaidAt || job.status === 'customer_paid';
+  const slipReady = orderBuysGoods(job) && job.foodImage && paid && !orderHasShopSlip(job);
+  const photoReady = orderBuysGoods(job) && !job.foodImage;
+  const mode = stage === 'slip' || (!stage && slipReady) ? 'slip' : (stage === 'food' || photoReady ? 'food' : 'wait');
+  const box = $('chat-guide');
+  if (box) {
+    if (mode === 'food') {
+      box.hidden = false;
+      box.innerHTML = `<div class="chat-guide-title">📸 ถ่ายรูปอาหาร/สินค้า ส่งเข้าแชท</div>
+        <img id="pickup-food-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
+        <div id="pickup-food-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกรูป</div>
+        <div class="chat-guide-row">
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-food-camera').click()">📷 กล้อง</button>
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ คลังภาพ</button>
+        </div>
+        <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
+        <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">
+        <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งรูปให้ลูกค้า</button>`;
+    } else if (mode === 'slip') {
+      box.hidden = false;
+      box.innerHTML = `<div class="chat-guide-title">🧾 แนบสลิปที่จ่ายร้าน</div>
+        <img id="pickup-slip-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
+        <div id="pickup-slip-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกสลิป</div>
+        <div class="chat-guide-row">
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-camera').click()">📷 กล้อง</button>
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ คลังภาพ</button>
+        </div>
+        <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
+        <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
+        <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">🧾 ส่งสลิปให้ลูกค้า</button>`;
+    } else if (orderBuysGoods(job) && job.foodImage && !paid) {
+      box.hidden = false;
+      box.innerHTML = `<div class="chat-guide-title">รอลูกค้าโอน หรือกดยืนยันว่ารับเงิน แล้วจึงแนบสลิปร้าน</div>
+        <button type="button" class="chat-guide-btn" data-paid="${esc(jobId)}">💳 ลูกค้าโอนแล้ว</button>`;
+    } else {
+      box.hidden = true;
+      box.innerHTML = '';
+    }
+  }
+  openChatWithCustomer(jobId);
 }
 
 function openShopSlip(jobId) {
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return showToast('ไม่พบงาน', 'error');
-  if (!orderNeedsKitchen(job)) return showToast('งานนี้ไม่ต้องแนบสลิปร้าน', 'warning');
-  openPickupModal(jobId, job);
+  if (!orderBuysGoods(job)) return showToast('งานนี้ไม่ต้องแนบสลิปร้าน', 'warning');
+  const paid = orderIsCash(job) || !!job.customerPaidAt || job.status === 'customer_paid';
+  if (!paid) return showToast('รอลูกค้าส่งสลิป หรือกดยืนยันว่ารับเงินแล้ว', 'warning');
+  openPayGuide(jobId, 'slip');
 }
 
 function openFoodPhoto(jobId) {
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return showToast('ไม่พบงาน', 'error');
-  if (!orderNeedsKitchen(job)) return showToast('งานนี้ไม่ต้องถ่ายรูปอาหาร', 'warning');
-  if (job.foodImage) return openPickupModal(jobId, job);
-  openPickupModal(jobId, job);
+  if (!orderBuysGoods(job)) return showToast('งานนี้ไม่ต้องถ่ายรูปอาหาร', 'warning');
+  openPayGuide(jobId, job.foodImage ? 'slip' : 'food');
 }
 
 function pickupStage(job) {
-  if (!job || !orderNeedsKitchen(job)) return 'none';
-  if (job && orderNeedsKitchen(job) && job.foodImage) return 'slip';
-  if (job && orderNeedsKitchen(job)) return 'food';
-  return 'both';
+  if (!job || !orderBuysGoods(job)) return 'none';
+  if (job.foodImage) return 'slip';
+  return 'food';
 }
 
 /* Food: photo first (payment message), then the shop slip. Other services still send both together. */
@@ -2418,7 +2532,7 @@ async function submitFoodPhoto(pickupJob) {
       ? '✅ ส่งรูปแล้ว — แจ้งให้เตรียมเงินสดตอนส่ง แล้วแนบสลิปร้าน'
       : '✅ ส่งรูปแล้ว — แจ้งลูกค้าให้โอน แล้วแนบสลิปร้าน');
     renderJobs();
-    openPickupModal(jobId, pickedJob || { id: jobId, type: 'food', foodImage: pickupFoodUrl });
+    openPayGuide(jobId, (pickedJob && (orderIsCash(pickedJob) || pickedJob.customerPaidAt)) ? 'slip' : 'wait');
   } catch (err) {
     console.error('submitFoodPhoto error:', err);
     const detail = err && (err.code || err.message) || 'unknown-error';
@@ -2451,10 +2565,11 @@ async function submitShopSlip(pickupJob) {
     }
     sendAutomatedChatLater(jobId, 'shop_slip');
     showToast(canLeaveShop(job)
-      ? (orderIsCash(job) ? '✅ ส่งสลิปแล้ว — เริ่มส่งได้ เก็บเงินสดตอนส่ง' : '✅ ส่งสลิปแล้ว — เริ่มส่งได้')
+      ? '✅ ส่งสลิปแล้ว — กดกำลังออกไปส่งสินค้า'
       : '✅ ส่งสลิปแล้ว — รอลูกค้าโอนก่อนออกจากร้าน');
     closeModal();
     renderJobs();
+    openPayGuide(jobId, 'done');
   } catch (err) {
     console.error('submitShopSlip error:', err);
     showToast('อัปโหลดไม่สำเร็จ: ' + (err.code || err.message), 'error');
@@ -2594,7 +2709,7 @@ async function startDelivery(jobId) {
     if (!snap.exists) return showToast('ไม่พบงาน', 'error');
     const job = snap.data();
 
-    if (orderNeedsKitchen(job) && !orderHasShopSlip(job)) {
+    if (orderBuysGoods(job) && !orderHasShopSlip(job)) {
       return showToast('⚠️ แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง', 'warning');
     }
     if (!canLeaveShop(job)) {
@@ -2605,7 +2720,7 @@ async function startDelivery(jobId) {
       status: 'on_the_way',
       onTheWayAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast(job.type === 'ride' ? '🚗 เริ่มเดินทางไปปลายทาง' : '🚀 เริ่มส่งอาหาร');
+    showToast(job.type === 'ride' ? '🚗 เริ่มเดินทางไปปลายทาง' : '🚀 กำลังออกไปส่งสินค้า');
     sendAutomatedChatLater(jobId, 'on_the_way');
     clearPaymentTimers();
   } catch (err) {
@@ -3927,6 +4042,7 @@ async function acceptDispatchOffer() {
     clearOffer(true);
     showToast('รับงานแล้ว');
     sendAutomatedChatLater(o.orderId, 'accepted');
+    postPaySummaryLater(o.orderId);
     scheduleGPSIfActive();
   } catch (err) {
     showToast(acceptErrorText(err), 'error', 6000);
