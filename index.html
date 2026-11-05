@@ -3932,6 +3932,13 @@ window.reorderCompletedOrder = async function(orderId) {
 };
 
 
+function expressTransferOwed(o) {
+  return !!(o && o.type === 'express' && o.paymentMode !== 'cash' && o.status === 'on_the_way' && !o.customerPaidAt);
+}
+function expressTransferClick(o) {
+  var ready = !!(o.customerSlipUrl && o.customerSlipStatus !== 'rejected');
+  return (ready ? 'confirmCustomerPaid' : 'pickCustomerSlip') + "('" + esc(o.id) + "')";
+}
 function renderOrderCard(o){
   var statusMap = {
     searching:'⏳ หาไรเดอร์', pending:'🔔 รอร้านรับ',
@@ -4011,6 +4018,15 @@ function renderOrderCard(o){
       '<img class="customer-slip-preview" src="'+esc(o.customerSlipUrl)+'" alt="สลิปการโอนของลูกค้า" onclick="openLightbox(\''+esc(o.customerSlipUrl)+'\')">' +
       '<div class="customer-payment-copy">ตรวจสอบสลิปให้เรียบร้อย แล้วกดยืนยันเพื่อแจ้งไรเดอร์</div>' +
       '<button class="customer-payment-btn green" onclick="confirmCustomerPaid(\''+esc(o.id)+'\')">💳 ยืนยันว่าโอนแล้ว ฿'+fmt(o.total||0)+'</button></div>';
+  } else if (expressTransferOwed(o)) {
+    var expressSlipReady = !!(o.customerSlipUrl && o.customerSlipStatus !== 'rejected');
+    payBtnHtml = '<div class="customer-payment-panel warning">' +
+      '<div class="customer-payment-title">💳 โอนค่าบริการตอนรับของ</div>' +
+      '<div class="customer-payment-copy">' + (expressSlipReady ? 'แนบสลิปแล้ว กดโอนเงินแล้วเพื่อแจ้งไรเดอร์' : 'โอนค่าบริการให้ไรเดอร์ แล้วแนบสลิป') + '</div>' +
+      '<div class="customer-payment-total"><span>ยอดที่ต้องชำระ</span><b>฿'+fmt(o.total||o.fare||0)+'</b></div>' +
+      (expressSlipReady && o.customerSlipUrl ? '<img class="customer-slip-preview" src="'+esc(o.customerSlipUrl)+'" alt="สลิปการโอนของลูกค้า" onclick="openLightbox(\''+esc(o.customerSlipUrl)+'\')">' : '') +
+      '<button class="customer-payment-btn" onclick="'+expressTransferClick(o)+'">💳 โอนเงินแล้ว</button>' +
+    '</div>';
   }
 
   return '<div class="order-track-card" style="border-left-color:' + color + '">' +
@@ -4035,6 +4051,7 @@ function renderOrderCard(o){
     '<div class="order-track-progress">' + progressDots + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
       '<button class="rate-btn" style="background:linear-gradient(135deg,#4E9F2D,#34751E);margin:0" onclick="showOrderBill(\''+esc(o.id)+'\')">🧾 ดูบิล</button>' +
+      (expressTransferOwed(o)?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="'+expressTransferClick(o)+'">💳 โอนเงินแล้ว</button>':'') +
       (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท</button>':'') +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
@@ -4124,7 +4141,8 @@ window.handleCustomerSlipPick = async function(event) {
   if (['jpg','jpeg','png','webp','gif','heic','heif'].indexOf(ext) === -1) ext = 'jpg';
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (cached && cached.type === 'ride') return showToast('งานเรียกรถไม่ต้องแนบสลิป — แจ้งไรเดอร์เมื่อชำระค่าบริการแล้ว', 'info');
-  if (!cached || cached.userId !== currentUser.uid || cached.status !== 'picked_up') {
+  var expressDropoff = cached && cached.type === 'express' && cached.status === 'on_the_way';
+  if (!cached || cached.userId !== currentUser.uid || (cached.status !== 'picked_up' && !expressDropoff)) {
     return showToast('แนบสลิปได้หลังไรเดอร์รับของแล้วเท่านั้น (กรุณารอสถานะอัปเดต)', 'warning');
   }
   showToast('📤 กำลังอัปโหลดสลิป...', 'info');
@@ -4174,13 +4192,20 @@ window.confirmCustomerPaid = async function(orderId) {
   if (cached && cached.paymentMode === 'cash') return showToast('ออเดอร์เงินสด — ชำระเงินสดกับไรเดอร์', 'info');
   if (cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
   if (!confirm('ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
+  var expressDropoff = cached && cached.type === 'express' && cached.status === 'on_the_way';
   try {
-    await db.collection('orders').doc(orderId).update({
+    var paidPatch = {
       customerPaidAt: firebase.firestore.FieldValue.serverTimestamp(),
-      customerPaid: true,
-      status: 'customer_paid'
-    });
-    showToast('✅ แจ้งไรเดอร์แล้ว — กำลังเริ่มส่ง');
+      customerPaid: true
+    };
+    if (!expressDropoff) paidPatch.status = 'customer_paid';
+    await db.collection('orders').doc(orderId).update(paidPatch);
+    if (expressDropoff && cached) {
+      cached.customerPaid = true;
+      cached.customerPaidAt = new Date();
+      paintUserOrders(window._cachedOrders || []);
+    }
+    showToast(expressDropoff ? '✅ แจ้งไรเดอร์แล้วว่าโอนค่าบริการแล้ว' : '✅ แจ้งไรเดอร์แล้ว — กำลังเริ่มส่ง');
   } catch (e) {
     console.error('confirmCustomerPaid error:', e);
     showToast('ไม่สำเร็จ: ' + e.message, 'error');
@@ -4523,7 +4548,7 @@ window.showOrderBill = async function(orderId) {
       ? '<div style="background:#E8F5E9;border:2px solid #168A45;border-radius:14px;padding:14px;margin:14px 0;text-align:center">' +
         '<div style="font-size:14px;font-weight:900;color:#168A45">📱 สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์</div>' +
         '<img src="' + esc(o.riderQrCodeUrl) + '" alt="QR รับชำระค่าบริการไรเดอร์" style="display:block;width:min(250px,100%);aspect-ratio:1;object-fit:contain;margin:10px auto;background:#fff;border-radius:12px;padding:8px" onclick="openLightbox(\'' + esc(o.riderQrCodeUrl) + '\')">' +
-        '<div style="font-size:12px;font-weight:800;color:#2E7D32">โอนแล้วไม่ต้องแนบสลิป ให้ไรเดอร์กดยืนยันรับเงิน</div>' +
+        '<div style="font-size:12px;font-weight:800;color:#2E7D32">' + (o.type === 'express' ? 'โอนแล้วกด โอนเงินแล้ว แล้วแนบสลิปเพื่อแจ้งไรเดอร์' : 'โอนแล้วไม่ต้องแนบสลิป ให้ไรเดอร์กดยืนยันรับเงิน') + '</div>' +
       '</div>'
       : ((!isCash && feeAtEnd && o.riderId)
         ? '<div style="background:#FFF8E1;border-left:4px solid #FFB300;border-radius:10px;padding:12px;margin:14px 0;font-size:12px;font-weight:800;color:#7A5200">ℹ️ ไรเดอร์ยังไม่ได้แนบ QR Code กรุณาติดต่อไรเดอร์ในแชท หรือเลือกชำระเงินสด</div>'
@@ -4578,6 +4603,7 @@ window.showOrderBill = async function(orderId) {
       '</div>' +
       riderQrHtml +
       confirmHtml +
+      (expressTransferOwed(o) ? '<button class="btn-full press-scale" style="margin-top:14px;background:linear-gradient(135deg,#FF6B35,#E65100);color:#fff" onclick="' + expressTransferClick(o) + '">💳 โอนเงินแล้ว</button>' : '') +
       '<button class="btn-full btn-green press-scale" style="margin-top:14px" onclick="copyOrderInfo(\'' + esc(o.id) + '\')">📋 คัดลอกข้อมูล</button>' +
       '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ปิด</button>';
 

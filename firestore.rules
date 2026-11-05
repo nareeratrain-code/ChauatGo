@@ -408,10 +408,16 @@ service cloud.firestore {
         && request.resource.data.customerOrderConfirmedAt is timestamp;
     }
 
-    // Upload proof while the order remains picked_up. The following payment
-    // transition may then set customerPaid/customerPaidAt.
-    function customerSlipUploadOk(orderId) {
+    // Food and shopping attach proof while picked_up. Express pays at the
+    // drop-off, so the same proof fields are allowed during on_the_way
+    // without moving the status backward.
+    function customerMayAttachSlip() {
       return resource.data.status == 'picked_up'
+        || (resource.data.get('type', '') == 'express' && resource.data.status == 'on_the_way');
+    }
+
+    function customerSlipUploadOk(orderId) {
+      return customerMayAttachSlip()
         && request.resource.data.status == resource.data.status
         && identityFrozen()
         && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
@@ -458,7 +464,7 @@ service cloud.firestore {
     // A rejected proof may be replaced only by the order owner. Revision must
     // increase exactly by one, and the new path must remain order-scoped.
     function customerSlipResubmissionOk(orderId) {
-      return resource.data.status == 'picked_up'
+      return customerMayAttachSlip()
         && resource.data.get('customerSlipStatus', '') == 'rejected'
         && request.resource.data.status == resource.data.status
         && identityFrozen()
@@ -655,6 +661,21 @@ service cloud.firestore {
         && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
     }
 
+    // Express stays on_the_way. The customer records the transfer only after
+    // a slip is on the order; the rider still confirms at the drop-off.
+    function expressFarePaidOk() {
+      return moneyFrozen() && isOrderCustomer()
+        && resource.data.get('type', '') == 'express'
+        && resource.data.status == 'on_the_way'
+        && request.resource.data.status == resource.data.status
+        && customerSlipNotRejected()
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['customerPaid', 'customerPaidAt'])
+        && request.resource.data.customerPaid == true
+        && request.resource.data.customerPaidAt is timestamp;
+    }
+
     function customerRatingOk() {
       return moneyFrozen() && isOrderCustomer()
         && resource.data.status in ['done', 'delivered']
@@ -828,7 +849,9 @@ service cloud.firestore {
                         ? riderOnTheWayOk()
                         : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
                           ? (customerPaidOk() || riderCustomerPaidOk())
-                          : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
+                          : changed.hasOnly(['customerPaid', 'customerPaidAt'])
+                            ? expressFarePaidOk()
+                            : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
                             ? riderNearCustomerOk()
                             : changed.hasOnly(['rated', 'ratedAt'])
                               ? customerRatingOk()
