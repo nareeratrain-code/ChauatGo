@@ -908,6 +908,22 @@ button.chat-list-item:active { filter: brightness(.97); }
 }
 
 /* ═══ MENU ENTRY — first screen of each home menu ═══ */
+/* White halo so orange lettering stays readable on the green page. */
+.on-green-orange,
+.header .cg-brand-tag,
+.merchant-view .section-title,
+.category-view .section-title,
+[data-theme="dark"] .travel-section-title {
+  text-shadow:
+    0 1px 0 #fff,
+    1px 0 0 #fff,
+    -1px 0 0 #fff,
+    0 -1px 0 #fff,
+    1px 1px 0 #fff,
+    -1px 1px 0 #fff,
+    1px -1px 0 #fff,
+    -1px -1px 0 #fff;
+}
 .merchant-view .section-title,
 .category-view .section-title { color: #E85C00; font-size: 22px; font-weight: 900; }
 .merchant-view .section-more,
