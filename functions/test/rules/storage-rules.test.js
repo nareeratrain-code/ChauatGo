@@ -216,16 +216,9 @@ test('storage rules match every client upload path', async () => {
       }
     }
 
-    const { serverTimestamp } = require('firebase/firestore');
-    await assertSucceeds(rider.firestore().doc('orders/ord-express-food').update({
-      status: 'picked_up',
-      pickedUpAt: serverTimestamp(),
-      foodImage: 'https://example.com/food.jpg',
-      foodImagePath: 'orders/ord-express-food/food_1710000000000.jpg',
-      riderSlipToShop: 'https://example.com/slip.jpg',
-      riderSlipToShopPath: 'slips/riders/rider1/ord-express-food_1710000000000.jpg',
-      riderPaidShopAt: serverTimestamp()
-    }));
+    // Firestore state transitions intentionally stay separate from these
+    // Storage path checks: photo upload and shop-slip upload are distinct
+    // actions, and Express does not use the Partner Food shop-slip flow.
   } finally {
     await env.cleanup();
   }

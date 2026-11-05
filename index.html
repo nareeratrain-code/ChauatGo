@@ -4063,8 +4063,6 @@ function renderOrderCard(o){
     '</div>' +
     (o.riderName?'<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:8px">🛵 ไรเดอร์: <b>'+esc(o.riderName)+'</b></div>':'') +
     (window.ChauatCall ? ChauatCall.buttons(o.id) : '') +
-    (o.foodImage?'<div style="margin:8px 0"><img src="'+esc(o.foodImage)+'" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px" onclick="openLightbox(\''+esc(o.foodImage)+'\')"><div style="font-size:11px;color:var(--green);font-weight:900;margin-top:4px;text-align:center">📸 อาหารของคุณ</div></div>':'') +
-    (o.itemsText?'<div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;white-space:pre-wrap">🛒 '+esc(o.itemsText.slice(0,120))+'</div>':'') +
     discountHtml +
     '<div class="order-track-progress">' + progressDots + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
@@ -4075,7 +4073,8 @@ function renderOrderCard(o){
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
     '</div>' +
-    payBtnHtml +
+    /* Payment instructions and proof are shown in Chat only. */
+    '' +
   '</div>';
 }
 
@@ -4794,14 +4793,15 @@ function subscribeChatMessages(orderId) {
         var day = t.toLocaleDateString('th-TH',{day:'2-digit',month:'short'});
         if (day !== lastDay) { html += '<div class="chat-day-divider">' + day + '</div>'; lastDay = day; }
         var time = t.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-        var img = m.imageUrl ? '<img class="msg-image" src="' + esc(m.imageUrl) + '" onclick="openLightbox(\'' + esc(m.imageUrl) + '\')">' : '';
+        var media = Array.isArray(m.imageUrls) && m.imageUrls.length ? m.imageUrls : (m.imageUrl ? [m.imageUrl] : []);
+        var img = media.map(function(url) { return '<img class="msg-image" src="' + esc(url) + '" onclick="openLightbox(\'' + esc(url) + '\')">'; }).join('');
         var sysStyle = m.systemMessage ? 'background:#FFF3E0;color:#E65100;border-left:3px solid #FF9800;' : '';
         var live = (window._cachedOrders || []).filter(function(item) { return item.id === orderId; })[0] || window._chatOrder;
         var action = '';
         if (m.automationKey === 'pay_summary' && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
           action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">ยืนยัน</button>';
         }
-        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
+        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +

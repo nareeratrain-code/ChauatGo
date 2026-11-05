@@ -577,6 +577,9 @@ async function confirmPaymentReceived(db, uid, orderId) {
     const waiting = order.status === 'picked_up';
     const fareAtDestination = (order.type === 'ride' || order.type === 'express') && order.status === 'on_the_way';
     const cashWaiting = order.paymentMode === 'cash' && (waiting || fareAtDestination);
+    if (order.type === 'food' && order.partnerShop === true && order.paymentMode === 'cash') {
+      precondition('Partner Food ต้องยืนยันการชำระเงินตามขั้นตอนอาหารก่อน');
+    }
     if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup || fareAtDestination)) {
       result = { ok: true, already: true, status: order.status };
       return;

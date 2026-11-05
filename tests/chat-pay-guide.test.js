@@ -20,9 +20,9 @@ test('accept posts a chat summary and the customer confirms it in chat', () => {
 test('partner food keeps Manus QR and slip fields, and adds the wait-for-photo note', () => {
   assert.match(rider, /กรุณาโอนหลังจากเห็นรูปอาหาร\/สินค้าแล้วเท่านั้น/);
   assert.match(rider, /อาหาร\/สินค้าพร้อมแล้ว กรุณาโอนยอด /);
-  assert.match(rider, /sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
-  assert.match(rider, /sendRiderQrPaymentChat\(jobId, 'food_payment'\)/);
-  assert.match(rider, /imageUrl: riderProfile\.qrCodeUrl/);
+  assert.doesNotMatch(rider, /sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
+  assert.match(rider, /postFoodPaymentChat\(jobId, pickupFoodUrl/);
+  assert.match(rider, /imageUrls/);
   assert.match(customer, /function postConfirmPayNote/);
   assert.match(customer, /automationKey: 'confirm_qr'/);
   assert.match(customer, /order\.riderQrCodeUrl/);

@@ -2091,11 +2091,7 @@ async function recordShopArrival(jobId, job) {
     if (job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
       showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
     }
-    sendAutomatedChatLater(jobId, 'shop_arrived');
-    const qrSent = await sendRiderQrPaymentChat(jobId, 'shop_arrived');
-    if (job.paymentMode !== 'cash' && riderProfile?.qrCodeUrl && !qrSent) {
-      showToast('⚠️ ส่ง QR ให้ลูกค้าไม่สำเร็จ กรุณาตรวจสอบแชทหรือส่งใหม่', 'warning', 6000);
-    }
+    // Partner Food sends the only payment message after the food photo.
     openPayGuide(jobId, 'food');
     return;
   }
@@ -2569,6 +2565,36 @@ async function postRiderOrderImageUrl(orderId, url, imagePath) {
   return url;
 }
 
+/* Partner Food: one chat message is the source of truth for the payment step. */
+async function postFoodPaymentChat(orderId, foodUrl, order) {
+  const body = await ensureRiderChat(orderId);
+  const text = foodPhotoMessage(order || {}) + (riderProfile?.qrCodeUrl
+    ? '\n\n📱 สแกน QR นี้เพื่อโอนเงินให้ไรเดอร์ได้เลยครับ/ค่ะ'
+    : '');
+  const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_food_payment');
+  if ((await messageRef.get()).exists) return;
+  const imageUrls = [foodUrl, riderProfile?.qrCodeUrl].filter(Boolean);
+  await messageRef.set({
+    text,
+    imageUrl: imageUrls[0] || '',
+    imageUrls,
+    foodImageUrl: foodUrl || '',
+    qrImageUrl: riderProfile?.qrCodeUrl || '',
+    senderId: currentUser.uid,
+    senderRole: 'rider',
+    senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
+    systemMessage: true,
+    automated: true,
+    automationKey: 'food_payment',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await db.collection('chats').doc(orderId).update({
+    lastMessage: '📸 ส่งรูปอาหารแล้ว • แจ้งยอดชำระเงิน',
+    lastSenderId: currentUser.uid,
+    lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
 /* Food photo goes to the customer with the payment request. The shop slip is the next step. */
 async function confirmPickup() {
   const pickupJob = allJobs.find(j => j.id === pickupOrderId);
@@ -2595,13 +2621,7 @@ async function submitFoodPhoto(pickupJob) {
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     uploadStep = 'ขอ Download URL';
     pickupFoodUrl = await foodRef.getDownloadURL();
-    try {
-      uploadStep = 'ส่งรูปเข้าแชท';
-      await postRiderOrderImageUrl(jobId, pickupFoodUrl, foodPath);
-    } catch (chatErr) {
-      console.warn('food photo chat message failed:', chatErr && (chatErr.code || chatErr.message));
-      showToast('รูปอัปโหลดแล้ว แต่ส่งเข้าแชทไม่สำเร็จ', 'warning', 6000);
-    }
+    uploadStep = 'เตรียมรูปสำหรับข้อความรวม';
     uploadStep = 'บันทึกรูปลงออเดอร์';
     const alreadyPicked = !!(pickupJob && (pickupJob.status === 'picked_up' || pickupJob.status === 'customer_paid' || pickupJob.status === 'on_the_way'));
     const photoPatch = {
@@ -2620,18 +2640,11 @@ async function submitFoodPhoto(pickupJob) {
       pickedJob.foodImagePath = foodPath;
     }
     try {
-      uploadStep = 'แจ้งยอดในแชท';
-      await postGoodsReadyChat(jobId, pickedJob || pickupJob);
+      uploadStep = 'แจ้งรูปอาหารและยอดในแชท';
+      await postFoodPaymentChat(jobId, pickupFoodUrl, pickedJob || pickupJob);
     } catch (readyErr) {
-      console.warn('goods ready chat', readyErr && (readyErr.code || readyErr.message));
-    }
-    sendAutomatedChatLater(jobId, 'food_photo');
-    const qrSent = await sendRiderQrPaymentChat(jobId, 'food_payment');
-    if (orderServiceType(pickedJob || pickupJob) === 'food'
-      && !orderIsCash(pickedJob || pickupJob)
-      && riderProfile?.qrCodeUrl
-      && !qrSent) {
-      showToast('⚠️ ส่งยอดโอนพร้อม QR ไม่สำเร็จ แต่ส่งรูปอาหารแล้ว กรุณาตรวจสอบแชท', 'warning', 7000);
+      console.warn('food payment chat', readyErr && (readyErr.code || readyErr.message));
+      showToast('รูปอัปโหลดแล้ว แต่ส่งข้อความยอดชำระไม่สำเร็จ', 'warning', 7000);
     }
     arrivedShopNotifiedOrderIds.add(jobId);
     if (pickedJob && !orderIsCash(pickedJob) && !pickedJob.customerPaidAt) startPaymentTimers(jobId);
@@ -3779,7 +3792,8 @@ function renderChatMessages(msgs) {
       dayDiv = `<div class="chat-day-divider">${day}</div>`;
       lastDay = day;
     }
-    const img = m.imageUrl ? `<img src="${esc(m.imageUrl)}" class="msg-image" onclick="window.open('${esc(m.imageUrl)}','_blank')">` : '';
+    const media = Array.isArray(m.imageUrls) && m.imageUrls.length ? m.imageUrls : (m.imageUrl ? [m.imageUrl] : []);
+    const img = media.map(url => `<img src="${esc(url)}" class="msg-image" onclick="window.open('${esc(url)}','_blank')">`).join('');
     const sysStyle = m.systemMessage ? 'background:#FFF3E0;color:#E65100;border-left:3px solid #FF9800;' : '';
     return `${dayDiv}
       <div class="chat-msg ${isMine ? 'out' : 'in'}" style="${sysStyle}">

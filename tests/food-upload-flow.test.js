@@ -13,15 +13,15 @@ test('อาหารอัปโหลดครั้งเดียวที�
   assert.equal((source.match(/chats\/\$\{jobId\}\/riders\/\$\{currentUser\.uid\}\/food_/g) || []).length, 2);
   assert.match(source, /chats\/\$\{orderId\}\/riders\/\$\{currentUser\.uid\}/);
   assert.match(block, /await foodRef\.put\(pickupFoodBlob, \{ contentType: 'image\/jpeg' \}\)/);
-  assert.match(block, /await postRiderOrderImageUrl\(jobId, pickupFoodUrl, foodPath\)/);
+  assert.match(block, /await postFoodPaymentChat\(jobId, pickupFoodUrl/);
   assert.doesNotMatch(block, /await postRiderOrderImage\(jobId, pickupFoodBlob\)/);
   assert.match(source, /async function postRiderOrderImageUrl\(orderId, url, imagePath\)/);
 });
 
 test('หากสร้างข้อความรูปในแชทไม่สำเร็จ ออเดอร์ยังเดินหน้าด้วยรูปหลักที่อัปโหลดแล้ว', () => {
-  const start = source.indexOf('await postRiderOrderImageUrl');
+  const start = source.indexOf('await postFoodPaymentChat');
   const block = source.slice(start, start + 900);
-  assert.match(block, /catch \(chatErr\)/);
-  assert.match(block, /food photo chat message failed/);
-  assert.match(block, /await db\.collection\('orders'\)\.doc\(jobId\)\.update/);
+  assert.match(block, /catch \(readyErr\)/);
+  assert.match(block, /food payment chat/);
+  assert.match(source, /await db\.collection\('orders'\)\.doc\(jobId\)\.update/);
 });

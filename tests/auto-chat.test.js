@@ -143,7 +143,7 @@ test('status messages choose the template from the order type', () => {
   assert.match(rider, /function sendAutomatedChat\(orderId, key\)/);
   assert.match(rider, /const text = autoChatText\(order, key\)/);
   assert.equal(/sendAutomatedChatLater\([^)\n]*,[^)\n]*,/.test(rider), false);
-  assert.match(rider, /sendAutomatedChatLater\(jobId, 'food_photo'\)/);
+  assert.match(rider, /postFoodPaymentChat\(jobId, pickupFoodUrl/);
   assert.match(rider, /sendAutomatedChatLater\(jobId, 'shop_slip'\)/);
   assert.match(rider, /sendAutomatedChatLater\(jobId, 'picked_up'\)/);
   assert.match(rider, /แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง/);

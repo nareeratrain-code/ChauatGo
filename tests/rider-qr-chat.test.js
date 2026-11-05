@@ -134,11 +134,23 @@ test('Ride รับเงินแล้วต้องแสดงว่าจ
 });
 
 test('เหตุการณ์ถึงร้านและส่งรูปอาหารมีจุดเรียก QR Chat ครบ', () => {
-  assert.match(riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip')), /await sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
+  const arrivalBlock = riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip'));
+  assert.doesNotMatch(arrivalBlock, /sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
   const photoStart = riderSource.indexOf('async function submitFoodPhoto');
   const slipStart = riderSource.indexOf('async function submitShopSlip');
   const photoBlock = riderSource.slice(photoStart, slipStart);
-  assert.match(photoBlock, /await sendRiderQrPaymentChat\(jobId, 'food_payment'\)/);
+  assert.match(photoBlock, /await postFoodPaymentChat\(jobId, pickupFoodUrl/);
+  assert.doesNotMatch(photoBlock, /postGoodsReadyChat\(jobId/);
+  assert.doesNotMatch(photoBlock, /sendAutomatedChatLater\(jobId, 'food_photo'\)/);
+});
+
+test('Partner Food รวมรูปอาหาร ยอด และ QR เป็นข้อความเดียว และ Chat รองรับรูปหลายรูป', () => {
+  assert.match(riderSource, /doc\('auto_food_payment'\)/);
+  assert.match(riderSource, /imageUrls/);
+  assert.match(riderSource, /automationKey: 'food_payment'/);
+  const customer = fs.readFileSync('index.html', 'utf8');
+  assert.match(customer, /Array\.isArray\(m\.imageUrls\)/);
+  assert.match(customer, /m\.automationKey === 'food_payment'/);
 });
 
 test('QR Upload ใช้ PNG และ versioned path เพื่อไม่เปลี่ยน QR เก่าในแชท', () => {

@@ -11,23 +11,27 @@ test('Customer Chat แสดง imageUrl จากข้อความทั�
   const end = customerSource.indexOf('\n}\n\nfunction scrollChatToBottom', start) + 2;
   const block = customerSource.slice(start, end);
 
-  assert.match(block, /var img = m\.imageUrl \?/);
-  assert.match(block, /src="' \+ esc\(m\.imageUrl\)/);
+  assert.match(block, /Array\.isArray\(m\.imageUrls\)/);
+  assert.match(block, /media\.map/);
+  assert.match(block, /src="' \+ esc\(url\)/);
   assert.match(block, /openLightbox/);
-  assert.match(block, /esc\(m\.imageUrl\)/);
+  assert.match(block, /esc\(url\)/);
   assert.match(block, /m\.text \?/);
 });
 
 test('Food photo chat ใช้ URL เดิมจาก orders และ QR ใช้ QR URL ของไรเดอร์', () => {
-  assert.match(riderSource, /postRiderOrderImageUrl\(jobId, pickupFoodUrl, foodPath\)/);
-  assert.match(riderSource, /imageUrl: riderProfile\.qrCodeUrl/);
-  assert.match(riderSource, /automationKey: key/);
+  assert.match(riderSource, /postFoodPaymentChat\(jobId, pickupFoodUrl/);
+  assert.match(riderSource, /imageUrls/);
+  assert.match(riderSource, /qrImageUrl: riderProfile\?\.qrCodeUrl/);
+  assert.match(riderSource, /automationKey: 'food_payment'/);
 });
 
 test('Firestore Rules อนุญาตลูกค้าอ่าน Messages ของออเดอร์และรองรับ media fields', () => {
   assert.match(rulesSource, /match \/messages\/\{messageId\}/);
   assert.match(rulesSource, /allow read: if isOrderParty\(chatId\)/);
-  assert.match(rulesSource, /'imageUrl', 'imagePath'/);
+  assert.match(rulesSource, /'imageUrl'/);
+  assert.match(rulesSource, /'imagePath'/);
+  assert.match(rulesSource, /'foodImageUrl', 'qrImageUrl'/);
   assert.match(rulesSource, /messageFrom\(chatId, 'rider', 'riderId'\)/);
 });
 

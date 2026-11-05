@@ -14,21 +14,29 @@ test('opening the customer chat does not wipe the goods-photo draft', () => {
   assert.match(closeModal, /pickupOrderId = null/);
 });
 
-test('cash and transfer goods photos both post the ready amount', () => {
-  const start = rider.indexOf('function goodsReadyChatText');
-  const end = rider.indexOf('async function postGoodsReadyChat');
+test('cash and transfer food photos both use the single payment message', () => {
+  const start = rider.indexOf('function foodPhotoMessage');
+  const end = rider.indexOf('function autoChatText', start);
   const context = {
-    foodPayParts: (order) => ({ total: Number(order.total) || 0 })
+    foodPayParts: (order) => ({
+      food: Number(order.foodTotal) || 0,
+      fare: Number(order.fare) || 0,
+      tip: 0,
+      cash: order.paymentMode === 'cash',
+      total: Number(order.foodTotal || 0) + Number(order.fare || 0)
+    }),
+    foodPayEquation: (parts) => `ค่าอาหาร ฿${parts.food} + ค่าส่ง ฿${parts.fare} = รวม ฿${parts.total}`,
+    bahtText: (n) => '฿' + n
   };
   vm.runInNewContext(rider.slice(start, end), context);
-  const cash = context.goodsReadyChatText({ paymentMode: 'cash', type: 'shopping', total: 31 });
-  assert.match(cash, /อาหาร\/สินค้าพร้อมแล้ว/);
-  assert.match(cash, /เงินสด ฿31/);
+  const cash = context.foodPhotoMessage({ paymentMode: 'cash', type: 'food', foodTotal: 31, fare: 0 });
+  assert.match(cash, /ไรเดอร์ถ่ายรูปอาหารจากร้านแล้ว/);
+  assert.match(cash, /กรุณาเตรียมเงินสดจ่ายไรเดอร์/);
   assert.equal(cash.includes('โอนยอด'), false);
-  const transfer = context.goodsReadyChatText({ paymentMode: 'transfer', type: 'food', total: 140 });
-  assert.match(transfer, /กรุณาโอนยอด ฿140 \(รวมค่าบริการ\)/);
-  assert.match(rider, /await postGoodsReadyChat\(jobId, pickedJob \|\| pickupJob\)/);
-  assert.match(rider, /automationKey: 'goods_ready'/);
+  const transfer = context.foodPhotoMessage({ paymentMode: 'transfer', type: 'food', foodTotal: 140, fare: 0 });
+  assert.match(transfer, /กรุณาโอนเงินให้ไรเดอร์ตามยอดนี้/);
+  assert.match(rider, /await postFoodPaymentChat\(jobId, pickupFoodUrl/);
+  assert.match(rider, /automationKey: 'food_payment'/);
 });
 
 test('cash buy-for-me can attach the shop slip after the photo, transfer still needs payment', () => {

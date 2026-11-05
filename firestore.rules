@@ -929,9 +929,9 @@ service cloud.firestore {
 
     function messageOk() {
       let data = request.resource.data;
-      return data.keys().hasOnly([
-          'senderId', 'senderRole', 'senderName', 'text', 'imageUrl', 'imagePath', 'createdAt', 'systemMessage',
-          'automated', 'automationKey'
+        return data.keys().hasOnly([
+          'senderId', 'senderRole', 'senderName', 'text', 'imageUrl', 'imagePath', 'imageUrls',
+          'foodImageUrl', 'qrImageUrl', 'createdAt', 'systemMessage', 'automated', 'automationKey'
         ])
         && data.keys().hasAll(['senderId', 'senderRole', 'createdAt'])
         && data.senderId is string
@@ -942,12 +942,19 @@ service cloud.firestore {
         && (!('text' in data) || (data.text is string && data.text.size() <= 2000))
         && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 2000))
         && (!('imagePath' in data) || (data.imagePath is string && data.imagePath.size() <= 400))
+        && (!('imageUrls' in data) || (data.imageUrls is list
+          && data.imageUrls.size() > 0 && data.imageUrls.size() <= 2
+          && data.imageUrls[0] is string && data.imageUrls[0].size() <= 2000
+          && (data.imageUrls.size() == 1 || (data.imageUrls[1] is string && data.imageUrls[1].size() <= 2000))))
+        && (!('foodImageUrl' in data) || (data.foodImageUrl is string && data.foodImageUrl.size() <= 2000))
+        && (!('qrImageUrl' in data) || (data.qrImageUrl is string && data.qrImageUrl.size() <= 2000))
         && (!('systemMessage' in data) || data.systemMessage is bool)
         && (!('automated' in data) || data.automated is bool)
         && (!('automationKey' in data) || (data.automationKey is string && data.automationKey.size() > 0 && data.automationKey.size() <= 40))
         && (
           (('text' in data) && (data.text is string) && data.text.size() > 0)
           || (('imageUrl' in data) && (data.imageUrl is string) && data.imageUrl.size() > 0)
+          || (('imageUrls' in data) && data.imageUrls is list && data.imageUrls.size() > 0)
         );
     }
 

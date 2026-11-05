@@ -102,3 +102,13 @@ test('Customer Slip UI is excluded from ride orders', () => {
   assert.match(app, /cached\.type === 'ride'/);
   assert.match(app, /งานเรียกรถไม่ต้องแนบสลิป/);
 });
+
+test('Order List แสดงเฉพาะสถานะ ส่วนคำสั่งชำระเงินอยู่ใน Chat จุดเดียว', () => {
+  const start = app.indexOf('function renderOrderCard');
+  const end = app.indexOf('/* Customer payment flow:', start);
+  const card = app.slice(start, end);
+  assert.doesNotMatch(card, /payBtnHtml\s*\+/);
+  assert.doesNotMatch(card, /อาหารของคุณ/);
+  assert.match(card, /order-track-progress/);
+  assert.match(card, /openChatPage/);
+});
