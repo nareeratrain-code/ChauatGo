@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Chauat Go — สั่งอาหาร เดินทาง อ.ชะอวด v3.9.25</title>
-<meta name="theme-color" content="#4E9F2D">
+<meta name="theme-color" content="#0F766E">
 <meta name="description" content="แอปค้นหาสถานที่ สั่งอาหาร เรียกรถ อ.ชะอวด">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1001,6 +1001,155 @@ button.chat-list-item:active { filter: brightness(.97); }
 [data-theme="dark"] #modal-body:has(#express-parcel-type) .form-group input,
 [data-theme="dark"] #modal-body:has(#express-parcel-type) .form-group textarea { background: #17261B; color: #F5F5F5; border-color: #FF9E3D; }
 [data-theme="dark"] .travel-view { background: #07140C; }
+
+/* ═══ CHAUATGO SIGNATURE THEME — Deep Teal / Coral / Warm Gold ═══ */
+:root {
+  --brand: #0F766E; --brand-dark: #115E59; --brand-light: #DDF7F1;
+  --accent: #F97316; --green: #0F766E; --red: #F04438; --blue: #2563EB;
+  --orange: #F59E0B; --bg: #F3F8F7; --surface: #FFFFFF; --surface-2: #E8F3F0;
+  --text: #16302D; --text-muted: #60736F; --text-light: #94A5A1; --border: #CFE3DE;
+  --header-grad: linear-gradient(135deg, #0F766E 0%, #115E59 58%, #0B3B3A 100%);
+  --shadow-xs: 0 2px 5px rgba(15,118,110,.06); --shadow-sm: 0 5px 14px rgba(15,74,70,.09);
+  --shadow-md: 0 10px 24px rgba(15,74,70,.13); --shadow-lg: 0 18px 42px rgba(15,74,70,.18);
+  --promo-grad: linear-gradient(135deg, #F97316, #EA580C);
+}
+body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7FAF9 100%); }
+.header { background: var(--header-grad); box-shadow: 0 8px 24px rgba(11,59,58,.28); }
+.header .cg-brand-name { letter-spacing: .5px; text-shadow: 0 5px 18px rgba(0,0,0,.2); }
+.header .cg-brand-tag { color: #FFD166; text-shadow: 0 2px 0 rgba(8,48,45,.6); }
+.header-top .search-bar { border: 1px solid rgba(255,255,255,.35); box-shadow: 0 8px 20px rgba(0,0,0,.12); }
+.profile-avatar { border: 3px solid rgba(255,255,255,.55); }
+#tab-home { background: linear-gradient(180deg, #0F766E 0%, #126B64 34%, #F3F8F7 70%); }
+#home-content { padding-top: 18px; }
+.brand-hero, .home-section, .partner-cta, .nearby-title { border: 1px solid rgba(15,118,110,.12); box-shadow: 0 10px 24px rgba(9,62,58,.13); }
+.brand-hero .t { color: #F97316; }
+.brand-kicker { background: #DDF7F1; color: #0F766E; }
+.menu-item { border: 1px solid rgba(15,118,110,.12); box-shadow: 0 8px 20px rgba(9,62,58,.13); transition: transform .18s ease, box-shadow .18s ease; }
+.menu-item:active { transform: translateY(2px); box-shadow: 0 4px 10px rgba(9,62,58,.1); }
+.menu-label { color: #16302D; }
+.home-section .section-title { color: #0F766E; }
+.home-section .section-title::before { background: #F97316; box-shadow: 0 0 0 5px #FFF0E6; }
+.home-section .section-more { background: #DDF7F1; color: #0F766E; }
+.partner-banner-kicker { background: #F97316; }
+.partner-cta-btn, .local-place-pin { background: linear-gradient(135deg, #0F766E, #115E59); box-shadow: 0 7px 16px rgba(15,118,110,.2); }
+.merchant-view .section-title, .category-view .section-title { color: #FFD166; text-shadow: 0 2px 0 #0B3B3A; }
+.merchant-view .section-more, .category-view .section-more { background: #F97316; box-shadow: 0 6px 14px rgba(249,115,22,.2); }
+.merchant-view .search-bar, .travel-search-bar, #map-page .dest-search { border: 2px solid #B8D9D2; box-shadow: 0 6px 16px rgba(9,62,58,.1); }
+.merchant-source-tab.active, .merchant-view .m-tab.active { background: #0F766E; color: #fff; box-shadow: 0 6px 14px rgba(15,118,110,.22); }
+.merchant-view .m-tab, .merchant-view[data-entry="shopping"] .m-filter-chip { border-color: #B8D9D2; }
+.merchant-view[data-entry="shopping"] .m-filter-chip.active { background: #F97316; border-color: #F97316; }
+.merchant-card, .local-place-card, .place-card-shop { border: 1px solid rgba(15,118,110,.12); box-shadow: 0 7px 18px rgba(9,62,58,.1); }
+.travel-view { background: linear-gradient(180deg, #0F766E 0%, #115E59 26%, #F3F8F7 65%); }
+.travel-header, .map-header-bar, .chat-header, .track-header { background: var(--header-grad); box-shadow: 0 7px 18px rgba(11,59,58,.2); }
+.travel-section-title { color: #FFD166; text-shadow: 0 2px 0 #0B3B3A; }
+.travel-place-item, .travel-vehicle-card { border: 1px solid rgba(15,118,110,.12); box-shadow: 0 7px 18px rgba(9,62,58,.1); }
+.travel-view .travel-map-btn { background: linear-gradient(135deg, #F97316, #EA580C); }
+.loc-action-btn[data-refresh-gps], #map-page .reference-loc-bar .loc-action-btn[data-refresh-gps] { background: linear-gradient(135deg, #F04438, #C92D2D); box-shadow: 0 7px 16px rgba(240,68,56,.22); }
+.loc-action-btn:not([data-refresh-gps]), .express-swap-btn, #map-page .reference-loc-bar .loc-action-btn[data-pick-map] { border: 1px solid #B8D9D2; color: #0F766E; background: #F8FFFD; }
+.loc-missing { background: #FFF5E8; border-left-color: #F59E0B; color: #B45309; }
+#map-page { background: #EAF4F2; }
+#map-page .dest-sheet { border-top: 5px solid #F97316; box-shadow: 0 -12px 30px rgba(9,62,58,.18); }
+#map-page .dest-cat-chip.on { background: #F97316; border-color: #F97316; }
+#map-page .map-confirm-btn { background: linear-gradient(135deg, #0F766E, #0B3B3A); box-shadow: 0 9px 22px rgba(15,118,110,.3); }
+.bottom-nav { border-top: 1px solid #D1E7E1; box-shadow: 0 -10px 24px rgba(9,62,58,.12) !important; }
+.bottom-nav .nav-item.active .nav-icon-wrap { background: #0F766E; box-shadow: 0 5px 12px rgba(15,118,110,.25); }
+.modal-content, .pdpa-content, .loc-popup-content, .near-alert-card { border: 1px solid #D1E7E1; box-shadow: 0 20px 50px rgba(9,62,58,.2); }
+.customer-payment-btn, .btn-green { background: linear-gradient(135deg, #0F766E, #115E59); }
+.customer-payment-btn:not(.green), .btn-orange { background: linear-gradient(135deg, #F97316, #EA580C); }
+[data-theme="dark"] { --brand: #36C5B5; --brand-dark: #1A8F85; --brand-light: #123A37; --accent: #FF9A56; --green: #36C5B5; --orange: #F6B84A; --bg: #071A18; --surface: #102522; --surface-2: #15332F; --text: #E8FFFA; --text-muted: #A8C3BD; --border: #28524C; --header-grad: linear-gradient(135deg, #0B3B3A, #061D1B); }
+[data-theme="dark"] body { background: #071A18; }
+[data-theme="dark"] #tab-home { background: linear-gradient(180deg, #0B3B3A, #071A18 70%); }
+[data-theme="dark"] .menu-item, [data-theme="dark"] .home-section, [data-theme="dark"] .partner-cta, [data-theme="dark"] .nearby-title { border-color: #28524C; box-shadow: 0 8px 20px rgba(0,0,0,.28); }
+[data-theme="dark"] .menu-label { color: #E8FFFA; }
+[data-theme="dark"] .home-section .section-title { color: #FFD166; }
+[data-theme="dark"] .travel-view { background: linear-gradient(180deg, #0B3B3A, #071A18 70%); }
+[data-theme="dark"] .bottom-nav { background: #0B211F !important; border-color: #28524C; }
+@media (max-width: 480px) { .loc-action-btn, .express-swap-btn { min-height: 52px; } .map-confirm-btn { min-height: 54px; font-size: 16px; } }
+
+/* ═══ INTERACTION MOTION — immediate, tactile, accessible feedback ═══ */
+@keyframes cgPressGlow { 0% { box-shadow: 0 0 0 0 rgba(249,115,22,.42); } 100% { box-shadow: 0 0 0 12px rgba(249,115,22,0); } }
+@keyframes cgCardReveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cgSoftPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(15,118,110,.18); } 50% { box-shadow: 0 0 0 8px rgba(15,118,110,0); } }
+
+button, a, [role="button"], .menu-item, .merchant-card, .local-place-card,
+.place-card-shop, .travel-place-item, .travel-vehicle-card, .food-card,
+.order-track-card, .chat-list-item, .nav-item {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .16s cubic-bezier(.2,.8,.2,1), box-shadow .16s ease,
+    filter .16s ease, border-color .16s ease, background-color .16s ease;
+}
+button:not(:disabled):active, a:active, [role="button"]:active,
+.menu-item:active, .merchant-card:active, .local-place-card:active,
+.place-card-shop:active, .travel-place-item:active, .travel-vehicle-card:active,
+.food-card:active, .order-track-card:active, .chat-list-item:active {
+  transform: translateY(2px) scale(.985);
+  filter: brightness(.97) saturate(1.08);
+}
+button:disabled { cursor: not-allowed; filter: saturate(.45); opacity: .58; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, [role="button"]:focus-visible {
+  outline: 3px solid #FFD166;
+  outline-offset: 3px;
+}
+.btn-green, .btn-orange, .partner-cta-btn, .local-place-pin,
+.loc-action-btn, .express-swap-btn, .map-confirm-btn, .travel-map-btn,
+.merchant-map-btn, .customer-payment-btn, .order-track-cta {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-green::after, .btn-orange::after, .partner-cta-btn::after,
+.local-place-pin::after, .loc-action-btn::after, .express-swap-btn::after,
+.map-confirm-btn::after, .travel-map-btn::after, .merchant-map-btn::after,
+.customer-payment-btn::after, .order-track-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 22%, rgba(255,255,255,.26) 46%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform .48s ease;
+}
+.btn-green:hover::after, .btn-orange:hover::after, .partner-cta-btn:hover::after,
+.local-place-pin:hover::after, .loc-action-btn:hover::after, .express-swap-btn:hover::after,
+.map-confirm-btn:hover::after, .travel-map-btn:hover::after, .merchant-map-btn:hover::after,
+.customer-payment-btn:hover::after, .order-track-cta:hover::after { transform: translateX(120%); }
+.btn-green:active, .btn-orange:active, .partner-cta-btn:active,
+.local-place-pin:active, .loc-action-btn:active, .express-swap-btn:active,
+.map-confirm-btn:active, .travel-map-btn:active, .merchant-map-btn:active,
+.customer-payment-btn:active, .order-track-cta:active { animation: cgPressGlow .42s ease-out; }
+.search-bar, .travel-search-bar, .merchant-view .search-bar, .dest-search,
+.form-group input, .form-group textarea, select {
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+.search-bar:focus-within, .travel-search-bar:focus-within,
+.merchant-view .search-bar:focus-within, .dest-search:focus-within,
+.form-group input:focus, .form-group textarea:focus, select:focus {
+  border-color: #0F766E !important;
+  box-shadow: 0 0 0 4px rgba(15,118,110,.14), 0 8px 18px rgba(15,74,70,.1) !important;
+}
+.menu-item:hover, .merchant-card:hover, .local-place-card:hover,
+.place-card-shop:hover, .travel-place-item:hover, .travel-vehicle-card:hover,
+.food-card:hover, .order-track-card:hover, .chat-list-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(9,62,58,.16);
+}
+.menu-item:nth-child(1), .menu-item:nth-child(2), .menu-item:nth-child(3),
+.menu-item:nth-child(4), .menu-item:nth-child(5), .menu-item:nth-child(6),
+.home-section, .merchant-card, .travel-place-item, .travel-vehicle-card {
+  animation: cgCardReveal .42s both;
+}
+.menu-item:nth-child(2) { animation-delay: .04s; }
+.menu-item:nth-child(3) { animation-delay: .08s; }
+.menu-item:nth-child(4) { animation-delay: .12s; }
+.menu-item:nth-child(5) { animation-delay: .16s; }
+.menu-item:nth-child(6) { animation-delay: .2s; }
+.bottom-nav .nav-item.active .nav-icon-wrap { animation: cgSoftPulse 1.8s ease-in-out infinite; }
+.profile-avatar:active, .theme-fab:active, .map-fab:active, .chat-img-btn:active { transform: scale(.9) rotate(-4deg); }
+.map-center-pin-head { animation: cgSoftPulse 1.7s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
 </style>
 </head>
 <body>

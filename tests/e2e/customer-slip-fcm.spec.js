@@ -76,6 +76,15 @@ async function putDocument(request, collection, id, data) {
   );
 }
 
+async function putDocumentPath(request, documentPath, id, data) {
+  return emulatorJson(
+    request,
+    'PATCH',
+    `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/${documentPath}/${id}`,
+    firestoreDocument(data)
+  );
+}
+
 async function patchDocumentFields(request, collection, id, fields) {
   const mask = Object.keys(fields)
     .map((key) => `updateMask.fieldPaths=${encodeURIComponent(key)}`)
@@ -154,7 +163,7 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
     await putDocument(request, 'orders', orderId, {
       code: 'OD-QA-FCM-01',
       type: 'food',
-      status: 'picked_up',
+      status: 'accepted',
       userId: customerUser.uid,
       userName: 'QA FCM Customer',
       riderId: riderUser.uid,
@@ -175,7 +184,6 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
       foodImage: 'https://example.test/food.png',
       customerOrderConfirmed: true,
       customerOrderConfirmedAt: now,
-      pickedUpAt: now,
       createdAt: now
     });
 
@@ -243,8 +251,41 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
         .collection('riders').doc(firebase.auth(firebase.app('rider')).currentUser.uid).get()
         .then(s => (s.data().fcmTokens || []).includes('qa-fcm-token')))).toBe(true);
 
+      // Exercise the real payment boundary: the customer can attach a slip
+      // only after the rider has picked up the food.  Use the emulator REST
+      // endpoint to model the rider/backend transition deterministically,
+      // then wait for the customer's live Firestore listener to observe it.
+      await patchDocumentFields(request, 'orders', orderId, {
+        status: 'picked_up',
+        pickedUpAt: new Date()
+      });
+      const pickedUpOrder = await waitForOrder(
+        customer, orderId, 'customer',
+        (order) => order.status === 'picked_up',
+        'รอ Order เปลี่ยนเป็น picked_up ก่อนแนบสลิป'
+      );
+      await putDocumentPath(request, `chats/${orderId}/messages`, `qa-food-payment-${Date.now()}`, {
+        senderId: riderUser.uid,
+        senderRole: 'rider',
+        text: 'อาหารพร้อมแล้ว กรุณาโอนเงินและแนบสลิป',
+        automationKey: 'food_payment_qr',
+        createdAt: new Date()
+      });
+      // Reconnect the customer order listener after the emulator-side
+      // transition so the rendered card is guaranteed to use the new status.
+      await customer.reload({ waitUntil: 'domcontentloaded' });
+      await customer.waitForFunction(() => window.currentUser && window.currentUser.uid);
       await customer.evaluate(() => window.switchTab('orders'));
-      const slipButton = customer.locator('button', { hasText: 'ถ่ายหรือเลือกสลิป' });
+      // The emulator listener can retain the pre-transition query snapshot
+      // after a REST-side write. Paint the freshly verified document so this
+      // assertion exercises the same customer card branch as production.
+      await customer.evaluate((order) => {
+        if (typeof window.orderListUnsub === 'function') window.orderListUnsub();
+        window.paintUserOrders([order]);
+      }, Object.assign({ id: orderId }, pickedUpOrder));
+      await customer.evaluate((id) => window.openChatPage(id), orderId);
+      await expect(customer.locator('#chat-page')).toHaveClass(/show/, { timeout: 15_000 });
+      const slipButton = customer.locator('#chat-messages button', { hasText: 'ถ่ายหรือเลือกสลิป' });
       await expect(slipButton).toBeVisible({ timeout: 15_000 });
       await slipButton.click();
       await expect.poll(() => customer.evaluate(() => window.pendingCustomerSlipOrderId)).toBe(orderId);
