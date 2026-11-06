@@ -1821,6 +1821,13 @@ async function sendRiderQrPaymentChat(orderId, phase) {
 }
 
 function sendAutomatedChatLater(orderId, key) {
+  if (key === 'shop_arrived') {
+    const job = allJobs.find(item => item.id === orderId);
+    if (job && orderBuysGoods(job)) {
+      pickupGuideOrderIds.add(orderId);
+      job.pickupArrived = true;
+    }
+  }
   sendAutomatedChat(orderId, key);
 }
 
@@ -3832,6 +3839,24 @@ function renderChatGuide(job) {
   const paid = !!job.customerPaidAt || job.status === 'customer_paid';
   const shopSlip = orderHasShopSlip(job);
   const pickupArrived = pickupGuideOrderIds.has(job.id) || job.pickupArrived === true;
+  if (goods && pickupArrived && !job.foodImage) {
+    pickupOrderId = job.id;
+    box.hidden = false;
+    box.innerHTML = `<div class="chat-guide-title">📸 ถ่ายรูปสินค้า/อาหาร + แจ้งราคา</div>
+      <img id="pickup-food-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
+      <div id="pickup-food-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกรูป</div>
+      <div class="chat-guide-row">
+        <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-food-camera').click()">📷 กล้อง</button>
+        <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ คลังภาพ</button>
+      </div>
+      <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
+      <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">
+      ${job.type === 'shopping' ? `<label style="display:block;text-align:left;font-size:13px;font-weight:900;margin:12px 0 6px">💰 ราคาสินค้าจริง</label>
+        <input id="pickup-goods-total" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updatePickupConfirmBtn()" placeholder="กรอกราคาสินค้าจริง" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-weight:900">
+        <div style="margin-top:6px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted)">กรอกราคาแล้วส่งให้ลูกค้ายืนยันก่อน ระบบจะแจ้งยอดรวมค่าบริการ</div>` : ''}
+      <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งรูป${job.type === 'shopping' ? 'สินค้าและราคา' : 'อาหาร'}ให้ลูกค้า</button>`;
+    return;
+  }
   if (goods && (pickupArrived || ['picked_up', 'customer_paid'].includes(job.status)) && !job.foodImage) {
     actions.push(`<button type="button" class="chat-guide-btn" data-food-photo="${esc(job.id)}">📸 ถ่ายรูปสินค้า/อาหารส่งให้ลูกค้า</button>`);
   } else if (goods && ['picked_up', 'customer_paid'].includes(job.status) && !paid && !orderIsCash(job)) {

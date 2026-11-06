@@ -47,3 +47,11 @@ test('GPS ถึงร้านของงานฝากซื้อเปิ�
   assert.match(source, /if \(orderBuysGoods\(job\) && job\.type === 'shopping'\)/);
   assert.match(source, /openPayGuide\(job\.id, 'food'\)/);
 });
+
+test('เปิดแชทหลังข้อความถึงร้านต้องมีปุ่มกล้อง คลังภาพ และช่องราคาสินค้า', () => {
+  assert.match(source, /if \(goods && pickupArrived && !job\.foodImage\)/);
+  assert.match(source, /id="pickup-food-camera"/);
+  assert.match(source, /id="pickup-food-gallery"/);
+  assert.match(source, /id="pickup-goods-total"/);
+  assert.match(source, /key === 'shop_arrived'/);
+});
