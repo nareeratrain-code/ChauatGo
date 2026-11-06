@@ -33,6 +33,8 @@ test('Shopping photo guide: มีช่องราคาสินค้าแ�
   assert.match(block, /job\.type === 'shopping'/);
   assert.match(block, /id="pickup-goods-total"/);
   assert.match(block, /id="pickup-bill-gallery"/);
+  assert.match(block, /document\.getElementById\('pickup-bill-camera'\)\.click\(\)/);
+  assert.match(block, /id="pickup-bill-camera"[^>]+capture="environment"/);
   assert.match(block, /pickupBillBlob = null/);
   assert.match(source, /job && job\.type === 'shopping' && \(!\(Number\(\$\('pickup-goods-total'\)\?\.value\) > 0\) \|\| !pickupBillBlob\)/);
 });

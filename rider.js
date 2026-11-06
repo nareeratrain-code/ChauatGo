@@ -2213,7 +2213,7 @@ function openPayGuide(jobId, stage) {
         <img id="pickup-bill-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px;margin-top:8px">
         <div id="pickup-bill-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted);margin:8px 0">ยังไม่ได้เลือกบิล</div>
         <div class="chat-guide-row">
-          <button type="button" class="chat-guide-btn" onclick="openLiveCamera('bill')">📷 ถ่ายบิล</button>
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-bill-camera').click()">📷 ถ่ายบิล</button>
           <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-bill-gallery').click()">🖼️ เลือกบิล</button>
         </div>
         <input type="file" id="pickup-bill-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'bill')">
