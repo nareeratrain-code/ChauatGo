@@ -4233,17 +4233,19 @@ window.confirmCustomerOrder = async function(orderId) {
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (!cached || cached.userId !== currentUser.uid) return showToast('ไม่พบออเดอร์ของคุณ', 'error');
   var canConfirmSummary = cached.status === 'accepted';
-  var canConfirmFoodPhoto = cached.status === 'picked_up' && cached.type === 'food' && cached.partnerShop === true && !!cached.foodImage;
-  if (!canConfirmSummary && !canConfirmFoodPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือส่งรูปอาหารแล้วเท่านั้น', 'warning');
+  var canConfirmGoodsPhoto = cached.status === 'picked_up' && !!cached.foodImage &&
+    (cached.type === 'shopping' || (cached.type === 'food' && cached.partnerShop === true));
+  var photoLabel = cached.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร';
+  if (!canConfirmSummary && !canConfirmGoodsPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือส่ง' + photoLabel + 'แล้วเท่านั้น', 'warning');
   if (cached.customerOrderConfirmed) return showToast('ยืนยันรายการนี้แล้ว', 'info');
   if (!confirm('ยืนยันรายการและยอด ฿' + fmt(cached.total || cached.fare || 0) + ' ใช่หรือไม่?')) return;
   try {
     await db.collection('orders').doc(orderId).update({
       customerOrderConfirmed: true,
       customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      ...(canConfirmFoodPhoto ? { foodDeliveryStage: 'awaiting_customer_payment' } : { foodDeliveryStage: 'customer_confirmed' })
+      ...(canConfirmGoodsPhoto ? { foodDeliveryStage: 'awaiting_customer_payment' } : { foodDeliveryStage: 'customer_confirmed' })
     });
-    showToast(canConfirmFoodPhoto ? '✅ ยืนยันว่าเห็นรูปแล้ว — QR และยอดโอนพร้อมแล้ว' : '✅ ยืนยันรายการแล้ว — รอเห็นรูปก่อนโอนเงิน', 'success');
+    showToast(canConfirmGoodsPhoto ? '✅ ยืนยันว่าเห็น' + photoLabel + 'แล้ว — QR และยอดโอนพร้อมแล้ว' : '✅ ยืนยันรายการแล้ว — รอเห็น' + photoLabel + 'ก่อนโอนเงิน', 'success');
     var confirmedSnap = await db.collection('orders').doc(orderId).get();
     var confirmedOrder = confirmedSnap.exists ? Object.assign({id: orderId}, confirmedSnap.data()) : cached;
     postConfirmPayNote(confirmedOrder);
@@ -4256,10 +4258,12 @@ async function postConfirmPayNote(order) {
   if (!order || !currentUser || order.paymentMode === 'cash') return;
   if (order.type !== 'food' && order.type !== 'shopping') return;
   var total = order.total || order.fare || 0;
-  var hasFoodPhoto = order.status === 'picked_up' && order.type === 'food' && order.partnerShop === true && !!order.foodImage;
-  var text = hasFoodPhoto
-    ? '✅ ลูกค้ายืนยันว่าเห็นรูปอาหารแล้ว\nกรุณาโอนค่าอาหาร + ค่าบริการให้ไรเดอร์ตามยอดนี้\nยอดที่ต้องโอน ฿' + fmt(total)
-    : 'กรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nยอดที่ต้องโอน ฿' + fmt(total);
+  var hasGoodsPhoto = order.status === 'picked_up' && !!order.foodImage &&
+    (order.type === 'shopping' || (order.type === 'food' && order.partnerShop === true));
+  var photoLabel = order.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร';
+  var text = hasGoodsPhoto
+    ? '✅ ลูกค้ายืนยันว่าเห็น' + photoLabel + 'แล้ว\nกรุณาโอนค่าสินค้า + ค่าบริการให้ไรเดอร์ตามยอดนี้\nยอดที่ต้องโอน ฿' + fmt(total)
+    : 'กรุณาโอนหลังจากเห็น' + (order.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร/สินค้า') + 'แล้วเท่านั้น\nยอดที่ต้องโอน ฿' + fmt(total);
   try {
     await ensureOrderChat(order.id, order);
     var ref = db.collection('chats').doc(order.id).collection('messages').doc('auto_confirm_qr');
@@ -4271,7 +4275,7 @@ async function postConfirmPayNote(order) {
       senderName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
       systemMessage: true,
       automated: true,
-      automationKey: hasFoodPhoto ? 'food_photo_confirmed' : 'confirm_qr',
+      automationKey: hasGoodsPhoto ? 'food_photo_confirmed' : 'confirm_qr',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (order.riderQrCodeUrl) {

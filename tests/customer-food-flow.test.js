@@ -81,6 +81,8 @@ test('Customer payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /customerOrderConfirmedAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);
   assert.match(app, /m\.automationKey === 'food_payment'/);
   assert.match(app, /food_photo_confirmed/);
+  assert.match(app, /cached\.type === 'shopping' \|\| \(cached\.type === 'food' && cached\.partnerShop === true\)/);
+  assert.match(app, /รูปสินค้า\/ของใช้/);
   assert.match(app, /id="customer-slip-input"/);
   assert.match(app, /window\.handleCustomerSlipPick/);
   assert.match(app, /orders\/' \+ orderId \+ '\/riders\/' \+ currentUser\.uid \+ '\/slip_/);
