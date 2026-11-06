@@ -293,10 +293,13 @@ function foodPayEquation(parts) {
 function foodPhotoMessage(order) {
   const parts = foodPayParts(order);
   const amounts = foodPayEquation(parts);
+  const isShopping = order && order.type === 'shopping';
+  const shopItemLabel = isShopping ? 'สินค้า/ของใช้จากร้าน' : 'อาหารจากร้าน';
+  const receiveLabel = isShopping ? 'รับสินค้า/ของใช้' : 'รับอาหาร';
   if (parts.cash) {
-    return '📸 ไรเดอร์ถ่ายรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาเตรียมเงินสดจ่ายไรเดอร์ตอนรับอาหารครับ/ค่ะ\n' + amounts;
+    return '📸 ไรเดอร์ถ่ายรูป' + shopItemLabel + 'แล้วครับ/ค่ะ\nกรุณาเตรียมเงินสดจ่ายไรเดอร์ตอน' + receiveLabel + 'ครับ/ค่ะ\n' + amounts;
   }
-  return '📸 ไรเดอร์ถ่ายรูปอาหารจากร้านแล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์ตามยอดนี้ครับ/ค่ะ\n' + amounts;
+  return '📸 ไรเดอร์ถ่ายรูป' + shopItemLabel + 'แล้วครับ/ค่ะ\nกรุณาโอนเงินให้ไรเดอร์ตามยอด' + (isShopping ? 'สินค้า/ของใช้' : '') + 'นี้ครับ/ค่ะ\n' + amounts;
 }
 
 function autoChatText(order, key) {
@@ -2568,7 +2571,8 @@ async function postRiderOrderImageUrl(orderId, url, imagePath) {
 /* Partner Food: one chat message is the source of truth for the payment step. */
 async function postFoodPaymentChat(orderId, foodUrl, order) {
   const body = await ensureRiderChat(orderId);
-  const text = foodPhotoMessage(order || {}) + '\n\n✅ กรุณากดยืนยันว่าเห็นรูปอาหารแล้ว จากนั้นระบบจะส่ง QR และยอดที่ต้องโอนให้ครับ/ค่ะ';
+  const itemLabel = order && order.type === 'shopping' ? 'สินค้า/ของใช้' : 'อาหาร';
+  const text = foodPhotoMessage(order || {}) + '\n\n✅ กรุณากดยืนยันว่าเห็นรูป' + itemLabel + 'แล้ว จากนั้นระบบจะส่ง QR และยอดที่ต้องโอนให้ครับ/ค่ะ';
   const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_food_payment');
   if ((await messageRef.get()).exists) return;
   const imageUrls = [foodUrl].filter(Boolean);
@@ -2587,7 +2591,7 @@ async function postFoodPaymentChat(orderId, foodUrl, order) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
   await db.collection('chats').doc(orderId).update({
-    lastMessage: '📸 ส่งรูปอาหารแล้ว • แจ้งยอดชำระเงิน',
+    lastMessage: '📸 ส่งรูป' + itemLabel + 'แล้ว • แจ้งยอดชำระเงิน',
     lastSenderId: currentUser.uid,
     lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
   });

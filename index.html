@@ -4989,6 +4989,18 @@ function subscribeChatMessages(orderId) {
         var img = media.map(function(url) { return '<img class="msg-image" src="' + esc(url) + '" onclick="openLightbox(\'' + esc(url) + '\')">'; }).join('');
         var sysStyle = m.systemMessage ? 'background:#FFF3E0;color:#E65100;border-left:3px solid #FF9800;' : '';
         var live = (window._cachedOrders || []).filter(function(item) { return item.id === orderId; })[0] || window._chatOrder;
+        var displayText = m.text ? m.text : '';
+        // Older shopping chats were saved with the partner-food wording.
+        // Normalize them at render time so existing orders do not show
+        // "อาหาร" after the UI is corrected, without mutating chat history.
+        if (live && live.type === 'shopping' && (m.automationKey === 'food_payment' || m.automationKey === 'food_photo_confirmed')) {
+          displayText = displayText
+            .replace(/รูปอาหารจากร้าน/g, 'รูปสินค้า\/ของใช้จากร้าน')
+            .replace(/รูปอาหารแล้ว/g, 'รูปสินค้า\/ของใช้แล้ว')
+            .replace(/รูปอาหาร/g, 'รูปสินค้า\/ของใช้')
+            .replace(/รับอาหาร/g, 'รับสินค้า\/ของใช้')
+            .replace(/ค่าอาหาร/g, 'ค่าสินค้า');
+        }
         var action = '';
         if ((m.automationKey === 'pay_summary' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
           action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">ยืนยัน</button>';
@@ -4997,7 +5009,7 @@ function subscribeChatMessages(orderId) {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +
-          img + (m.text ? '<div style="white-space:pre-wrap">' + esc(m.text) + '</div>' : '') +
+          img + (displayText ? '<div style="white-space:pre-wrap">' + esc(displayText) + '</div>' : '') +
           action +
           '<div class="chat-bubble-meta">' + time + '</div>' +
         '</div>';
