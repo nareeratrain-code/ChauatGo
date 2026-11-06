@@ -4083,7 +4083,9 @@ window.confirmCustomerOrder = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (!cached || cached.userId !== currentUser.uid) return showToast('ไม่พบออเดอร์ของคุณ', 'error');
-  if (cached.status !== 'accepted') return showToast('ยืนยันได้เมื่อไรเดอร์รับงานแล้วเท่านั้น', 'warning');
+  var canConfirmSummary = cached.status === 'accepted';
+  var canConfirmFoodPhoto = cached.status === 'picked_up' && cached.type === 'food' && cached.partnerShop === true && !!cached.foodImage;
+  if (!canConfirmSummary && !canConfirmFoodPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือส่งรูปอาหารแล้วเท่านั้น', 'warning');
   if (cached.customerOrderConfirmed) return showToast('ยืนยันรายการนี้แล้ว', 'info');
   if (!confirm('ยืนยันรายการและยอด ฿' + fmt(cached.total || cached.fare || 0) + ' ใช่หรือไม่?')) return;
   try {
@@ -4091,8 +4093,10 @@ window.confirmCustomerOrder = async function(orderId) {
       customerOrderConfirmed: true,
       customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    showToast('✅ ยืนยันรายการแล้ว — รอเห็นรูปก่อนโอนเงิน', 'success');
-    postConfirmPayNote(cached);
+    showToast(canConfirmFoodPhoto ? '✅ ยืนยันว่าเห็นรูปแล้ว — QR และยอดโอนพร้อมแล้ว' : '✅ ยืนยันรายการแล้ว — รอเห็นรูปก่อนโอนเงิน', 'success');
+    var confirmedSnap = await db.collection('orders').doc(orderId).get();
+    var confirmedOrder = confirmedSnap.exists ? Object.assign({id: orderId}, confirmedSnap.data()) : cached;
+    postConfirmPayNote(confirmedOrder);
   } catch (e) {
     console.error('confirmCustomerOrder error:', e);
     showToast(customerFirebaseErrorText(e, 'ยืนยันรายการไม่สำเร็จ'), 'error');
@@ -4102,7 +4106,10 @@ async function postConfirmPayNote(order) {
   if (!order || !currentUser || order.paymentMode === 'cash') return;
   if (order.type !== 'food' && order.type !== 'shopping') return;
   var total = order.total || order.fare || 0;
-  var text = 'กรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nยอดที่ต้องโอน ฿' + fmt(total);
+  var hasFoodPhoto = order.status === 'picked_up' && order.type === 'food' && order.partnerShop === true && !!order.foodImage;
+  var text = hasFoodPhoto
+    ? '✅ ลูกค้ายืนยันว่าเห็นรูปอาหารแล้ว\nกรุณาโอนค่าอาหาร + ค่าบริการให้ไรเดอร์ตามยอดนี้\nยอดที่ต้องโอน ฿' + fmt(total)
+    : 'กรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nยอดที่ต้องโอน ฿' + fmt(total);
   try {
     await ensureOrderChat(order.id, order);
     var ref = db.collection('chats').doc(order.id).collection('messages').doc('auto_confirm_qr');
@@ -4114,7 +4121,7 @@ async function postConfirmPayNote(order) {
       senderName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
       systemMessage: true,
       automated: true,
-      automationKey: 'confirm_qr',
+      automationKey: hasFoodPhoto ? 'food_photo_confirmed' : 'confirm_qr',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (order.riderQrCodeUrl) {
@@ -4798,10 +4805,10 @@ function subscribeChatMessages(orderId) {
         var sysStyle = m.systemMessage ? 'background:#FFF3E0;color:#E65100;border-left:3px solid #FF9800;' : '';
         var live = (window._cachedOrders || []).filter(function(item) { return item.id === orderId; })[0] || window._chatOrder;
         var action = '';
-        if (m.automationKey === 'pay_summary' && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
+        if ((m.automationKey === 'pay_summary' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
           action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">ยืนยัน</button>';
         }
-        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && !live.customerPaidAt && live.paymentMode !== 'cash') {
+        if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_photo_confirmed' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && live.customerOrderConfirmed && !live.customerPaidAt && live.paymentMode !== 'cash') {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +

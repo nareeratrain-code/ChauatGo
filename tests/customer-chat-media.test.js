@@ -22,7 +22,7 @@ test('Customer Chat แสดง imageUrl จากข้อความทั�
 test('Food photo chat ใช้ URL เดิมจาก orders และ QR ใช้ QR URL ของไรเดอร์', () => {
   assert.match(riderSource, /postFoodPaymentChat\(jobId, pickupFoodUrl/);
   assert.match(riderSource, /imageUrls/);
-  assert.match(riderSource, /qrImageUrl: riderProfile\?\.qrCodeUrl/);
+  assert.match(riderSource, /qrImageUrl: ''/);
   assert.match(riderSource, /automationKey: 'food_payment'/);
 });
 

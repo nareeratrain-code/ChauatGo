@@ -2568,18 +2568,16 @@ async function postRiderOrderImageUrl(orderId, url, imagePath) {
 /* Partner Food: one chat message is the source of truth for the payment step. */
 async function postFoodPaymentChat(orderId, foodUrl, order) {
   const body = await ensureRiderChat(orderId);
-  const text = foodPhotoMessage(order || {}) + (riderProfile?.qrCodeUrl
-    ? '\n\n📱 สแกน QR นี้เพื่อโอนเงินให้ไรเดอร์ได้เลยครับ/ค่ะ'
-    : '');
+  const text = foodPhotoMessage(order || {}) + '\n\n✅ กรุณากดยืนยันว่าเห็นรูปอาหารแล้ว จากนั้นระบบจะส่ง QR และยอดที่ต้องโอนให้ครับ/ค่ะ';
   const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_food_payment');
   if ((await messageRef.get()).exists) return;
-  const imageUrls = [foodUrl, riderProfile?.qrCodeUrl].filter(Boolean);
+  const imageUrls = [foodUrl].filter(Boolean);
   await messageRef.set({
     text,
     imageUrl: imageUrls[0] || '',
     imageUrls,
     foodImageUrl: foodUrl || '',
-    qrImageUrl: riderProfile?.qrCodeUrl || '',
+    qrImageUrl: '',
     senderId: currentUser.uid,
     senderRole: 'rider',
     senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
@@ -2628,6 +2626,9 @@ async function submitFoodPhoto(pickupJob) {
       foodImage: pickupFoodUrl,
       foodImagePath: foodPath
     };
+    if (riderProfile?.qrCodeUrl && pickupJob && pickupJob.type === 'food' && pickupJob.partnerShop === true) {
+      photoPatch.riderQrCodeUrl = riderProfile.qrCodeUrl;
+    }
     if (!alreadyPicked) {
       photoPatch.status = 'picked_up';
       photoPatch.pickedUpAt = firebase.firestore.FieldValue.serverTimestamp();

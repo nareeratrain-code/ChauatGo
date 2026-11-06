@@ -24,7 +24,7 @@ test('partner food keeps Manus QR and slip fields, and adds the wait-for-photo n
   assert.match(rider, /postFoodPaymentChat\(jobId, pickupFoodUrl/);
   assert.match(rider, /imageUrls/);
   assert.match(customer, /function postConfirmPayNote/);
-  assert.match(customer, /automationKey: 'confirm_qr'/);
+  assert.match(customer, /automationKey: hasFoodPhoto \? 'food_photo_confirmed' : 'confirm_qr'/);
   assert.match(customer, /order\.riderQrCodeUrl/);
   assert.match(customer, /slips\/customers\//);
   assert.match(customer, /customerSlipStatus = 'pending'/);

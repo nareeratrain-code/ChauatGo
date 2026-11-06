@@ -79,6 +79,8 @@ test('Customer payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /window\.confirmCustomerOrder/);
   assert.match(app, /customerOrderConfirmed: true/);
   assert.match(app, /customerOrderConfirmedAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);
+  assert.match(app, /m\.automationKey === 'food_payment'/);
+  assert.match(app, /food_photo_confirmed/);
   assert.match(app, /id="customer-slip-input"/);
   assert.match(app, /window\.handleCustomerSlipPick/);
   assert.match(app, /orders\/' \+ orderId \+ '\/riders\/' \+ currentUser\.uid \+ '\/slip_/);

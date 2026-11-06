@@ -400,7 +400,16 @@ service cloud.firestore {
     // New payment-flow fields are customer-owned. Confirmation of the order
     // is separate from customerPaid/customerPaidAt.
     function customerOrderConfirmationOk() {
-      return resource.data.status == 'accepted'
+      return (
+        resource.data.status == 'accepted'
+        || (
+          resource.data.status == 'picked_up'
+          && resource.data.get('type', '') == 'food'
+          && resource.data.get('partnerShop', false) == true
+          && resource.data.get('foodImage', '') is string
+          && resource.data.get('foodImage', '').size() > 0
+        )
+      )
         && request.resource.data.status == resource.data.status
         && identityFrozen()
         && onlyChanged(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
@@ -528,7 +537,11 @@ service cloud.firestore {
           request.resource.data.status == 'picked_up'
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath'])
+          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl'])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['riderQrCodeUrl'])
+            || (request.resource.data.riderQrCodeUrl is string
+              && request.resource.data.riderQrCodeUrl.size() > 0
+              && request.resource.data.riderQrCodeUrl.size() <= 2000))
           && (
             (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
             || (resource.data.status == 'ready' && !noRider(resource.data))
