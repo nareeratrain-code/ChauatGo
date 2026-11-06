@@ -61,3 +61,17 @@ test('Cash Shopping Flow: ลูกค้ายืนยันรับสิน
   assert.match(customer, /if \(!cashPayment && cached && !cached\.customerSlipUrl\)/);
   assert.match(rules, /resource\.data\.get\('paymentMode', ''\) == 'cash' \|\| customerSlipNotRejected\(\)/);
 });
+
+test('Cash Shopping Flow: ไรเดอร์เห็นคำเตือนสำรองจ่ายและทิปก่อนรับงาน', () => {
+  assert.match(rider, /paymentMode: data\.paymentMode \|\| 'transfer'/);
+  assert.match(rider, /งานนี้ชำระเงินสด/);
+  assert.match(rider, /ไรเดอร์ต้องสำรองค่าสินค้าให้ร้านก่อน/);
+  assert.match(rider, /มีทิปให้ไรเดอร์/);
+});
+
+test('Cash Shopping Flow: ใช้บิลร้านแทนสลิปโอนและแสดงสถานะออกจากร้าน', () => {
+  assert.match(rider, /if \(order\.type === 'shopping' && order\.paymentMode === 'cash'\) return !!\(order\.shopBillUrl \|\| orderHasShopSlip\(order\)\)/);
+  assert.match(rider, /กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า/);
+  assert.match(rider, /บันทึกรูปและบิลร้านแล้ว — ไรเดอร์สำรองจ่าย/);
+  assert.match(rider, /fin\.isCash && fin\.tip > 0/);
+});

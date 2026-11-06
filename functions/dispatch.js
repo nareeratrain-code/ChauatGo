@@ -607,6 +607,8 @@ function offerBody(orderId, order, rider, pickup, nowMs, holdMs) {
     merchantName: order.merchantName || '',
     pickupName: order.shopPlaceName || order.fromName || order.address || order.title || '',
     fare: Number(order.fare || order.total || 0),
+    paymentMode: order.paymentMode || 'transfer',
+    cashTip: order.cashTip != null ? Number(order.cashTip) || 0 : (order.paymentMode === 'cash' ? 5 : 0),
     orderCode: order.code || order.orderCode || '',
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(nowMs + holdMs),

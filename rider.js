@@ -137,6 +137,9 @@ function canLeaveShop(order) {
   // Ride and express settle the fee at the destination, not before leaving pickup.
   if (order.type === 'ride' || order.type === 'express') return true;
   if (orderBuysGoods(order)) {
+    // Cash shopping is paid by the rider at the shop and collected on delivery.
+    // The shop bill is sufficient proof; no customer transfer or bank slip is needed.
+    if (order.type === 'shopping' && order.paymentMode === 'cash') return !!(order.shopBillUrl || orderHasShopSlip(order));
     if (!orderHasShopSlip(order)) return false;
     return !!(order.customerPaidAt || order.status === 'customer_paid');
   }
@@ -1611,6 +1614,8 @@ function renderJobCard(j, type) {
     statusInfo = { label: '📸 ต้องส่งรูปอาหารให้ลูกค้า', color: '#E65100', bg: '#FFF3E0' };
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip && !customerPaid) {
     statusInfo = { label: '📦 ส่งรูปแล้ว • รอดำเนินการต่อ', color: '#E65100', bg: '#FFF3E0' };
+  } else if (orderBuysGoods(j) && orderIsCash(j) && j.shopBillUrl && (j.status === 'picked_up' || j.status === 'customer_paid')) {
+    statusInfo = { label: '🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า', color: 'var(--green)', bg: '#E8F5E9' };
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ พร้อมดำเนินการต่อ', color: 'var(--green)', bg: '#E8F5E9' };
   }
@@ -2608,6 +2613,9 @@ async function submitFoodPhoto(pickupJob) {
   if (pickupJob && pickupJob.type === 'shopping' && !(shoppingPrice > 0)) {
     return showToast('⚠️ กรุณากรอกราคาสินค้าจริงก่อนส่งให้ลูกค้า', 'warning');
   }
+  if (pickupJob && pickupJob.type === 'shopping' && orderIsCash(pickupJob) && !pickupBillBlob) {
+    return showToast('⚠️ งานเงินสดต้องแนบบิลร้าน เพื่อยืนยันว่าไรเดอร์สำรองจ่ายแล้ว', 'warning');
+  }
   if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
@@ -2678,13 +2686,28 @@ async function submitFoodPhoto(pickupJob) {
       console.warn('food payment chat', readyErr && (readyErr.code || readyErr.message));
       showToast('รูปอัปโหลดแล้ว แต่ส่งข้อความยอดชำระไม่สำเร็จ', 'warning', 7000);
     }
+    // Cash shopping is settled at delivery. Once the rider has uploaded the
+    // item photo and shop bill, mark the shop step complete without waiting
+    // for customerPaidAt or a transfer slip.
+    if (pickupJob && pickupJob.type === 'shopping' && orderIsCash(pickupJob) && billUrl) {
+      uploadStep = 'บันทึกการสำรองจ่ายเงินสด';
+      await db.collection('orders').doc(jobId).update({
+        riderPaidShopAt: firebase.firestore.FieldValue.serverTimestamp(),
+        foodDeliveryStage: 'shop_paid'
+      });
+      if (pickedJob) {
+        pickedJob.shopBillUrl = billUrl;
+        pickedJob.riderPaidShopAt = new Date();
+        pickedJob.foodDeliveryStage = 'shop_paid';
+      }
+    }
     arrivedShopNotifiedOrderIds.add(jobId);
     if (pickedJob && !orderIsCash(pickedJob) && !pickedJob.customerPaidAt) startPaymentTimers(jobId);
     showToast(orderIsCash(pickedJob)
-      ? '✅ ส่งรูปแล้ว — แจ้งให้เตรียมเงินสดตอนส่ง แล้วแนบสลิปร้าน'
+      ? '✅ บันทึกรูปและบิลร้านแล้ว — ไรเดอร์สำรองจ่าย เก็บเงินสดปลายทางได้'
       : '✅ ส่งรูปแล้ว — แจ้งลูกค้าให้โอน แล้วแนบสลิปร้าน');
     renderJobs();
-    openPayGuide(jobId, (pickedJob && (orderIsCash(pickedJob) || pickedJob.customerPaidAt)) ? 'slip' : 'wait');
+    openPayGuide(jobId, (pickedJob && orderIsCash(pickedJob)) ? 'done' : (pickedJob && pickedJob.customerPaidAt ? 'slip' : 'wait'));
   } catch (err) {
     console.error('submitFoodPhoto error:', err);
     const detail = err && (err.code || err.message) || 'unknown-error';
@@ -2891,8 +2914,8 @@ async function startDelivery(jobId) {
     if (!snap.exists) return showToast('ไม่พบงาน', 'error');
     const job = snap.data();
 
-    if (orderBuysGoods(job) && !orderHasShopSlip(job)) {
-      return showToast('⚠️ แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง', 'warning');
+    if (orderBuysGoods(job) && !((job.type === 'shopping' && orderIsCash(job)) ? job.shopBillUrl : orderHasShopSlip(job))) {
+      return showToast(orderIsCash(job) ? '⚠️ แนบบิลร้านก่อนออกเดินทาง' : '⚠️ แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง', 'warning');
     }
     if (!canLeaveShop(job)) {
       return showToast('⚠️ ลูกค้ายังไม่โอนเงิน', 'warning');
@@ -2903,7 +2926,11 @@ async function startDelivery(jobId) {
       onTheWayAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...(orderBuysGoods(job) ? { foodDeliveryStage: 'out_for_delivery' } : {})
     });
-    showToast(job.type === 'ride' ? '🚗 เริ่มเดินทางไปปลายทาง' : '🚀 กำลังออกไปส่งสินค้า');
+    showToast(job.type === 'ride'
+      ? '🚗 เริ่มเดินทางไปปลายทาง'
+      : (job.type === 'shopping' && orderIsCash(job)
+        ? '🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า'
+        : '🚀 กำลังออกไปส่งสินค้า'));
     sendAutomatedChatLater(jobId, 'on_the_way');
     clearPaymentTimers();
   } catch (err) {
@@ -3092,6 +3119,8 @@ function showJobDetail(jobId) {
     ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — กรุณาเก็บค่าบริการจากลูกค้า</div>`
     : job.type === 'express' && job.status === 'on_the_way' && !orderIsCash(job) && !job.customerPaidAt
     ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — รับค่าบริการจากลูกค้า</div>`
+    : orderIsCash(job) && job.type === 'shopping' && job.shopBillUrl && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
+    ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า — เก็บเงินสดปลายทาง</div>`
     : orderIsCash(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
     ? `<div style="background:#FFF3E0;border-left:4px solid #E65100;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">💵 ชำระเงินสดกับไรเดอร์ — เก็บเงินตอนส่ง</div>`
     : (job.customerPaidAt
@@ -3132,6 +3161,7 @@ function showJobDetail(jobId) {
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding:4px 0;color:var(--green)">
         <span>คุณได้รับ (80% ของค่าส่ง)</span><span style="font-weight:900">฿${fmt(fin.totalRider)}</span>
       </div>
+      ${fin.isCash && fin.tip > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;padding:4px 0;color:#8A5A00"><span>ทิปเงินสด</span><span style="font-weight:900">+ ฿${fmt(fin.tip)}</span></div>` : ''}
     </div>
     ${job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : ''}
     ${payActionHtml}
@@ -4184,7 +4214,7 @@ function subscribeOffers() {
         const data = d.data() || {};
         const parent = d.ref.parent && d.ref.parent.parent;
         const broadcast = data.broadcast === true;
-        return {
+          return {
           id: d.id,
           orderId: data.orderId || (parent ? parent.id : ''),
           riderId: data.riderId,
@@ -4192,6 +4222,8 @@ function subscribeOffers() {
           merchantName: data.merchantName || '',
           pickupName: data.pickupName || '',
           fare: data.fare,
+          paymentMode: data.paymentMode || 'transfer',
+          cashTip: data.cashTip,
           orderCode: data.orderCode || '',
           distanceKm: data.distanceKm,
           broadcast: broadcast,
@@ -4214,6 +4246,10 @@ function showOffer(offer) {
   if (!same) {
     const who = offer.merchantName || offer.pickupName || offer.title || 'งานใหม่';
     const km = (typeof offer.distanceKm === 'number') ? offer.distanceKm.toFixed(1) + ' กม.' : '';
+    const cashShopping = offer.paymentMode === 'cash' && /shopping|ฝากซื้อ|ซื้อ/i.test(String(offer.title || ''));
+    const cashNotice = offer.paymentMode === 'cash'
+      ? `<div style="margin-top:12px;padding:12px;border-radius:12px;background:#FFF3E0;border:2px solid #FFB74D;color:#8A3A00;font-size:13px;font-weight:900;line-height:1.55;text-align:left">💵 งานนี้ชำระเงินสด${cashShopping ? ' • ไรเดอร์ต้องสำรองค่าสินค้าให้ร้านก่อน' : ''}<br>ลูกค้าจะชำระเงินสดเมื่อรับของ${cashShopping ? ' • มีทิปให้ไรเดอร์ ฿' + fmt(offer.cashTip || 5) : ''}</div>`
+      : '';
     const clock = offer.broadcast
       ? `<div style="font-size:22px;font-weight:900;color:var(--brand)">เปิดรับอยู่</div>
           <div style="font-size:12px;font-weight:800;color:var(--text-muted)">คนแรกที่กดรับได้งานนี้</div>`
@@ -4229,6 +4265,7 @@ function showOffer(offer) {
           ${clock}
           <div style="margin-top:8px;font-weight:800">${esc(offer.orderCode || offer.title || '')}</div>
           <div style="font-size:13px;margin-top:4px">${km ? esc(km) + ' • ' : ''}฿${fmt(offer.fare || 0)}</div>
+          ${cashNotice}
         </div>
         <div class="job-actions two">
           <button type="button" class="action-btn-big btn-green-big ripple" onclick="acceptDispatchOffer()">✅ รับงาน</button>
