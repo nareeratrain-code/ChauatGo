@@ -2674,13 +2674,21 @@ async function submitShopSlip(pickupJob) {
     const slipRef = storage.ref(slipPath);
     await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
     pickupSlipUrl = await slipRef.getDownloadURL();
-    await postRiderOrderImage(jobId, pickupSlipBlob);
+    // Save the shop-payment proof on the Order first. Re-uploading the same
+    // image to the chat before this update could fail on chat permissions and
+    // leave the rider with a successful Storage upload but no Order record.
     await db.collection('orders').doc(jobId).update({
       riderSlipToShop: pickupSlipUrl,
       riderSlipToShopPath: slipPath,
       riderPaidShopAt: firebase.firestore.FieldValue.serverTimestamp(),
       foodDeliveryStage: 'shop_paid'
     });
+    try {
+      await postRiderOrderImageUrl(jobId, pickupSlipUrl, slipPath);
+    } catch (chatErr) {
+      console.warn('shop slip chat message', chatErr && (chatErr.code || chatErr.message));
+      showToast('✅ บันทึกสลิปร้านแล้ว แต่ส่งเข้าแชทไม่สำเร็จ', 'warning', 7000);
+    }
     const job = allJobs.find(j => j.id === jobId) || pickupJob;
     if (job) {
       job.riderSlipToShop = pickupSlipUrl;
