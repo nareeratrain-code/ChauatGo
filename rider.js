@@ -777,6 +777,17 @@ function soundPaymentReceived() {
    ═══════════════════════════════════════════════════════════════════ */
 function compressImage(file, maxWidth = 1000, quality = 0.8) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (value, error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      error ? reject(error) : resolve(value);
+    };
+    // Some mobile WebViews do not fire canvas.toBlob reliably for camera
+    // captures. Never leave the upload UI spinning forever; use the original
+    // file as a safe fallback.
+    const timeout = setTimeout(() => finish(file), 8000);
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -792,12 +803,13 @@ function compressImage(file, maxWidth = 1000, quality = 0.8) {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
+        if (!ctx || !width || !height) return finish(file);
         ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+        canvas.toBlob((blob) => finish(blob || file), 'image/jpeg', quality);
       };
-      img.onerror = reject;
+      img.onerror = () => finish(file);
     };
-    reader.onerror = reject;
+    reader.onerror = () => finish(file);
   });
 }
 
@@ -3742,7 +3754,11 @@ async function openChatWithCustomer(orderId) {
   const cs = $('chatSub'); if (cs) cs.textContent = '🧾 ' + orderLabel(job) + (job.title ? ' • ' + job.title : '');
   $('chatContainer')?.classList.add('show');
   closeModal({ keepPickup: true });
-  renderChatGuide(job);
+  // openPayGuide() renders the concrete camera/gallery form before opening
+  // the chat. Do not replace that form with the generic action button while
+  // the asynchronous chat document is being opened.
+  const pickupForm = $('chat-guide')?.querySelector('#pickup-food-gallery, #pickup-slip-gallery');
+  if (!(pickupOrderId === orderId && pickupForm)) renderChatGuide(job);
 
   if (activeChatUnsub) activeChatUnsub();
   activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')

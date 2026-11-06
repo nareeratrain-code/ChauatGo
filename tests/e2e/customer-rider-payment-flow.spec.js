@@ -119,10 +119,6 @@ async function uploadImage(page, selector, name) {
     mimeType: 'image/png',
     buffer: IMAGE_1X1
   });
-  // Playwright normally emits input/change for setInputFiles. Dispatching
-  // change explicitly also reproduces mobile camera/gallery implementations
-  // that update the FileList without firing the inline handler consistently.
-  await input.dispatchEvent('change');
 }
 
 test.describe('Customer ↔ Rider Payment Flow', () => {
