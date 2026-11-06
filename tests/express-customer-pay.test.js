@@ -63,7 +63,7 @@ test('express can attach a slip and mark the fee paid while on the way', () => {
   assert.match(rules, /function customerSlipPathOk\(path, orderId\)/);
   assert.match(rules, /orders\/' \+ orderId \+ '\/riders\/' \+ myUid\(\) \+ '\/slip_/);
   assert.match(rules, /function expressFarePaidOk\(\)/);
-  assert.match(rules, /changed\.hasOnly\(\['customerPaid', 'customerPaidAt'\]\)[\s\S]{0,80}expressFarePaidOk\(\)/);
+  assert.match(rules, /changed\.hasOnly\(\['customerPaid', 'customerPaidAt', 'foodDeliveryStage'\]\)[\s\S]{0,120}expressFarePaidOk\(\)/);
   const fn = orders.slice(orders.indexOf('async function confirmPaymentReceived'), orders.indexOf('module.exports'));
   assert.match(fn, /order\.type === 'ride' \|\| order\.type === 'express'/);
   assert.match(fn, /fareAtDestination/);

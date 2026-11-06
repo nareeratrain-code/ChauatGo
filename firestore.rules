@@ -397,6 +397,16 @@ service cloud.firestore {
       return isAuth() && resource.data.get('userId', '') == myUid();
     }
 
+    function foodDeliveryStageChangedOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['foodDeliveryStage'])
+        || request.resource.data.foodDeliveryStage in [
+          'preparing', 'ready_for_pickup', 'food_photo_sent',
+          'customer_confirmed', 'awaiting_customer_payment',
+          'customer_slip_uploaded', 'customer_paid', 'shop_paid',
+          'out_for_delivery', 'delivered'
+        ];
+    }
+
     // New payment-flow fields are customer-owned. Confirmation of the order
     // is separate from customerPaid/customerPaidAt.
     function customerOrderConfirmationOk() {
@@ -412,7 +422,8 @@ service cloud.firestore {
       )
         && request.resource.data.status == resource.data.status
         && identityFrozen()
-        && onlyChanged(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
+        && onlyChanged(['customerOrderConfirmed', 'customerOrderConfirmedAt', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.customerOrderConfirmed == true
         && request.resource.data.customerOrderConfirmedAt is timestamp;
     }
@@ -440,7 +451,8 @@ service cloud.firestore {
       return customerMayAttachSlip()
         && request.resource.data.status == resource.data.status
         && identityFrozen()
-        && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
+        && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.customerSlipUrl is string
         && request.resource.data.customerSlipUrl.size() > 0
         && request.resource.data.customerSlipUrl.size() <= 2000
@@ -484,8 +496,9 @@ service cloud.firestore {
         && identityFrozen()
         && onlyChanged([
           'customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt',
-          'customerSlipStatus', 'customerSlipRevision'
+          'customerSlipStatus', 'customerSlipRevision', 'foodDeliveryStage'
         ])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.customerSlipUrl is string
         && request.resource.data.customerSlipUrl.size() > 0
         && request.resource.data.customerSlipUrl.size() <= 2000
@@ -517,7 +530,8 @@ service cloud.firestore {
           && customerSlipNotRejected()
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['status', 'customerPaid', 'customerPaidAt'])
+          && onlyChanged(['status', 'customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
+          && foodDeliveryStageChangedOk()
         )
         || (
           resource.data.status in ['done', 'delivered']
@@ -537,7 +551,8 @@ service cloud.firestore {
           request.resource.data.status == 'picked_up'
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl'])
+          && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl', 'foodDeliveryStage'])
+          && foodDeliveryStageChangedOk()
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['riderQrCodeUrl'])
             || (request.resource.data.riderQrCodeUrl is string
               && request.resource.data.riderQrCodeUrl.size() > 0
@@ -557,7 +572,8 @@ service cloud.firestore {
           && request.resource.data.status == resource.data.status
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+          && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
+          && foodDeliveryStageChangedOk()
           && request.resource.data.riderSlipToShop is string
           && request.resource.data.riderSlipToShop.size() > 0
           && request.resource.data.riderSlipToShop.size() <= 2000
@@ -568,7 +584,8 @@ service cloud.firestore {
           && request.resource.data.status == 'on_the_way'
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['status', 'onTheWayAt'])
+          && onlyChanged(['status', 'onTheWayAt', 'foodDeliveryStage'])
+          && foodDeliveryStageChangedOk()
           && (!buysGoods() || shopSlipAttached())
         )
         || (
@@ -599,7 +616,8 @@ service cloud.firestore {
           && request.resource.data.status == 'cooking'
           && identityFrozen()
           && unchanged('riderId')
-          && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+          && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt', 'foodDeliveryStage'])
+          && foodDeliveryStageChangedOk()
           && request.resource.data.cookingAt is timestamp
           && changedToString('code', 7, 7)
           && changedToString('deliveryCode', 4, 4)
@@ -624,7 +642,8 @@ service cloud.firestore {
           && identityFrozen()
           && unchanged('riderId')
           && resource.data.status in ['cooking', 'ready', 'accepted']
-          && onlyChanged(['foodReady', 'readyAt', 'status'])
+          && onlyChanged(['foodReady', 'readyAt', 'status', 'foodDeliveryStage'])
+          && foodDeliveryStageChangedOk()
           && request.resource.data.readyAt is timestamp
           && (
             request.resource.data.status == resource.data.status
@@ -673,7 +692,8 @@ service cloud.firestore {
         && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'customerPaid', 'customerPaidAt']);
+        && onlyChanged(['status', 'customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk();
     }
 
     // Express stays on_the_way. The customer records the transfer only after
@@ -686,7 +706,8 @@ service cloud.firestore {
         && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['customerPaid', 'customerPaidAt'])
+        && onlyChanged(['customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.customerPaid == true
         && request.resource.data.customerPaidAt is timestamp;
     }
@@ -710,7 +731,8 @@ service cloud.firestore {
         && request.resource.data.status == 'picked_up'
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath'])
+        && onlyChanged(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && (
           (resource.data.status == 'accepted' && (!needsKitchen() || foodIsReady()))
           || (resource.data.status == 'ready' && !noRider(resource.data))
@@ -727,7 +749,8 @@ service cloud.firestore {
         )
         && resource.data.status in ['picked_up', 'customer_paid']
         && request.resource.data.status == resource.data.status
-        && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+        && onlyChanged(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.riderSlipToShop is string
         && request.resource.data.riderSlipToShop.size() > 0
         && request.resource.data.riderSlipToShop.size() <= 2000
@@ -740,7 +763,8 @@ service cloud.firestore {
         && request.resource.data.status == 'on_the_way'
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'onTheWayAt'])
+        && onlyChanged(['status', 'onTheWayAt', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && (!buysGoods() || shopSlipAttached());
     }
 
@@ -798,7 +822,8 @@ service cloud.firestore {
         && request.resource.data.status == 'cooking'
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+        && onlyChanged(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.cookingAt is timestamp
         && changedToString('code', 7, 7)
         && changedToString('deliveryCode', 4, 4)
@@ -827,7 +852,8 @@ service cloud.firestore {
         && identityFrozen()
         && unchanged('riderId')
         && resource.data.status in ['cooking', 'ready', 'accepted']
-        && onlyChanged(['foodReady', 'readyAt', 'status'])
+        && onlyChanged(['foodReady', 'readyAt', 'status', 'foodDeliveryStage'])
+        && foodDeliveryStageChangedOk()
         && request.resource.data.readyAt is timestamp
         && (
           request.resource.data.status == resource.data.status
@@ -848,33 +874,33 @@ service cloud.firestore {
       return (moneyFrozen() && isAdmin() && identityFrozen())
         || (changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
           ? (customerCancelOk() || riderCancelOk() || merchantCancelOk())
-          : changed.hasOnly(['customerOrderConfirmed', 'customerOrderConfirmedAt'])
+          : changed.hasOnly(['customerOrderConfirmed', 'customerOrderConfirmedAt', 'foodDeliveryStage'])
             ? customerConfirmOk()
-            : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt'])
+            : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'foodDeliveryStage'])
               ? customerSlipUploadTransitionOk(orderId)
-              : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipStatus', 'customerSlipRevision'])
+              : changed.hasOnly(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'customerSlipStatus', 'customerSlipRevision', 'foodDeliveryStage'])
                 ? customerSlipResubmissionTransitionOk(orderId)
                 : changed.hasOnly(['customerSlipStatus', 'customerSlipRejectionReason', 'customerSlipRejectedAt', 'customerSlipRejectedBy'])
                   ? riderSlipRejectionTransitionOk()
-                  : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
+                  : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                     ? riderPickupOk()
                     : changed.hasAny(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
                       ? riderShopSlipOk()
-                      : changed.hasOnly(['status', 'onTheWayAt'])
+                      : changed.hasOnly(['status', 'onTheWayAt', 'foodDeliveryStage'])
                         ? riderOnTheWayOk()
                       // hasOnly() is a subset check, so the two-field Express
                       // payment route must come before the three-field route.
-                      : changed.hasOnly(['customerPaid', 'customerPaidAt'])
+                      : changed.hasOnly(['customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
                           ? expressFarePaidOk()
-                          : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt'])
+                          : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
                             ? (customerPaidOk() || riderCustomerPaidOk())
                             : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
                             ? riderNearCustomerOk()
                             : changed.hasOnly(['rated', 'ratedAt'])
                               ? customerRatingOk()
-                              : changed.hasOnly(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt'])
+                              : changed.hasOnly(['status', 'cookingAt', 'prepMinutes', 'code', 'deliveryCode', 'codeCreatedAt', 'foodDeliveryStage'])
                                 ? merchantCookingOk()
-                                : changed.hasOnly(['foodReady', 'readyAt', 'status'])
+                                : changed.hasOnly(['foodReady', 'readyAt', 'status', 'foodDeliveryStage'])
                                   ? merchantReadyOk()
                                   : false);
     }

@@ -1065,7 +1065,8 @@ async function acceptOrder(orderId, prepMinutes) {
       const updates = {
         status: 'cooking',
         cookingAt: firebase.firestore.FieldValue.serverTimestamp(),
-        prepMinutes: minutes
+        prepMinutes: minutes,
+        foodDeliveryStage: 'preparing'
       };
       if (!order.code) {
         updates.code = generateOrderCode();
@@ -1099,7 +1100,8 @@ async function readyOrder(orderId) {
       const riderHasIt = !!(order.riderId) && ['accepted', 'picked_up', 'customer_paid', 'on_the_way'].includes(order.status);
       const updates = {
         readyAt: firebase.firestore.FieldValue.serverTimestamp(),
-        foodReady: true
+        foodReady: true,
+        foodDeliveryStage: 'ready_for_pickup'
       };
       if (!riderHasIt) updates.status = 'ready';
       toldRider = riderHasIt;

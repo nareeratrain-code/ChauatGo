@@ -2622,10 +2622,11 @@ async function submitFoodPhoto(pickupJob) {
     uploadStep = 'เตรียมรูปสำหรับข้อความรวม';
     uploadStep = 'บันทึกรูปลงออเดอร์';
     const alreadyPicked = !!(pickupJob && (pickupJob.status === 'picked_up' || pickupJob.status === 'customer_paid' || pickupJob.status === 'on_the_way'));
-    const photoPatch = {
-      foodImage: pickupFoodUrl,
-      foodImagePath: foodPath
-    };
+      const photoPatch = {
+        foodImage: pickupFoodUrl,
+        foodImagePath: foodPath,
+        foodDeliveryStage: 'food_photo_sent'
+      };
     if (riderProfile?.qrCodeUrl && pickupJob && pickupJob.type === 'food' && pickupJob.partnerShop === true) {
       photoPatch.riderQrCodeUrl = riderProfile.qrCodeUrl;
     }
@@ -2677,7 +2678,8 @@ async function submitShopSlip(pickupJob) {
     await db.collection('orders').doc(jobId).update({
       riderSlipToShop: pickupSlipUrl,
       riderSlipToShopPath: slipPath,
-      riderPaidShopAt: firebase.firestore.FieldValue.serverTimestamp()
+      riderPaidShopAt: firebase.firestore.FieldValue.serverTimestamp(),
+      foodDeliveryStage: 'shop_paid'
     });
     const job = allJobs.find(j => j.id === jobId) || pickupJob;
     if (job) {
@@ -2839,7 +2841,8 @@ async function startDelivery(jobId) {
 
     await db.collection('orders').doc(jobId).update({
       status: 'on_the_way',
-      onTheWayAt: firebase.firestore.FieldValue.serverTimestamp()
+      onTheWayAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ...(orderBuysGoods(job) ? { foodDeliveryStage: 'out_for_delivery' } : {})
     });
     showToast(job.type === 'ride' ? '🚗 เริ่มเดินทางไปปลายทาง' : '🚀 กำลังออกไปส่งสินค้า');
     sendAutomatedChatLater(jobId, 'on_the_way');

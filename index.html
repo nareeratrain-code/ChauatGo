@@ -4091,7 +4091,8 @@ window.confirmCustomerOrder = async function(orderId) {
   try {
     await db.collection('orders').doc(orderId).update({
       customerOrderConfirmed: true,
-      customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+      customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      ...(canConfirmFoodPhoto ? { foodDeliveryStage: 'awaiting_customer_payment' } : { foodDeliveryStage: 'customer_confirmed' })
     });
     showToast(canConfirmFoodPhoto ? '✅ ยืนยันว่าเห็นรูปแล้ว — QR และยอดโอนพร้อมแล้ว' : '✅ ยืนยันรายการแล้ว — รอเห็นรูปก่อนโอนเงิน', 'success');
     var confirmedSnap = await db.collection('orders').doc(orderId).get();
@@ -4188,7 +4189,8 @@ window.handleCustomerSlipPick = async function(event) {
     var slipUpdate = {
       customerSlipUrl: url,
       customerSlipPath: path,
-      customerSlipUploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+      customerSlipUploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      foodDeliveryStage: 'customer_slip_uploaded'
     };
     if (resubmitting) {
       slipUpdate.customerSlipStatus = 'pending';
@@ -4229,7 +4231,8 @@ window.confirmCustomerPaid = async function(orderId) {
   try {
     var paidPatch = {
       customerPaidAt: firebase.firestore.FieldValue.serverTimestamp(),
-      customerPaid: true
+      customerPaid: true,
+      foodDeliveryStage: 'customer_paid'
     };
     if (!expressDropoff) paidPatch.status = 'customer_paid';
     await db.collection('orders').doc(orderId).update(paidPatch);

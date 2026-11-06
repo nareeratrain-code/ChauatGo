@@ -408,7 +408,8 @@ async function completeOrder(db, uid, orderId) {
       gpTotal: gp.total,
       gpRider: gp.rider,
       gpPlatform: gp.platform,
-      gpPromo: gp.promo === true
+      gpPromo: gp.promo === true,
+      ...(order.type === 'food' ? { foodDeliveryStage: 'delivered' } : {})
     });
     tx.update(riderRef, {
       totalJobs: FieldValue.increment(1),
