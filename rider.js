@@ -2197,6 +2197,7 @@ function openPayGuide(jobId, stage) {
   $('modalOverlay')?.classList.remove('show');
   pickupOrderId = jobId;
   pickupFoodBlob = null;
+  pickupBillBlob = null;
   pickupSlipBlob = null;
   const paid = !!job.customerPaidAt || job.status === 'customer_paid';
   const slipReady = orderBuysGoods(job) && job.foodImage && paid && !orderHasShopSlip(job);
@@ -2205,6 +2206,18 @@ function openPayGuide(jobId, stage) {
   const box = $('chat-guide');
   if (box) {
     if (mode === 'food') {
+      const shoppingFields = job.type === 'shopping' ? `
+        <label style="display:block;text-align:left;font-size:13px;font-weight:900;margin:12px 0 6px">💰 ราคาสินค้าจริง</label>
+        <input id="pickup-goods-total" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updatePickupConfirmBtn()" placeholder="กรอกราคาสินค้า เช่น 125" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-weight:900">
+        <div style="margin-top:12px;text-align:left;font-size:13px;font-weight:900">🧾 บิลร้านค้า <span style="color:#E53935">*บังคับ</span></div>
+        <img id="pickup-bill-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px;margin-top:8px">
+        <div id="pickup-bill-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted);margin:8px 0">ยังไม่ได้เลือกบิล</div>
+        <div class="chat-guide-row">
+          <button type="button" class="chat-guide-btn" onclick="openLiveCamera('bill')">📷 ถ่ายบิล</button>
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-bill-gallery').click()">🖼️ เลือกบิล</button>
+        </div>
+        <input type="file" id="pickup-bill-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'bill')">
+        <input type="file" id="pickup-bill-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'bill')">` : '';
       box.hidden = false;
       box.innerHTML = `<div class="chat-guide-title">📸 ถ่ายรูปอาหาร/สินค้า ส่งเข้าแชท</div>
         <img id="pickup-food-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
@@ -2214,7 +2227,7 @@ function openPayGuide(jobId, stage) {
           <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-food-gallery').click()">🖼️ คลังภาพ</button>
         </div>
         <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
-        <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">
+        <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">${shoppingFields}
         <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งรูปให้ลูกค้า</button>`;
     } else if (mode === 'slip') {
       box.hidden = false;
