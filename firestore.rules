@@ -912,7 +912,8 @@ service cloud.firestore {
               // The shop-slip key set is a subset of the pickup key set. Route
               // it first; otherwise hasOnly() below sends it to riderPickupOk
               // and the update is rejected after the food photo already exists.
-              : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'foodTotal', 'itemsTotal', 'shopBillUrl', 'shopBillPath', 'foodPriceUpdatedAt', 'foodDeliveryStage'])
+              : request.resource.data.get('type', '') == 'shopping'
+                && changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'foodTotal', 'itemsTotal', 'shopBillUrl', 'shopBillPath', 'foodPriceUpdatedAt', 'foodDeliveryStage'])
                 ? riderGoodsQuoteOk()
                 : changed.hasOnly(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                 ? riderShopSlipOk()

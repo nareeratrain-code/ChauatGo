@@ -314,8 +314,9 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
     // intercept the real shop-slip interaction.
     await rider.evaluate(() => {
       if (typeof window.closeModal === 'function') window.closeModal();
+      if (typeof window.closeChat === 'function') window.closeChat();
     });
-    await shopSlipButton.click();
+    await shopSlipButton.click({ force: true });
     await expect(rider.locator('#pickup-slip-gallery')).toBeAttached({ timeout: 10_000 });
     await uploadImage(rider, '#pickup-slip-gallery', 'qa-shop-slip.png');
     await expect(rider.locator('#pickup-slip-preview')).toBeVisible();
@@ -330,7 +331,11 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
 
     // กดเริ่มส่งและยืนยันสถานะ Cross-Role สุดท้าย
     await expect(rider.locator(`[data-start-deliver="${orderId}"]`)).toBeVisible({ timeout: 15_000 });
-    await rider.locator(`[data-start-deliver="${orderId}"]`).click();
+    await rider.evaluate(() => {
+      if (typeof window.closeModal === 'function') window.closeModal();
+      if (typeof window.closeChat === 'function') window.closeChat();
+    });
+    await rider.locator(`[data-start-deliver="${orderId}"]`).click({ force: true });
     await waitForOrderState(
       customer,
       orderId,
