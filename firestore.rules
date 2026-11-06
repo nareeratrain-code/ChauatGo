@@ -343,6 +343,17 @@ service cloud.firestore {
       ]);
     }
 
+    // Shopping quotes are the one rider-owned price adjustment: the rider
+    // records the actual shop total after taking the product photo and bill.
+    // Keep every other server-calculated money field immutable.
+    function goodsQuoteMoneyFrozen() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'fare', 'total', 'subtotal', 'netTotal', 'discountTotal', 'cashTip',
+        'items', 'riderIncome', 'riderOwe', 'riderPaid', 'gpTotal', 'gpRider',
+        'gpPlatform', 'chargedTotal', 'partnerShop', 'shopDisclaimerAccepted'
+      ]);
+    }
+
     function identityFrozen() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
         'userId', 'merchantId', 'type'
@@ -763,7 +774,7 @@ service cloud.firestore {
     }
 
     function riderGoodsQuoteOk() {
-      return moneyFrozen() && isAssignedRider()
+      return goodsQuoteMoneyFrozen() && isAssignedRider()
         && buysGoods()
         && resource.data.status in ['accepted', 'picked_up']
         && request.resource.data.status == 'picked_up'

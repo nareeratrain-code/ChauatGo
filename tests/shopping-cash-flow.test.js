@@ -30,6 +30,16 @@ test('Cash Shopping Flow: ลูกค้าเลือกเงินสดต
   assert.match(customer, /จ่ายตอนรับของ/);
 });
 
+test('Shopping quote Rule allows foodTotal/itemsTotal rider adjustment but freezes other money fields', () => {
+  assert.match(rules, /function goodsQuoteMoneyFrozen\(\)/);
+  assert.match(rules, /function riderGoodsQuoteOk\(\) \{\s*return goodsQuoteMoneyFrozen\(\)/);
+  const quoteRule = rules.slice(rules.indexOf('function goodsQuoteMoneyFrozen'), rules.indexOf('function identityFrozen'));
+  assert.doesNotMatch(quoteRule, /'foodTotal'/);
+  assert.doesNotMatch(quoteRule, /'itemsTotal'/);
+  assert.match(quoteRule, /'fare'/);
+  assert.match(quoteRule, /'chargedTotal'/);
+});
+
 test('Cash Shopping Flow: ไรเดอร์ส่งรูปสินค้า บิล และราคาจริงพร้อมข้อความเงินสด', () => {
   assert.match(rider, /id="pickup-goods-total"/);
   assert.match(rider, /id="pickup-bill-gallery"/);
