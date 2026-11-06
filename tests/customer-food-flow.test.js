@@ -92,7 +92,7 @@ test('Customer order tracking: หลังสร้างออเดอร์�
   assert.match(app, /openOrderChat|openChat/);
 });
 
-test('Customer payment UI: ยืนยันรายการ → แนบสลิป → ยืนยันโอน', () => {
+test('Customer Payment UI: ยืนยันรายการ → แนบสลิป → ยืนยันโอน', () => {
   assert.match(app, /window\.confirmCustomerOrder/);
   assert.match(app, /customerOrderConfirmed: true/);
   assert.match(app, /customerOrderConfirmedAt: firebase\.firestore\.FieldValue\.serverTimestamp\(\)/);
@@ -108,6 +108,13 @@ test('Customer payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /imageUrl: url/);
   assert.match(app, /ลูกค้าแนบสลิปการโอนแล้ว/);
   assert.match(app, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
+});
+
+test('Shopping payment is blocked until rider provides actual price and shop bill', () => {
+  assert.match(app, /var shoppingQuoteReady = o\.type !== 'shopping'/);
+  assert.match(app, /var needsCustomerSlip = buysGoods && !isCash && shoppingQuoteReady/);
+  assert.match(app, /รอไรเดอร์ระบุราคาสินค้าจริง/);
+  assert.match(app, /รอไรเดอร์ระบุราคาสินค้าและแนบบิลร้านค้าก่อน/);
 });
 
 test('Firestore Rules: Customer Shopping ยืนยันหลังเห็นรูปสินค้าได้', () => {
@@ -126,7 +133,7 @@ test('Customer UI: แสดงเหตุผลสลิปถูกปฏิ�
 });
 
 test('Customer Slip UI is excluded from ride orders', () => {
-  assert.match(app, /var needsCustomerSlip = buysGoods && !isCash/);
+  assert.match(app, /var needsCustomerSlip = buysGoods && !isCash && shoppingQuoteReady/);
   assert.match(app, /var feeAtEnd = o\.type === 'express' \|\| o\.type === 'ride'/);
   assert.match(app, /สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์/);
   assert.match(app, /cached\.type === 'ride'/);

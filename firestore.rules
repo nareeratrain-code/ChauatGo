@@ -373,6 +373,16 @@ service cloud.firestore {
       return orderType() == 'food' || orderType() == 'shopping';
     }
 
+    function shoppingQuoteReady() {
+      return orderType() != 'shopping'
+        || (
+          resource.data.get('foodTotal', 0) is number
+          && resource.data.get('foodTotal', 0) > 0
+          && resource.data.get('shopBillUrl', '') is string
+          && resource.data.get('shopBillUrl', '').size() > 0
+        );
+    }
+
     function customerSlipNotRejected() {
       return resource.data.get('customerSlipUrl', '') is string
         && resource.data.get('customerSlipUrl', '').size() > 0
@@ -428,7 +438,8 @@ service cloud.firestore {
           && resource.data.get('foodImage', '') is string
           && resource.data.get('foodImage', '').size() > 0
           && (
-            resource.data.get('type', '') == 'shopping'
+              resource.data.get('type', '') == 'shopping'
+              && shoppingQuoteReady()
             || (
               resource.data.get('type', '') == 'food'
               && resource.data.get('partnerShop', false) == true
@@ -465,6 +476,7 @@ service cloud.firestore {
 
     function customerSlipUploadOk(orderId) {
       return customerMayAttachSlip()
+        && shoppingQuoteReady()
         && request.resource.data.status == resource.data.status
         && identityFrozen()
         && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'foodDeliveryStage'])
