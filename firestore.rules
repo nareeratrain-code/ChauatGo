@@ -882,11 +882,14 @@ service cloud.firestore {
                 ? customerSlipResubmissionTransitionOk(orderId)
                 : changed.hasOnly(['customerSlipStatus', 'customerSlipRejectionReason', 'customerSlipRejectedAt', 'customerSlipRejectedBy'])
                   ? riderSlipRejectionTransitionOk()
-                  : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
+              // The shop-slip key set is a subset of the pickup key set. Route
+              // it first; otherwise hasOnly() below sends it to riderPickupOk
+              // and the update is rejected after the food photo already exists.
+              : changed.hasOnly(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
+                ? riderShopSlipOk()
+                : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                     ? riderPickupOk()
-                    : changed.hasAny(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath'])
-                      ? riderShopSlipOk()
-                      : changed.hasOnly(['status', 'onTheWayAt', 'foodDeliveryStage'])
+                    : changed.hasOnly(['status', 'onTheWayAt', 'foodDeliveryStage'])
                         ? riderOnTheWayOk()
                       // hasOnly() is a subset check, so the two-field Express
                       // payment route must come before the three-field route.
