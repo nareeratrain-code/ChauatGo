@@ -694,7 +694,7 @@ service cloud.firestore {
       return moneyFrozen() && isOrderCustomer()
         && resource.data.status == 'picked_up'
         && request.resource.data.status == 'customer_paid'
-        && customerSlipNotRejected()
+        && (resource.data.get('paymentMode', '') == 'cash' || customerSlipNotRejected())
         && identityFrozen()
         && unchanged('riderId')
         && onlyChanged(['status', 'customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
@@ -760,6 +760,28 @@ service cloud.firestore {
         && request.resource.data.riderSlipToShop.size() > 0
         && request.resource.data.riderSlipToShop.size() <= 2000
         && request.resource.data.riderPaidShopAt is timestamp;
+    }
+
+    function riderGoodsQuoteOk() {
+      return moneyFrozen() && isAssignedRider()
+        && buysGoods()
+        && resource.data.status in ['accepted', 'picked_up']
+        && request.resource.data.status == 'picked_up'
+        && request.resource.data.foodImage is string
+        && request.resource.data.foodImage.size() > 0
+        && request.resource.data.foodTotal is number
+        && request.resource.data.foodTotal > 0
+        && request.resource.data.shopBillUrl is string
+        && request.resource.data.shopBillUrl.size() > 0
+        && request.resource.data.foodPriceUpdatedAt is timestamp
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged([
+          'status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'foodTotal',
+          'itemsTotal', 'shopBillUrl', 'shopBillPath', 'foodPriceUpdatedAt',
+          'foodDeliveryStage'
+        ])
+        && foodDeliveryStageChangedOk();
     }
 
     function riderOnTheWayOk() {
@@ -890,7 +912,9 @@ service cloud.firestore {
               // The shop-slip key set is a subset of the pickup key set. Route
               // it first; otherwise hasOnly() below sends it to riderPickupOk
               // and the update is rejected after the food photo already exists.
-              : changed.hasOnly(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
+              : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'foodTotal', 'itemsTotal', 'shopBillUrl', 'shopBillPath', 'foodPriceUpdatedAt', 'foodDeliveryStage'])
+                ? riderGoodsQuoteOk()
+                : changed.hasOnly(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                 ? riderShopSlipOk()
                 : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                     ? riderPickupOk()

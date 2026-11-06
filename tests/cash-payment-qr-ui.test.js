@@ -24,17 +24,18 @@ test('Order Card ซ่อนปุ่มโอนและแสดงให้
 
   assert.match(card, /var isCash = o\.paymentMode === 'cash'/);
   assert.match(card, /isCash && \(o\.status === 'picked_up' \|\| o\.status === 'on_the_way'\)/);
-  assert.match(card, /ชำระเงินสดกับไรเดอร์/);
+  assert.match(card, /รับสินค้าและชำระเงินสด/);
   assert.match(card, /o\.status === 'picked_up' && !o\.customerPaidAt/);
   assert.match(card, /confirmCustomerPaid/);
 });
 
-test('Cash Order ไม่สามารถกดยืนยันการโอนเงินได้', () => {
+test('Cash Order ยืนยันรับสินค้าและชำระเงินสดได้โดยไม่ใช้สลิป', () => {
   const fnStart = indexSource.indexOf('window.confirmCustomerPaid = async function');
   const fnEnd = indexSource.indexOf('\n}', fnStart) + 2;
   const fn = indexSource.slice(fnStart, fnEnd);
-  assert.match(fn, /cached && cached\.paymentMode === 'cash'/);
-  assert.match(fn, /ออเดอร์เงินสด — ชำระเงินสดกับไรเดอร์/);
+  assert.match(fn, /var cashPayment = cached && cached\.paymentMode === 'cash'/);
+  assert.match(fn, /ได้รับสินค้าและชำระเงินสดให้ไรเดอร์แล้ว/);
+  assert.match(fn, /if \(!cashPayment && cached && !cached\.customerSlipUrl\)/);
 });
 
 test('Rider QR Chat ไม่ส่งข้อความหรือ QR สำหรับออเดอร์เงินสด', () => {

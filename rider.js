@@ -179,6 +179,7 @@ let paymentTimeout15 = null;
 
 /* ⭐ v3.9.1: Modal upload state */
 let pickupFoodBlob = null;
+let pickupBillBlob = null;
 let pickupSlipBlob = null;
 let pickupFoodUrl = null;
 let pickupSlipUrl = null;
@@ -2305,6 +2306,7 @@ function openPickupModal(jobId, job) {
   }
   pickupOrderId = jobId;
   pickupFoodBlob = null;
+  pickupBillBlob = null;
   pickupSlipBlob = null;
   pickupFoodUrl = null;
   pickupSlipUrl = null;
@@ -2335,12 +2337,30 @@ function openPickupModal(jobId, job) {
   const payPreview = stage === 'food'
     ? `<div style="background:#FFF8E1;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;font-weight:800;line-height:1.6;white-space:pre-line">${esc(foodPhotoMessage(job))}</div>`
     : '';
+  const shoppingQuoteFields = stage === 'food' && job.type === 'shopping'
+    ? `<div style="margin-bottom:14px;background:#F0FFF4;border:1px solid #B7E4C7;border-radius:12px;padding:12px">
+        <label style="display:block;font-size:13px;font-weight:900;margin-bottom:6px">💰 ราคาสินค้าตามบิลจริง <span style="color:#E53935">*บังคับ</span></label>
+        <input id="pickup-goods-total" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updatePickupConfirmBtn()" placeholder="กรอกราคาสินค้า เช่น 125" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-weight:900">
+        <div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">ระบบจะรวมราคานี้กับค่าบริการ แล้วส่งให้ลูกค้ายอมรับ</div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">🧾 แนบบิลร้าน <span style="color:#E53935">*บังคับ</span></label>
+        <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:180px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden;position:relative">
+          <div id="pickup-bill-placeholder" style="text-align:center"><div style="font-size:32px">🧾</div><div style="font-size:12px;font-weight:700;color:var(--text-muted)">ยังไม่มีบิล</div></div>
+          <img id="pickup-bill-preview" style="display:none;width:100%;height:100%;object-fit:cover">
+        </div>
+        <div class="photo-source-row"><button type="button" class="photo-source-btn camera ripple" onclick="openLiveCamera('bill')">📷 ถ่ายบิล</button><button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-bill-gallery').click()">🖼️ เลือกบิล</button></div>
+        <input type="file" id="pickup-bill-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'bill')">
+        <input type="file" id="pickup-bill-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'bill')">
+      </div>`
+    : '';
 
   mc.innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
       ${foodHeading}
     </div>
     ${payPreview}
+    ${shoppingQuoteFields}
 
     <!-- ข้อมูลร้าน -->
     <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:16px">
@@ -2449,6 +2469,12 @@ async function processPickupImage(file, type) {
         const placeholder = $('pickup-food-placeholder');
         if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
         if (placeholder) placeholder.style.display = 'none';
+      } else if (type === 'bill') {
+        pickupBillBlob = compressed;
+        const preview = $('pickup-bill-preview');
+        const placeholder = $('pickup-bill-placeholder');
+        if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+        if (placeholder) placeholder.style.display = 'none';
       } else {
         pickupSlipBlob = compressed;
         const preview = $('pickup-slip-preview');
@@ -2515,7 +2541,7 @@ function updatePickupConfirmBtn() {
   if (!btn) return;
   const job = allJobs.find(j => j.id === pickupOrderId);
   const stage = pickupStage(job);
-  if (stage === 'food') btn.disabled = !pickupFoodBlob;
+  if (stage === 'food') btn.disabled = !pickupFoodBlob || (job && job.type === 'shopping' && (!(Number($('pickup-goods-total')?.value) > 0) || !pickupBillBlob));
   else if (stage === 'slip') btn.disabled = !pickupSlipBlob;
   else btn.disabled = !(pickupFoodBlob && pickupSlipBlob);
 }
@@ -2575,7 +2601,7 @@ async function postFoodPaymentChat(orderId, foodUrl, order) {
   const text = foodPhotoMessage(order || {}) + '\n\n✅ กรุณากดยืนยันว่าเห็นรูป' + itemLabel + 'แล้ว จากนั้นระบบจะส่ง QR และยอดที่ต้องโอนให้ครับ/ค่ะ';
   const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_food_payment');
   if ((await messageRef.get()).exists) return;
-  const imageUrls = [foodUrl].filter(Boolean);
+  const imageUrls = [foodUrl, order && order.type === 'shopping' ? order.shopBillUrl : ''].filter(Boolean);
   await messageRef.set({
     text,
     imageUrl: imageUrls[0] || '',
@@ -2608,6 +2634,10 @@ async function confirmPickup() {
 
 async function submitFoodPhoto(pickupJob) {
   if (!pickupFoodBlob) return showToast('⚠️ กรุณาถ่ายรูปอาหาร', 'warning');
+  const shoppingPrice = pickupJob && pickupJob.type === 'shopping' ? Number($('pickup-goods-total')?.value) : 0;
+  if (pickupJob && pickupJob.type === 'shopping' && (!(shoppingPrice > 0) || !pickupBillBlob)) {
+    return showToast('⚠️ กรุณากรอกราคาสินค้าจริงและแนบบิลร้าน', 'warning');
+  }
   if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
@@ -2623,6 +2653,15 @@ async function submitFoodPhoto(pickupJob) {
     await foodRef.put(pickupFoodBlob, { contentType: 'image/jpeg' });
     uploadStep = 'ขอ Download URL';
     pickupFoodUrl = await foodRef.getDownloadURL();
+    let billUrl = '';
+    let billPath = '';
+    if (pickupJob && pickupJob.type === 'shopping') {
+      billPath = `orders/${jobId}/riders/${currentUser.uid}/bill_${ts}.jpg`;
+      const billRef = storage.ref(billPath);
+      uploadStep = 'อัปโหลดบิลร้าน';
+      await billRef.put(pickupBillBlob, { contentType: 'image/jpeg' });
+      billUrl = await billRef.getDownloadURL();
+    }
     uploadStep = 'เตรียมรูปสำหรับข้อความรวม';
     uploadStep = 'บันทึกรูปลงออเดอร์';
     const alreadyPicked = !!(pickupJob && (pickupJob.status === 'picked_up' || pickupJob.status === 'customer_paid' || pickupJob.status === 'on_the_way'));
@@ -2631,6 +2670,13 @@ async function submitFoodPhoto(pickupJob) {
         foodImagePath: foodPath,
         foodDeliveryStage: 'food_photo_sent'
       };
+    if (pickupJob && pickupJob.type === 'shopping') {
+      photoPatch.foodTotal = Math.round(shoppingPrice * 100) / 100;
+      photoPatch.itemsTotal = Math.round(shoppingPrice * 100) / 100;
+      photoPatch.shopBillUrl = billUrl;
+      photoPatch.shopBillPath = billPath;
+      photoPatch.foodPriceUpdatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
     if (riderProfile?.qrCodeUrl && pickupJob && pickupJob.type === 'food' && pickupJob.partnerShop === true) {
       photoPatch.riderQrCodeUrl = riderProfile.qrCodeUrl;
     }
@@ -2644,6 +2690,12 @@ async function submitFoodPhoto(pickupJob) {
       if (!alreadyPicked) pickedJob.status = 'picked_up';
       pickedJob.foodImage = pickupFoodUrl;
       pickedJob.foodImagePath = foodPath;
+      if (pickupJob && pickupJob.type === 'shopping') {
+        pickedJob.foodTotal = Math.round(shoppingPrice * 100) / 100;
+        pickedJob.itemsTotal = Math.round(shoppingPrice * 100) / 100;
+        pickedJob.shopBillUrl = billUrl;
+        pickedJob.shopBillPath = billPath;
+      }
     }
     try {
       uploadStep = 'แจ้งรูปอาหารและยอดในแชท';

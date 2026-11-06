@@ -4165,7 +4165,8 @@ function renderOrderCard(o){
         : 'รอไรเดอร์รับของก่อนดำเนินการชำระเงิน');
     payBtnHtml = '<div class="customer-payment-panel"><div class="customer-payment-title">✅ ยืนยันรายการแล้ว</div><div class="customer-payment-copy">' + confirmedCopy + '</div></div>';
   } else if (isCash && (o.status === 'picked_up' || o.status === 'on_the_way')) {
-    payBtnHtml = '<div class="customer-payment-panel warning"><div class="customer-payment-title">💵 ชำระเงินสดกับไรเดอร์</div><div class="customer-payment-copy">เตรียมเงินสดจำนวน ฿'+fmt(o.total||0)+' ชำระเมื่อได้รับสินค้า</div></div>';
+    var cashGoodsTotal = (o.type === 'shopping' || o.type === 'food') && Number(o.foodTotal || o.itemsTotal) > 0 ? customerGoodsTotal(o) : (o.total || o.fare || 0);
+    payBtnHtml = '<div class="customer-payment-panel warning"><div class="customer-payment-title">💵 รับสินค้าและชำระเงินสด</div><div class="customer-payment-copy">เตรียมเงินสดจำนวน ฿'+fmt(cashGoodsTotal)+' ชำระกับไรเดอร์เมื่อได้รับสินค้า</div><button class="customer-payment-btn" onclick="confirmCustomerPaid(\''+esc(o.id)+'\')">✅ รับสินค้าแล้วและชำระเงินสด</button></div>';
   } else if (needsCustomerSlip && o.status === 'picked_up' && !o.customerPaidAt && customerSlipRejected) {
     payBtnHtml = '<div class="customer-payment-panel warning" style="border-color:#F0A7A7;background:#FFF5F5">' +
       '<div class="customer-payment-title" style="color:#B42318">↩️ กรุณาอัปโหลดสลิปใหม่</div>' +
@@ -4228,6 +4229,13 @@ function renderOrderCard(o){
 }
 
 /* Customer payment flow: order confirmation -> slip proof -> paid. */
+function customerGoodsTotal(order) {
+  if (!order) return 0;
+  var goods = Number(order.foodTotal != null ? order.foodTotal : order.itemsTotal) || 0;
+  var fare = Number(order.fare) || 0;
+  var tip = order.paymentMode === 'cash' ? Number(order.cashTip || 5) : 0;
+  return goods + fare + tip;
+}
 window.confirmCustomerOrder = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
@@ -4238,7 +4246,9 @@ window.confirmCustomerOrder = async function(orderId) {
   var photoLabel = cached.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร';
   if (!canConfirmSummary && !canConfirmGoodsPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือส่ง' + photoLabel + 'แล้วเท่านั้น', 'warning');
   if (cached.customerOrderConfirmed) return showToast('ยืนยันรายการนี้แล้ว', 'info');
-  if (!confirm('ยืนยันรายการและยอด ฿' + fmt(cached.total || cached.fare || 0) + ' ใช่หรือไม่?')) return;
+  var confirmTotal = (cached.type === 'shopping' || cached.type === 'food') && Number(cached.foodTotal || cached.itemsTotal) > 0
+    ? customerGoodsTotal(cached) : (cached.total || cached.fare || 0);
+  if (!confirm('ยืนยันรายการและยอด ฿' + fmt(confirmTotal) + ' ใช่หรือไม่?')) return;
   try {
     await db.collection('orders').doc(orderId).update({
       customerOrderConfirmed: true,
@@ -4257,7 +4267,8 @@ window.confirmCustomerOrder = async function(orderId) {
 async function postConfirmPayNote(order) {
   if (!order || !currentUser || order.paymentMode === 'cash') return;
   if (order.type !== 'food' && order.type !== 'shopping') return;
-  var total = order.total || order.fare || 0;
+  var total = (order.type === 'shopping' || order.type === 'food') && Number(order.foodTotal || order.itemsTotal) > 0
+    ? customerGoodsTotal(order) : (order.total || order.fare || 0);
   var hasGoodsPhoto = order.status === 'picked_up' && !!order.foodImage &&
     (order.type === 'shopping' || (order.type === 'food' && order.partnerShop === true));
   var photoLabel = order.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร';
@@ -4405,9 +4416,9 @@ window.handleCustomerSlipPick = async function(event) {
 window.confirmCustomerPaid = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
-  if (cached && cached.paymentMode === 'cash') return showToast('ออเดอร์เงินสด — ชำระเงินสดกับไรเดอร์', 'info');
-  if (cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
-  if (!confirm('ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
+  var cashPayment = cached && cached.paymentMode === 'cash';
+  if (!cashPayment && cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
+  if (!confirm(cashPayment ? 'ยืนยันว่าได้รับสินค้าและชำระเงินสดให้ไรเดอร์แล้ว?' : 'ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
   var expressDropoff = cached && cached.type === 'express' && cached.status === 'on_the_way';
   try {
     var paidPatch = {
@@ -4422,7 +4433,7 @@ window.confirmCustomerPaid = async function(orderId) {
       cached.customerPaidAt = new Date();
       paintUserOrders(window._cachedOrders || []);
     }
-    showToast(expressDropoff ? '✅ แจ้งไรเดอร์แล้วว่าโอนค่าบริการแล้ว' : '✅ แจ้งไรเดอร์แล้ว — กำลังเริ่มส่ง');
+    showToast(cashPayment ? '✅ ยืนยันรับสินค้าและชำระเงินสดแล้ว' : (expressDropoff ? '✅ แจ้งไรเดอร์แล้วว่าโอนค่าบริการแล้ว' : '✅ แจ้งไรเดอร์แล้ว — กำลังเริ่มส่ง'));
   } catch (e) {
     console.error('confirmCustomerPaid error:', e);
     showToast(customerFirebaseErrorText(e, 'ยืนยันการโอนไม่สำเร็จ'), 'error');
@@ -6467,6 +6478,10 @@ window.openShopOrderForm = function(placeId, keepPrefill){
       '<div class="loc-actions"><button type="button" class="loc-action-btn" data-refresh-gps="shopping">📍 ใช้ตำแหน่งฉัน</button><button type="button" class="loc-action-btn" data-pick-map="shop-dropoff">🗺️ เลือกจากแผนที่</button></div></div>' +
     '<div class="form-group"><label>📝 หมายเหตุ</label><textarea id="shop-note" rows="2">' + esc(pre.note || '') + '</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="shop-phone" value="' + esc(pre.phone || (userProfile&&userProfile.phone)||'') + '"></div>' +
+    '<div class="form-group"><label>💳 วิธีชำระเงิน</label><div style="display:flex;gap:10px">' +
+      '<button type="button" id="shop-pay-transfer" class="pay-mode-btn ' + (selectedPaymentMode === 'transfer' ? 'active' : '') + '" onclick="setShoppingPaymentMode(\'transfer\')"><span class="emoji">💳</span><span>เงินโอน</span><span class="sub">โอนหลังเห็นยอดจริง</span></button>' +
+      '<button type="button" id="shop-pay-cash" class="pay-mode-btn ' + (selectedPaymentMode === 'cash' ? 'active' : '') + '" onclick="setShoppingPaymentMode(\'cash\')"><span class="emoji">💵</span><span>เงินสด</span><span class="sub">จ่ายตอนรับของ</span></button>' +
+    '</div><div id="shop-pay-hint" style="margin-top:8px;font-size:12px;font-weight:800;color:var(--text-muted)">' + (selectedPaymentMode === 'cash' ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ' : 'ไรเดอร์จะแจ้งยอดสินค้าจริงหลังซื้อ แล้วจึงโอน') + '</div></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitShopOrder(\'' + esc(p.id) + '\')">✅ เรียกรถไปซื้อ (฿' + shopQuote.total + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
@@ -6478,6 +6493,17 @@ window.addQuickItem = function(item){
   if (current && !current.endsWith('\n')) current += '\n';
   ta.value = current + '- ' + item + ' 1';
   ta.focus();
+};
+
+window.setShoppingPaymentMode = function(mode){
+  selectedPaymentMode = mode === 'cash' ? 'cash' : 'transfer';
+  var transfer = $('shop-pay-transfer'); var cash = $('shop-pay-cash');
+  if (transfer) transfer.classList.toggle('active', selectedPaymentMode === 'transfer');
+  if (cash) cash.classList.toggle('active', selectedPaymentMode === 'cash');
+  var hint = $('shop-pay-hint');
+  if (hint) hint.textContent = selectedPaymentMode === 'cash'
+    ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ'
+    : 'ไรเดอร์จะแจ้งยอดสินค้าจริงหลังซื้อ แล้วจึงโอน';
 };
 
 window.submitShopOrder = async function(placeId){
@@ -6513,13 +6539,14 @@ window.submitShopOrder = async function(placeId){
       lng: customer && isFinite(customer.lng) ? customer.lng : null,
       items: items, itemsText: items,
       note: ($('shop-note') && $('shop-note').value.trim()) || '',
-      paymentMode: 'cash',
+      paymentMode: selectedPaymentMode === 'cash' ? 'cash' : 'transfer',
       code: generateOrderCode(),
       deliveryCode: generateDeliveryCode()
     });
     showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdShop.total != null ? createdShop.total : fare));
     shoppingPrefill = null;
     shoppingDropoff = null;
+    selectedPaymentMode = 'transfer';
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
   } catch(e){ showToast(checkoutErrorText(e),'error'); }
