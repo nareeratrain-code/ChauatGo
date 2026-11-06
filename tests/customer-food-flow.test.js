@@ -92,6 +92,14 @@ test('Customer order tracking: หลังสร้างออเดอร์�
   assert.match(app, /openOrderChat|openChat/);
 });
 
+test('Customer order list: reconnect listener เมื่อมือถือกลับจาก background หรือ listener error', () => {
+  assert.match(app, /กำลังเชื่อมต่อรายการออเดอร์ใหม่/);
+  assert.match(app, /window\._customerOrderRetryTimer/);
+  assert.match(app, /document\.addEventListener\('visibilitychange'/);
+  assert.match(app, /window\.addEventListener\('pageshow'/);
+  assert.match(app, /if \(currentUser\) subscribeUserOrders\(\)/);
+});
+
 test('Customer Payment UI: ยืนยันรายการ → แนบสลิป → ยืนยันโอน', () => {
   assert.match(app, /window\.confirmCustomerOrder/);
   assert.match(app, /customerOrderConfirmed: true/);

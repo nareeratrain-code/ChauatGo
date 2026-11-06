@@ -3825,6 +3825,10 @@ function subscribeUserOrders(){
   if(!currentUser || !db) return;
   if(unsubOrders) unsubOrders();
   if(orderListUnsub) orderListUnsub();
+  if (window._customerOrderRetryTimer) {
+    clearTimeout(window._customerOrderRetryTimer);
+    window._customerOrderRetryTimer = null;
+  }
   orderListUnsub = db.collection('orders').where('userId','==',currentUser.uid).limit(50)
     .onSnapshot(function(snap){
       var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
@@ -3841,7 +3845,29 @@ function subscribeUserOrders(){
       });
       window._orderNoticeStatus = prevStatus;
       paintUserOrders(all);
+    }, function(err){
+      // Mobile browsers can suspend Firestore listeners while backgrounded.
+      // Do not leave the customer on a stale list without a recovery path.
+      console.error('[orders] customer listener failed', err && (err.code || err.message), err);
+      if (typeof showToast === 'function') showToast('กำลังเชื่อมต่อรายการออเดอร์ใหม่…', 'warning');
+      window._customerOrderRetryTimer = setTimeout(function(){
+        window._customerOrderRetryTimer = null;
+        if (currentUser) subscribeUserOrders();
+      }, 1200);
     });
+}
+
+// Reconnect the customer order listener when Android Chrome resumes the page.
+// This is intentionally idempotent: subscribeUserOrders() always disposes the
+// previous listener before creating a new one.
+if (!window.__customerOrderResumeBound) {
+  window.__customerOrderResumeBound = true;
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden && currentUser) subscribeUserOrders();
+  });
+  window.addEventListener('pageshow', function(){
+    if (currentUser) subscribeUserOrders();
+  });
 }
 
 function orderPrepNote(o) {
