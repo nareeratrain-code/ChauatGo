@@ -32,7 +32,11 @@ test('Rider shop slip: หลังอัปโหลดล้มเหลวค
   const start = source.indexOf('async function submitShopSlip');
   const end = source.indexOf('\n}\n\n/* Express, shopping', start) + 2;
   const block = source.slice(start, end);
-  assert.match(block, /showToast\(riderFirebaseErrorText\(err, 'อัปโหลดสลิปไม่สำเร็จ'\), 'error'\)/);
+  assert.match(block, /let uploadStep = 'เตรียมไฟล์สลิป'/);
+  assert.match(block, /pickupSlipBlob\.size > 4\.5 \* 1024 \* 1024/);
+  assert.match(block, /compressImage\(pickupSlipBlob, 700, 0\.62\)/);
+  assert.match(block, /storage\/file-too-large/);
+  assert.match(block, /ไม่สำเร็จขั้นตอน: \$\{uploadStep\}/);
   assert.match(block, /btn\.disabled = false/);
   assert.match(block, /btn\.textContent = '🧾 ส่งสลิปให้ลูกค้า'/);
 });

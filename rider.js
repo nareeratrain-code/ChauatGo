@@ -2701,16 +2701,31 @@ async function submitShopSlip(pickupJob) {
   if (!pickupSlipBlob) return showToast('⚠️ กรุณาแนบสลิปที่จ่ายร้าน', 'warning');
   const btn = $('pickup-confirm-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังอัปโหลด...'; }
+  let uploadStep = 'เตรียมไฟล์สลิป';
   try {
     const jobId = pickupOrderId;
     const ts = Date.now();
+    // Storage Rules cap rider images at 5 MB. Camera/WebView fallbacks can
+    // return the original, multi-megapixel file when canvas compression times
+    // out, so compress once more instead of sending a guaranteed-denied write.
+    if (pickupSlipBlob.size > 4.5 * 1024 * 1024) {
+      uploadStep = 'ลดขนาดไฟล์สลิป';
+      const smallerSlip = await compressImage(pickupSlipBlob, 700, 0.62);
+      if (smallerSlip && smallerSlip.size < pickupSlipBlob.size) pickupSlipBlob = smallerSlip;
+    }
+    if (pickupSlipBlob.size > 5 * 1024 * 1024) {
+      throw Object.assign(new Error('ไฟล์สลิปมีขนาดเกิน 5 MB'), { code: 'storage/file-too-large' });
+    }
     const slipPath = `slips/riders/${currentUser.uid}/${jobId}_${ts}.jpg`;
     const slipRef = storage.ref(slipPath);
+    uploadStep = 'อัปโหลดไฟล์สลิป';
     await slipRef.put(pickupSlipBlob, { contentType: 'image/jpeg' });
+    uploadStep = 'ขอ Download URL';
     pickupSlipUrl = await slipRef.getDownloadURL();
     // Save the shop-payment proof on the Order first. Re-uploading the same
     // image to the chat before this update could fail on chat permissions and
     // leave the rider with a successful Storage upload but no Order record.
+    uploadStep = 'บันทึกสลิปลงออเดอร์';
     await db.collection('orders').doc(jobId).update({
       riderSlipToShop: pickupSlipUrl,
       riderSlipToShopPath: slipPath,
@@ -2737,7 +2752,8 @@ async function submitShopSlip(pickupJob) {
     openPayGuide(jobId, 'done');
   } catch (err) {
     console.error('submitShopSlip error:', err);
-    showToast(riderFirebaseErrorText(err, 'อัปโหลดสลิปไม่สำเร็จ'), 'error');
+    const detail = err && (err.code || err.message) || 'unknown-error';
+    showToast(`ไม่สำเร็จขั้นตอน: ${uploadStep} (${riderFirebaseErrorText(err, detail)})`, 'error', 9000);
     if (btn) { btn.disabled = false; btn.textContent = '🧾 ส่งสลิปให้ลูกค้า'; }
   }
 }
