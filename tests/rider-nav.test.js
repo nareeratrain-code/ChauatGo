@@ -8,6 +8,16 @@ const rider = fs.readFileSync('rider.js', 'utf8');
 const css = fs.readFileSync('rider.css', 'utf8');
 const rules = fs.readFileSync('firestore.rules', 'utf8');
 
+test('Rider chat guide remains scrollable on mobile when photo and bill controls are tall', () => {
+  const start = css.indexOf('.chat-guide {');
+  const end = css.indexOf('\n}', start) + 2;
+  const block = css.slice(start, end);
+  assert.match(block, /flex-shrink:\s*0/);
+  assert.match(block, /max-height:\s*48vh/);
+  assert.match(block, /overflow-y:\s*auto/);
+  assert.match(block, /-webkit-overflow-scrolling:\s*touch/);
+});
+
 function slice(source, start, end) {
   const from = source.indexOf(start);
   const to = source.indexOf(end, from + start.length);
