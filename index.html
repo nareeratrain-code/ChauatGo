@@ -4215,6 +4215,7 @@ function renderOrderCard(o){
     (window.ChauatCall ? ChauatCall.buttons(o.id) : '') +
     discountHtml +
     '<div class="order-track-progress">' + progressDots + '</div>' +
+    payBtnHtml +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
       '<button class="rate-btn" style="background:linear-gradient(135deg,#4E9F2D,#34751E);margin:0" onclick="showOrderBill(\''+esc(o.id)+'\')">🧾 ดูบิล</button>' +
       (expressTransferOwed(o)?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="'+expressTransferClick(o)+'">💳 โอนเงินแล้ว</button>':'') +
@@ -4223,8 +4224,6 @@ function renderOrderCard(o){
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
     '</div>' +
-    /* Payment instructions and proof are shown in Chat only. */
-    '' +
   '</div>';
 }
 

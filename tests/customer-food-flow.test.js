@@ -64,6 +64,15 @@ test('Customer UI: มีปุ่มเลือกแผนที่ จุด
   assert.match(app, /paymentMode: selectedPaymentMode/);
 });
 
+test('Customer Order Card: แทรก Payment Panel เพื่อให้ยืนยันรายการและยอดได้หลัง Rider รับงาน', () => {
+  const cardStart = app.indexOf('function renderOrderCard');
+  const cardEnd = app.indexOf('function customerGoodsTotal', cardStart);
+  const card = app.slice(cardStart, cardEnd);
+  assert.match(card, /if \(o\.status === 'accepted' && !o\.customerOrderConfirmed\)/);
+  assert.match(card, /ยืนยันรายการและยอด/);
+  assert.match(card, /progressDots[\s\S]*payBtnHtml\s*\+/);
+});
+
 test('Customer Checkout: ข้อความร้าน Partner และร้านในพื้นที่ไม่ทำให้สับสน', () => {
   assert.match(app, /ร้าน Partner เปิดรับออเดอร์แล้ว/);
   assert.match(app, /กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์/);
@@ -124,11 +133,11 @@ test('Customer Slip UI is excluded from ride orders', () => {
   assert.match(app, /งานเรียกรถไม่ต้องแนบสลิป/);
 });
 
-test('Order List แสดงเฉพาะสถานะ ส่วนคำสั่งชำระเงินอยู่ใน Chat จุดเดียว', () => {
+test('Order List แสดงสถานะและ Payment Panel ยืนยันรายการในจุดเดียว', () => {
   const start = app.indexOf('function renderOrderCard');
   const end = app.indexOf('/* Customer payment flow:', start);
   const card = app.slice(start, end);
-  assert.doesNotMatch(card, /payBtnHtml\s*\+/);
+  assert.match(card, /payBtnHtml\s*\+/);
   assert.doesNotMatch(card, /อาหารของคุณ/);
   assert.match(card, /order-track-progress/);
   assert.match(card, /openChatPage/);
