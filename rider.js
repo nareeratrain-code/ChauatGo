@@ -2419,17 +2419,12 @@ async function handlePickupImage(event, type) {
 }
 
 async function processPickupImage(file, type) {
-  if (file.size > MAX_SLIP_SIZE) {
-    showToast('รูปใหญ่เกิน 5MB', 'error');
-    return;
-  }
-
   showToast('⏳ กำลังประมวลผล...', 'info');
 
   try {
     const compressed = await compressImage(file, 800, 0.75);
     if (!compressed || compressed.size <= 0 || compressed.size > MAX_SLIP_SIZE) {
-      showToast('รูปใหญ่เกิน 5MB หลังย่อ', 'error');
+      showToast(file.size > MAX_SLIP_SIZE ? 'รูปใหญ่เกิน 5MB แม้บีบอัดแล้ว' : 'รูปภาพไม่ถูกต้องหรือว่างเปล่า', 'error');
       return;
     }
     const reader = new FileReader();
