@@ -4346,6 +4346,34 @@ window.handleCustomerSlipPick = async function(event) {
       slipUpdate.customerSlipRevision = (Number(cached.customerSlipRevision) || 1) + 1;
     }
     await db.collection('orders').doc(orderId).update(slipUpdate);
+    // Keep the payment proof visible to both parties in the shared order chat.
+    // The order fields remain the source of truth; this message is the human
+    // readable audit trail with the exact uploaded image URL.
+    var ensuredChat = await ensureOrderChat(orderId, cached);
+    var slipMessage = resubmitting
+      ? 'ลูกค้าแนบสลิปการโอนใหม่แล้ว กรุณาตรวจสอบยอดเงิน'
+      : 'ลูกค้าแนบสลิปการโอนแล้ว กรุณาตรวจสอบยอดเงิน';
+    await db.collection('chats').doc(orderId).collection('messages').add({
+      senderId: currentUser.uid,
+      senderRole: ensuredChat.role,
+      senderName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
+      text: slipMessage,
+      imageUrl: url,
+      imagePath: path,
+      systemMessage: true,
+      automated: true,
+      automationKey: 'customer_slip_uploaded',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    try {
+      await db.collection('chats').doc(orderId).update({
+        lastMessage: '📄 ลูกค้าแนบสลิปแล้ว',
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (previewErr) {
+      console.warn('customer slip chat preview', previewErr && previewErr.code);
+    }
     cached.customerSlipUrl = url;
     cached.customerSlipPath = path;
     if (resubmitting) {
@@ -4353,7 +4381,7 @@ window.handleCustomerSlipPick = async function(event) {
       cached.customerSlipRevision = slipUpdate.customerSlipRevision;
     }
     paintUserOrders(window._cachedOrders || []);
-    showToast('✅ แนบสลิปแล้ว — กดยืนยันว่าโอนแล้วเพื่อแจ้งไรเดอร์', 'success');
+    showToast('✅ แนบสลิปแล้ว — ส่งรูปเข้าแชทให้ไรเดอร์แล้ว', 'success');
   } catch (e) {
     console.error('handleCustomerSlipPick error:', e);
     var msg = e && e.code === 'storage/unauthorized' ? 'ไม่มีสิทธิ์อัปโหลดสลิปของออเดอร์นี้' : (e.code || e.message);

@@ -85,6 +85,9 @@ test('Customer payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /window\.handleCustomerSlipPick/);
   assert.match(app, /orders\/' \+ orderId \+ '\/riders\/' \+ currentUser\.uid \+ '\/slip_/);
   assert.match(app, /customerSlipUrl: url/);
+  assert.match(app, /automationKey: 'customer_slip_uploaded'/);
+  assert.match(app, /imageUrl: url/);
+  assert.match(app, /ลูกค้าแนบสลิปการโอนแล้ว/);
   assert.match(app, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
 });
 

@@ -291,6 +291,23 @@ test.describe('Customer Slip → Rider FCM Notification', () => {
       await expect.poll(() => customer.evaluate(() => window.pendingCustomerSlipOrderId)).toBe(orderId);
       await uploadImage(customer, '#customer-slip-input', 'qa-customer-slip-fcm.png');
 
+      const slipChatMessage = async (page) => page.evaluate(async (id) => {
+        const snap = await firebase.firestore(firebase.app('customer'))
+          .collection('chats').doc(id).collection('messages').get();
+        const found = snap.docs.map(d => d.data()).find(m => m.automationKey === 'customer_slip_uploaded');
+        return found ? { imageUrl: found.imageUrl, senderRole: found.senderRole, text: found.text } : null;
+      }, orderId);
+      await expect.poll(() => slipChatMessage(customer), { timeout: 15_000 }).toEqual(
+        expect.objectContaining({
+          imageUrl: expect.stringContaining('/o/'),
+          senderRole: 'user',
+          text: expect.stringContaining('แนบสลิปการโอนแล้ว')
+        })
+      );
+      await rider.evaluate((id) => window.openChatWithCustomer(id), orderId);
+      await expect(rider.locator('#chatContainer')).toHaveClass(/show/, { timeout: 15_000 });
+      await expect(rider.locator('#chatMessages img')).toHaveCount(1, { timeout: 15_000 });
+
       // Verify the browser really uploaded a file to Storage Emulator. The
       // current Firestore Emulator can hit its 1000-expression rule-evaluator
       // limit on this project's production-sized rules, so use Admin REST only
