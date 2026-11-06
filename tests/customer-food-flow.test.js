@@ -43,6 +43,13 @@ test('Customer Food E2E: เปลี่ยนเป็นเงินสดเ�
   assert.equal('cash', 'cash');
 });
 
+test('Shopping post: เลือกเงินโอนแล้วบันทึก paymentMode เป็น transfer', () => {
+  assert.match(app, /id="shop-pay-transfer"/);
+  assert.match(app, /setShoppingPaymentMode\([^)]*transfer/);
+  assert.match(app, /paymentMode: selectedPaymentMode === 'cash' \? 'cash' : 'transfer'/);
+  assert.match(app, /โอนหลังเห็นยอดจริง/);
+});
+
 test('Customer safeguards: ตะกร้าว่างและไม่มีที่อยู่ต้องหยุดก่อนสร้างออเดอร์', () => {
   assert.match(app, /if \(!cart\.length\) return showToast\('ตะกร้าว่าง'/);
   assert.match(app, /if \(!address\.trim\(\)\)/);
