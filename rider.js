@@ -284,8 +284,8 @@ function foodPayParts(order) {
   };
 }
 
-function foodPayEquation(parts) {
-  const food = 'ค่าอาหาร ' + bahtText(parts.food);
+function foodPayEquation(parts, goodsLabel) {
+  const food = (goodsLabel || 'ค่าอาหาร') + ' ' + bahtText(parts.food);
   const fare = 'ค่าส่ง ' + bahtText(parts.fare);
   const tip = parts.tip > 0 ? ' + ค่าบริการเงินสด ' + bahtText(parts.tip) : '';
   return food + ' + ' + fare + tip + ' = รวม ' + bahtText(parts.total);
@@ -293,8 +293,8 @@ function foodPayEquation(parts) {
 
 function foodPhotoMessage(order) {
   const parts = foodPayParts(order);
-  const amounts = foodPayEquation(parts);
   const isShopping = order && order.type === 'shopping';
+  const amounts = foodPayEquation(parts, isShopping ? 'ค่าสินค้า' : 'ค่าอาหาร');
   const shopItemLabel = isShopping ? 'สินค้า/ของใช้จากร้าน' : 'อาหารจากร้าน';
   const receiveLabel = isShopping ? 'รับสินค้า/ของใช้' : 'รับอาหาร';
   if (parts.cash) {
@@ -2598,7 +2598,10 @@ async function postRiderOrderImageUrl(orderId, url, imagePath) {
 async function postFoodPaymentChat(orderId, foodUrl, order) {
   const body = await ensureRiderChat(orderId);
   const itemLabel = order && order.type === 'shopping' ? 'สินค้า/ของใช้' : 'อาหาร';
-  const text = foodPhotoMessage(order || {}) + '\n\n✅ กรุณากดยืนยันว่าเห็นรูป' + itemLabel + 'แล้ว จากนั้นระบบจะส่ง QR และยอดที่ต้องโอนให้ครับ/ค่ะ';
+  const confirmationText = order && order.paymentMode === 'cash'
+    ? '\n\n✅ กรุณากดยืนยันว่าเห็นรูป' + itemLabel + 'แล้ว ระบบจะแจ้งยอดเงินสดที่ต้องชำระตอนรับสินค้าให้ครับ/ค่ะ'
+    : '\n\n✅ กรุณากดยืนยันว่าเห็นรูป' + itemLabel + 'แล้ว จากนั้นระบบจะส่ง QR และยอดที่ต้องโอนให้ครับ/ค่ะ';
+  const text = foodPhotoMessage(order || {}) + confirmationText;
   const messageRef = db.collection('chats').doc(orderId).collection('messages').doc('auto_food_payment');
   if ((await messageRef.get()).exists) return;
   const imageUrls = [foodUrl, order && order.type === 'shopping' ? order.shopBillUrl : ''].filter(Boolean);
