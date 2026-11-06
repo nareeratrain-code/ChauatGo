@@ -2540,11 +2540,12 @@ async function postRiderOrderImage(orderId, blob) {
    the chat message instead of uploading the same image a second time. This
    keeps the customer-readable order asset as the source of truth and avoids
    a second Storage authorization check on chats/{orderId}/images. */
-async function postRiderOrderImageUrl(orderId, url, imagePath) {
+async function postRiderOrderImageUrl(orderId, url, imagePath, note = '') {
   const body = await ensureRiderChat(orderId);
   await db.collection('chats').doc(orderId).collection('messages').add({
     imageUrl: url,
     imagePath: imagePath || '',
+    ...(note ? { text: note } : {}),
     senderId: currentUser.uid,
     senderRole: 'rider',
     senderName: body.riderName || riderProfile?.name || 'ไรเดอร์',
@@ -2552,7 +2553,7 @@ async function postRiderOrderImageUrl(orderId, url, imagePath) {
   });
   try {
     await db.collection('chats').doc(orderId).update({
-      lastMessage: '📷 รูปภาพ',
+      lastMessage: note || '📷 รูปภาพ',
       lastSenderId: currentUser.uid,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -2728,7 +2729,12 @@ async function submitShopSlip(pickupJob) {
       foodDeliveryStage: 'shop_paid'
     });
     try {
-      await postRiderOrderImageUrl(jobId, pickupSlipUrl, slipPath);
+      await postRiderOrderImageUrl(
+        jobId,
+        pickupSlipUrl,
+        slipPath,
+        '🧾 สลิปโอนจ่ายร้านค้า — ไรเดอร์ชำระค่าสินค้าให้ร้านค้าแล้วครับ/ค่ะ'
+      );
     } catch (chatErr) {
       console.warn('shop slip chat message', chatErr && (chatErr.code || chatErr.message));
       showToast('✅ บันทึกสลิปร้านแล้ว แต่ส่งเข้าแชทไม่สำเร็จ', 'warning', 7000);

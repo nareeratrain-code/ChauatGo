@@ -15,7 +15,13 @@ test('อาหารอัปโหลดครั้งเดียวที�
   assert.match(block, /await foodRef\.put\(pickupFoodBlob, \{ contentType: 'image\/jpeg' \}\)/);
   assert.match(block, /await postFoodPaymentChat\(jobId, pickupFoodUrl/);
   assert.doesNotMatch(block, /await postRiderOrderImage\(jobId, pickupFoodBlob\)/);
-  assert.match(source, /async function postRiderOrderImageUrl\(orderId, url, imagePath\)/);
+  assert.match(source, /async function postRiderOrderImageUrl\(orderId, url, imagePath, note = ''\)/);
+});
+
+test('สลิปที่ไรเดอร์โอนจ่ายร้านมี Note กำกับในข้อความ Chat', () => {
+  assert.match(source, /\.\.\.\(note \? \{ text: note \} : \{\}\)/);
+  assert.match(source, /🧾 สลิปโอนจ่ายร้านค้า — ไรเดอร์ชำระค่าสินค้าให้ร้านค้าแล้วครับ\/ค่ะ/);
+  assert.match(source, /lastMessage: note \|\| '📷 รูปภาพ'/);
 });
 
 test('หากสร้างข้อความรูปในแชทไม่สำเร็จ ออเดอร์ยังเดินหน้าด้วยรูปหลักที่อัปโหลดแล้ว', () => {
