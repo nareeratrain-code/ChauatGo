@@ -443,6 +443,13 @@ service cloud.firestore {
             || (
               resource.data.get('type', '') == 'food'
               && resource.data.get('partnerShop', false) == true
+              && (
+                resource.data.get('paymentMode', '') != 'cash'
+                || (
+                  resource.data.get('riderSlipToShop', '') is string
+                  && resource.data.get('riderSlipToShop', '').size() > 0
+                )
+              )
             )
           )
         )

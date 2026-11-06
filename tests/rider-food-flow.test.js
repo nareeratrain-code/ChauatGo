@@ -45,7 +45,8 @@ test('UI ย้ายรูปอาหารและ Finance Actions ไปไ
   assert.match(rider, /callDispatch\('confirmPaymentReceived'/);
   assert.match(rider, /data-slip="\$\{esc\(job\.id\)\}"/);
   assert.match(rider, /function renderChatGuide/);
-  assert.match(rider, /📸 ถ่ายรูปสินค้า\/อาหารส่งให้ลูกค้า/);
+  assert.match(rider, /ถ่ายรูปสินค้า\/ของใช้ส่งให้ลูกค้า/);
+  assert.match(rider, /ถ่ายรูปอาหารส่งให้ลูกค้า/);
   assert.match(rider, /🧾 แนบสลิปที่จ่ายร้าน/);
   assert.match(rider, /!cashPickup && !alreadyPaid\) startPaymentTimers/);
   const rules = fs.readFileSync('firestore.rules', 'utf8');

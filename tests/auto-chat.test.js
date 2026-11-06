@@ -48,19 +48,19 @@ test('food photo asks for a transfer of food plus delivery', () => {
   assert.match(fromItems, /ค่าอาหาร ฿210 \+ ค่าส่ง ฿20 = รวม ฿230/);
 });
 
-test('cash food asks the customer to pay the rider on delivery', () => {
+test('cash partner food asks the customer to confirm food and shop slip', () => {
   const text = chat.autoChatText({
     type: 'food', partnerShop: true, paymentMode: 'cash', foodTotal: 210, fare: 20
   }, 'food_photo');
-  assert.match(text, /เงินสดจ่ายไรเดอร์ตอนรับอาหาร/);
-  assert.match(text, /ค่าอาหาร ฿210 \+ ค่าส่ง ฿20 \+ ค่าบริการเงินสด ฿5 = รวม ฿235/);
+  assert.match(text, /สำรองจ่ายค่าอาหารให้ร้าน/);
+  assert.match(text, /เห็นรูปอาหารและสลิป/);
   assert.equal(text.includes('โอนเงิน'), false);
   assert.equal(text.includes('ฝากซื้อ'), false);
   const noTip = chat.autoChatText({
     type: 'food', partnerShop: true, paymentMode: 'cash', foodTotal: 210, fare: 20, cashTip: 0
   }, 'food_photo');
-  assert.match(noTip, /ค่าอาหาร ฿210 \+ ค่าส่ง ฿20 = รวม ฿230/);
-  assert.equal(noTip.includes('ค่าบริการเงินสด'), false);
+  assert.match(noTip, /แนบสลิปส่งให้ในแชท/);
+  assert.equal(noTip.includes('โอนเงิน'), false);
 });
 
 test('buy-for-me keeps the shopping script, including the transfer step', () => {
@@ -124,7 +124,7 @@ test('a food rider cannot leave before the shop slip', () => {
   assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip' }, directory)), true);
   assert.equal(gate.canLeaveShop(cash), false);
   assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip' }, cash)), false);
-  assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip', customerPaidAt: {} }, cash)), true);
+  assert.equal(gate.canLeaveShop(Object.assign({ riderSlipToShop: 'https://slip', customerOrderConfirmed: true }, cash)), true);
   assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'cash' }), true);
   assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'transfer' }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', paymentMode: 'transfer', riderId: 'r', status: 'picked_up' }), false);
