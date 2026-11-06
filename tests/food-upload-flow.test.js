@@ -35,3 +35,15 @@ test('Shopping photo guide: มีช่องราคาสินค้าแ�
   assert.match(block, /pickupBillBlob = null/);
   assert.match(source, /job && job\.type === 'shopping' && !\(Number\(\$\('pickup-goods-total'\)\?\.value\) > 0\)/);
 });
+
+test('ถึงร้านแล้วต้องคงแผงถ่ายรูปและกรอกราคาไว้ในแชท แม้สถานะยังเป็น accepted', () => {
+  assert.match(source, /let pickupGuideOrderIds = new Set\(\)/);
+  assert.match(source, /pickupGuideOrderIds\.add\(jobId\)/);
+  assert.match(source, /const pickupArrived = pickupGuideOrderIds\.has\(job\.id\) \|\| job\.pickupArrived === true/);
+  assert.match(source, /pickupArrived \|\| \['picked_up', 'customer_paid'\]\.includes\(job\.status\)/);
+});
+
+test('GPS ถึงร้านของงานฝากซื้อเปิดขั้นตอนถ่ายรูปและกรอกราคาอัตโนมัติ', () => {
+  assert.match(source, /if \(orderBuysGoods\(job\) && job\.type === 'shopping'\)/);
+  assert.match(source, /openPayGuide\(job\.id, 'food'\)/);
+});

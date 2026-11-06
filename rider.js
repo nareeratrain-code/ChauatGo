@@ -87,6 +87,8 @@ let cameraFile = null;
 let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
 let arrivedCustomerNotifiedOrderIds = new Set();
+// Local UI state: rider reached pickup point and must see photo/price actions.
+let pickupGuideOrderIds = new Set();
 const autoChatSent = new Set();
 let isSigningUp = false;
 let authEpoch = 0;
@@ -2046,7 +2048,9 @@ async function recordShopArrival(jobId, job) {
     if (job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
       showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
     }
-    // Partner Food sends the only payment message after the food photo.
+    pickupGuideOrderIds.add(jobId);
+    job.pickupArrived = true;
+    // Food and Shopping send the payment message after the photo/price quote.
     openPayGuide(jobId, 'food');
     return;
   }
@@ -2143,6 +2147,7 @@ function postPaySummaryLater(orderId) {
 function openPayGuide(jobId, stage) {
   const job = allJobs.find((item) => item.id === jobId);
   if (!job) return;
+  if (stage === 'food' && orderBuysGoods(job)) pickupGuideOrderIds.add(jobId);
   const mc = $('modalContent');
   if (mc) mc.innerHTML = '';
   $('modalOverlay')?.classList.remove('show');
@@ -3380,6 +3385,11 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
               : '📍 ถึงสถานที่รับของแล้ว — กด "ถึงจุดนัดหมาย" เพื่อรับของ');
         showToast(arrivalText);
         sendAutomatedChatLater(job.id, 'shop_arrived');
+        if (orderBuysGoods(job) && job.type === 'shopping') {
+          pickupGuideOrderIds.add(job.id);
+          job.pickupArrived = true;
+          openPayGuide(job.id, 'food');
+        }
       }
     }
 
@@ -3805,8 +3815,8 @@ function renderChatGuide(job) {
   const goods = orderBuysGoods(job);
   const paid = !!job.customerPaidAt || job.status === 'customer_paid';
   const shopSlip = orderHasShopSlip(job);
-
-  if (goods && ['picked_up', 'customer_paid'].includes(job.status) && !job.foodImage) {
+  const pickupArrived = pickupGuideOrderIds.has(job.id) || job.pickupArrived === true;
+  if (goods && (pickupArrived || ['picked_up', 'customer_paid'].includes(job.status)) && !job.foodImage) {
     actions.push(`<button type="button" class="chat-guide-btn" data-food-photo="${esc(job.id)}">📸 ถ่ายรูปสินค้า/อาหารส่งให้ลูกค้า</button>`);
   } else if (goods && ['picked_up', 'customer_paid'].includes(job.status) && !paid && !orderIsCash(job)) {
     actions.push(`<button type="button" class="chat-guide-btn" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ตรวจสอบในแชท</button>`);
