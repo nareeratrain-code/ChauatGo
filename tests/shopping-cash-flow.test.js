@@ -40,11 +40,10 @@ test('Shopping quote Rule allows foodTotal/itemsTotal rider adjustment but freez
   assert.match(quoteRule, /'chargedTotal'/);
 });
 
-test('Cash Shopping Flow: ไรเดอร์ส่งรูปสินค้า บิล และราคาจริงพร้อมข้อความเงินสด', () => {
+test('Cash Shopping Flow: ไรเดอร์ส่งรูปสินค้าและราคาจริงก่อนบิล', () => {
   assert.match(rider, /id="pickup-goods-total"/);
-  assert.match(rider, /id="pickup-bill-gallery"/);
   assert.match(rider, /photoPatch\.foodTotal = Math\.round\(shoppingPrice \* 100\) \/ 100/);
-  assert.match(rider, /photoPatch\.shopBillUrl = billUrl/);
+  assert.match(rider, /ส่งรูปสินค้าและราคาให้ลูกค้า/);
   assert.match(rider, /ระบบจะแจ้งยอดเงินสดที่ต้องชำระตอนรับสินค้า/);
 
   const message = loadFoodPhotoMessage()({

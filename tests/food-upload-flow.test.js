@@ -26,15 +26,12 @@ test('หากสร้างข้อความรูปในแชทไ�
   assert.match(source, /await db\.collection\('orders'\)\.doc\(jobId\)\.update/);
 });
 
-test('Shopping photo guide: มีช่องราคาสินค้าและบิลก่อนกดส่งรูป', () => {
+test('Shopping photo guide: มีช่องราคาสินค้าและส่งรูปได้ก่อนแนบบิลร้าน', () => {
   const start = source.indexOf('function openPayGuide');
   const end = source.indexOf('\nfunction openShopSlip', start);
   const block = source.slice(start, end);
   assert.match(block, /job\.type === 'shopping'/);
   assert.match(block, /id="pickup-goods-total"/);
-  assert.match(block, /id="pickup-bill-gallery"/);
-  assert.match(block, /document\.getElementById\('pickup-bill-camera'\)\.click\(\)/);
-  assert.match(block, /id="pickup-bill-camera"[^>]+capture="environment"/);
   assert.match(block, /pickupBillBlob = null/);
-  assert.match(source, /job && job\.type === 'shopping' && \(!\(Number\(\$\('pickup-goods-total'\)\?\.value\) > 0\) \|\| !pickupBillBlob\)/);
+  assert.match(source, /job && job\.type === 'shopping' && !\(Number\(\$\('pickup-goods-total'\)\?\.value\) > 0\)/);
 });

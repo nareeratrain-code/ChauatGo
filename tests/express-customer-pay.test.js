@@ -38,12 +38,13 @@ test('customer slip upload sends an image content type for gallery files', () =>
   assert.equal(upload.includes('contentType: file.type'), false);
 });
 
-test('express transfer shows โอนเงินแล้ว on the order card and the bill', () => {
+test('express transfer keeps payment action available through the order chat', () => {
   assert.match(app, /function expressTransferOwed\(o\)/);
   assert.match(app, /o\.type === 'express' && o\.paymentMode !== 'cash' && o\.status === 'on_the_way'/);
   assert.match(app, /💳 โอนเงินแล้ว/);
-  assert.match(app, /expressTransferOwed\(o\)\?'<button class="rate-btn"/);
-  assert.match(app, /expressTransferOwed\(o\) \? '<button class="btn-full/);
+  const card = app.slice(app.indexOf('function renderOrderCard'), app.indexOf('function customerGoodsTotal'));
+  assert.match(card, /openChatPage/);
+  assert.doesNotMatch(card, /expressTransferClick\(o\)\">💳 โอนเงินแล้ว/);
   const confirm = app.slice(app.indexOf('window.confirmCustomerPaid'), app.indexOf('function monitorRiderProximity'));
   assert.match(confirm, /cached\.type === 'express' && cached\.status === 'on_the_way'/);
   assert.match(confirm, /if \(!expressDropoff\) paidPatch\.status = 'customer_paid'/);

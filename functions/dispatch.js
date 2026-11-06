@@ -274,12 +274,15 @@ async function notifyRider(db, riderId, msg, deps) {
   const options = deps || {};
   const orderId = msg && msg.data && msg.data.orderId ? String(msg.data.orderId) : null;
   const log = options.logger || structuredFcmLog;
-  const base = { riderId: String(riderId || ''), orderId };
+  const collectionName = options.collectionName || 'riders';
+  const ownerField = collectionName === 'users' ? 'userId' : 'riderId';
+  const base = { [ownerField]: String(riderId || ''), orderId };
   try {
-    const snap = await db.collection('riders').doc(riderId).get();
+    const snap = await db.collection(collectionName).doc(riderId).get();
     if (!snap.exists) {
-      log('warn', 'rider_not_found', base);
-      return { ok: false, reason: 'rider_not_found' };
+      const reason = collectionName === 'users' ? 'user_not_found' : 'rider_not_found';
+      log('warn', reason, base);
+      return { ok: false, reason };
     }
     const tokens = snap.data().fcmTokens;
     if (!Array.isArray(tokens) || !tokens.length) {
@@ -323,7 +326,7 @@ async function notifyRider(db, riderId, msg, deps) {
     }));
     if (bad.length) {
       try {
-        await db.collection('riders').doc(riderId).update({
+        await db.collection(collectionName).doc(riderId).update({
           fcmTokens: (options.FieldValue || FieldValue).arrayRemove.apply(options.FieldValue || FieldValue, bad)
         });
         log('info', 'invalid_tokens_removed', Object.assign({}, base, {
@@ -347,6 +350,10 @@ async function notifyRider(db, riderId, msg, deps) {
     /* Push is best-effort. Missing credentials or a closed app must not stop dispatch. */
     return { ok: false, reason: 'send_exception' };
   }
+}
+
+async function notifyCustomer(db, userId, msg, deps) {
+  return notifyRider(db, userId, msg, Object.assign({}, deps || {}, { collectionName: 'users' }));
 }
 
 async function considerGpsDoc(db, doc, pickup, radiusKm, skip, cfg, nowMs, seen, out, skips, notes, cooldownLeft) {
@@ -1494,6 +1501,7 @@ module.exports = {
   loadConfig,
   callerIsAdmin,
   notifyRider,
+  notifyCustomer,
   findCandidates,
   offerNext,
   expireOffer,

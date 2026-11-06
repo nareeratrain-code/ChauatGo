@@ -8,7 +8,7 @@ const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const D = require('./dispatch');
 const Orders = require('./orders');
-const { customerSlipNotification } = require('./notifications');
+const { customerSlipNotification, customerQuoteNotification } = require('./notifications');
 const { recordConsentEvent } = require('./consent');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
@@ -73,6 +73,17 @@ exports.onCustomerSlipUploaded = onDocumentWritten('orders/{orderId}', async (ev
   const message = customerSlipNotification(before, after, event.params.orderId);
   if (!message) return;
   await D.notifyRider(db, after.riderId, message);
+});
+
+// Notify the customer once when the rider has uploaded the product photo and
+// entered the actual product price. The notification is best-effort and is
+// deduplicated by the before/after transition in customerQuoteNotification.
+exports.onCustomerQuoteReady = onDocumentWritten('orders/{orderId}', async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  const message = customerQuoteNotification(before, after, event.params.orderId);
+  if (!message) return;
+  await D.notifyCustomer(db, after.userId, message);
 });
 
 // GP transfer requests are client-created, but the merchant financial

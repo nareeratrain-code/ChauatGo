@@ -38,15 +38,15 @@ test('Food E2E: รับงาน → ถึงร้าน → ส่งรู
   assert.equal(order.status, 'done');
 });
 
-test('UI แยกปุ่มรูปอาหารและสลิปร้าน และให้ไรเดอร์ยืนยันว่ารับโอนแล้ว', () => {
-  assert.match(rider, /data-food-photo="\$\{esc\(j\.id\)\}"/);
+test('UI ย้ายรูปอาหารและ Finance Actions ไปไว้ใน Chat Guide', () => {
+  assert.match(rider, /data-food-photo="\$\{esc\(job\.id\)\}"/);
   assert.match(rider, /ลูกค้าโอนแล้ว \/ ได้รับเงินแล้ว/);
   assert.match(rider, /data-paid=/);
   assert.match(rider, /callDispatch\('confirmPaymentReceived'/);
-  assert.match(rider, /data-slip="\$\{esc\(j\.id\)\}"/);
-  assert.match(rider, /🍽️ ขั้นตอนงานอาหาร/);
-  assert.match(rider, /📸 รูปอาหารให้ลูกค้า/);
-  assert.match(rider, /🧾 สลิปที่จ่ายร้าน/);
+  assert.match(rider, /data-slip="\$\{esc\(job\.id\)\}"/);
+  assert.match(rider, /function renderChatGuide/);
+  assert.match(rider, /📸 ถ่ายรูปสินค้า\/อาหารส่งให้ลูกค้า/);
+  assert.match(rider, /🧾 แนบสลิปที่จ่ายร้าน/);
   assert.match(rider, /!cashPickup && !alreadyPaid\) startPaymentTimers/);
   const rules = fs.readFileSync('firestore.rules', 'utf8');
   assert.match(rules, /function moneyFrozen\(\)/);
@@ -65,12 +65,12 @@ test('Rider arrival copy keeps shop wording only for partner food', () => {
   assert.match(rider, /ถึงสถานที่รับของแล้ว/);
 });
 
-test('Rider UI: แสดงสถานะยืนยันรายการและสลิปลูกค้าใน Job Card', () => {
+test('Rider UI: แสดงข้อมูลยืนยันและสลิปลูกค้าใน Chat ไม่ใช่ Job Card', () => {
   assert.match(rider, /customerOrderConfirmed/);
-  assert.match(rider, /ลูกค้ายืนยันรายการและยอดแล้ว/);
+  assert.match(rider, /renderChatGuide/);
   assert.match(rider, /customerSlipUrl/);
-  assert.match(rider, /📄 ลูกค้าแนบสลิปแล้ว/);
-  assert.match(rider, /📄 สลิปลูกค้า/);
+  assert.match(rider, /customerSlipUrl/);
+  assert.match(rider, /data-reject-slip/);
 });
 
 test('Rider UI: ปฏิเสธสลิปพร้อมเหตุผลและล็อกการส่งต่อจนกว่าจะอัปโหลดใหม่', () => {
@@ -78,7 +78,7 @@ test('Rider UI: ปฏิเสธสลิปพร้อมเหตุผล�
   assert.match(rider, /openSlipRejectModal/);
   assert.match(rider, /customerSlipRejectionReason/);
   assert.match(rider, /customerSlipStatus: 'rejected'/);
-  assert.match(rider, /รอลูกค้าอัปโหลดสลิปใหม่/);
+  assert.match(rider, /customerSlipRejectionReason/);
 });
 
 test('Payment Watch อัปเดต allJobs ทันทีเมื่อ Firestore แจ้ง customerPaidAt', () => {

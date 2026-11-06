@@ -378,8 +378,8 @@ service cloud.firestore {
         || (
           resource.data.get('foodTotal', 0) is number
           && resource.data.get('foodTotal', 0) > 0
-          && resource.data.get('shopBillUrl', '') is string
-          && resource.data.get('shopBillUrl', '').size() > 0
+          && resource.data.get('foodImage', '') is string
+          && resource.data.get('foodImage', '').size() > 0
         );
     }
 
@@ -794,8 +794,6 @@ service cloud.firestore {
         && request.resource.data.foodImage.size() > 0
         && request.resource.data.foodTotal is number
         && request.resource.data.foodTotal > 0
-        && request.resource.data.shopBillUrl is string
-        && request.resource.data.shopBillUrl.size() > 0
         && request.resource.data.foodPriceUpdatedAt is timestamp
         && identityFrozen()
         && unchanged('riderId')

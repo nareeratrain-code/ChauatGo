@@ -3611,8 +3611,16 @@ async function createServerOrder(payload, retried) {
     throw err;
   }
   setTimeout(function () {
-    if (!window.ChauatFcm) return;
-    ChauatFcm.warm(firebaseApp).catch(function () {});
+    if (!window.ChauatFcm || !currentUser) return;
+    ChauatFcm.warm(firebaseApp).then(function (token) {
+      if (!token || !currentUser) return;
+      return db.collection('users').doc(currentUser.uid).set({
+        fcmTokens: firebase.firestore.FieldValue.arrayUnion(String(token)),
+        fcmTokenUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }).catch(function (err) {
+      console.warn('[fcm] customer token skipped', err && (err.code || err.message));
+    });
   }, 0);
   return data || {};
 }
@@ -4128,7 +4136,7 @@ function renderOrderCard(o){
   var buysGoods = o.type === 'food' || o.type === 'shopping';
   var shoppingQuoteReady = o.type !== 'shopping' || (
     Number(o.foodTotal || o.itemsTotal) > 0 &&
-    String(o.shopBillUrl || '').trim().length > 0
+    String(o.foodImage || '').trim().length > 0
   );
   var needsCustomerSlip = buysGoods && !isCash && shoppingQuoteReady;
   var customerSlipRejected = o.customerSlipStatus === 'rejected';
@@ -4205,6 +4213,10 @@ function renderOrderCard(o){
       '<button class="customer-payment-btn" onclick="'+expressTransferClick(o)+'">💳 โอนเงินแล้ว</button>' +
     '</div>';
   }
+  // Financial instructions, totals, QR and slip actions belong in the order
+  // chat. The list is intentionally status-only to avoid duplicate or stale
+  // payment information on the tracking card.
+  payBtnHtml = '';
 
   return '<div class="order-track-card" style="border-left-color:' + color + '">' +
     '<div class="order-track-header">' +
@@ -4212,23 +4224,18 @@ function renderOrderCard(o){
       '<div style="flex:1;min-width:0">' +
         '<div class="order-track-title">'+esc(o.title||'ออเดอร์')+'</div>' +
         codeHtml +
-        '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด • ชำระค่าบริการ ฿'+fmt(o.chargedTotal||o.fare||0) : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status)))))+' • ฿'+fmt(o.status==='shop_closed' ? (o.chargedTotal||o.fare||0) : (o.total||o.fare||0))+'</div>' +
+        '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด' : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status)))))+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
         (o.status === 'shop_closed' && o.customerNotice ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px;white-space:pre-wrap">'+esc(o.customerNotice)+'</div>' : '') +
         orderPrepNote(o) +
-        '<div style="margin-top:4px">' + payBadge + '</div>' +
       '</div>' +
       (canTrack?'<button class="order-track-cta" onclick="openTrackingPage(\''+esc(o.id)+'\')">📍 ติดตาม</button>':'') +
     '</div>' +
     (o.riderName?'<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:8px">🛵 ไรเดอร์: <b>'+esc(o.riderName)+'</b></div>':'') +
     (window.ChauatCall ? ChauatCall.buttons(o.id) : '') +
-    discountHtml +
     '<div class="order-track-progress">' + progressDots + '</div>' +
-    payBtnHtml +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
-      '<button class="rate-btn" style="background:linear-gradient(135deg,#4E9F2D,#34751E);margin:0" onclick="showOrderBill(\''+esc(o.id)+'\')">🧾 ดูบิล</button>' +
-      (expressTransferOwed(o)?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="'+expressTransferClick(o)+'">💳 โอนเงินแล้ว</button>':'') +
-      (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท</button>':'') +
+      (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท • ยอดเงิน/สลิป</button>':'') +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
@@ -4251,7 +4258,7 @@ window.confirmCustomerOrder = async function(orderId) {
   var canConfirmSummary = cached.status === 'accepted';
   var shoppingQuoteReady = cached.type !== 'shopping' || (
     Number(cached.foodTotal || cached.itemsTotal) > 0 &&
-    String(cached.shopBillUrl || '').trim().length > 0
+    String(cached.foodImage || '').trim().length > 0
   );
   var canConfirmGoodsPhoto = cached.status === 'picked_up' && !!cached.foodImage && shoppingQuoteReady &&
     (cached.type === 'shopping' || (cached.type === 'food' && cached.partnerShop === true));
@@ -4281,7 +4288,7 @@ async function postConfirmPayNote(order) {
   if (order.type !== 'food' && order.type !== 'shopping') return;
   if (order.type === 'shopping' && (
     !(Number(order.foodTotal || order.itemsTotal) > 0) ||
-    !String(order.shopBillUrl || '').trim()
+    !String(order.foodImage || '').trim()
   )) return;
   var total = (order.type === 'shopping' || order.type === 'food') && Number(order.foodTotal || order.itemsTotal) > 0
     ? customerGoodsTotal(order) : (order.total || order.fare || 0);
@@ -4348,8 +4355,8 @@ window.handleCustomerSlipPick = async function(event) {
   if (cached && cached.type === 'ride') return showToast('งานเรียกรถไม่ต้องแนบสลิป — แจ้งไรเดอร์เมื่อชำระค่าบริการแล้ว', 'info');
   if (cached && cached.type === 'shopping' && (
     !(Number(cached.foodTotal || cached.itemsTotal) > 0) ||
-    !String(cached.shopBillUrl || '').trim()
-  )) return showToast('รอไรเดอร์ระบุราคาสินค้าและแนบบิลร้านค้าก่อน', 'warning');
+    !String(cached.foodImage || '').trim()
+  )) return showToast('รอไรเดอร์ส่งรูปสินค้าและระบุราคาสินค้าก่อน', 'warning');
   var expressDropoff = cached && cached.type === 'express' && cached.status === 'on_the_way';
   if (!cached || cached.userId !== currentUser.uid || (cached.status !== 'picked_up' && !expressDropoff)) {
     return showToast('แนบสลิปได้หลังไรเดอร์รับของแล้วเท่านั้น (กรุณารอสถานะอัปเดต)', 'warning');
@@ -4438,8 +4445,8 @@ window.confirmCustomerPaid = async function(orderId) {
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (cached && cached.type === 'shopping' && (
     !(Number(cached.foodTotal || cached.itemsTotal) > 0) ||
-    !String(cached.shopBillUrl || '').trim()
-  )) return showToast('รอไรเดอร์ระบุราคาสินค้าและแนบบิลร้านค้าก่อน', 'warning');
+    !String(cached.foodImage || '').trim()
+  )) return showToast('รอไรเดอร์ส่งรูปสินค้าและระบุราคาสินค้าก่อน', 'warning');
   var cashPayment = cached && cached.paymentMode === 'cash';
   if (!cashPayment && cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
   if (!confirm(cashPayment ? 'ยืนยันว่าได้รับสินค้าและชำระเงินสดให้ไรเดอร์แล้ว?' : 'ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
@@ -5042,6 +5049,9 @@ function subscribeChatMessages(orderId) {
         }
         if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_photo_confirmed' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && live.customerOrderConfirmed && !live.customerPaidAt && live.paymentMode !== 'cash') {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
+        }
+        if (live && live.userId === currentUser.uid && live.customerSlipUrl && !live.customerPaidAt && live.paymentMode !== 'cash' && (m.automationKey === 'customer_slip_uploaded' || m.automationKey === 'food_payment' || m.automationKey === 'food_photo_confirmed' || m.automationKey === 'goods_ready')) {
+          action = '<button type="button" class="customer-payment-btn green" onclick="confirmCustomerPaid(\'' + esc(orderId) + '\')">💳 ยืนยันว่าโอนแล้ว</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +
           img + (displayText ? '<div style="white-space:pre-wrap">' + esc(displayText) + '</div>' : '') +

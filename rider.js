@@ -1564,16 +1564,12 @@ function renderJobCard(j, type) {
     cooking: { label: '🍳 ร้านกำลังทำ • รับได้เลย', color: '#E65100', bg: '#FFF3E0' },
     ready: { label: '✅ อาหารพร้อม • รับได้เลย', color: 'var(--green)', bg: '#E8F5E9' },
     accepted: { label: '🛵 รับแล้ว • ร้านกำลังทำ', color: 'var(--blue)', bg: '#E3F2FD' },
-    picked_up: { label: j.type === 'ride' ? '🚗 รับผู้โดยสารแล้ว • ไปปลายทาง' : (j.type === 'express' ? '📦 รับพัสดุแล้ว • กำลังไปส่ง' : (orderIsCash(j) ? '💵 รับของแล้ว • เก็บเงินสดตอนส่ง' : '📦 รอลูกค้าโอนเงิน')), color: '#E65100', bg: '#FFF3E0' },
-    customer_paid: { label: j.type === 'ride' ? '💳 ได้รับค่าบริการแล้ว • จบงานได้' : '💳 โอนแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' },
+    picked_up: { label: j.type === 'ride' ? '🚗 รับผู้โดยสารแล้ว • ไปปลายทาง' : (j.type === 'express' ? '📦 รับพัสดุแล้ว • กำลังไปส่ง' : '📦 รับสินค้าแล้ว • รอดำเนินการ'), color: '#E65100', bg: '#FFF3E0' },
+    customer_paid: { label: j.type === 'ride' ? '🚗 พร้อมจบงานที่ปลายทาง' : '📦 พร้อมนำส่ง', color: 'var(--green)', bg: '#E8F5E9' },
     on_the_way: { label: '🚀 กำลังส่ง', color: 'var(--green)', bg: '#E8F5E9' },
     done: { label: '✅ เสร็จ', color: 'var(--green)', bg: '#E8F5E9' },
     cancelled: { label: 'ยกเลิกแล้ว', color: '#8A3A3A', bg: '#FDECEC' }
   }[j.status] || { label: j.status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
-
-  const payBadge = fin.isCash
-    ? `<span class="jc-badge jc-cash">💵 เงินสด • ต้องมี ฿${fmt(fin.foodAmount)}</span>`
-    : `<span class="jc-badge jc-transfer">💳 โอน • ลูกค้าจ่าย ฿${fmt(fin.totalCustomerPay)}</span>`;
 
   const typeIcon = (j.type === 'ride') ? '🚗'
     : (j.type === 'express') ? '📦'
@@ -1591,47 +1587,21 @@ function renderJobCard(j, type) {
   const customerConfirmed = j.customerOrderConfirmed === true;
   const customerSlip = typeof j.customerSlipUrl === 'string' && j.customerSlipUrl.length > 0;
   const customerSlipRejected = j.customerSlipStatus === 'rejected';
-  const customerConfirmationHtml = (!isNew && j.status === 'accepted')
-    ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid ${customerConfirmed ? '#B9DFA6' : '#F4D58A'};border-radius:13px;background:${customerConfirmed ? '#F4FBF0' : '#FFF8E7'}">
-        <div style="font-size:12px;font-weight:900;color:${customerConfirmed ? '#237A3B' : '#8A5A00'}">${customerConfirmed ? '✅ ลูกค้ายืนยันรายการและยอดแล้ว' : '⏳ รอลูกค้ายืนยันรายการและยอด'}</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-top:4px">${customerConfirmed ? 'เมื่อถ่ายรูปอาหาร/สินค้าแล้ว ระบบจะแจ้งยอดและ QR ให้ลูกค้า' : 'ลูกค้าจะต้องยืนยันก่อนเข้าสู่ขั้นตอนชำระเงิน'}</div>
-      </div>` : '';
-  const customerSlipHtml = (!isNew && customerSlip && !customerPaid)
-    ? `<div style="margin:10px 0;padding:11px 12px;border:1px solid ${customerSlipRejected ? '#F0A7A7' : '#B9DFA6'};border-radius:13px;background:${customerSlipRejected ? '#FFF5F5' : '#F4FBF0'}">
-        <div style="font-size:12px;font-weight:900;color:${customerSlipRejected ? '#B42318' : '#237A3B'};margin-bottom:7px">${customerSlipRejected ? '↩️ ขอให้ลูกค้าอัปโหลดสลิปใหม่' : '📄 ลูกค้าแนบสลิปแล้ว'}</div>
-        <img src="${esc(j.customerSlipUrl)}" alt="สลิปจากลูกค้า" style="width:100%;max-height:170px;object-fit:contain;border-radius:10px;background:#fff;cursor:pointer" onclick="event.stopPropagation();openLightbox('${esc(j.customerSlipUrl)}')">
-        <div style="font-size:11px;font-weight:700;color:${customerSlipRejected ? '#8A2B2B' : 'var(--text-muted)'};margin-top:6px">${customerSlipRejected ? 'เหตุผล: ' + esc(j.customerSlipRejectionReason || 'ข้อมูลสลิปไม่ครบถ้วน') : 'ตรวจสอบยอดในสลิป แล้วดำเนินการตามขั้นตอนต่อ'}</div>
-        ${customerSlipRejected ? '<div style="font-size:11px;font-weight:800;color:#8A2B2B;margin-top:5px">ระบบจะปลดล็อกขั้นตอนต่อเมื่อลูกค้าส่งสลิปฉบับใหม่</div>' : '<button type="button" class="jc-secondary-btn" style="margin-top:9px;width:100%;border-color:#D9534F;color:#B42318;background:#FFF" data-reject-slip="' + esc(j.id) + '">↩️ ปฏิเสธสลิป / ขออัปโหลดใหม่</button>'}
-      </div>` : '';
-  const foodWorkflowHtml = (!isNew && orderBuysGoods(j) && ['picked_up', 'customer_paid', 'on_the_way'].includes(j.status))
-    ? `<div style="margin:12px 0;padding:12px;border:1px solid #B9DFA6;border-radius:14px;background:#F4FBF0">
-        <div style="font-size:13px;font-weight:900;color:#237A3B;margin-bottom:8px">🍽️ ขั้นตอนงานอาหาร</div>
-        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
-          <span>📸 รูปอาหารให้ลูกค้า</span><span style="color:${j.foodImage ? '#168A45' : '#E65100'}">${j.foodImage ? '✅ ส่งแล้ว' : '⏳ ยังไม่ส่ง'}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
-          <span>💳 ลูกค้าโอนเงิน</span><span style="color:${customerPaid ? '#168A45' : '#E65100'}">${orderIsCash(j) ? '💵 เงินสดปลายทาง' : (customerPaid ? '✅ ตรวจพบแล้ว' : '⏳ รอลูกค้าโอน')}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
-          <span>📄 สลิปลูกค้า</span><span style="color:${customerSlip ? '#168A45' : '#E65100'}">${customerSlip ? '✅ แนบแล้ว' : '⏳ ยังไม่แนบ'}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;margin:5px 0">
-          <span>🧾 สลิปที่จ่ายร้าน</span><span style="color:${shopSlip ? '#168A45' : '#E65100'}">${shopSlip ? '✅ แนบแล้ว' : '⏳ ยังไม่แนบ'}</span>
-        </div>
-      </div>`
-    : '';
+  // Payment totals, slips and proof status are intentionally rendered in
+  // the shared chat, not in the rider job list. The list remains a status
+  // timeline so the rider can scan work without duplicate financial UI.
   if (j.status === 'accepted' && foodIsReady) {
     statusInfo = { label: '✅ อาหารพร้อม • ไปรับที่ร้าน', color: 'var(--green)', bg: '#E8F5E9' };
   }
   if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !j.foodImage) {
     statusInfo = { label: '📸 ต้องส่งรูปอาหารให้ลูกค้า', color: '#E65100', bg: '#FFF3E0' };
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip && !customerPaid) {
-    statusInfo = { label: '💳 ส่งรูปแล้ว • รอลูกค้าโอน', color: '#E65100', bg: '#FFF3E0' };
+    statusInfo = { label: '📦 ส่งรูปแล้ว • รอดำเนินการต่อ', color: '#E65100', bg: '#FFF3E0' };
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
-    statusInfo = { label: '✅ ลูกค้าโอนแล้ว • แนบสลิปร้าน', color: 'var(--green)', bg: '#E8F5E9' };
+    statusInfo = { label: '✅ พร้อมดำเนินการต่อ', color: 'var(--green)', bg: '#E8F5E9' };
   }
   if (j.type !== 'ride' && j.type !== 'express' && !orderIsCash(j) && j.status === 'picked_up' && j.customerPaidAt && !(orderBuysGoods(j) && !shopSlip)) {
-    statusInfo = { label: '💳 ได้รับเงินแล้ว • เริ่มส่งได้', color: 'var(--green)', bg: '#E8F5E9' };
+    statusInfo = { label: j.type === 'shopping' ? '✅ พร้อมเริ่มส่งไปบ้านลูกค้า' : '✅ พร้อมเริ่มส่ง', color: 'var(--green)', bg: '#E8F5E9' };
   }
   const prepHtml = (!foodIsReady && j.prepMinutes)
     ? `<div class="jc-row"><span class="jc-row-icon">⏱️</span><span class="jc-row-text">ร้านใช้เวลาทำประมาณ ${Number(j.prepMinutes)} นาที</span></div>`
@@ -1660,19 +1630,19 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าอัปโหลดสลิปใหม่</button>
         <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬 แจ้งลูกค้า</button>`;
     } else if (orderBuysGoods(j) && !j.foodImage) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-food-photo="${esc(j.id)}">💬 ถ่ายรูปอาหารในแชท</button>
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-chat="${esc(j.id)}">💬 ดำเนินการในแชท</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (orderBuysGoods(j) && !shopSlip && !customerPaid) {
-      primaryAction = `${payReceivedButton(j.id)}
-        <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-chat="${esc(j.id)}">💬 ดำเนินการในแชท</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (orderBuysGoods(j) && !shopSlip) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-slip="${esc(j.id)}">💬 แนบสลิปร้านในแชท</button>
-        <button type="button" class="jc-secondary-btn" data-chat="${esc(j.id)}">💬</button>`;
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-chat="${esc(j.id)}">💬 ดำเนินการในแชท</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (canLeaveShop(j)) {
       const closedShop = (j.type === 'food' && !orderNeedsKitchen(j) && j.status === 'picked_up' && !j.customerPaidAt)
         ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>`
         : `<button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-      primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
+      primaryAction = `<button class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 ${j.type === 'shopping' ? 'เริ่มส่งไปบ้านลูกค้า' : 'เริ่มส่ง'}</button>
         ${closedShop}`;
     } else if (riderMayConfirmPay(j)) {
       primaryAction = `${payReceivedButton(j.id)}
@@ -1697,10 +1667,6 @@ function renderJobCard(j, type) {
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
   }
-  const payExtra = (riderMayConfirmPay(j) && primaryAction.indexOf('data-paid=') === -1)
-    ? `<div class="jc-actions" style="margin-bottom:8px">${payReceivedButton(j.id)}</div>`
-    : '';
-
   return `
     <div class="jc-card ${isNew ? 'jc-new' : ''}" data-card-id="${esc(j.id)}">
       <div class="jc-header">
@@ -1725,22 +1691,7 @@ function renderJobCard(j, type) {
         ${prepHtml}
       </div>
 
-      <div class="jc-payment-row">${payBadge}</div>
-
-      ${customerConfirmationHtml}
-      ${customerSlipHtml}
-      ${foodWorkflowHtml}
-
-      <div class="jc-finance">
-        <div class="jc-finance-left">
-          <div class="jc-finance-label">💰 ค่าบริการ</div>
-          <div class="jc-finance-sub">คุณได้ 80% ของค่าส่ง = ฿${fmt(fin.riderShare)}${fin.tip > 0 ? ` + ทิปเงินสด ฿${fin.tip}` : ''}</div>
-        </div>
-        <div class="jc-finance-amount">฿${fmt(fin.totalRider)}</div>
-      </div>
-
       ${callRow}
-      ${payExtra}
       <div class="jc-actions">
         ${primaryAction}
       </div>
@@ -2209,17 +2160,9 @@ function openPayGuide(jobId, stage) {
       const shoppingFields = job.type === 'shopping' ? `
         <label style="display:block;text-align:left;font-size:13px;font-weight:900;margin:12px 0 6px">💰 ราคาสินค้าจริง</label>
         <input id="pickup-goods-total" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updatePickupConfirmBtn()" placeholder="กรอกราคาสินค้า เช่น 125" style="width:100%;box-sizing:border-box;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-weight:900">
-        <div style="margin-top:12px;text-align:left;font-size:13px;font-weight:900">🧾 บิลร้านค้า <span style="color:#E53935">*บังคับ</span></div>
-        <img id="pickup-bill-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px;margin-top:8px">
-        <div id="pickup-bill-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted);margin:8px 0">ยังไม่ได้เลือกบิล</div>
-        <div class="chat-guide-row">
-          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-bill-camera').click()">📷 ถ่ายบิล</button>
-          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-bill-gallery').click()">🖼️ เลือกบิล</button>
-        </div>
-        <input type="file" id="pickup-bill-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'bill')">
-        <input type="file" id="pickup-bill-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'bill')">` : '';
+        <div style="margin-top:6px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted)">กรอกราคาแล้วกดส่งรูปและราคาให้ลูกค้ายืนยันก่อน ระบบจะแสดง QR และยอดรวมค่าบริการ</div>` : '';
       box.hidden = false;
-      box.innerHTML = `<div class="chat-guide-title">📸 ถ่ายรูปอาหาร/สินค้า ส่งเข้าแชท</div>
+      box.innerHTML = `<div class="chat-guide-title">📸 ถ่ายรูปอาหาร/สินค้า + แจ้งราคา</div>
         <img id="pickup-food-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
         <div id="pickup-food-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกรูป</div>
         <div class="chat-guide-row">
@@ -2228,7 +2171,7 @@ function openPayGuide(jobId, stage) {
         </div>
         <input type="file" id="pickup-food-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'food')">
         <input type="file" id="pickup-food-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'food')">${shoppingFields}
-        <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งรูปให้ลูกค้า</button>`;
+        <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">📤 ส่งรูปสินค้าและราคาให้ลูกค้า</button>`;
     } else if (mode === 'slip') {
       box.hidden = false;
       box.innerHTML = `<div class="chat-guide-title">🧾 แนบสลิปที่จ่ายร้าน</div>
@@ -2356,16 +2299,7 @@ function openPickupModal(jobId, job) {
         <input id="pickup-goods-total" type="number" min="0.01" step="0.01" inputmode="decimal" oninput="updatePickupConfirmBtn()" placeholder="กรอกราคาสินค้า เช่น 125" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-weight:900">
         <div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">ระบบจะรวมราคานี้กับค่าบริการ แล้วส่งให้ลูกค้ายอมรับ</div>
       </div>
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:13px;font-weight:900;margin-bottom:8px">🧾 แนบบิลร้าน <span style="color:#E53935">*บังคับ</span></label>
-        <div style="border:2px dashed var(--border);border-radius:12px;aspect-ratio:1;max-height:180px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);overflow:hidden;position:relative">
-          <div id="pickup-bill-placeholder" style="text-align:center"><div style="font-size:32px">🧾</div><div style="font-size:12px;font-weight:700;color:var(--text-muted)">ยังไม่มีบิล</div></div>
-          <img id="pickup-bill-preview" style="display:none;width:100%;height:100%;object-fit:cover">
-        </div>
-        <div class="photo-source-row"><button type="button" class="photo-source-btn camera ripple" onclick="openLiveCamera('bill')">📷 ถ่ายบิล</button><button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-bill-gallery').click()">🖼️ เลือกบิล</button></div>
-        <input type="file" id="pickup-bill-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'bill')">
-        <input type="file" id="pickup-bill-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'bill')">
-      </div>`
+      <div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:14px">ส่งรูปสินค้าและราคาจริงให้ลูกค้ายืนยันก่อน หลังลูกค้าโอนแล้วจึงแนบสลิปเงินโอนให้ร้านค้า</div>`
     : '';
 
   mc.innerHTML = `
@@ -2445,7 +2379,7 @@ function openPickupModal(jobId, job) {
     <!-- ปุ่ม -->
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="action-btn-big btn-gray-big ripple" style="flex:1" onclick="closeModal()">ยกเลิก</button>
-      <button class="action-btn-big btn-green-big ripple" style="flex:1" id="pickup-confirm-btn" disabled onclick="confirmPickup()">${stage === 'slip' ? '🧾 ส่งสลิปให้ลูกค้า' : (stage === 'food' ? '📤 ส่งรูปอาหารให้ลูกค้า' : '📤 ส่งให้ลูกค้า')}</button>
+      <button class="action-btn-big btn-green-big ripple" style="flex:1" id="pickup-confirm-btn" disabled onclick="confirmPickup()">${stage === 'slip' ? '🧾 ส่งสลิปเงินโอนให้ร้านค้า' : (stage === 'food' ? (job.type === 'shopping' ? '📤 ส่งรูปสินค้าและราคาให้ลูกค้า' : '📤 ส่งรูปอาหารให้ลูกค้า') : '📤 ส่งให้ลูกค้า')}</button>
     </div>
   `;
 
@@ -2554,7 +2488,7 @@ function updatePickupConfirmBtn() {
   if (!btn) return;
   const job = allJobs.find(j => j.id === pickupOrderId);
   const stage = pickupStage(job);
-  if (stage === 'food') btn.disabled = !pickupFoodBlob || (job && job.type === 'shopping' && (!(Number($('pickup-goods-total')?.value) > 0) || !pickupBillBlob));
+  if (stage === 'food') btn.disabled = !pickupFoodBlob || (job && job.type === 'shopping' && !(Number($('pickup-goods-total')?.value) > 0));
   else if (stage === 'slip') btn.disabled = !pickupSlipBlob;
   else btn.disabled = !(pickupFoodBlob && pickupSlipBlob);
 }
@@ -2651,8 +2585,8 @@ async function confirmPickup() {
 async function submitFoodPhoto(pickupJob) {
   if (!pickupFoodBlob) return showToast('⚠️ กรุณาถ่ายรูปอาหาร', 'warning');
   const shoppingPrice = pickupJob && pickupJob.type === 'shopping' ? Number($('pickup-goods-total')?.value) : 0;
-  if (pickupJob && pickupJob.type === 'shopping' && (!(shoppingPrice > 0) || !pickupBillBlob)) {
-    return showToast('⚠️ กรุณากรอกราคาสินค้าจริงและแนบบิลร้าน', 'warning');
+  if (pickupJob && pickupJob.type === 'shopping' && !(shoppingPrice > 0)) {
+    return showToast('⚠️ กรุณากรอกราคาสินค้าจริงก่อนส่งให้ลูกค้า', 'warning');
   }
   if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
@@ -2671,7 +2605,7 @@ async function submitFoodPhoto(pickupJob) {
     pickupFoodUrl = await foodRef.getDownloadURL();
     let billUrl = '';
     let billPath = '';
-    if (pickupJob && pickupJob.type === 'shopping') {
+    if (pickupJob && pickupJob.type === 'shopping' && pickupBillBlob) {
       billPath = `orders/${jobId}/riders/${currentUser.uid}/bill_${ts}.jpg`;
       const billRef = storage.ref(billPath);
       uploadStep = 'อัปโหลดบิลร้าน';
@@ -2689,8 +2623,10 @@ async function submitFoodPhoto(pickupJob) {
     if (pickupJob && pickupJob.type === 'shopping') {
       photoPatch.foodTotal = Math.round(shoppingPrice * 100) / 100;
       photoPatch.itemsTotal = Math.round(shoppingPrice * 100) / 100;
-      photoPatch.shopBillUrl = billUrl;
-      photoPatch.shopBillPath = billPath;
+      if (billUrl) {
+        photoPatch.shopBillUrl = billUrl;
+        photoPatch.shopBillPath = billPath;
+      }
       photoPatch.foodPriceUpdatedAt = firebase.firestore.FieldValue.serverTimestamp();
     }
     if (riderProfile?.qrCodeUrl && pickupJob && pickupJob.type === 'food' && pickupJob.partnerShop === true) {
@@ -2709,8 +2645,10 @@ async function submitFoodPhoto(pickupJob) {
       if (pickupJob && pickupJob.type === 'shopping') {
         pickedJob.foodTotal = Math.round(shoppingPrice * 100) / 100;
         pickedJob.itemsTotal = Math.round(shoppingPrice * 100) / 100;
-        pickedJob.shopBillUrl = billUrl;
-        pickedJob.shopBillPath = billPath;
+        if (billUrl) {
+          pickedJob.shopBillUrl = billUrl;
+          pickedJob.shopBillPath = billPath;
+        }
       }
     }
     try {
@@ -3794,6 +3732,7 @@ async function openChatWithCustomer(orderId) {
   const cs = $('chatSub'); if (cs) cs.textContent = '🧾 ' + orderLabel(job) + (job.title ? ' • ' + job.title : '');
   $('chatContainer')?.classList.add('show');
   closeModal({ keepPickup: true });
+  renderChatGuide(job);
 
   if (activeChatUnsub) activeChatUnsub();
   activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')
@@ -3837,6 +3776,7 @@ async function openChatRoom(orderId, name, sub) {
   const cn = $('chatName'); if (cn) cn.textContent = activeChatPartnerName;
   const cs = $('chatSub'); if (cs) cs.textContent = '🧾 ' + orderLabel(job) + (sub ? ' • ' + sub : (job.title ? ' • ' + job.title : ''));
   $('chatContainer')?.classList.add('show');
+  renderChatGuide(job);
 
   if (activeChatUnsub) activeChatUnsub();
   activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')
@@ -3851,6 +3791,41 @@ function closeChat() {
   $('chatContainer')?.classList.remove('show');
   if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
   activeChatId = null;
+}
+
+/* Operational and financial actions live with the conversation. The rider
+   list remains a status timeline, while this guide is the single place to
+   send the item photo, acknowledge payment, attach the shop slip, and finish
+   delivery. */
+function renderChatGuide(job) {
+  const box = $('chat-guide');
+  if (!box) return;
+  if (!job) { box.hidden = true; box.innerHTML = ''; return; }
+  const actions = [];
+  const goods = orderBuysGoods(job);
+  const paid = !!job.customerPaidAt || job.status === 'customer_paid';
+  const shopSlip = orderHasShopSlip(job);
+
+  if (goods && ['picked_up', 'customer_paid'].includes(job.status) && !job.foodImage) {
+    actions.push(`<button type="button" class="chat-guide-btn" data-food-photo="${esc(job.id)}">📸 ถ่ายรูปสินค้า/อาหารส่งให้ลูกค้า</button>`);
+  } else if (goods && ['picked_up', 'customer_paid'].includes(job.status) && !paid && !orderIsCash(job)) {
+    actions.push(`<button type="button" class="chat-guide-btn" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ตรวจสอบในแชท</button>`);
+  } else if (goods && ['picked_up', 'customer_paid'].includes(job.status) && !shopSlip) {
+    actions.push(`<button type="button" class="chat-guide-btn" data-slip="${esc(job.id)}">🧾 แนบสลิปที่จ่ายร้าน</button>`);
+  }
+  if (goods && job.customerSlipUrl && !paid && job.customerSlipStatus !== 'rejected') {
+    actions.push(`<button type="button" class="chat-guide-btn chat-guide-btn-danger" data-reject-slip="${esc(job.id)}">↩️ ปฏิเสธสลิป / ขออัปโหลดใหม่</button>`);
+  }
+  if (job.status === 'picked_up' && !goods && (job.type === 'ride' || job.type === 'express' || orderIsCash(job))) {
+    actions.push(`<button type="button" class="chat-guide-btn" data-start-deliver="${esc(job.id)}">🚀 เริ่มนำส่ง</button>`);
+  }
+  if (job.status === 'on_the_way') {
+    actions.push(`<button type="button" class="chat-guide-btn" data-deliver="${esc(job.id)}">✅ ส่งถึงปลายทาง / จบงาน</button>`);
+  }
+  box.innerHTML = actions.length
+    ? `<div class="chat-guide-title">การดำเนินการออเดอร์อยู่ในแชท</div>${actions.join('')}`
+    : '<div class="chat-guide-title">💬 ข้อมูลยอดเงินและหลักฐานอยู่ในข้อความแชท</div>';
+  box.hidden = false;
 }
 
 function callChatPartner() {
@@ -3887,6 +3862,7 @@ function renderChatMessages(msgs) {
       </div>`;
   }).join('');
   el.scrollTop = el.scrollHeight;
+  if (activeChatId) renderChatGuide(findKnownOrder(activeChatId));
 }
 
 async function ensureRiderChat(orderId) {

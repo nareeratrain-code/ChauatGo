@@ -245,8 +245,12 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
       'รอ Rider claimOpenJob เปลี่ยน Order เป็น accepted'
     );
 
-    // Customer เห็น Order เดียวกันและยืนยันรายการ/ยอด
-    const confirmButton = customer.locator('button', { hasText: 'ยืนยันรายการและยอด' });
+    // รายการแสดงเฉพาะสถานะ — Customer ยืนยันรายการจากข้อความใน Chat
+    const customerChatButton = customer.locator('button', { hasText: 'แชท' }).last();
+    await expect(customerChatButton).toBeVisible({ timeout: 15_000 });
+    await customerChatButton.click();
+    await expect(customer.locator('#chat-page')).toHaveClass(/show/, { timeout: 10_000 });
+    const confirmButton = customer.locator('#chat-messages button', { hasText: 'ยืนยัน' }).first();
     await expect(confirmButton).toBeVisible({ timeout: 15_000 });
     customer.once('dialog', async (dialog) => { await dialog.accept(); });
     await confirmButton.click();
@@ -260,6 +264,10 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
 
     // Rider กดถึงร้าน แล้วแนบรูปอาหารผ่าน input จริง
     await expect(rider.locator(`[data-arrived="${orderId}"]`)).toBeVisible({ timeout: 15_000 });
+    await rider.evaluate(() => {
+      if (typeof window.closeModal === 'function') window.closeModal();
+      if (typeof window.closeChat === 'function') window.closeChat();
+    });
     await rider.locator(`[data-arrived="${orderId}"]`).click();
     await expect(rider.locator('#pickup-food-gallery')).toBeAttached({ timeout: 10_000 });
     await uploadImage(rider, '#pickup-food-gallery', 'qa-food.png');
@@ -281,7 +289,8 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
       }, orderId),
       { timeout: 10_000, message: 'Customer UI cache ยังไม่เป็น picked_up หรือไม่ใช่เจ้าของ Order' }
     ).toBe('picked_up:true');
-    const customerSlipButton = customer.locator('button', { hasText: 'ถ่ายหรือเลือกสลิป' });
+    await expect(customer.locator('#chat-page')).toHaveClass(/show/, { timeout: 10_000 });
+    const customerSlipButton = customer.locator('#chat-messages button', { hasText: 'ถ่ายหรือเลือกสลิป' });
     await expect(customerSlipButton).toBeVisible({ timeout: 15_000 });
     await customerSlipButton.click();
     await expect.poll(
@@ -297,7 +306,7 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
       'รอ Customer upload customerSlipUrl'
     );
     customer.once('dialog', async (dialog) => { await dialog.accept(); });
-    await customer.locator('button', { hasText: 'ยืนยันว่าโอนแล้ว' }).click();
+    await customer.locator('#chat-messages button', { hasText: 'ยืนยันว่าโอนแล้ว' }).click();
     await waitForOrderState(
       rider,
       orderId,
@@ -307,7 +316,8 @@ test.describe('Customer ↔ Rider Payment Flow', () => {
     );
 
     // Rider แนบสลิปที่จ่ายร้านผ่าน UI จริง
-    const shopSlipButton = rider.locator(`[data-slip="${orderId}"]`);
+    await rider.locator(`.jc-card[data-card-id="${orderId}"] .jc-icon-btn`).click();
+    const shopSlipButton = rider.locator(`#chat-guide [data-slip="${orderId}"]`);
     await expect(shopSlipButton).toBeVisible({ timeout: 15_000 });
     // The customer-paid update can refresh the rider job detail modal. Close
     // it explicitly before clicking the card action so the overlay cannot

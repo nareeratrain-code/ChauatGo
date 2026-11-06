@@ -64,13 +64,13 @@ test('Customer UI: มีปุ่มเลือกแผนที่ จุด
   assert.match(app, /paymentMode: selectedPaymentMode/);
 });
 
-test('Customer Order Card: แทรก Payment Panel เพื่อให้ยืนยันรายการและยอดได้หลัง Rider รับงาน', () => {
+test('Customer Order Card: แสดงเฉพาะสถานะและย้ายการเงินไป Chat', () => {
   const cardStart = app.indexOf('function renderOrderCard');
   const cardEnd = app.indexOf('function customerGoodsTotal', cardStart);
   const card = app.slice(cardStart, cardEnd);
-  assert.match(card, /if \(o\.status === 'accepted' && !o\.customerOrderConfirmed\)/);
-  assert.match(card, /ยืนยันรายการและยอด/);
-  assert.match(card, /progressDots[\s\S]*payBtnHtml\s*\+/);
+  assert.match(card, /progressDots/);
+  assert.match(card, /payBtnHtml = ''/);
+  assert.match(card, /แชท • ยอดเงิน\/สลิป/);
 });
 
 test('Customer Checkout: ข้อความร้าน Partner และร้านในพื้นที่ไม่ทำให้สับสน', () => {
@@ -110,11 +110,11 @@ test('Customer Payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
 });
 
-test('Shopping payment is blocked until rider provides actual price and shop bill', () => {
+test('Shopping payment is blocked until rider provides product photo and actual price', () => {
   assert.match(app, /var shoppingQuoteReady = o\.type !== 'shopping'/);
   assert.match(app, /var needsCustomerSlip = buysGoods && !isCash && shoppingQuoteReady/);
   assert.match(app, /รอไรเดอร์ระบุราคาสินค้าจริง/);
-  assert.match(app, /รอไรเดอร์ระบุราคาสินค้าและแนบบิลร้านค้าก่อน/);
+  assert.match(app, /รอไรเดอร์ส่งรูปสินค้าและระบุราคาสินค้าก่อน/);
 });
 
 test('Firestore Rules: Customer Shopping ยืนยันหลังเห็นรูปสินค้าได้', () => {
@@ -140,12 +140,14 @@ test('Customer Slip UI is excluded from ride orders', () => {
   assert.match(app, /งานเรียกรถไม่ต้องแนบสลิป/);
 });
 
-test('Order List แสดงสถานะและ Payment Panel ยืนยันรายการในจุดเดียว', () => {
+test('Order List แสดงสถานะเท่านั้นและเปิด Chat สำหรับการเงิน', () => {
   const start = app.indexOf('function renderOrderCard');
   const end = app.indexOf('/* Customer payment flow:', start);
   const card = app.slice(start, end);
-  assert.match(card, /payBtnHtml\s*\+/);
+  assert.match(card, /progressDots/);
+  assert.match(card, /payBtnHtml = ''/);
   assert.doesNotMatch(card, /อาหารของคุณ/);
-  assert.match(card, /order-track-progress/);
   assert.match(card, /openChatPage/);
+  assert.match(card, /แชท • ยอดเงิน\/สลิป/);
+  assert.doesNotMatch(card, /showOrderBill\(/);
 });

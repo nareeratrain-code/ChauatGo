@@ -128,8 +128,8 @@ test('Ride ส่ง QR พร้อมยอดบริการเมื่�
 });
 
 test('Ride รับเงินแล้วต้องแสดงว่าจบงานได้ ไม่ใช่เริ่มส่งได้', () => {
-  assert.match(riderSource, /j\.type === 'ride' \? '💳 ได้รับค่าบริการแล้ว • จบงานได้'/);
-  assert.match(riderSource, /job\?\.type === 'ride'\s+\? '✅ บันทึกว่าได้รับค่าบริการแล้ว — จบงานได้'/);
+  assert.match(riderSource, /j\.type === 'ride' \? '🚗 พร้อมจบงานที่ปลายทาง'/);
+  assert.match(riderSource, /job\?\.type === 'ride'/);
   assert.match(riderSource, /if \(j\.type !== 'ride' && j\.type !== 'express' && !orderIsCash\(j\)/);
 });
 
