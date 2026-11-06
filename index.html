@@ -4942,6 +4942,7 @@ window.openChatPage = async function(orderId) {
       return showToast('ยังไม่มีไรเดอร์รับงาน','warning');
     }
     var ensured = await ensureOrderChat(orderId, o);
+    await ensureCustomerSlipChatMessage(orderId, o);
     var isUser = ensured.role === 'user';
     activeChatRole = ensured.role;
     var otherName = isUser ? (o.riderName || 'ไรเดอร์') : (o.userName || 'ลูกค้า');
@@ -5081,7 +5082,36 @@ function chatFailToast(err) {
   if (String(code).indexOf('permission-denied') !== -1) showToast('ส่งไม่สำเร็จ: ไม่มีสิทธิ์ส่งข้อความ', 'error');
   else showToast('ส่งไม่สำเร็จ', 'error');
 }
-
+async function ensureCustomerSlipChatMessage(orderId, order) {
+  if (!order || order.userId !== currentUser.uid || !order.customerSlipUrl) return;
+  var messages = db.collection('chats').doc(orderId).collection('messages');
+  try {
+    var existing = await messages.where('automationKey', '==', 'customer_slip_uploaded').limit(1).get();
+    if (!existing.empty) return;
+    var revision = Number(order.customerSlipRevision) || 1;
+    await messages.doc('customer-slip-' + revision).set({
+      senderId: currentUser.uid,
+      senderRole: 'user',
+      senderName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
+      text: 'ลูกค้าแนบสลิปการโอนแล้ว กรุณาตรวจสอบยอดเงิน',
+      imageUrl: order.customerSlipUrl,
+      imagePath: order.customerSlipPath || '',
+      systemMessage: true,
+      automated: true,
+      automationKey: 'customer_slip_uploaded',
+      createdAt: order.customerSlipUploadedAt || firebase.firestore.FieldValue.serverTimestamp()
+    });
+    try {
+      await db.collection('chats').doc(orderId).update({
+        lastMessage: '📄 ลูกค้าแนบสลิปแล้ว',
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {}
+  } catch (e) {
+    console.warn('backfill customer slip chat', e && (e.code || e.message));
+  }
+}
 window.sendChatMessage = async function() {
   if (!activeChatId || !currentUser) return;
   var inp = $('chat-input'); if (!inp) return;
