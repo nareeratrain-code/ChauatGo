@@ -414,10 +414,15 @@ service cloud.firestore {
         resource.data.status == 'accepted'
         || (
           resource.data.status == 'picked_up'
-          && resource.data.get('type', '') == 'food'
-          && resource.data.get('partnerShop', false) == true
           && resource.data.get('foodImage', '') is string
           && resource.data.get('foodImage', '').size() > 0
+          && (
+            resource.data.get('type', '') == 'shopping'
+            || (
+              resource.data.get('type', '') == 'food'
+              && resource.data.get('partnerShop', false) == true
+            )
+          )
         )
       )
         && request.resource.data.status == resource.data.status

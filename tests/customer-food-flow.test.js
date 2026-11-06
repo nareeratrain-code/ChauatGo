@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const app = fs.readFileSync('index.html', 'utf8');
+const rules = fs.readFileSync('firestore.rules', 'utf8');
 
 function cartTotals(items, deliveryFee, cashTip = 0) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -91,6 +92,12 @@ test('Customer payment UI: ยืนยันรายการ → แนบส
   assert.match(app, /imageUrl: url/);
   assert.match(app, /ลูกค้าแนบสลิปการโอนแล้ว/);
   assert.match(app, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
+});
+
+test('Firestore Rules: Customer Shopping ยืนยันหลังเห็นรูปสินค้าได้', () => {
+  assert.match(rules, /resource\.data\.get\('type', ''\) == 'shopping'/);
+  assert.match(rules, /resource\.data\.get\('foodImage', ''\)\.size\(\) > 0/);
+  assert.match(rules, /customerOrderConfirmationOk\(\)/);
 });
 
 test('Customer UI: แสดงเหตุผลสลิปถูกปฏิเสธและปุ่มอัปโหลดใหม่', () => {
