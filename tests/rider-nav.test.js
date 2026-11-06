@@ -18,6 +18,15 @@ test('Rider chat guide remains scrollable on mobile when photo and bill controls
   assert.match(block, /-webkit-overflow-scrolling:\s*touch/);
 });
 
+test('chat snapshots do not replace an active pickup camera/gallery form', () => {
+  const start = rider.indexOf('function renderChatGuide(job)');
+  const end = rider.indexOf('\nfunction callChatPartner', start);
+  const block = rider.slice(start, end);
+  assert.match(block, /querySelector\('#pickup-food-gallery, #pickup-slip-gallery'\)/);
+  assert.match(block, /pickupOrderId === job\.id && !box\.hidden && activePickupForm/);
+  assert.match(block, /if \(pickupOrderId === job\.id && !box\.hidden && activePickupForm\) return/);
+});
+
 function slice(source, start, end) {
   const from = source.indexOf(start);
   const to = source.indexOf(end, from + start.length);

@@ -3845,6 +3845,12 @@ function renderChatGuide(job) {
   const box = $('chat-guide');
   if (!box) return;
   if (!job) { box.hidden = true; box.innerHTML = ''; return; }
+  // Opening the pickup form starts the chat snapshot listener. The first
+  // snapshot can arrive immediately and call renderChatGuide again; never
+  // replace an active camera/gallery form for the same order with the generic
+  // action buttons before the rider has selected or submitted a file.
+  const activePickupForm = box.querySelector('#pickup-food-gallery, #pickup-slip-gallery');
+  if (pickupOrderId === job.id && !box.hidden && activePickupForm) return;
   const actions = [];
   const goods = orderBuysGoods(job);
   const paid = !!job.customerPaidAt || job.status === 'customer_paid';
