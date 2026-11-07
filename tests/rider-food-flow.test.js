@@ -93,4 +93,11 @@ test('Payment Watch อัปเดต allJobs ทันทีเมื่อ Fi
   assert.match(watch, /const localJob = allJobs\.find\(job => job\.id === jobId\)/);
   assert.match(watch, /localJob\.customerPaidAt = data\.customerPaidAt/);
   assert.match(watch, /renderJobs\(\)/);
+  assert.match(watch, /if \(activeChatId === jobId\) renderChatGuide\(localJob\)/);
+});
+
+test('Rider payment confirmation refreshes the open chat guide immediately', () => {
+  const confirm = rider.slice(rider.indexOf('async function confirmPaymentReceived'), rider.indexOf('function riderFirebaseErrorText'));
+  assert.match(confirm, /renderJobs\(\);\s*\/\/ The rider may still be inside the customer chat/);
+  assert.match(confirm, /if \(activeChatId === jobId\) renderChatGuide\(job\)/);
 });
