@@ -141,8 +141,10 @@ function canLeaveShop(order) {
       return !!(order.customerOrderConfirmed && orderHasShopSlip(order));
     }
     // Cash shopping is paid by the rider at the shop and collected on delivery.
-    // The shop bill is sufficient proof; no customer transfer or bank slip is needed.
-    if (order.type === 'shopping' && order.paymentMode === 'cash') return !!(order.shopBillUrl || orderHasShopSlip(order));
+    // The customer must confirm the item photo and actual price before leaving.
+    if (order.type === 'shopping' && order.paymentMode === 'cash') {
+      return !!(order.customerOrderConfirmed && (order.shopBillUrl || orderHasShopSlip(order)));
+    }
     if (!orderHasShopSlip(order)) return false;
     return !!(order.customerPaidAt || order.status === 'customer_paid');
   }
@@ -2654,9 +2656,6 @@ async function submitFoodPhoto(pickupJob) {
   if (pickupJob && pickupJob.type === 'shopping' && !(shoppingPrice > 0)) {
     return showToast('⚠️ กรุณากรอกราคาสินค้าจริงก่อนส่งให้ลูกค้า', 'warning');
   }
-  if (pickupJob && pickupJob.type === 'shopping' && orderIsCash(pickupJob) && !pickupBillBlob) {
-    return showToast('⚠️ งานเงินสดต้องแนบบิลร้าน เพื่อยืนยันว่าไรเดอร์สำรองจ่ายแล้ว', 'warning');
-  }
   if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
   }
@@ -2750,9 +2749,11 @@ async function submitFoodPhoto(pickupJob) {
         : '✅ บันทึกรูปและบิลร้านแล้ว — ไรเดอร์สำรองจ่าย เก็บเงินสดปลายทางได้')
       : '✅ ส่งรูปแล้ว — แจ้งลูกค้าให้โอน แล้วแนบสลิปร้าน');
     renderJobs();
-    openPayGuide(jobId, (pickedJob && pickedJob.type === 'food' && pickedJob.partnerShop === true && orderIsCash(pickedJob))
+    openPayGuide(jobId, (pickedJob && pickedJob.type === 'shopping' && orderIsCash(pickedJob))
       ? 'slip'
-      : ((pickedJob && orderIsCash(pickedJob)) ? 'done' : (pickedJob && pickedJob.customerPaidAt ? 'slip' : 'wait')));
+      : ((pickedJob && pickedJob.type === 'food' && pickedJob.partnerShop === true && orderIsCash(pickedJob))
+        ? 'slip'
+        : ((pickedJob && orderIsCash(pickedJob)) ? 'done' : (pickedJob && pickedJob.customerPaidAt ? 'slip' : 'wait'))));
   } catch (err) {
     console.error('submitFoodPhoto error:', err);
     const detail = err && (err.code || err.message) || 'unknown-error';
