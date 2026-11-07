@@ -1896,6 +1896,10 @@ async function confirmPaymentReceived(jobId) {
         ? '✅ บันทึกว่าได้รับค่าบริการแล้ว — ส่งสำเร็จได้'
         : 'บันทึกว่ารับเงินแล้ว — เริ่มส่งได้'));
     renderJobs();
+    // The rider may still be inside the customer chat. Refresh the inline
+    // action guide immediately so the shop-slip button appears without
+    // leaving the chat and opening it again.
+    if (activeChatId === jobId) renderChatGuide(job);
   } catch (err) {
     showToast(riderFirebaseErrorText(err, 'ยืนยันรับเงินไม่สำเร็จ'), 'error');
   }
@@ -3019,6 +3023,7 @@ function startWatchingPayment(jobId) {
         soundPaymentReceived();
         showToast('💳 ลูกค้าโอนเงินแล้ว — เริ่มส่งได้');
         renderJobs();
+        if (activeChatId === jobId) renderChatGuide(localJob);
       }
     });
 }
