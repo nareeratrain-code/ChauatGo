@@ -1247,7 +1247,7 @@ function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
   myHistoryUnsub = db.collection('orders')
     .where('riderId', '==', currentUser.uid)
-    .where('status', 'in', ['done', 'cancelled', 'shop_closed'])
+    .where('status', 'in', ['done', 'delivered', 'cancelled', 'shop_closed'])
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
@@ -1331,7 +1331,10 @@ function riderJobLimit() {
 }
 
 function updateHeroStats() {
-  const today = allHistory.filter(j => j.status === 'done' && isToday(j.doneAt || j.createdAt));
+  const today = allHistory.filter(j =>
+    (j.status === 'done' || j.status === 'delivered')
+    && isToday(j.deliveredAt || j.doneAt || j.createdAt)
+  );
   const feeTotal = today.reduce((s, j) => {
     const f = Number(j.fare || 0);
     return s + f * RIDER_SHARE;
@@ -1698,7 +1701,7 @@ function renderJobCard(j, type) {
       primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ${j.type === 'ride' ? 'ถึงที่หมายแล้ว' : 'ส่งสำเร็จ'}</button>
         <button class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     }
-  } else if (j.status === 'done' || j.status === 'cancelled' || j.status === 'shop_closed') {
+  } else if (j.status === 'done' || j.status === 'delivered' || j.status === 'cancelled' || j.status === 'shop_closed') {
     primaryAction = `<button class="jc-primary-btn jc-gray" data-detail="${esc(j.id)}">📄 ดูรายละเอียด</button>`;
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
@@ -3213,7 +3216,7 @@ function showJobDetail(jobId) {
     </div>
     ${job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : ''}
     ${payActionHtml}
-    ${job.status !== 'done' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
+    ${job.status !== 'done' && job.status !== 'delivered' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
@@ -3708,15 +3711,16 @@ async function requestCameraPermissionFromSettings() {
 }
 
 function showFinance() {
-  const finished = allHistory.filter(j => j.status === 'done');
-  const today = finished.filter(j => isToday(j.doneAt || j.createdAt));
+  const finished = allHistory.filter(j => j.status === 'done' || j.status === 'delivered');
+  const completedAt = (j) => j.deliveredAt || j.doneAt || j.createdAt;
+  const today = finished.filter(j => isToday(completedAt(j)));
   const week = finished.filter(j => {
-    const d = toDate(j.doneAt);
+    const d = toDate(completedAt(j));
     if (!d) return false;
     return d >= new Date(Date.now() - 7 * 86400000);
   });
   const month = finished.filter(j => {
-    const d = toDate(j.doneAt);
+    const d = toDate(completedAt(j));
     if (!d) return false;
     return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear();
   });

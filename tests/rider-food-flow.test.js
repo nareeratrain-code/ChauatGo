@@ -66,6 +66,12 @@ test('Rider arrival copy keeps shop wording only for partner food', () => {
   assert.match(rider, /ถึงสถานที่รับของแล้ว/);
 });
 
+test('Rider history: งานฝากซื้อที่จบด้วย delivered ต้องแสดงในรายการและรายได้', () => {
+  assert.match(rider, /where\('status', 'in', \['done', 'delivered', 'cancelled', 'shop_closed'\]\)/);
+  assert.match(rider, /j\.status === 'done' \|\| j\.status === 'delivered'/);
+  assert.match(rider, /j\.deliveredAt \|\| j\.doneAt \|\| j\.createdAt/);
+});
+
 test('Rider UI: แสดงข้อมูลยืนยันและสลิปลูกค้าใน Chat ไม่ใช่ Job Card', () => {
   assert.match(rider, /customerOrderConfirmed/);
   assert.match(rider, /renderChatGuide/);
