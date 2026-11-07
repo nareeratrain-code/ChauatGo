@@ -28,3 +28,12 @@ test('hotel place labels stay exact instead of becoming nearby labels on the map
   assert.match(html, /if \(listed && listed\.category === 'h' && listed\.name\) return String\(listed\.name\)\.trim\(\);/);
   assert.match(html, /address: seed\.address \|\| '', note: seed\.note \|\| '', placeId: seed\.placeId \|\| ''/);
 });
+
+test('choosing a hotel opens the ride destination picker and keeps the hotel pin', () => {
+  const start = html.indexOf('window.setDestFromPlace = function(placeId)');
+  const end = html.indexOf('\n};', start) + 3;
+  const block = html.slice(start, end);
+  assert.match(block, /mapPickerMode = 'ride-dest'/);
+  assert.match(block, /openMapPage\(true\)/);
+  assert.match(block, /setDestination\(p\.lat, p\.lng, true, p\.name, p\.id \|\| placeId\)/);
+});

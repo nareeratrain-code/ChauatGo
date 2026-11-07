@@ -8027,7 +8027,8 @@ window.setDestFromPlace = function(placeId){
   var p = findHotelById(placeId);
   if (!p) return;
   selectedDestination = { lat: p.lat, lng: p.lng, address: p.name, placeId: p.id || placeId };
-  closeModal(); openMapPage(); setDestSearchMode(false);
+  mapPickerMode = 'ride-dest';
+  closeModal(); openMapPage(true); setDestSearchMode(false);
   setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name, p.id || placeId); }, 500);
 };
 
