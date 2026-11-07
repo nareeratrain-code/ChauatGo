@@ -115,6 +115,19 @@ test('ไม่ส่ง QR กับออเดอร์เงินสดห�
   assert.match(capture.messages[0].text, /อาหาร\/สินค้าพร้อมแล้ว/);
 });
 
+test('Ride ถึงต้นทางแล้วส่ง QR ให้ลูกค้าในแชท พร้อมแจ้งว่ายังไม่ต้องโอน', async () => {
+  const { context, capture } = loadQrFunctions();
+  context.orderForAutoChat = async () => ({ type: 'ride', paymentMode: 'transfer', fare: 31, total: 31 });
+
+  await context.sendRiderQrPaymentChat('OD-QR-001', 'shop_arrived');
+
+  assert.equal(capture.messages.length, 1);
+  assert.match(capture.messages[0].text, /ถึงจุดนัดหมาย/);
+  assert.match(capture.messages[0].text, /ยังไม่ต้องโอน/);
+  assert.equal(capture.messages[0].imageUrl, context.riderProfile.qrCodeUrl);
+  assert.equal(capture.messages[0].automationKey, 'shop_arrived_qr');
+});
+
 test('Ride ส่ง QR พร้อมยอดบริการเมื่อถึงปลายทาง', async () => {
   const { context, capture } = loadQrFunctions();
   context.orderForAutoChat = async () => ({ type: 'ride', paymentMode: 'transfer', total: 31, fare: 31 });
@@ -133,9 +146,10 @@ test('Ride รับเงินแล้วต้องแสดงว่าจ
   assert.match(riderSource, /if \(j\.type !== 'ride' && j\.type !== 'express' && !orderIsCash\(j\)/);
 });
 
-test('เหตุการณ์ถึงร้านและส่งรูปอาหารมีจุดเรียก QR Chat ครบ', () => {
+test('เหตุการณ์ถึงต้นทางของ Ride/Express เรียก QR Chat และอาหารยังส่ง QR หลังส่งรูป', () => {
   const arrivalBlock = riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip'));
-  assert.doesNotMatch(arrivalBlock, /sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/);
+  assert.equal((arrivalBlock.match(/sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/g) || []).length, 2);
+  assert.match(arrivalBlock, /if \(!qrSent\) sendAutomatedChatLater\(jobId, 'shop_arrived'\)/);
   const photoStart = riderSource.indexOf('async function submitFoodPhoto');
   const slipStart = riderSource.indexOf('async function submitShopSlip');
   const photoBlock = riderSource.slice(photoStart, slipStart);

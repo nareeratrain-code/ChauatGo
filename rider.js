@@ -1792,6 +1792,9 @@ function riderQrPaymentText(order, phase) {
   if (phase === 'arrived_customer' && (order.type === 'ride' || order.type === 'express')) {
     return '📍 ไรเดอร์ถึงปลายทางเรียบร้อยแล้วครับ/ค่ะ\nกรุณาชำระค่าบริการให้ไรเดอร์ โดยโอนตามยอดนี้ครับ/ค่ะ\n💳 ยอดค่าบริการทั้งหมด ฿' + fmt(order.total || order.fare || 0) + '\n\n📱 กรุณาสแกน QR นี้เพื่อโอนค่าบริการ แล้วแจ้งไรเดอร์ได้เลยครับ/ค่ะ';
   }
+  if (phase === 'shop_arrived' && (order.type === 'ride' || order.type === 'express')) {
+    return '📍 ไรเดอร์ถึงจุดนัดหมาย/สถานที่รับแล้วครับ/ค่ะ\nกรุณาเตรียมตัวรับผู้โดยสาร/พัสดุได้เลยครับ/ค่ะ\n💳 ค่าบริการ ฿' + fmt(order.total || order.fare || 0) + '\nหมายเหตุ: ยังไม่ต้องโอนเงินตอนนี้ ให้ชำระเมื่อถึงปลายทางครับ/ค่ะ\n\n📱 แนบ QR นี้ไว้สำหรับชำระค่าบริการเมื่อถึงปลายทางครับ/ค่ะ';
+  }
   if (!orderBuysGoods(order)) return '';
   if (phase === 'shop_arrived') {
     return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
@@ -1805,8 +1808,10 @@ async function sendRiderQrPaymentChat(orderId, phase) {
   if (!orderId || !currentUser || !riderProfile?.qrCodeUrl) return false;
   const order = await orderForAutoChat(orderId);
   if (!order || order.paymentMode === 'cash') return false;
-  if (phase === 'arrived_customer' && order.type !== 'ride' && order.type !== 'express') return false;
-  if (phase !== 'arrived_customer' && !orderBuysGoods(order)) return false;
+  const routeService = order.type === 'ride' || order.type === 'express';
+  if (phase === 'arrived_customer' && !routeService) return false;
+  if (phase === 'shop_arrived' && !routeService && !orderBuysGoods(order)) return false;
+  if (phase !== 'arrived_customer' && phase !== 'shop_arrived' && !orderBuysGoods(order)) return false;
   const key = phase === 'shop_arrived' ? 'shop_arrived_qr' : (phase === 'arrived_customer' ? 'arrived_customer_qr' : 'food_payment_qr');
   const text = riderQrPaymentText(order, phase);
   const token = orderId + ':' + key;
@@ -2073,7 +2078,10 @@ async function recordShopArrival(jobId, job) {
       });
       job.status = 'picked_up';
       job.pickedUpAt = new Date();
-      sendAutomatedChatLater(jobId, 'shop_arrived');
+      const qrSent = job.paymentMode !== 'cash' && typeof sendRiderQrPaymentChat === 'function'
+        ? await sendRiderQrPaymentChat(jobId, 'shop_arrived')
+        : false;
+      if (!qrSent) sendAutomatedChatLater(jobId, 'shop_arrived');
       sendAutomatedChatLater(jobId, 'picked_up');
       showToast('✅ ถึงจุดนัดหมายแล้ว — รับลูกค้าและกดเริ่มไปปลายทาง');
       renderJobs();
@@ -2115,7 +2123,10 @@ async function recordShopArrival(jobId, job) {
     });
     job.status = 'picked_up';
     job.pickedUpAt = new Date();
-    sendAutomatedChatLater(jobId, 'shop_arrived');
+    const qrSent = job.paymentMode !== 'cash' && typeof sendRiderQrPaymentChat === 'function'
+      ? await sendRiderQrPaymentChat(jobId, 'shop_arrived')
+      : false;
+    if (!qrSent) sendAutomatedChatLater(jobId, 'shop_arrived');
     sendAutomatedChatLater(jobId, 'picked_up');
     showToast('✅ ถึงจุดนัดหมายแล้ว — รับของเรียบร้อย');
     renderJobs();
