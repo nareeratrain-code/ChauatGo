@@ -593,6 +593,9 @@ async function confirmPaymentReceived(db, uid, orderId) {
     const beforePickup = order.status === 'accepted' || order.status === 'ready';
     const waiting = order.status === 'picked_up';
     const fareAtDestination = (order.type === 'ride' || order.type === 'express') && order.status === 'on_the_way';
+    if (order.type === 'ride' && fareAtDestination && !order.riderArrivedCustomerChatAt) {
+      precondition('กรุณากดยืนยันว่าถึงปลายทางแล้วก่อนรับชำระเงิน');
+    }
     const cashWaiting = order.paymentMode === 'cash' && (waiting || fareAtDestination);
     if (order.type === 'food' && order.partnerShop === true && order.paymentMode === 'cash') {
       precondition('Partner Food ต้องยืนยันการชำระเงินตามขั้นตอนอาหารก่อน');

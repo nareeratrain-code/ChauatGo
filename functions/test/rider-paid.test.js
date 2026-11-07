@@ -125,6 +125,15 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
     total: 59,
     fare: 59
   }));
+  await assert.rejects(
+    () => Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-ride-arrived'),
+    (err) => err && err.code === 'failed-precondition'
+  );
+  const rideBeforeArrival = (await db.collection('orders').doc('ord-ride-arrived').get()).data();
+  assert.equal(rideBeforeArrival.customerPaidAt, undefined);
+  await db.collection('orders').doc('ord-ride-arrived').update({
+    riderArrivedCustomerChatAt: { seconds: 1731020000, nanoseconds: 0 }
+  });
   const ridePaid = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-ride-arrived');
   assert.equal(ridePaid.ok, true);
   assert.equal(ridePaid.status, 'on_the_way');
