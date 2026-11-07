@@ -109,6 +109,11 @@ test('Customer order list: reconnect listener เมื่อมือถือ�
   assert.match(app, /if \(currentUser\) subscribeUserOrders\(\)/);
 });
 
+test('Customer orders and chats: ดึงออเดอร์ล่าสุดก่อนเพื่อไม่ให้ Partner Food หลุดจาก limit', () => {
+  assert.match(app, /where\('userId','==',currentUser\.uid\)\.orderBy\('createdAt','desc'\)\.limit\(50\)/);
+  assert.match(app, /where\('userId','==',currentUser\.uid\)\.orderBy\('createdAt','desc'\)\.limit\(30\)/);
+});
+
 test('Customer Payment UI: ยืนยันรายการ → แนบสลิป → ยืนยันโอน', () => {
   assert.match(app, /window\.confirmCustomerOrder/);
   assert.match(app, /customerOrderConfirmed: true/);
