@@ -78,6 +78,15 @@ test('Ride search stays destination while pickup uses an explicit origin label',
   assert.match(html, /data-exp-map="exp-destination">🗺️ เลือกปลายทางจากแผนที่/);
 });
 
+test('Ride destination selection reveals vehicle options immediately', () => {
+  assert.match(html, /function focusTravelVehicleOptions\(\)/);
+  assert.match(html, /view\.classList\.add\('destination-selected'\)/);
+  assert.match(html, /\.travel-view\.destination-selected #travel-suggest-list \{ display: none; \}/);
+  assert.match(html, /focusTravelVehicleOptions\(\);/);
+  assert.match(html, /id="travel-destination-section-title"/);
+  assert.match(html, /class="travel-vehicle-list"/);
+});
+
 test('selecting a searched place switches to map-only pin confirmation for every picker mode', () => {
   assert.match(html, /\.dest-sheet\.location-picked \.dest-search/);
   assert.match(html, /\.dest-sheet\.location-picked \.dest-search-results/);

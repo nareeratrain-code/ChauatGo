@@ -684,6 +684,8 @@ button.chat-list-item:active { filter: brightness(.97); }
 .travel-vehicle-desc { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 3px; }
 .travel-vehicle-price { font-size: 17px; font-weight: 900; color: var(--green); text-align: right; line-height: 1.2; }
 .travel-vehicle-price span { display: block; font-size: 10px; font-weight: 700; color: var(--text-light); margin-top: 2px; }
+.travel-view.destination-selected #travel-destination-section-title,
+.travel-view.destination-selected #travel-suggest-list { display: none; }
 .express-parcel-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
 .express-parcel-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 10px 13px; font: 800 12px/1.2 inherit; cursor: pointer; white-space: nowrap; }
 .express-parcel-chip.active { background: var(--brand-light); color: var(--green); border-color: var(--green); box-shadow: 0 0 0 2px rgba(78,159,45,.12); }
@@ -1365,7 +1367,7 @@ select:focus-visible, [role="button"]:focus-visible {
   </div>
   <div class="travel-search-results" id="travel-search-results"></div>
   <div class="travel-body">
-    <div class="travel-section-title">📍 สถานที่ปลายทางแนะนำ</div>
+    <div class="travel-section-title" id="travel-destination-section-title">📍 สถานที่ปลายทางแนะนำ</div>
     <div class="travel-suggest-list" id="travel-suggest-list">
       <div style="text-align:center;padding:30px;color:var(--text-light);font-weight:700">กำลังโหลด...</div>
     </div>
@@ -5420,7 +5422,10 @@ var TRAVEL_FIXED = [
 ];
 
 window.openTravelView = function() {
-  if ($('travel-view')) $('travel-view').classList.add('show');
+  if ($('travel-view')) {
+    $('travel-view').classList.add('show');
+    $('travel-view').classList.remove('destination-selected');
+  }
   renderTravelSuggestions();
   var inp = $('travel-dest-input');
   if (inp && !inp._bound) {
@@ -5441,6 +5446,16 @@ window.closeTravelView = function() {
   if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
   if ($('travel-dest-input')) $('travel-dest-input').value = '';
 };
+function focusTravelVehicleOptions() {
+  var view = $('travel-view');
+  if (!view) return;
+  view.classList.add('destination-selected');
+  var body = view.querySelector('.travel-body');
+  if (body) {
+    body.scrollTop = 0;
+    setTimeout(function() { body.scrollTop = 0; }, 80);
+  }
+}
 
 function renderTravelSuggestions() {
   var list = $('travel-suggest-list'); if (!list) return;
@@ -5485,8 +5500,7 @@ window.pickTravelFromItem = function(el) {
   showToast('📍 ตั้งตำแหน่งปลายทางแล้ว: ' + name);
   document.querySelectorAll('.travel-place-item').forEach(function(i) { i.style.background = ''; });
   el.style.background = 'var(--brand-light)';
-  var body = document.querySelector('#travel-view .travel-body');
-  if (body) setTimeout(function() { body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 200);
+  focusTravelVehicleOptions();
 };
 
 window.selectTravelVehicle = function(type, baseFare) {
@@ -5540,8 +5554,7 @@ window.pickTravelFromSearch = function(el) {
   showToast('📍 ตั้งตำแหน่งปลายทางแล้ว: ' + name);
   if ($('travel-dest-input')) $('travel-dest-input').value = name;
   if ($('travel-search-results')) $('travel-search-results').classList.remove('show');
-  var body = document.querySelector('#travel-view .travel-body');
-  if (body) setTimeout(function() { body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 200);
+  focusTravelVehicleOptions();
 };
 
 /* ═══ RIDE ORDER FORM ═══ */
@@ -7859,8 +7872,7 @@ window.confirmMapLocation = function(){
     if ($('travel-dest-input')) $('travel-dest-input').value = picked.address;
     if ($('travel-view')) $('travel-view').classList.add('show');
     showToast('📍 ' + (picked.address || 'เลือกตำแหน่งปลายทางแล้ว'));
-    var body = document.querySelector('#travel-view .travel-body');
-    if (body) setTimeout(function(){ body.scrollTo({ top: body.scrollHeight, behavior: 'smooth' }); }, 250);
+    focusTravelVehicleOptions();
     return;
   }
   if (mode === 'ride-origin' || mode === 'ride-dest') {
