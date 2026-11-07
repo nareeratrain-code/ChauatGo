@@ -3696,6 +3696,10 @@ window.confirmCheckout = async function(grandTotal) {
     try { _refreshCartViews(); } catch (uiErr) {}
     showToast('✅ ส่งออเดอร์แล้ว ฿' + fmt(grandTotal));
     try { switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)')); } catch (uiErr) {}
+    // Android/Firestore may keep the previous user-order snapshot briefly
+    // after createOrder returns. Merge the authoritative Partner Food order
+    // immediately so it appears in the active list without a manual reload.
+    refreshCustomerOrderById(createdFood.id);
   } catch (e) {
     console.error('confirmCheckout error:', e);
     showToast(checkoutErrorText(e), 'error');
