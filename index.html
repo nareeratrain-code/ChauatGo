@@ -3821,6 +3821,27 @@ function paintUserOrders(all){
   monitorRiderProximity(active);
 }
 
+// Firestore listeners can briefly remain on a cached snapshot on mobile
+// immediately after createOrder returns. Fetch the authoritative document and
+// merge it into the list so a newly-created Ride/Express order is visible
+// without requiring the customer to reload the page.
+function refreshCustomerOrderById(orderId){
+  if (!currentUser || !db || !orderId) return Promise.resolve(false);
+  return db.collection('orders').doc(orderId).get({source: 'server'}).then(function(snap){
+    if (!snap.exists) return false;
+    var data = snap.data() || {};
+    if (data.userId !== currentUser.uid) return false;
+    var next = (window._cachedOrders || []).filter(function(item){ return item.id !== orderId; });
+    next.push(Object.assign({id: orderId}, data));
+    next.sort(function(a,b){ return (b.createdAt && b.createdAt.seconds || 0) - (a.createdAt && a.createdAt.seconds || 0); });
+    paintUserOrders(next);
+    return true;
+  }).catch(function(err){
+    console.warn('[orders] refresh-created-order failed', err && (err.code || err.message));
+    return false;
+  });
+}
+
 function subscribeUserOrders(){
   if(!currentUser || !db) return;
   if(unsubOrders) unsubOrders();
@@ -4159,6 +4180,7 @@ function renderOrderCard(o){
   // Only Partner food transfer uses customer slip verification. Ride,
   // Express, Shopping and local-food jobs are acknowledged by the rider.
   var isPartnerFood = o.type === 'food' && o.partnerShop === true;
+  var isPartnerCashFood = isPartnerFood && isCash;
   var buysGoods = o.type === 'food' || o.type === 'shopping';
   var shoppingQuoteReady = o.type !== 'shopping' || (
     Number(o.foodTotal || o.itemsTotal) > 0 &&
@@ -4281,26 +4303,37 @@ window.confirmCustomerOrder = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (!cached || cached.userId !== currentUser.uid) return showToast('ไม่พบออเดอร์ของคุณ', 'error');
-  var canConfirmSummary = cached.status === 'accepted';
+  // Express confirmation may be clicked from the original chat message after
+  // the rider has already reached the pickup point and moved the order to
+  // picked_up. It is only an acknowledgement; payment remains due at drop-off.
+  var canConfirmSummary = cached.status === 'accepted' ||
+    (cached.type === 'express' && cached.status === 'picked_up');
   var shoppingQuoteReady = cached.type !== 'shopping' || (
     Number(cached.foodTotal || cached.itemsTotal) > 0 &&
     String(cached.foodImage || '').trim().length > 0
   );
+  var isPartnerCashFood = cached.type === 'food' && cached.partnerShop === true && cached.paymentMode === 'cash';
   var canConfirmGoodsPhoto = cached.status === 'picked_up' && !!cached.foodImage && shoppingQuoteReady &&
+    (!isPartnerCashFood || !!cached.riderSlipToShop) &&
     (cached.type === 'shopping' || (cached.type === 'food' && cached.partnerShop === true));
   var photoLabel = cached.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร';
-  if (!canConfirmSummary && !canConfirmGoodsPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือส่ง' + photoLabel + 'แล้วเท่านั้น', 'warning');
+  if (!canConfirmSummary && !canConfirmGoodsPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือรับพัสดุแล้วเท่านั้น', 'warning');
   if (cached.customerOrderConfirmed) return showToast('ยืนยันรายการนี้แล้ว', 'info');
   var confirmTotal = (cached.type === 'shopping' || cached.type === 'food') && Number(cached.foodTotal || cached.itemsTotal) > 0
     ? customerGoodsTotal(cached) : (cached.total || cached.fare || 0);
-  if (!confirm('ยืนยันรายการและยอด ฿' + fmt(confirmTotal) + ' ใช่หรือไม่?')) return;
+  var confirmPrompt = isPartnerCashFood
+    ? 'ยืนยันว่าเห็นรูปอาหารและสลิปที่ไรเดอร์สำรองจ่ายร้านแล้ว ใช่หรือไม่?'
+    : 'ยืนยันรายการและยอด ฿' + fmt(confirmTotal) + ' ใช่หรือไม่?';
+  if (!confirm(confirmPrompt)) return;
   try {
     await db.collection('orders').doc(orderId).update({
       customerOrderConfirmed: true,
       customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      ...(canConfirmGoodsPhoto ? { foodDeliveryStage: 'awaiting_customer_payment' } : { foodDeliveryStage: 'customer_confirmed' })
+      ...(canConfirmGoodsPhoto && !isPartnerCashFood ? { foodDeliveryStage: 'awaiting_customer_payment' } : { foodDeliveryStage: 'customer_confirmed' })
     });
-    showToast(canConfirmGoodsPhoto ? '✅ ยืนยันว่าเห็น' + photoLabel + 'แล้ว — QR และยอดโอนพร้อมแล้ว' : '✅ ยืนยันรายการแล้ว — รอเห็น' + photoLabel + 'ก่อนโอนเงิน', 'success');
+    showToast(canConfirmGoodsPhoto
+      ? (isPartnerCashFood ? '✅ ยืนยันว่าเห็นรูปอาหารและสลิปแล้ว — ไรเดอร์เริ่มส่งไปบ้านลูกค้าได้' : '✅ ยืนยันว่าเห็น' + photoLabel + 'แล้ว — QR และยอดโอนพร้อมแล้ว')
+      : '✅ ยืนยันรายการแล้ว — รอเห็น' + photoLabel + 'ก่อนโอนเงิน', 'success');
     var confirmedSnap = await db.collection('orders').doc(orderId).get();
     var confirmedOrder = confirmedSnap.exists ? Object.assign({id: orderId}, confirmedSnap.data()) : cached;
     postConfirmPayNote(confirmedOrder);
@@ -5070,8 +5103,12 @@ function subscribeChatMessages(orderId) {
             .replace(/ค่าอาหาร/g, 'ค่าสินค้า');
         }
         var action = '';
-        if ((m.automationKey === 'pay_summary' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && !live.customerOrderConfirmed) {
+        var partnerCashProofReady = live && live.type === 'food' && live.partnerShop === true && live.paymentMode === 'cash' && !!live.foodImage && !!live.riderSlipToShop;
+        if ((m.automationKey === 'pay_summary' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && !live.customerOrderConfirmed && (live.paymentMode !== 'cash' || live.type !== 'food' || live.partnerShop !== true || partnerCashProofReady)) {
           action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">ยืนยัน</button>';
+        }
+        if (!action && partnerCashProofReady && !live.customerOrderConfirmed && m.imagePath && (m.imagePath.indexOf('slip_') !== -1 || m.imagePath.indexOf('/riders/') !== -1)) {
+          action = '<button type="button" class="customer-payment-btn" onclick="confirmCustomerOrder(\'' + esc(orderId) + '\')">✅ ยืนยันว่าเห็นรูปอาหารและสลิปแล้ว</button>';
         }
         if ((m.automationKey === 'confirm_qr' || m.automationKey === 'food_photo_confirmed' || m.automationKey === 'food_payment_qr' || m.automationKey === 'goods_ready' || m.automationKey === 'food_payment') && live && live.userId === currentUser.uid && (live.type === 'food' || live.type === 'shopping') && live.status === 'picked_up' && live.customerOrderConfirmed && !live.customerPaidAt && live.paymentMode !== 'cash') {
           action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">' + (live.customerSlipStatus === 'rejected' ? '📷 ถ่ายหรือเลือกสลิปใหม่' : '📷 ถ่ายหรือเลือกสลิป') + '</button>';
@@ -5605,6 +5642,7 @@ window.submitRideOrder = async function(){
     if($('pick-banner')) $('pick-banner').style.display='none';
     updateConfirmBtnState();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    refreshCustomerOrderById(createdRide.id);
   }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
@@ -5653,6 +5691,7 @@ window.submitOrder = async function(type){
     showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdGeneric.total != null ? createdGeneric.total : baseFare));
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    refreshCustomerOrderById(createdGeneric.id);
   }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
@@ -6194,6 +6233,7 @@ window.submitExpressOrder = async function(){
     expOrigin = null; expDestination = null;
     expressParcelPhotoFile = null;
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    refreshCustomerOrderById(createdExpress.id);
   }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 

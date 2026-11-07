@@ -51,6 +51,12 @@ test('express transfer keeps payment action available through the order chat', (
   assert.match(confirm, /กรุณาแนบสลิปการโอนก่อนยืนยัน/);
 });
 
+test('express confirmation remains valid after the rider marks the parcel picked_up', () => {
+  assert.match(app, /cached\.status === 'accepted' \|\|[\s\S]{0,140}cached\.type === 'express' && cached\.status === 'picked_up'/);
+  assert.match(rules, /resource\.data\.status == 'accepted'[\s\S]{0,180}resource\.data\.get\('type', ''\) == 'express'/);
+  assert.match(rules, /request\.resource\.data\.customerOrderConfirmed == true/);
+});
+
 test('food and shopping still attach the slip only while picked_up', () => {
   assert.match(app, /var needsCustomerSlip = buysGoods && !isCash/);
   assert.match(app, /needsCustomerSlip && o\.status === 'picked_up'/);

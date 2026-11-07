@@ -435,6 +435,10 @@ service cloud.firestore {
         resource.data.status == 'accepted'
         || (
           resource.data.status == 'picked_up'
+          && resource.data.get('type', '') == 'express'
+        )
+        || (
+          resource.data.status == 'picked_up'
           && resource.data.get('foodImage', '') is string
           && resource.data.get('foodImage', '').size() > 0
           && (
@@ -443,6 +447,13 @@ service cloud.firestore {
             || (
               resource.data.get('type', '') == 'food'
               && resource.data.get('partnerShop', false) == true
+              && (
+                resource.data.get('paymentMode', '') != 'cash'
+                || (
+                  resource.data.get('riderSlipToShop', '') is string
+                  && resource.data.get('riderSlipToShop', '').size() > 0
+                )
+              )
             )
           )
         )
