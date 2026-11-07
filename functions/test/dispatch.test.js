@@ -924,10 +924,13 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
   const riderFee = await db.collection('riders').doc('rider-fee').get();
   assert.equal(riderFee.data().totalJobs, 1);
   assert.equal(riderFee.data().totalIncome, 32);
-  await assert.rejects(
-    () => Orders.completeOrder(db, 'rider-fee', created.id),
-    (err) => err && err.code === 'failed-precondition'
-  );
+  const repeatedDone = await Orders.completeOrder(db, 'rider-fee', created.id);
+  assert.equal(repeatedDone.ok, true);
+  assert.equal(repeatedDone.alreadyCompleted, true);
+  assert.equal(repeatedDone.riderIncome, 32);
+  const riderAfterRepeat = await db.collection('riders').doc('rider-fee').get();
+  assert.equal(riderAfterRepeat.data().totalJobs, 1);
+  assert.equal(riderAfterRepeat.data().totalIncome, 32);
 
   const fs = require('fs');
   const path = require('path');
