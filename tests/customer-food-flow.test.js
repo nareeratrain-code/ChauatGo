@@ -77,6 +77,7 @@ test('Customer Order List: ดึง Order ที่เพิ่งสร้า�
   assert.match(app, /function refreshCustomerOrderById\(orderId\)/);
   assert.match(app, /\.get\(\{source: 'server'\}\)/);
   assert.match(app, /if \(data\.userId !== currentUser\.uid\) return false/);
+  assert.match(app, /refreshCustomerOrderById\(createdFood\.id\)/);
   assert.match(app, /refreshCustomerOrderById\(createdRide\.id\)/);
   assert.match(app, /refreshCustomerOrderById\(createdExpress\.id\)/);
 });
@@ -106,6 +107,11 @@ test('Customer order list: reconnect listener เมื่อมือถือ�
   assert.match(app, /document\.addEventListener\('visibilitychange'/);
   assert.match(app, /window\.addEventListener\('pageshow'/);
   assert.match(app, /if \(currentUser\) subscribeUserOrders\(\)/);
+});
+
+test('Customer orders and chats: ดึงออเดอร์ล่าสุดก่อนเพื่อไม่ให้ Partner Food หลุดจาก limit', () => {
+  assert.match(app, /where\('userId','==',currentUser\.uid\)\.orderBy\('createdAt','desc'\)\.limit\(50\)/);
+  assert.match(app, /where\('userId','==',currentUser\.uid\)\.orderBy\('createdAt','desc'\)\.limit\(30\)/);
 });
 
 test('Customer Payment UI: ยืนยันรายการ → แนบสลิป → ยืนยันโอน', () => {
