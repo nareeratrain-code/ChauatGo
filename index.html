@@ -1503,7 +1503,7 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="section-more press-scale" onclick="closeCategoryView()">✕ ปิด</div>
     </div>
     <div id="hotel-tools" style="display:none">
-      <div class="hotel-directory-note">ที่พักทั้งจังหวัดนครศรีธรรมราช เลือกอำเภอแล้วเลือกตำบล รายการที่ปักหมุดกลางตำบลจะขึ้นว่าตำแหน่งโดยประมาณ</div>
+      <div class="hotel-directory-note">ค้นหาโรงแรมและรีสอร์ตได้ทุกอำเภอทุกตำบลในจังหวัดนครศรีธรรมราชจากช่องเดียว ไม่ต้องเลือกอำเภอหรือตำบลก่อน</div>
       <div class="reference-loc-bar">
         <div class="loc-actions">
           <button type="button" class="loc-action-btn" data-refresh-gps="reference">📍 อัปเดตตำแหน่ง GPS</button>
@@ -1511,8 +1511,6 @@ select:focus-visible, [role="button"]:focus-visible {
         </div>
         <div id="hotel-loc-status"></div>
       </div>
-      <select id="hotel-district" class="place-district-select" aria-label="อำเภอของที่พัก" onchange="setHotelDistrict(this.value)"></select>
-      <select id="hotel-tambon" class="place-district-select" aria-label="ตำบลของที่พัก" onchange="setHotelTambon(this.value)"></select>
       <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="hotel-search-input" type="search" placeholder="ค้นหาชื่อโรงแรมหรือรีสอร์ท..."></div>
       <div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>
     </div>
@@ -2529,7 +2527,7 @@ function filterDirectoryPlaces(list, query, district, tambon) {
     if (!q) return true;
     var key = p.q || foldSearchQuery(p.name);
     if (key.indexOf(q) !== -1) return true;
-    return foldSearchQuery((p.name || '') + ' ' + (p.district || '')).indexOf(q) !== -1;
+    return foldSearchQuery((p.name || '') + ' ' + (p.tambon || '') + ' ' + (p.district || '') + ' ' + (p.address || '')).indexOf(q) !== -1;
   });
   var origin = userLocation || { lat: 7.9650, lng: 99.9960 };
   rows.sort(function(a, b) {
@@ -2538,7 +2536,7 @@ function filterDirectoryPlaces(list, query, district, tambon) {
     if (!district && ca !== cb) return ca - cb;
     return haversine(origin.lat, origin.lng, a.lat, a.lng) - haversine(origin.lat, origin.lng, b.lat, b.lng);
   });
-  var cap = tambon ? 400 : (district ? 250 : 80);
+  var cap = q ? rows.length : (tambon ? 400 : (district ? 250 : 80));
   var truncated = rows.length > cap;
   rows = rows.slice(0, cap);
   rows._truncated = truncated;
@@ -2565,20 +2563,18 @@ window.setTouristTambon = function(value) {
 
 function renderHotelDirectory(){
   var grid = $('category-grid'); if(!grid) return;
-  fillDistrictSelect('hotel-district', hotelDistrictFilter);
-  fillTambonSelect('hotel-tambon', hotelDistrictFilter, hotelTambonFilter);
-  if (!provinceDataReady(hotelDistrictFilter)) {
+  if (!provinceDataReady('')) {
     grid.className = 'food-grid hotel-directory';
     grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">กำลังโหลดที่พักทั้งจังหวัด...</div>';
-    ensurePlaceData(function(){ renderHotelDirectory(); }, hotelDistrictFilter);
+    ensurePlaceData(function(){ renderHotelDirectory(); }, '');
     return;
   }
   var curated = PLACES.filter(function(p){ return p.category === 'h'; });
   var hotels = mergeDirectoryPlaces(curated, provincePlacesFor(['h']));
-  hotels = filterDirectoryPlaces(hotels, hotelSearchQuery, hotelDistrictFilter, hotelTambonFilter);
+  hotels = filterDirectoryPlaces(hotels, hotelSearchQuery, '', '');
   grid.className = 'food-grid hotel-directory';
   if (!hotels.length) { grid.innerHTML = '<div style="text-align:center;padding:42px 18px;color:var(--text-light)">ไม่พบที่พักที่ค้นหา</div>'; return; }
-  var note = hotels._truncated ? '<div class="hotel-directory-note">แสดง ' + hotels.length + ' แห่ง เลือกตำบลเพื่อดูที่พักในตำบลนั้น</div>' : '';
+  var note = hotels._truncated ? '<div class="hotel-directory-note">แสดง ' + hotels.length + ' แห่ง กรอกชื่อโรงแรม รีสอร์ต อำเภอ หรือตำบลเพื่อค้นหาทั่วจังหวัด</div>' : '';
   grid.innerHTML = note + hotels.map(renderHotelCardHTML).join('');
 }
 
