@@ -23,3 +23,8 @@ test('Hotel directory loads every province file and searches district, tambon, a
   assert.match(html, /p\.tambon \|\| ''\).*p\.district.*p\.address/);
   assert.match(html, /var cap = q \? rows\.length/);
 });
+
+test('hotel place labels stay exact instead of becoming nearby labels on the map', () => {
+  assert.match(html, /if \(listed && listed\.category === 'h' && listed\.name\) return String\(listed\.name\)\.trim\(\);/);
+  assert.match(html, /address: seed\.address \|\| '', note: seed\.note \|\| '', placeId: seed\.placeId \|\| ''/);
+});
