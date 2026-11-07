@@ -37,3 +37,10 @@ test('choosing a hotel opens the ride destination picker and keeps the hotel pin
   assert.match(block, /openMapPage\(true\)/);
   assert.match(block, /setDestination\(p\.lat, p\.lng, true, p\.name, p\.id \|\| placeId\)/);
 });
+
+test('hotel search input is large and touch-friendly', () => {
+  assert.match(html, /\.hotel-search-wrap \{[^}]*padding: 4px[^}]*border-radius: 20px/);
+  assert.match(html, /\.hotel-search-wrap input \{[^}]*min-height: 58px[^}]*font-size: 16px/);
+  assert.match(html, /\.hotel-search-wrap input:focus \{[^}]*transform: translateY\(-1px\)/);
+  assert.match(html, /\.hotel-search-icon \{[^}]*font-size: 24px/);
+});
