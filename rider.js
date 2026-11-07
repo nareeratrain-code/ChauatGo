@@ -1633,7 +1633,7 @@ function renderJobCard(j, type) {
     statusInfo = { label: '✅ ลูกค้ายืนยันแล้ว • พร้อมเริ่มส่งไปบ้านลูกค้า', color: 'var(--green)', bg: '#E8F5E9' };
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip && !customerPaid) {
     statusInfo = { label: '📦 ส่งรูปแล้ว • รอดำเนินการต่อ', color: '#E65100', bg: '#FFF3E0' };
-  } else if (orderBuysGoods(j) && orderIsCash(j) && j.shopBillUrl && (j.status === 'picked_up' || j.status === 'customer_paid')) {
+  } else if (orderBuysGoods(j) && orderIsCash(j) && shopSlip && (j.status === 'picked_up' || j.status === 'customer_paid')) {
     statusInfo = { label: '🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า', color: 'var(--green)', bg: '#E8F5E9' };
   } else if (orderBuysGoods(j) && (j.status === 'picked_up' || j.status === 'customer_paid') && !shopSlip) {
     statusInfo = { label: '✅ พร้อมดำเนินการต่อ', color: 'var(--green)', bg: '#E8F5E9' };
@@ -2962,7 +2962,7 @@ async function startDelivery(jobId) {
     if (!snap.exists) return showToast('ไม่พบงาน', 'error');
     const job = snap.data();
 
-    if (orderBuysGoods(job) && !((job.type === 'shopping' && orderIsCash(job)) ? job.shopBillUrl : orderHasShopSlip(job))) {
+    if (orderBuysGoods(job) && !orderHasShopSlip(job)) {
       return showToast(job.type === 'food' && job.partnerShop === true && orderIsCash(job)
         ? '⚠️ แนบสลิปที่ไรเดอร์สำรองจ่ายร้านก่อน'
         : (orderIsCash(job) ? '⚠️ แนบบิลร้านก่อนออกเดินทาง' : '⚠️ แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง'), 'warning');
@@ -3171,7 +3171,7 @@ function showJobDetail(jobId) {
     ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — กรุณาเก็บค่าบริการจากลูกค้า</div>`
     : job.type === 'express' && job.status === 'on_the_way' && !orderIsCash(job) && !job.customerPaidAt
     ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — รับค่าบริการจากลูกค้า</div>`
-    : orderIsCash(job) && job.type === 'shopping' && job.shopBillUrl && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
+    : orderIsCash(job) && job.type === 'shopping' && orderHasShopSlip(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
     ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า — เก็บเงินสดปลายทาง</div>`
     : orderIsCash(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
     ? `<div style="background:#FFF3E0;border-left:4px solid #E65100;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">💵 ชำระเงินสดกับไรเดอร์ — เก็บเงินตอนส่ง</div>`

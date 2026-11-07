@@ -73,6 +73,9 @@ test('Cash Shopping Flow: ใช้บิลร้านแทนสลิปโ
   assert.match(rider, /if \(order\.type === 'shopping' && order\.paymentMode === 'cash'\) \{\s*return !!\(order\.customerOrderConfirmed && \(order\.shopBillUrl \|\| orderHasShopSlip\(order\)\)\);/);
   assert.match(rider, /openPayGuide\(jobId, \(pickedJob && pickedJob\.type === 'shopping' && orderIsCash\(pickedJob\)\)/);
   assert.doesNotMatch(rider, /pickupJob && pickupJob\.type === 'shopping' && orderIsCash\(pickupJob\) && !pickupBillBlob/);
+  assert.match(rider, /orderIsCash\(j\) && shopSlip && \(j\.status === 'picked_up' \|\| j\.status === 'customer_paid'\)/);
+  assert.match(rider, /orderBuysGoods\(job\) && !orderHasShopSlip\(job\)/);
+  assert.match(rider, /orderIsCash\(job\) && job\.type === 'shopping' && orderHasShopSlip\(job\)/);
   assert.match(rider, /กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า/);
   assert.match(rider, /บันทึกรูปและบิลร้านแล้ว — ไรเดอร์สำรองจ่าย/);
   assert.match(rider, /fin\.isCash && fin\.tip > 0/);
