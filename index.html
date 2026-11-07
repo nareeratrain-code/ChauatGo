@@ -4303,7 +4303,11 @@ window.confirmCustomerOrder = async function(orderId) {
   if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
   var cached = (window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0];
   if (!cached || cached.userId !== currentUser.uid) return showToast('ไม่พบออเดอร์ของคุณ', 'error');
-  var canConfirmSummary = cached.status === 'accepted';
+  // Express confirmation may be clicked from the original chat message after
+  // the rider has already reached the pickup point and moved the order to
+  // picked_up. It is only an acknowledgement; payment remains due at drop-off.
+  var canConfirmSummary = cached.status === 'accepted' ||
+    (cached.type === 'express' && cached.status === 'picked_up');
   var shoppingQuoteReady = cached.type !== 'shopping' || (
     Number(cached.foodTotal || cached.itemsTotal) > 0 &&
     String(cached.foodImage || '').trim().length > 0
@@ -4313,7 +4317,7 @@ window.confirmCustomerOrder = async function(orderId) {
     (!isPartnerCashFood || !!cached.riderSlipToShop) &&
     (cached.type === 'shopping' || (cached.type === 'food' && cached.partnerShop === true));
   var photoLabel = cached.type === 'shopping' ? 'รูปสินค้า/ของใช้' : 'รูปอาหาร';
-  if (!canConfirmSummary && !canConfirmGoodsPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือส่ง' + photoLabel + 'แล้วเท่านั้น', 'warning');
+  if (!canConfirmSummary && !canConfirmGoodsPhoto) return showToast('ยืนยันได้หลังไรเดอร์รับงานหรือรับพัสดุแล้วเท่านั้น', 'warning');
   if (cached.customerOrderConfirmed) return showToast('ยืนยันรายการนี้แล้ว', 'info');
   var confirmTotal = (cached.type === 'shopping' || cached.type === 'food') && Number(cached.foodTotal || cached.itemsTotal) > 0
     ? customerGoodsTotal(cached) : (cached.total || cached.fare || 0);

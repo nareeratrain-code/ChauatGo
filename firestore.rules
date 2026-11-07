@@ -435,6 +435,10 @@ service cloud.firestore {
         resource.data.status == 'accepted'
         || (
           resource.data.status == 'picked_up'
+          && resource.data.get('type', '') == 'express'
+        )
+        || (
+          resource.data.status == 'picked_up'
           && resource.data.get('foodImage', '') is string
           && resource.data.get('foodImage', '').size() > 0
           && (
