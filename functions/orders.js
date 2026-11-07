@@ -381,6 +381,22 @@ async function completeOrder(db, uid, orderId) {
       const err = new Error('not-yours');
       throw err;
     }
+    // A mobile tap can be delivered twice, or the first successful write can
+    // reach the rider's listener after the button is tapped again. Treat a
+    // terminal order owned by this rider as an idempotent success so the UI
+    // does not report a false failure and the rider totals are not duplicated.
+    if (order.status === 'done' || order.status === 'delivered') {
+      result = {
+        ok: true,
+        alreadyCompleted: true,
+        riderIncome: round2(order.riderIncome),
+        riderOwe: round2(order.riderOwe),
+        gpTotal: round2(order.gpTotal),
+        gpRider: round2(order.gpRider),
+        gpPlatform: round2(order.gpPlatform)
+      };
+      return;
+    }
     if (order.status !== 'on_the_way') {
       const err = new Error('สถานะงานยังส่งไม่สำเร็จ');
       err.code = 'failed-precondition';
