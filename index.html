@@ -5831,6 +5831,8 @@ function nearestLandmarkForPoint(lat, lng) {
 function destinationLabelForPoint(point, requestedLabel, preferLandmark) {
   var requested = String(requestedLabel || '').trim();
   var current = String(point && (point.address || point.label || point.name) || '').trim();
+  var listed = point && point.placeId ? directoryPlace(point.placeId) : null;
+  if (listed && listed.category === 'h' && listed.name) return String(listed.name).trim();
   if (!preferLandmark && !isGenericDestinationLabel(requested)) return requested;
   if (preferLandmark) {
     var landmark = point && nearestLandmarkForPoint(point.lat, point.lng);
@@ -7765,7 +7767,7 @@ window.openMapPage = function(keepPickerMode){
         if (seed && isFinite(seed.lat) && isFinite(seed.lng)) {
           destHoldAddress = seed.address || '';
           panPinTo(seed.lat, seed.lng, 17);
-          selectedDestination = { lat: seed.lat, lng: seed.lng, address: seed.address || '', note: seed.note || '' };
+          selectedDestination = { lat: seed.lat, lng: seed.lng, address: seed.address || '', note: seed.note || '', placeId: seed.placeId || '' };
           if (seed.address) showDestAddress(seed.address, seed);
           updateConfirmBtnState();
           updateDestEstimate();
