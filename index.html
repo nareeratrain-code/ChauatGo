@@ -3821,6 +3821,27 @@ function paintUserOrders(all){
   monitorRiderProximity(active);
 }
 
+// Firestore listeners can briefly remain on a cached snapshot on mobile
+// immediately after createOrder returns. Fetch the authoritative document and
+// merge it into the list so a newly-created Ride/Express order is visible
+// without requiring the customer to reload the page.
+function refreshCustomerOrderById(orderId){
+  if (!currentUser || !db || !orderId) return Promise.resolve(false);
+  return db.collection('orders').doc(orderId).get({source: 'server'}).then(function(snap){
+    if (!snap.exists) return false;
+    var data = snap.data() || {};
+    if (data.userId !== currentUser.uid) return false;
+    var next = (window._cachedOrders || []).filter(function(item){ return item.id !== orderId; });
+    next.push(Object.assign({id: orderId}, data));
+    next.sort(function(a,b){ return (b.createdAt && b.createdAt.seconds || 0) - (a.createdAt && a.createdAt.seconds || 0); });
+    paintUserOrders(next);
+    return true;
+  }).catch(function(err){
+    console.warn('[orders] refresh-created-order failed', err && (err.code || err.message));
+    return false;
+  });
+}
+
 function subscribeUserOrders(){
   if(!currentUser || !db) return;
   if(unsubOrders) unsubOrders();
@@ -5617,6 +5638,7 @@ window.submitRideOrder = async function(){
     if($('pick-banner')) $('pick-banner').style.display='none';
     updateConfirmBtnState();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    refreshCustomerOrderById(createdRide.id);
   }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
@@ -5665,6 +5687,7 @@ window.submitOrder = async function(type){
     showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdGeneric.total != null ? createdGeneric.total : baseFare));
     closeModal();
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    refreshCustomerOrderById(createdGeneric.id);
   }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 
@@ -6206,6 +6229,7 @@ window.submitExpressOrder = async function(){
     expOrigin = null; expDestination = null;
     expressParcelPhotoFile = null;
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
+    refreshCustomerOrderById(createdExpress.id);
   }catch(e){ showToast(checkoutErrorText(e),'error'); }
 };
 

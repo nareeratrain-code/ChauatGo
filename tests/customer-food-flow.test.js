@@ -73,6 +73,14 @@ test('Customer Order Card: แสดงเฉพาะสถานะและ�
   assert.match(card, /แชท • ยอดเงิน\/สลิป/);
 });
 
+test('Customer Order List: ดึง Order ที่เพิ่งสร้างจาก server และตรวจ UID ก่อนแสดง', () => {
+  assert.match(app, /function refreshCustomerOrderById\(orderId\)/);
+  assert.match(app, /\.get\(\{source: 'server'\}\)/);
+  assert.match(app, /if \(data\.userId !== currentUser\.uid\) return false/);
+  assert.match(app, /refreshCustomerOrderById\(createdRide\.id\)/);
+  assert.match(app, /refreshCustomerOrderById\(createdExpress\.id\)/);
+});
+
 test('Customer Checkout: ข้อความร้าน Partner และร้านในพื้นที่ไม่ทำให้สับสน', () => {
   assert.match(app, /ร้าน Partner เปิดรับออเดอร์แล้ว/);
   assert.match(app, /กรุณาติดต่อร้านค้าก่อนเรียกไรเดอร์/);
