@@ -189,9 +189,29 @@ test('rider navigation uses the stored pin for the current stage', () => {
   assert.equal(legacy.pickupUrl.geo, '');
 });
 
+test('ride navigation labels use the named place or a nearby landmark', () => {
+  const named = riderContext.riderNavModel({
+    type: 'ride', status: 'accepted',
+    from: 'ร้านขายปลา', fromLat: 7.96, fromLng: 99.99,
+    to: 'ร้านหนังสือพิมพ์จินตนา', lat: 8.01, lng: 100.02
+  });
+  assert.equal(named.pickup.navigationLabel, 'ร้านขายปลา');
+  assert.equal(named.dropoff.navigationLabel, 'ร้านหนังสือพิมพ์จินตนา');
+
+  const nearby = riderContext.riderNavModel({
+    type: 'ride', status: 'accepted',
+    from: 'พิกัด 7.96, 99.99', fromNearby: 'ตลาดชะอวด',
+    to: 'ปลายทาง', lat: 8.01, lng: 100.02, note: 'หน้าบ้านสีฟ้า'
+  });
+  assert.equal(nearby.pickup.navigationLabel, 'ใกล้เคียง ตลาดชะอวด');
+  assert.equal(nearby.dropoff.navigationLabel, 'หน้าบ้านสีฟ้า');
+});
+
 test('rider cards expose both navigation buttons, the note, and a map preview', () => {
-  assert.match(rider, /🧭 นำทางไปจุดนัดหมาย/);
-  assert.match(rider, /🧭 นำทางไปที่ลูกค้า/);
+  assert.match(rider, /function riderNavigationPlaceLabel\(job, role, rawLabel\)/);
+  assert.match(rider, /navigationLabel: riderNavigationPlaceLabel/);
+  assert.match(rider, /'🧭 นำทางไป'/);
+  assert.match(rider, /ใกล้เคียง/);
   assert.match(rider, /travelmode=driving/);
   assert.match(rider, /geo:' \+ lat \+ ',' \+ lng \+ '\?q='/);
   assert.match(rider, /ไม่มีพิกัดที่ลูกค้าปักไว้/);

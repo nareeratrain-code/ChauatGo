@@ -1437,7 +1437,36 @@ function riderMapsSearchUrl(name) {
 }
 
 const RIDER_BEFORE_PICKUP = ['searching', 'pending', 'cooking', 'accepted', 'ready'];
-
+function riderGenericPlaceLabel(value) {
+  const text = String(value || '').trim();
+  if (!text) return true;
+  return /^(ตำแหน่งปัจจุบัน|จุดรับ|จุดส่ง|ปลายทาง|ต้นทาง|ที่อยู่ลูกค้า|ยังไม่ได้ระบุ)$/i.test(text)
+    || /^พิกัด\s*[-\d.,\s]+$/i.test(text)
+    || /^[-\d.]+\s*,\s*[-\d.]+$/.test(text);
+}
+function riderNearbyLabel(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return /^ใกล้เคียง\b/.test(text) ? text : 'ใกล้เคียง ' + text;
+}
+function riderNavigationPlaceLabel(job, role, rawLabel) {
+  const order = job || {};
+  const direct = String(rawLabel || '').trim();
+  if (!riderGenericPlaceLabel(direct)) return direct;
+  const nearby = role === 'pickup'
+    ? [order.pickupNearbyName, order.pickupLandmark, order.nearbyPickupName, order.fromNearby, order.pickupPlaceName]
+    : [order.dropoffNearbyName, order.destinationLandmark, order.nearbyDestinationName, order.toNearby, order.destinationName];
+  for (const candidate of nearby) {
+    if (!riderGenericPlaceLabel(candidate)) return riderNearbyLabel(candidate);
+  }
+  const notes = role === 'pickup'
+    ? [order.pickupNote, order.fromNote]
+    : [order.destinationNote, order.dropoffNote, order.note, order.customerNote];
+  for (const candidate of notes) {
+    if (!riderGenericPlaceLabel(candidate)) return String(candidate).trim();
+  }
+  return direct;
+}
 function riderStop(job, role) {
   const order = job || {};
   const shop = order.type === 'food' || order.type === 'shopping';
@@ -1449,11 +1478,11 @@ function riderStop(job, role) {
     const label = shop
       ? (order.shopPlaceName || order.merchantName || order.from || '')
       : (order.from || '');
-    return { role: 'pickup', point: point, label: label, kind: shop ? 'shop' : 'pickup', serviceType: serviceType };
+    return { role: 'pickup', point: point, label: label, navigationLabel: riderNavigationPlaceLabel(order, 'pickup', label), kind: shop ? 'shop' : 'pickup', serviceType: serviceType };
   }
   const point = riderCoord(order.lat, order.lng);
   const label = order.to || order.address || order.destination || '';
-  return { role: 'dropoff', point: point, label: label, kind: 'dropoff', serviceType: serviceType };
+  return { role: 'dropoff', point: point, label: label, navigationLabel: riderNavigationPlaceLabel(order, 'dropoff', label), kind: 'dropoff', serviceType: serviceType };
 }
 
 function riderNavStage(status) {
@@ -1495,12 +1524,8 @@ function riderMapDomId(type, jobId) {
 function riderNavAnchor(stop, stage) {
   const primary = stop.role === stage;
   const cls = 'jc-nav-btn ' + (primary ? 'primary' : 'secondary');
-  const place = String(stop.label || '').trim();
-  const text = stop.kind === 'shop'
-    ? '🧭 นำทางไป' + (place ? ' ' + place : ' ร้านค้า')
-    : stop.role === 'pickup'
-      ? (stop.serviceType === 'ride' ? '🧭 นำทางไปที่ลูกค้า' : '🧭 นำทางไปจุดนัดหมาย')
-      : (stop.serviceType === 'ride' ? '🧭 นำทางไปปลายทาง' : '🧭 นำทางไปที่ลูกค้า');
+  const place = String(stop.navigationLabel || stop.label || '').trim();
+  const text = '🧭 นำทางไป' + (place ? ' ' + place : (stop.kind === 'shop' ? ' ร้านค้า' : stop.role === 'pickup' ? ' จุดนัดหมาย' : ' ที่ลูกค้า'));
   const link = riderNavLink(stop);
   if (!link.href) {
     return '<button type="button" class="' + cls + '" disabled>' + text + '</button>';
@@ -1520,7 +1545,7 @@ function riderNavBlock(job, opts) {
       : (stop.role === 'pickup'
         ? (stop.serviceType === 'ride' ? 'จุดนัดหมายรับลูกค้า' : 'สถานที่รับของ')
         : 'ที่อยู่ลูกค้า');
-    const name = stop.label || 'ยังไม่ได้ระบุ';
+    const name = stop.navigationLabel || stop.label || 'ยังไม่ได้ระบุ';
     const pin = stop.point
       ? '<small>' + stop.point.lat.toFixed(5) + ', ' + stop.point.lng.toFixed(5) + '</small>'
       : '';
