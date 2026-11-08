@@ -8,18 +8,26 @@ const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
 
 test('mobile map picker gives the map the primary viewport and uses a floating sheet', () => {
   assert.match(source, /@media \(max-width: 600px\) \{[\s\S]*?#map-page \{ --dest-sheet-h: 28vh; min-height: 100dvh; \}/);
-  assert.match(source, /#map-page \.reference-loc-bar \{[\s\S]*?position: absolute;[\s\S]*?pointer-events: none;/);
   assert.match(source, /#map-page \.dest-sheet \{[\s\S]*?height: 28vh;[\s\S]*?max-height: 72vh;/);
   assert.match(source, /#map-page \.dest-sheet\.expanded \{ --dest-sheet-h: 42vh; height: 42vh; \}/);
-  assert.match(source, /#map-page \.reference-loc-bar \{[\s\S]*?top: auto;[\s\S]*?bottom: calc\(var\(--dest-sheet-h\) \+ 12px \+ env\(safe-area-inset-bottom\)\);[\s\S]*?right: 86px;/);
   assert.match(source, /#map-page:has\(\.dest-sheet\.expanded\) \{ --dest-sheet-h: 42vh; \}/);
 });
 
 test('mobile map picker keeps controls touch-safe and readable over the map', () => {
-  assert.match(source, /#map-page \.reference-loc-bar \.loc-action-btn \{[\s\S]*?min-height: 46px;[\s\S]*?border-radius: 16px;/);
   assert.match(source, /#map-page \.dest-search \{ min-height: 56px; font-size: 17px; \}/);
+  assert.match(source, /id="dest-current-location-btn"[^>]+aria-label="ใช้ตำแหน่งปัจจุบันของฉัน"/);
+  assert.doesNotMatch(source, /id="map-loc-status"/);
+  assert.doesNotMatch(source, /<div class="reference-loc-bar" id="map-loc-bar">/);
   assert.match(source, /#map-page \.map-confirm-btn \{ min-height: 56px;[\s\S]*?env\(safe-area-inset-bottom\)/);
   assert.match(source, /#map-page \.map-float-controls \{ right: 14px; bottom: calc\(var\(--dest-sheet-h\) \+ 14px\); \}/);
+});
+
+test('destination selection shows a Thai location confirmation popup after a pick', () => {
+  assert.match(source, /id="location-picked-popup"[^>]+role="status"[^>]+aria-live="polite"/);
+  assert.match(source, /id="location-picked-title">เลือกตำแหน่งของคุณ<\/h2>/);
+  assert.match(source, /destSelectionPopupPending = true;/);
+  assert.match(source, /showLocationPickedPopup\(\);/);
+  assert.match(source, /window\.closeLocationPickedPopup/);
 });
 
 test('map-first layout does not remove the destination search or confirmation action', () => {

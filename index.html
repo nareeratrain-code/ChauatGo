@@ -443,6 +443,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .dest-sheet.expanded .dest-sheet-body { overflow-y: auto; }
 .dest-search { display: flex; align-items: center; gap: 8px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 14px; padding: 0 12px; margin-bottom: 8px; }
 .dest-search input { flex: 1; border: none; background: transparent; color: var(--text); font-family: inherit; font-size: 16px; font-weight: 700; padding: 12px 0; outline: none; min-width: 0; }
+.dest-search-pin { width: 42px; height: 42px; flex: 0 0 42px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: linear-gradient(135deg, #168A45, #0D6D35); color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 166, 81, .25); }
+.dest-search-pin:active { transform: scale(.94); }
 .dest-cat-row { display: none; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
 .dest-sheet.expanded .dest-cat-row { display: flex; }
 .dest-cat-chip { flex: 0 0 auto; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 999px; padding: 6px 10px; font-family: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
@@ -617,6 +619,12 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 .near-alert-popup { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9700; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
 .near-alert-popup.show { display: flex; }
+.location-picked-popup { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9680; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
+.location-picked-popup.show { display: flex; }
+.location-picked-card { width: min(360px, 100%); box-sizing: border-box; padding: 24px 20px 20px; text-align: center; background: var(--surface); color: var(--text); border: 1px solid #D1E7E1; border-top: 6px solid var(--green); border-radius: 24px; box-shadow: 0 20px 50px rgba(9,62,58,.25); animation: bounceIn .35s cubic-bezier(.32,.72,0,1); }
+.location-picked-icon { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 10px; border-radius: 50%; background: #E4F4EC; font-size: 34px; }
+.location-picked-card h2 { margin: 0 0 6px; color: var(--brand); font-size: 22px; font-weight: 900; }
+.location-picked-card p { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; font-weight: 700; }
 .near-alert-card { background: var(--surface); border-radius: 24px; padding: 28px 22px; width: 100%; max-width: 400px; text-align: center; animation: bounceIn .5s cubic-bezier(.32,.72,0,1); box-shadow: 0 24px 60px rgba(0,0,0,.3); border-top: 6px solid var(--green); }
 .near-alert-icon { font-size: 72px; margin-bottom: 12px; animation: bellShake 1s infinite; }
 .near-alert-card h2 { font-size: 24px; font-weight: 900; color: var(--brand); margin-bottom: 6px; }
@@ -977,6 +985,7 @@ button.chat-list-item:active { filter: brightness(.97); }
 #map-page .map-header-bar h3 { font-size: 18px; }
 #map-page .dest-sheet { border-top: 5px solid #E85C00; }
 #map-page .dest-search { background: #fff; border: 2px solid #111; border-radius: 999px; min-height: 48px; }
+#map-page .dest-search-pin { border: 2px solid #111; }
 #map-page .dest-cat-chip.on { background: #E85C00; color: #fff; border-color: #E85C00; }
 #map-page .reference-loc-bar .loc-action-btn[data-refresh-gps] { background: linear-gradient(135deg, #E53935, #B71C1C); }
 #map-page .reference-loc-bar .loc-action-btn[data-pick-map] { background: #fff; color: #111; border: 2px solid #111; }
@@ -1474,13 +1483,6 @@ select:focus-visible, [role="button"]:focus-visible {
     <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
     <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
   </div>
-  <div class="reference-loc-bar" id="map-loc-bar">
-    <div class="loc-actions">
-      <button type="button" class="loc-action-btn" data-refresh-gps="reference">📍 อัปเดตตำแหน่ง GPS</button>
-      <button type="button" class="loc-action-btn" data-pick-map="reference">🗺️ เลือกจากแผนที่</button>
-    </div>
-    <div id="map-loc-status"></div>
-  </div>
   <div class="map-stage">
     <div id="main-map"></div>
     <div class="map-center-pin" id="map-center-pin" aria-hidden="true">
@@ -1496,7 +1498,8 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="dest-sheet-body">
         <div class="dest-search">
           <span aria-hidden="true">🔍</span>
-        <input id="dest-search-input" type="search" placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา..." autocomplete="off" enterkeyhint="search">
+          <input id="dest-search-input" type="search" placeholder="พิมพ์ชื่อสถานที่เพื่อค้นหา..." autocomplete="off" enterkeyhint="search">
+          <button type="button" class="dest-search-pin press-scale" id="dest-current-location-btn" onclick="centerToUser()" aria-label="ใช้ตำแหน่งปัจจุบันของฉัน" title="ใช้ตำแหน่งปัจจุบันของฉัน">📍</button>
         </div>
         <div id="dest-cat-filters" class="dest-cat-row"></div>
         <div id="dest-search-results" class="dest-search-results"></div>
@@ -1514,6 +1517,15 @@ select:focus-visible, [role="button"]:focus-visible {
       </div>
       <button class="map-confirm-btn" id="map-confirm-btn" onclick="confirmMapLocation()" disabled>เลือกตำแหน่งก่อน</button>
     </div>
+  </div>
+</div>
+
+<div class="location-picked-popup" id="location-picked-popup" role="status" aria-live="polite" aria-modal="true" aria-labelledby="location-picked-title">
+  <div class="location-picked-card">
+    <div class="location-picked-icon" aria-hidden="true">📍</div>
+    <h2 id="location-picked-title">เลือกตำแหน่งของคุณ</h2>
+    <p>ระบบบันทึกตำแหน่งที่เลือกไว้แล้ว</p>
+    <button type="button" class="btn-full btn-green press-scale" onclick="closeLocationPickedPopup()">ตกลง</button>
   </div>
 </div>
 
@@ -2015,6 +2027,15 @@ window.showToast = function(msg,type){
   t.className = 'toast show ' + type;
   clearTimeout(t._t);
   t._t = setTimeout(function(){t.className='toast';},3000);
+};
+
+window.showLocationPickedPopup = function(){
+  var pop = $('location-picked-popup');
+  if (pop) pop.classList.add('show');
+};
+window.closeLocationPickedPopup = function(){
+  var pop = $('location-picked-popup');
+  if (pop) pop.classList.remove('show');
 };
 
 function haversine(lat1,lng1,lat2,lng2){
@@ -6929,6 +6950,7 @@ function globalClickHandler(e){
 /* ═══ MAP PAGE ═══ */
 var destHoldAddress = '';
 var destHoldPlaceId = '';
+var destSelectionPopupPending = false;
 var destSearchTimer = null;
 var destSearchGen = 0;
 var destCatFilter = '';
@@ -7095,6 +7117,10 @@ function onDestMapMoveEnd() {
   updateDestEstimate();
   if (held) showDestAddress(held, ll);
   else scheduleReverseGeocode(ll.lat, ll.lng);
+  if (destSelectionPopupPending) {
+    destSelectionPopupPending = false;
+    showLocationPickedPopup();
+  }
 }
 
 function updateDestEstimate() {
@@ -7596,6 +7622,7 @@ function renderDestSearchResults(items, pending) {
       destSearchGen++;
       if ($('dest-search-input')) $('dest-search-input').value = item.label;
       setDestSearchMode(false);
+      destSelectionPopupPending = true;
       panPinTo(item.lat, item.lng, 17);
     });
   });
@@ -7856,6 +7883,8 @@ window.openMapPage = function(keepPickerMode){
     if ($('map-page')) delete $('map-page').dataset.picker;
   }
   syncMapTitle();
+  closeLocationPickedPopup();
+  destSelectionPopupPending = false;
   setDestSearchMode(true);
   var seed = mapPickerSeed();
   var token = ++mapOpenToken;
@@ -7873,7 +7902,7 @@ window.openMapPage = function(keepPickerMode){
       if(!map){
         map = L.map('main-map',{zoomControl:true}).setView([seed ? seed.lat : CHAUAT_CENTER.lat, seed ? seed.lng : CHAUAT_CENTER.lng], 16);
         if (window.ChauatMap) ChauatMap.addBaseTiles(map);
-        map.on('click', function(e){ destHoldAddress = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
+        map.on('click', function(e){ destHoldAddress = ''; destSelectionPopupPending = true; panPinTo(e.latlng.lat, e.latlng.lng); });
         map.on('movestart', function(){ var pin = $('map-center-pin'); if (pin) pin.classList.add('lift'); });
         map.on('moveend', onDestMapMoveEnd);
         if (!seed && navigator.geolocation) {
@@ -7965,6 +7994,8 @@ window.clearMap = function(){
   if(destinationMarker && map){map.removeLayer(destinationMarker);destinationMarker=null;}
   if(destinationCircle && map){map.removeLayer(destinationCircle);destinationCircle=null;}
   destHoldAddress = '';
+  destSelectionPopupPending = false;
+  closeLocationPickedPopup();
   if ($('dest-search-input')) $('dest-search-input').value = '';
   if ($('dest-rider-note')) $('dest-rider-note').value = '';
   setDestSearchMode(true);
@@ -7993,6 +8024,7 @@ window.confirmMapLocation = function(){
   selectedDestination = picked;
   if (mapPickerSnapshot) mapPickerSnapshot.committed = true;
   closeMapPage();
+  showLocationPickedPopup();
   if (mode === 'travel') {
     selectedDestination = picked;
     if ($('travel-dest-input')) $('travel-dest-input').value = picked.address;
