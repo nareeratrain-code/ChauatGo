@@ -6992,11 +6992,12 @@ function shortNominatimAddress(data) {
 function scheduleReverseGeocode(lat, lng) {
   clearTimeout(destGeocodeTimer);
   var token = ++destGeocodeToken;
+  var session = mapOpenToken;
   showDestAddress('กำลังหาที่อยู่...', { lat: lat, lng: lng });
   destGeocodeTimer = setTimeout(function() {
     var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=18&addressdetails=1&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
     nominatimFetch(url).then(function(data) {
-      if (token !== destGeocodeToken) return;
+      if (token !== destGeocodeToken || session !== mapOpenToken || !$('map-page') || !$('map-page').classList.contains('show')) return;
       var reverseLabel = shortNominatimAddress(data);
       var directPlace = selectedDestination && selectedDestination.placeId
         && Math.abs(selectedDestination.lat - lat) < 0.0002
@@ -7009,7 +7010,7 @@ function scheduleReverseGeocode(lat, lng) {
       }
       showDestAddress(label, { lat: lat, lng: lng });
     }).catch(function() {
-      if (token !== destGeocodeToken) return;
+      if (token !== destGeocodeToken || session !== mapOpenToken || !$('map-page') || !$('map-page').classList.contains('show')) return;
       var directPlace = selectedDestination && selectedDestination.placeId
         && Math.abs(selectedDestination.lat - lat) < 0.0002
         && Math.abs(selectedDestination.lng - lng) < 0.0002;
@@ -7023,6 +7024,7 @@ function scheduleReverseGeocode(lat, lng) {
 }
 
 function onDestMapMoveEnd() {
+  if (!$('map-page') || !$('map-page').classList.contains('show')) return;
   var pin = $('map-center-pin');
   if (pin) pin.classList.remove('lift');
   var held = destHoldAddress;
@@ -7755,10 +7757,8 @@ window.openMapPage = function(keepPickerMode){
   syncMapTitle();
   setDestSearchMode(true);
   var seed = mapPickerSeed();
-  if (seed && seed.placeId) {
-    destHoldAddress = seed.address || '';
-    destHoldPlaceId = seed.placeId || '';
-  }
+  destHoldAddress = seed && seed.address || '';
+  destHoldPlaceId = seed && seed.placeId || '';
   var token = ++mapOpenToken;
   var confirmBtn = $('map-confirm-btn');
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'เลือกตำแหน่งก่อน'; }
@@ -7774,7 +7774,7 @@ window.openMapPage = function(keepPickerMode){
       if(!map){
         map = L.map('main-map',{zoomControl:true}).setView([seed ? seed.lat : CHAUAT_CENTER.lat, seed ? seed.lng : CHAUAT_CENTER.lng], 16);
         if (window.ChauatMap) ChauatMap.addBaseTiles(map);
-        map.on('click', function(e){ destHoldAddress = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
+        map.on('click', function(e){ destHoldAddress = ''; destHoldPlaceId = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
         map.on('movestart', function(){ var pin = $('map-center-pin'); if (pin) pin.classList.add('lift'); });
         map.on('moveend', onDestMapMoveEnd);
         if (!seed && navigator.geolocation) {
@@ -7812,6 +7812,9 @@ window.closeMapPage = function(){
   var mode = mapPickerMode;
   mapPickerSnapshot = null;
   mapOpenToken++;
+  clearTimeout(destGeocodeTimer);
+  destGeocodeTimer = null;
+  destGeocodeToken++;
   if($('map-page')) {
     $('map-page').classList.remove('show');
     delete $('map-page').dataset.picker;
