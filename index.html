@@ -1055,6 +1055,40 @@ body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7F
 #map-page .dest-sheet { border-top: 5px solid #F97316; box-shadow: 0 -12px 30px rgba(9,62,58,.18); }
 #map-page .dest-cat-chip.on { background: #F97316; border-color: #F97316; }
 #map-page .map-confirm-btn { background: linear-gradient(135deg, #0F766E, #0B3B3A); box-shadow: 0 9px 22px rgba(15,118,110,.3); }
+/* Mobile map proportions: keep the map dominant while the destination sheet remains usable. */
+@media (max-width: 600px) {
+  #map-page { --dest-sheet-h: 28vh; min-height: 100dvh; }
+  #map-page .map-header-bar { min-height: 64px; padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 12px calc(16px + env(safe-area-inset-left)); }
+  #map-page .map-header-bar h3 { font-size: 17px; line-height: 1.25; }
+  #map-page .map-back-btn { min-height: 44px; padding: 0 16px; font-size: 14px; }
+  #map-page .reference-loc-bar { padding: 10px 14px 12px; }
+  #map-page .loc-actions { gap: 10px; }
+  #map-page .loc-action-btn { min-height: 52px; font-size: 15px; }
+  #map-page .dest-sheet { height: var(--dest-sheet-h); max-height: 52vh; border-top-width: 5px; }
+  #map-page .dest-sheet.expanded { --dest-sheet-h: 44vh; height: 44vh; }
+  #map-page .dest-sheet-body { padding: 0 18px; }
+  #map-page .dest-sheet-handle { height: 32px; }
+  #map-page .dest-sheet-handle:before { width: 48px; height: 6px; margin-top: 11px; }
+  #map-page .dest-search { min-height: 58px; padding: 0 16px; margin-bottom: 10px; }
+  #map-page .dest-search input { font-size: 18px; padding: 15px 0; }
+  #map-page .dest-cat-chip { min-height: 42px; padding: 8px 14px; font-size: 13px; }
+  #map-page .dest-address { font-size: 16px; margin-bottom: 8px; }
+  #map-page .dest-address small { font-size: 12px; }
+  #map-page .dest-estimate { min-height: 42px; align-items: center; font-size: 13px; }
+  #map-page .map-confirm-btn { min-height: 58px; margin: 6px 18px calc(14px + env(safe-area-inset-bottom)); font-size: 17px; }
+  #map-page .map-float-controls { right: calc(18px + env(safe-area-inset-right)); gap: 10px; }
+  #map-page .map-fab { width: 56px; height: 56px; font-size: 25px; }
+}
+@supports (height: 100dvh) {
+  #map-page { width: 100dvw; height: 100dvh; }
+}
+/* Avoid placing the fixed map page across a fold/hinge when the browser exposes viewport segments. */
+@media (horizontal-viewport-segments: 2) {
+  #map-page { left: env(viewport-segment-left 0 0); width: env(viewport-segment-width 0 0); max-width: env(viewport-segment-width 0 0); }
+}
+@media (vertical-viewport-segments: 2) {
+  #map-page { top: env(viewport-segment-top 0 0); height: env(viewport-segment-height 0 0); max-height: env(viewport-segment-height 0 0); }
+}
 .bottom-nav { border-top: 1px solid #D1E7E1; box-shadow: 0 -10px 24px rgba(9,62,58,.12) !important; }
 .bottom-nav .nav-item.active .nav-icon-wrap { background: #0F766E; box-shadow: 0 5px 12px rgba(15,118,110,.25); }
 .modal-content, .pdpa-content, .loc-popup-content, .near-alert-card { border: 1px solid #D1E7E1; box-shadow: 0 20px 50px rgba(9,62,58,.2); }
@@ -7623,6 +7657,13 @@ function setDestSheetExpanded(expanded) {
   }
 }
 
+function mapViewportHeight() {
+  var page = $('map-page');
+  if (page && page.clientHeight) return page.clientHeight;
+  if (window.visualViewport && window.visualViewport.height) return window.visualViewport.height;
+  return window.innerHeight || 1;
+}
+
 function bindDestSheet() {
   var handle = $('dest-sheet-handle');
   var sheet = $('dest-sheet');
@@ -7644,7 +7685,7 @@ function bindDestSheet() {
       if (!dragging) return;
       var next = sheet.getBoundingClientRect().height + (startY - e.clientY);
       startY = e.clientY;
-      next = Math.max(180, Math.min(window.innerHeight * 0.78, next));
+      next = Math.max(180, Math.min(mapViewportHeight() * 0.78, next));
       sheet.style.height = next + 'px';
     });
     function endDrag(e) {
@@ -7655,7 +7696,7 @@ function bindDestSheet() {
       sheet.style.transition = '';
       sheet.style.height = '';
       if (moved < 8) setDestSheetExpanded(!sheet.classList.contains('expanded'));
-      else setDestSheetExpanded(h > window.innerHeight * 0.4);
+      else setDestSheetExpanded(h > mapViewportHeight() * 0.4);
     }
     handle.addEventListener('pointerup', endDrag);
     handle.addEventListener('pointercancel', endDrag);
@@ -7817,6 +7858,19 @@ window.closeMapPage = function(){
     selectedDestination = snap.destination;
   }
 };
+var mapViewportResizeTimer = null;
+function scheduleMapViewportSync(){
+  clearTimeout(mapViewportResizeTimer);
+  mapViewportResizeTimer = setTimeout(function(){
+    var page = $('map-page');
+    if (!map || !page || !page.classList.contains('show')) return;
+    requestAnimationFrame(function(){
+      try { map.invalidateSize({ pan: false, animate: false }); } catch (e) { map.invalidateSize(); }
+    });
+  }, 80);
+}
+window.addEventListener('resize', scheduleMapViewportSync, { passive: true });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleMapViewportSync, { passive: true });
 
 function showCurrentLocationMarker(lat, lng){
   if(!map) return;
