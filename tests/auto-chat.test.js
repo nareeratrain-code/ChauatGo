@@ -132,7 +132,8 @@ test('a food rider cannot leave before the shop slip', () => {
   assert.equal(gate.riderMayConfirmPay({ type: 'food', paymentMode: 'transfer', riderId: 'r', status: 'picked_up' }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'shopping', paymentMode: 'transfer', riderId: 'r', status: 'picked_up' }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'ride', paymentMode: 'transfer', riderId: 'r', status: 'picked_up' }), false);
-  assert.equal(gate.riderMayConfirmPay({ type: 'ride', paymentMode: 'transfer', riderId: 'r', status: 'on_the_way' }), true);
+  assert.equal(gate.riderMayConfirmPay({ type: 'ride', paymentMode: 'transfer', riderId: 'r', status: 'on_the_way' }), false);
+  assert.equal(gate.riderMayConfirmPay({ type: 'ride', paymentMode: 'transfer', riderId: 'r', status: 'on_the_way', riderArrivedCustomerChatAt: {} }), true);
   assert.equal(gate.canLeaveShop({ type: 'shopping', paymentMode: 'transfer', customerPaidAt: {} }), false);
   assert.equal(gate.canLeaveShop({ type: 'shopping', paymentMode: 'transfer', customerPaidAt: {}, riderSlipToShop: 'https://slip' }), true);
   assert.equal(gate.canLeaveShop({ type: 'ride', paymentMode: 'transfer' }), true);

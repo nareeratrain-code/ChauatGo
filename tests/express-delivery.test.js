@@ -27,7 +27,8 @@ test('food and shopping still wait for payment, and ride still pays at the desti
   assert.equal(gate.riderMayConfirmPay({ type: 'food', riderId: 'r', paymentMode: 'transfer', status: 'picked_up' }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'shopping', riderId: 'r', paymentMode: 'transfer', status: 'picked_up' }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'ride', riderId: 'r', paymentMode: 'transfer', status: 'picked_up' }), false);
-  assert.equal(gate.riderMayConfirmPay({ type: 'ride', riderId: 'r', paymentMode: 'transfer', status: 'on_the_way' }), true);
+  assert.equal(gate.riderMayConfirmPay({ type: 'ride', riderId: 'r', paymentMode: 'transfer', status: 'on_the_way' }), false);
+  assert.equal(gate.riderMayConfirmPay({ type: 'ride', riderId: 'r', paymentMode: 'transfer', status: 'on_the_way', riderArrivedCustomerChatAt: {} }), true);
 });
 
 test('express picked_up card starts delivery instead of waiting for a transfer', () => {
