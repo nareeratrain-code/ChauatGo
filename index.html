@@ -5781,7 +5781,7 @@ function expressDraftPoint(point) {
     lng: Number(point.lng),
     address: String(point.address || '').trim(),
     placeId: String(point.placeId || '').trim(),
-    accuracy: isFinite(Number(point.accuracy)) ? Number(point.accuracy) : null
+    accuracy: point.accuracy != null && point.accuracy !== '' && isFinite(Number(point.accuracy)) ? Number(point.accuracy) : null
   };
 }
 
