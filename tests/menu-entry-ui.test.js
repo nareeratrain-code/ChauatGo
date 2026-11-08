@@ -34,3 +34,11 @@ test('entry screens use orange, red, green, white, and black accents', () => {
   assert.match(css, /#map-page \.map-confirm-btn \{ border-radius: 999px; background: #111; \}/);
   assert.match(css, /\[data-theme="dark"\] \.merchant-card/);
 });
+
+test('focused menu screens hide the global search and restore it on close', () => {
+  assert.match(html, /\.header\.menu-focus \.header-top \.search-bar \{ display: none; \}/);
+  assert.match(html, /function setMenuFocus\(active\)/);
+  assert.match(html, /setMenuFocus\(true\);[\s\S]{0,180}if\(\$\('home-content'\)\)/);
+  assert.match(html, /closeCategoryView = function\(\)\{[\s\S]*?setMenuFocus\(false\);/);
+  assert.match(html, /closeMerchantView = function\(\)\{[\s\S]*?setMenuFocus\(false\);/);
+});
