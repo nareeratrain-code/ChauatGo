@@ -1471,22 +1471,11 @@ select:focus-visible, [role="button"]:focus-visible {
     <button class="map-back-btn press-scale" onclick="closeMapPage()">← กลับ</button>
     <h3>🗺️ เลือกตำแหน่งปลายทาง</h3>
   </div>
-  <div class="reference-loc-bar" id="map-loc-bar">
-    <div class="loc-actions">
-      <button type="button" class="loc-action-btn" data-refresh-gps="reference">📍 อัปเดตตำแหน่ง GPS</button>
-      <button type="button" class="loc-action-btn" data-pick-map="reference">🗺️ เลือกจากแผนที่</button>
-    </div>
-    <div id="map-loc-status"></div>
-  </div>
   <div class="map-stage">
     <div id="main-map"></div>
     <div class="map-center-pin" id="map-center-pin" aria-hidden="true">
       <div class="map-center-pin-head"></div>
       <i class="map-center-pin-tip" id="map-center-pin-tip"></i>
-    </div>
-    <div class="map-float-controls">
-      <button class="map-fab press-scale" onclick="centerToUser()" aria-label="ตำแหน่งของฉัน">🎯</button>
-      <button class="map-fab press-scale" onclick="clearMap()" aria-label="ล้างการค้นหา">🗑️</button>
     </div>
     <div class="dest-sheet" id="dest-sheet">
       <button type="button" class="dest-sheet-handle" id="dest-sheet-handle" aria-expanded="false" aria-label="ขยายหรือย่อรายละเอียด"></button>
