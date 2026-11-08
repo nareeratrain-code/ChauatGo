@@ -39,8 +39,12 @@ test('ride, express, shopping, and food can refresh GPS or pick the point on the
   assert.match(html, /data-pick-map="ride-origin"/);
   assert.match(html, /data-pick-map="ride-dest"/);
   assert.match(html, /data-refresh-gps="express"/);
-  assert.match(html, /data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่/);
-  assert.match(html, /data-exp-map="exp-destination">🗺️ เลือกปลายทางจากแผนที่/);
+  assert.match(html, /class="express-location-picker"/);
+  assert.match(html, /data-exp-map="exp-origin" aria-label="เลือกต้นทางจากแผนที่"/);
+  assert.match(html, /data-exp-map="exp-destination" aria-label="เลือกปลายทางจากแผนที่"/);
+  assert.match(html, /data-refresh-gps="express-destination" aria-label="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง"/);
+  assert.match(html, /class="express-location-swap press-scale"/);
+  assert.match(html, /function expressLocationIconSvg\(type\)/);
   assert.match(html, /data-refresh-gps="shopping">📍 ใช้ตำแหน่งฉัน/);
   assert.match(html, /data-pick-map="shop-dropoff">🗺️ เลือกจากแผนที่/);
   assert.match(html, /id="hotel-loc-status"/);
@@ -73,8 +77,8 @@ test('Ride search stays destination while pickup uses an explicit origin label',
   assert.match(html, /mode === 'ride-origin'\) title\.textContent = '🗺️ เลือกตำแหน่งต้นทาง \/ สถานที่รับลูกค้า'/);
   assert.match(html, /ตำแหน่งต้นทาง \/ สถานที่รับลูกค้า/);
   assert.match(html, /ตำแหน่งปลายทาง/);
-  assert.match(html, /data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่/);
-  assert.match(html, /data-exp-map="exp-destination">🗺️ เลือกปลายทางจากแผนที่/);
+  assert.match(html, /data-exp-map="exp-origin" aria-label="เลือกต้นทางจากแผนที่"/);
+  assert.match(html, /data-exp-map="exp-destination" aria-label="เลือกปลายทางจากแผนที่"/);
 });
 
 test('Ride destination selection reveals vehicle options immediately', () => {

@@ -676,6 +676,42 @@ button.chat-list-item:active { filter: brightness(.97); }
 .travel-map-btn:active, .merchant-map-btn:active { transform: scale(.97); filter: brightness(.95); }
 .loc-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .loc-action-btn, .express-swap-btn { width: 100%; min-height: 48px; box-sizing: border-box; border-radius: 999px; font: 900 14px/1 inherit; cursor: pointer; padding: 0 16px; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; letter-spacing: 0; transition: transform .16s ease, filter .16s ease, box-shadow .16s ease, background .16s ease; }
+.express-location-picker { position: relative; margin: 0 0 14px; padding: 14px; border: 1px solid var(--border); border-radius: 22px; background: var(--surface-2); }
+.express-location-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.express-location-title { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-size: 20px; font-weight: 900; }
+.express-location-title .parcel-icon { font-size: 26px; }
+.express-location-fare { color: var(--green); font-size: 18px; font-weight: 900; white-space: nowrap; }
+.express-location-route { position: relative; }
+.express-location-row { position: relative; z-index: 1; display: grid; grid-template-columns: 16px minmax(0, 1fr) 42px 42px; gap: 7px; align-items: center; min-height: 62px; padding: 7px 7px 7px 9px; border: 1px solid var(--border); border-radius: 17px; background: var(--surface); transition: border-color .16s ease, box-shadow .16s ease; }
+.express-location-row:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(15,118,110,.12); }
+.express-location-dot { width: 13px; height: 13px; border-radius: 50%; justify-self: center; }
+.express-location-dot.origin { background: #16A34A; box-shadow: 0 0 0 4px rgba(22,163,74,.14); }
+.express-location-dot.destination { background: #DC2626; box-shadow: 0 0 0 4px rgba(220,38,38,.14); }
+.express-location-input-wrap { min-width: 0; position: relative; }
+.express-location-row input { width: 100%; min-width: 0; height: 44px; padding: 0 4px; border: 0; outline: 0; background: transparent; color: var(--text); font: 800 15px/1.2 inherit; }
+.express-location-row input::placeholder { color: var(--text-muted); font-weight: 700; }
+.express-location-icon { position: relative; width: 42px; height: 42px; padding: 0; border: 1px solid var(--border); border-radius: 50%; display: inline-grid; place-items: center; color: var(--green); background: var(--surface-2); cursor: pointer; transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease; }
+.express-location-icon:hover { border-color: var(--green); background: var(--brand-light); }
+.express-location-icon:active { transform: scale(.94); }
+.express-location-icon.gps.is-unset { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 45%, var(--border)); background: color-mix(in srgb, var(--orange) 10%, var(--surface)); }
+.express-location-icon svg { width: 20px; height: 20px; }
+.express-location-connector { width: 2px; height: 17px; margin: -1px 0 -1px 15px; border-left: 2px dashed var(--text-light); }
+.express-location-swap { position: absolute; z-index: 3; top: 50%; right: 58px; width: 39px; height: 39px; padding: 0; border: 2px solid var(--surface); border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--orange); box-shadow: 0 5px 13px rgba(234,88,12,.28); cursor: pointer; transform: translateY(-50%); }
+.express-location-swap:active { transform: translateY(-50%) scale(.94); }
+.express-location-swap svg { width: 19px; height: 19px; }
+.express-location-status { margin: 7px 4px 0 27px; font-size: 11px; font-weight: 800; line-height: 1.45; }
+.express-location-status.missing { color: var(--orange); }
+.express-location-status.known { color: var(--green); }
+.express-location-suggestions { margin: 8px 0 0 23px; }
+.express-location-picker .exp-suggest { z-index: 10; }
+@media (max-width: 480px) {
+  .express-location-picker { padding: 12px; }
+  .express-location-row { grid-template-columns: 14px minmax(0, 1fr) 40px 40px; gap: 5px; }
+  .express-location-icon { width: 40px; height: 40px; }
+  .express-location-swap { right: 53px; width: 37px; height: 37px; }
+  .express-location-title { font-size: 18px; }
+  .express-location-fare { font-size: 16px; }
+}
 .loc-action-btn[data-refresh-gps] { border: 0; color: #fff; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); box-shadow: 0 6px 16px rgba(78,159,45,.28); }
 .loc-action-btn:not([data-refresh-gps]), .express-swap-btn { border: 1.5px solid color-mix(in srgb, var(--brand) 42%, var(--border)); color: var(--green); background: var(--brand-light); box-shadow: var(--shadow-xs); }
 .loc-action-btn:active, .express-swap-btn:active { transform: scale(.98); filter: brightness(.96); }
@@ -6061,6 +6097,12 @@ function applyExpressCatalog(which, row) {
   showToast('📍 ' + row.label);
 }
 
+function expressLocationIconSvg(type) {
+  if (type === 'gps') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path><circle cx="12" cy="12" r="8" opacity=".35"></circle></svg>';
+  if (type === 'map') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15M15 6v15"></path><path d="M12 8.5a2.5 2.5 0 1 0 0 5c1.2-1.2 2-2.1 2-3.1a2 2 0 0 0-2-1.9Z"></path></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 7 3-3 3 3M10 4v10"></path><path d="m17 17-3 3-3-3M14 20V10"></path></svg>';
+}
+
 function renderExpressForm() {
   var suggestions = [];
   if (PLACES.length) {
@@ -6089,8 +6131,10 @@ function renderExpressForm() {
   var expressFareLabel = (expOrigin && expDestination && isFinite(expOrigin.lat) && isFinite(expDestination.lat))
     ? ('ประมาณ ฿' + expressQuote.total + ' • ' + expressQuote.distance.toFixed(1) + ' กม.')
     : '฿30 เริ่มต้น';
-  var originBadge = (expOrigin && isFinite(expOrigin.lat)) ? '<div class="loc-known">✓ จุดรับ ' + expOrigin.lat.toFixed(5) + ', ' + expOrigin.lng.toFixed(5) + (formatAccuracyMeters(expOrigin.accuracy) ? (' • ' + esc(formatAccuracyMeters(expOrigin.accuracy))) : '') + '</div>' : '<div class="loc-missing">⚠️ ยังไม่ทราบตำแหน่งของคุณ</div>';
-  var destBadge = (expDestination && isFinite(expDestination.lat)) ? '<div class="loc-known">✓ จุดส่ง ' + expDestination.lat.toFixed(5) + ', ' + expDestination.lng.toFixed(5) + '</div>' : '';
+  var originKnown = expOrigin && isFinite(expOrigin.lat) && isFinite(expOrigin.lng);
+  var destinationKnown = expDestination && isFinite(expDestination.lat) && isFinite(expDestination.lng);
+  var originStatus = originKnown ? '<div class="express-location-status known">✓ จุดรับแล้ว' + (formatAccuracyMeters(expOrigin.accuracy) ? ' • ' + esc(formatAccuracyMeters(expOrigin.accuracy)) : '') + '</div>' : '<div class="express-location-status missing">ยังไม่ทราบตำแหน่งต้นทาง • แตะ ◎ เพื่อใช้ตำแหน่งปัจจุบัน</div>';
+  var destinationStatus = destinationKnown ? '<div class="express-location-status known">✓ จุดส่งแล้ว</div>' : '';
   var contactLabel = String((expressDraft && expressDraft.contactName) || '').trim();
   if (/^[0-9+\-\s()]{8,}$/.test(contactLabel)) contactLabel = '';
   var reorderBanner = (expressDraft && expressDraft.reorder)
@@ -6098,10 +6142,12 @@ function renderExpressForm() {
     : '';
   $('modal-body').innerHTML =
     reorderBanner +
-    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">📦</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">ส่งด่วน</h2><div style="color:var(--green);font-weight:900;font-size:20px;margin-top:8px">' + expressFareLabel + '</div></div>' +
-    '<div class="form-group"><label>📍 ต้นทาง (จุดรับของ)</label><div style="position:relative"><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div>' + originBadge + '<div class="loc-actions"><button type="button" class="loc-action-btn" data-refresh-gps="express">📍 อัปเดตตำแหน่ง</button><button type="button" class="loc-action-btn" data-exp-map="exp-origin">🗺️ เลือกจุดรับจากแผนที่</button></div></div>' +
-    '<button type="button" class="express-swap-btn press-scale" onclick="swapExpressLocations()">⇅ สลับต้นทางและปลายทาง</button>' +
-    '<div class="form-group"><label>🎯 ปลายทาง (จุดส่งของ)</label><div style="position:relative"><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><div class="sug-chips">' + sugChipsHtml + '</div>' + destBadge + '<div class="loc-actions"><button type="button" class="loc-action-btn" data-exp-map="exp-destination">🗺️ เลือกปลายทางจากแผนที่</button></div></div>' +
+    '<div class="express-location-picker" aria-label="เลือกต้นทางและปลายทาง"><div class="express-location-header"><div class="express-location-title"><span class="parcel-icon" aria-hidden="true">📦</span><span>ส่งด่วน</span></div><div class="express-location-fare" aria-label="ค่าโดยสารเริ่มต้น">' + expressFareLabel + '</div></div><div class="express-location-route">' +
+      '<div class="express-location-row"><span class="express-location-dot origin" aria-hidden="true"></span><div class="express-location-input-wrap"><label class="sr-only" for="order-from">ที่อยู่ต้นทาง</label><input id="order-from" value="' + esc(fromVal) + '" placeholder="พิมพ์ที่อยู่ต้นทาง..." autocomplete="off"><div class="exp-suggest" id="exp-from-suggest"></div></div><button type="button" class="express-location-icon gps' + (originKnown ? '' : ' is-unset') + '" data-refresh-gps="express" aria-label="ใช้ตำแหน่งปัจจุบันเป็นต้นทาง" title="ใช้ตำแหน่งปัจจุบันเป็นต้นทาง">' + expressLocationIconSvg('gps') + '</button><button type="button" class="express-location-icon" data-exp-map="exp-origin" aria-label="เลือกต้นทางจากแผนที่" title="เลือกต้นทางจากแผนที่">' + expressLocationIconSvg('map') + '</button></div>' +
+      originStatus + '<div class="express-location-connector" aria-hidden="true"></div>' +
+      '<button type="button" class="express-location-swap press-scale" onclick="swapExpressLocations()" aria-label="สลับต้นทางและปลายทาง" title="สลับต้นทางและปลายทาง">' + expressLocationIconSvg('swap') + '</button>' +
+      '<div class="express-location-row"><span class="express-location-dot destination" aria-hidden="true"></span><div class="express-location-input-wrap"><label class="sr-only" for="order-to">ที่อยู่ปลายทาง</label><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><button type="button" class="express-location-icon gps' + (destinationKnown ? '' : ' is-unset') + '" data-refresh-gps="express-destination" aria-label="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง" title="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง">' + expressLocationIconSvg('gps') + '</button><button type="button" class="express-location-icon" data-exp-map="exp-destination" aria-label="เลือกปลายทางจากแผนที่" title="เลือกปลายทางจากแผนที่">' + expressLocationIconSvg('map') + '</button></div>' +
+      destinationStatus + '</div><div class="express-location-suggestions"><div class="sug-chips">' + sugChipsHtml + '</div></div></div>' +
     '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType.id) + '"><div class="express-parcel-scroll" aria-label="เลือกประเภทพัสดุ">' + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + parcelType.icon + ' ' + esc(parcelType.note) + '</div></div>' +
     '<div class="express-two-col"><div class="form-group"><label>⚖️ น้ำหนักโดยประมาณ (กก.)</label><input type="number" id="express-weight-kg" min="0" max="1000" step="0.1" value="' + esc(weightVal) + '" placeholder="เช่น 2.5"></div><div class="form-group"><label>⏰ ต้องการให้ถึง</label><input type="datetime-local" id="express-arrival-by" value="' + esc(arrivalByVal) + '"></div></div>' +
     '<div class="form-group"><label>🧾 ลักษณะสิ่งของ</label><textarea id="express-item-description" rows="2" placeholder="เช่น กล่องเอกสาร 1 กล่อง, ผลไม้ 3 กก., ต้องระวังแตก">' + esc(itemDescriptionVal) + '</textarea></div>' +
@@ -6202,7 +6248,7 @@ function refreshServiceGps(which) {
   if (!navigator.geolocation) return showToast('ไม่รองรับ GPS', 'error');
   showToast('📡 กำลังหาตำแหน่ง...', 'info');
   if (which === 'ride') captureRideDraft();
-  if (which === 'express') captureExpressDraft();
+  if (which === 'express' || which === 'express-destination') captureExpressDraft();
   if (which === 'shopping') captureShopDraft();
   if (which === 'food') captureFoodCheckoutDraft();
   navigator.geolocation.getCurrentPosition(function(pos) {
@@ -6223,6 +6269,14 @@ function refreshServiceGps(which) {
       expressDraft.from = point.address;
       renderExpressForm();
       showToast('📍 อัปเดตตำแหน่งแล้ว' + (accuracyText ? ' ' + accuracyText : ''));
+      return;
+    }
+    if (which === 'express-destination') {
+      expDestination = point;
+      if (!expressDraft) expressDraft = {};
+      expressDraft.to = point.address;
+      renderExpressForm();
+      showToast('📍 อัปเดตจุดส่งแล้ว' + (accuracyText ? ' ' + accuracyText : ''));
       return;
     }
     if (which === 'shopping') {
