@@ -38,6 +38,15 @@ test('choosing a hotel opens the ride destination picker and keeps the hotel pin
   assert.match(block, /setDestination\(p\.lat, p\.lng, true, p\.name, p\.id \|\| placeId\)/);
 });
 
+test('reverse geocoding preserves the exact name of a directly selected hotel', () => {
+  const start = html.indexOf('function scheduleReverseGeocode(lat, lng)');
+  const end = html.indexOf('\nfunction onDestMapMoveEnd()', start);
+  const block = html.slice(start, end);
+  assert.match(block, /var directPlace = selectedDestination && selectedDestination\.placeId/);
+  assert.match(block, /String\(selectedDestination\.address \|\| reverseLabel \|\| ''\)\.trim\(\)/);
+  assert.match(block, /: destinationLabelForPoint\(\{ lat: lat, lng: lng, address: reverseLabel \}, '', true\)/);
+});
+
 test('hotel search input is large and touch-friendly', () => {
   assert.match(html, /\.hotel-search-wrap \{[^}]*padding: 4px[^}]*border-radius: 20px/);
   assert.match(html, /\.hotel-search-wrap input \{[^}]*min-height: 58px[^}]*font-size: 16px/);

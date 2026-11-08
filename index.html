@@ -6998,15 +6998,25 @@ function scheduleReverseGeocode(lat, lng) {
     nominatimFetch(url).then(function(data) {
       if (token !== destGeocodeToken) return;
       var reverseLabel = shortNominatimAddress(data);
-      var label = destinationLabelForPoint({ lat: lat, lng: lng, address: reverseLabel }, '', true);
-      if (selectedDestination && Math.abs(selectedDestination.lat - lat) < 0.0002 && Math.abs(selectedDestination.lng - lng) < 0.0002) {
+      var directPlace = selectedDestination && selectedDestination.placeId
+        && Math.abs(selectedDestination.lat - lat) < 0.0002
+        && Math.abs(selectedDestination.lng - lng) < 0.0002;
+      var label = directPlace
+        ? String(selectedDestination.address || reverseLabel || '').trim()
+        : destinationLabelForPoint({ lat: lat, lng: lng, address: reverseLabel }, '', true);
+      if (directPlace) {
         selectedDestination.address = label;
       }
       showDestAddress(label, { lat: lat, lng: lng });
     }).catch(function() {
       if (token !== destGeocodeToken) return;
-      var label = destinationLabelForPoint({ lat: lat, lng: lng }, '', true);
-      if (selectedDestination) selectedDestination.address = label;
+      var directPlace = selectedDestination && selectedDestination.placeId
+        && Math.abs(selectedDestination.lat - lat) < 0.0002
+        && Math.abs(selectedDestination.lng - lng) < 0.0002;
+      var label = directPlace
+        ? String(selectedDestination.address || '').trim()
+        : destinationLabelForPoint({ lat: lat, lng: lng }, '', true);
+      if (directPlace) selectedDestination.address = label;
       showDestAddress(label, { lat: lat, lng: lng });
     });
   }, 800);
