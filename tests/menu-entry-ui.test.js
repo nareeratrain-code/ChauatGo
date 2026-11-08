@@ -35,6 +35,16 @@ test('entry screens use orange, red, green, white, and black accents', () => {
   assert.match(css, /\[data-theme="dark"\] \.merchant-card/);
 });
 
+test('food partner source is visually prominent and advertises delivery from entry', () => {
+  assert.match(html, /class="merchant-source-tab partner-tab active"[^>]*data-source="partner"/);
+  assert.match(html, /<span class="delivery-icons"[^>]*>🚗 🛵<\/span> ร้านพาร์ทเนอร์/);
+  assert.match(html, /สั่งได้ทันที • มีบริการเดลิเวอรี/);
+  assert.match(html, /class="merchant-source-note partner-note"[^>]*>🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน/);
+  assert.match(css, /\.merchant-source-tab\.partner-tab\.active\s*\{[^}]*#E53935[^}]*#B71C1C/);
+  assert.match(css, /\.merchant-source-note\.partner-note\s*\{[^}]*#E53935/);
+  assert.match(html, /sourceNote\.classList\.toggle\('partner-note', merchantSource === 'partner'\)/);
+});
+
 test('focused menu screens hide the global search and restore it on close', () => {
   assert.match(html, /\.header\.menu-focus \.header-top \.search-bar \{ display: none; \}/);
   assert.match(html, /function setMenuFocus\(active\)/);
