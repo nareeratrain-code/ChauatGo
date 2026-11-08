@@ -31,7 +31,7 @@ test('all empty and typed place searches prioritize randomized Chauat places', (
   assert.match(source, /if \(!q\) \{[\s\S]*?chauat = shufflePlaces\(chauat\);[\s\S]*?rows = chauatKept\.concat\(other\);/);
   assert.match(source, /var districtRankA = \(a\.district \|\| 'ชะอวด'\) === 'ชะอวด' \? 0 : 1;/);
   assert.match(source, /var districtRankB = \(b\.district \|\| 'ชะอวด'\) === 'ชะอวด' \? 0 : 1;/);
-  assert.match(source, /closeModal\(\); openMapPage\(\); setDestSearchMode\(false\);/);
+  assert.match(source, /closeModal\(\); openMapPage\(true\); setDestSearchMode\(false\);/);
 });
 
 test('restaurant, local food, shopping, partner, and express suggestions use Chauat-first ordering', () => {
