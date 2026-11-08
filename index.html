@@ -7755,6 +7755,10 @@ window.openMapPage = function(keepPickerMode){
   syncMapTitle();
   setDestSearchMode(true);
   var seed = mapPickerSeed();
+  if (seed && seed.placeId) {
+    destHoldAddress = seed.address || '';
+    destHoldPlaceId = seed.placeId || '';
+  }
   var token = ++mapOpenToken;
   var confirmBtn = $('map-confirm-btn');
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'เลือกตำแหน่งก่อน'; }

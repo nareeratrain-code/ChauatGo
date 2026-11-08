@@ -48,11 +48,19 @@ test('reverse geocoding preserves the exact name of a directly selected hotel', 
 });
 
 test('opening the map carries the selected hotel placeId through the initial move', () => {
-  const start = html.indexOf("destHoldAddress = seed.address || ''");
+  const start = html.indexOf("destHoldAddress = seed.address || ''", html.indexOf('if (seed && isFinite(seed.lat)'));
   assert.notEqual(start, -1);
   const block = html.slice(start, start + 420);
   assert.match(block, /destHoldPlaceId = seed\.placeId \|\| ''/);
   assert.match(block, /placeId: seed\.placeId \|\| ''/);
+});
+
+test('hotel placeId is staged before map initialization can emit moveend', () => {
+  const start = html.indexOf('var seed = mapPickerSeed();');
+  const end = html.indexOf('var token = ++mapOpenToken;', start);
+  const block = html.slice(start, end);
+  assert.match(block, /if \(seed && seed\.placeId\)/);
+  assert.match(block, /destHoldPlaceId = seed\.placeId \|\| ''/);
 });
 
 test('hotel search input is large and touch-friendly', () => {
