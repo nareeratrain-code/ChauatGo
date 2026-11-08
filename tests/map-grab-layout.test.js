@@ -10,7 +10,9 @@ test('mobile map picker gives the map the primary viewport and uses a floating s
   assert.match(source, /@media \(max-width: 600px\) \{[\s\S]*?#map-page \{ --dest-sheet-h: 28vh; min-height: 100dvh; \}/);
   assert.match(source, /#map-page \.reference-loc-bar \{[\s\S]*?position: absolute;[\s\S]*?pointer-events: none;/);
   assert.match(source, /#map-page \.dest-sheet \{[\s\S]*?height: 28vh;[\s\S]*?max-height: 72vh;/);
-  assert.match(source, /#map-page \.dest-sheet\.expanded \{ --dest-sheet-h: 56vh; height: 56vh; \}/);
+  assert.match(source, /#map-page \.dest-sheet\.expanded \{ --dest-sheet-h: 42vh; height: 42vh; \}/);
+  assert.match(source, /#map-page \.reference-loc-bar \{[\s\S]*?top: auto;[\s\S]*?bottom: calc\(var\(--dest-sheet-h\) \+ 12px \+ env\(safe-area-inset-bottom\)\);[\s\S]*?right: 86px;/);
+  assert.match(source, /#map-page:has\(\.dest-sheet\.expanded\) \{ --dest-sheet-h: 42vh; \}/);
 });
 
 test('mobile map picker keeps controls touch-safe and readable over the map', () => {
