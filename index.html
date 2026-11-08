@@ -235,11 +235,10 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .hotel-card-name { font-size: 15px; line-height: 1.3; font-weight: 900; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hotel-card-meta { margin-top: 5px; color: var(--text-muted); font-size: 11px; font-weight: 700; line-height: 1.4; }
 .hotel-card-price { margin-top: 3px; color: var(--green); font-size: 12px; font-weight: 900; }
-.hotel-card-actions { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 6px; margin-top: 10px; }
+.hotel-card-actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 6px; margin-top: 10px; }
 .hotel-action { min-height: 40px; border: 0; border-radius: 11px; padding: 0 8px; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
 .hotel-action.call { background: var(--brand-light); color: var(--green); border: 1px solid rgba(78,159,45,.25); }
 .hotel-action.destination { background: #E8F5E9; color: #2E7D32; border: 1px solid rgba(46,125,50,.2); }
-.hotel-action.book { background: linear-gradient(135deg,#F28C28,#D96B12); color: #fff; box-shadow: 0 5px 12px rgba(217,107,18,.2); }
 .hotel-action:active { transform: scale(.97); }
 .hotel-detail-hero { width: 100%; height: 190px; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg,#FFF3E0,#FFE0B2); display: flex; align-items: center; justify-content: center; font-size: 58px; margin-bottom: 14px; }
 .hotel-detail-hero img { width: 100%; height: 100%; object-fit: cover; }
@@ -247,7 +246,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .hotel-detail-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; margin: 16px 0 10px; }
 .hotel-detail-actions a, .hotel-detail-actions button { min-height: 48px; display: flex; align-items: center; justify-content: center; text-decoration: none; border-radius: 13px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
 .hotel-detail-call { color: var(--green); background: var(--brand-light); border: 1px solid rgba(78,159,45,.25); }
-.hotel-detail-book { color: #fff; background: linear-gradient(135deg,#F28C28,#D96B12); border: 0; }
 .hotel-detail-disclaimer { margin-top: 10px; padding: 10px 12px; border-radius: 11px; background: var(--surface-2); color: var(--text-muted); font-size: 11px; line-height: 1.5; }
 .place-directory-note { margin: -2px 14px 12px; padding: 10px 12px; border-radius: 12px; background: var(--brand-light); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 700; }
 .food-service-warning { margin: 0 0 14px; padding: 12px 14px; border-left: 4px solid var(--orange); border-radius: 10px; background: #FFF3E0; color: #8A4B08; font-size: 12px; line-height: 1.55; font-weight: 700; }
@@ -2382,10 +2380,6 @@ function renderGrid(gridId, items){
   grid.innerHTML = items.map(renderPlaceCardHTML).join('');
 }
 
-function hotelBookingUrl(p){
-  if (p.agodaUrl) return p.agodaUrl;
-  return 'https://www.agoda.com/search?text=' + encodeURIComponent(p.name || 'โรงแรม ชะอวด');
-}
 function hotelPhone(p){ return String(p.phone || '').trim(); }
 function findHotelById(id){
   var p = PLACES.find(function(x){ return x.id === id; });
@@ -2402,10 +2396,6 @@ function callHotelById(id){
   if (phone) window.location.href = 'tel:' + phone;
   else showToast('ยังไม่มีเบอร์โทรของที่พักนี้','info');
 }
-function openHotelBooking(id){
-  var p = findHotelById(id);
-  if (p) window.open(hotelBookingUrl(p), '_blank', 'noopener');
-}
 function renderHotelCardHTML(p){
   var hasImg = hasRealImage(p.image);
   var cat = CATS[p.category] || {name:'ที่พัก', icon:'🏨'};
@@ -2417,8 +2407,7 @@ function renderHotelCardHTML(p){
     '<div class="hotel-card-meta">'+cat.icon+' '+esc(cat.name)+(p.tambon?' • ตำบล'+esc(p.tambon):'')+(p.district?' • อำเภอ'+esc(p.district):'')+(p.approx?' • ตำแหน่งโดยประมาณ':'')+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
     (p.price?'<div class="hotel-card-price">เริ่มต้นประมาณ '+esc(p.price)+'</div>':'') +
     '<div class="hotel-card-actions"><button type="button" class="hotel-action call" onclick="event.stopPropagation();callHotelById(\''+esc(p.id)+'\')">📞 โทร</button>' +
-    '<button type="button" class="hotel-action destination" onclick="event.stopPropagation();setDestFromPlace(\''+esc(p.id)+'\')">🎯 ปลายทาง</button>' +
-    '<button type="button" class="hotel-action book" onclick="event.stopPropagation();openHotelBooking(\''+esc(p.id)+'\')">ค้นหา Agoda</button></div></div></article>';
+    '<button type="button" class="hotel-action destination" onclick="event.stopPropagation();setDestFromPlace(\''+esc(p.id)+'\')">🎯 ปลายทาง</button></div></div></article>';
 }
 function provinceDistrictNames() {
   var rows = (provincePlaces && provincePlaces.districts) || [];
@@ -6992,11 +6981,12 @@ function shortNominatimAddress(data) {
 function scheduleReverseGeocode(lat, lng) {
   clearTimeout(destGeocodeTimer);
   var token = ++destGeocodeToken;
+  var session = mapOpenToken;
   showDestAddress('กำลังหาที่อยู่...', { lat: lat, lng: lng });
   destGeocodeTimer = setTimeout(function() {
     var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=th&zoom=18&addressdetails=1&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lng);
     nominatimFetch(url).then(function(data) {
-      if (token !== destGeocodeToken) return;
+      if (token !== destGeocodeToken || session !== mapOpenToken || !$('map-page') || !$('map-page').classList.contains('show')) return;
       var reverseLabel = shortNominatimAddress(data);
       var directPlace = selectedDestination && selectedDestination.placeId
         && Math.abs(selectedDestination.lat - lat) < 0.0002
@@ -7009,7 +6999,7 @@ function scheduleReverseGeocode(lat, lng) {
       }
       showDestAddress(label, { lat: lat, lng: lng });
     }).catch(function() {
-      if (token !== destGeocodeToken) return;
+      if (token !== destGeocodeToken || session !== mapOpenToken || !$('map-page') || !$('map-page').classList.contains('show')) return;
       var directPlace = selectedDestination && selectedDestination.placeId
         && Math.abs(selectedDestination.lat - lat) < 0.0002
         && Math.abs(selectedDestination.lng - lng) < 0.0002;
@@ -7023,6 +7013,7 @@ function scheduleReverseGeocode(lat, lng) {
 }
 
 function onDestMapMoveEnd() {
+  if (!$('map-page') || !$('map-page').classList.contains('show')) return;
   var pin = $('map-center-pin');
   if (pin) pin.classList.remove('lift');
   var held = destHoldAddress;
@@ -7755,6 +7746,8 @@ window.openMapPage = function(keepPickerMode){
   syncMapTitle();
   setDestSearchMode(true);
   var seed = mapPickerSeed();
+  destHoldAddress = seed && seed.address || '';
+  destHoldPlaceId = seed && seed.placeId || '';
   var token = ++mapOpenToken;
   var confirmBtn = $('map-confirm-btn');
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'เลือกตำแหน่งก่อน'; }
@@ -7770,7 +7763,7 @@ window.openMapPage = function(keepPickerMode){
       if(!map){
         map = L.map('main-map',{zoomControl:true}).setView([seed ? seed.lat : CHAUAT_CENTER.lat, seed ? seed.lng : CHAUAT_CENTER.lng], 16);
         if (window.ChauatMap) ChauatMap.addBaseTiles(map);
-        map.on('click', function(e){ destHoldAddress = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
+        map.on('click', function(e){ destHoldAddress = ''; destHoldPlaceId = ''; panPinTo(e.latlng.lat, e.latlng.lng); });
         map.on('movestart', function(){ var pin = $('map-center-pin'); if (pin) pin.classList.add('lift'); });
         map.on('moveend', onDestMapMoveEnd);
         if (!seed && navigator.geolocation) {
@@ -7808,6 +7801,9 @@ window.closeMapPage = function(){
   var mode = mapPickerMode;
   mapPickerSnapshot = null;
   mapOpenToken++;
+  clearTimeout(destGeocodeTimer);
+  destGeocodeTimer = null;
+  destGeocodeToken++;
   if($('map-page')) {
     $('map-page').classList.remove('show');
     delete $('map-page').dataset.picker;
@@ -8010,10 +8006,9 @@ function openHotelDetail(p){
     (p.source === 'osm-province' ? '<div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>' : '') +
     (p.price ? '<div style="margin-top:8px;color:var(--green);font-weight:900">เริ่มต้นประมาณ '+esc(p.price)+'</div>' : '') +
     '<div class="hotel-detail-actions"><button class="hotel-detail-call" type="button" onclick="callHotelById(\''+esc(p.id)+'\')">📞 '+(phone?'โทรหาโรงแรม':'ดูเบอร์ใน Maps')+'</button>' +
-    '<button class="hotel-detail-book" type="button" onclick="window.open(hotelMapsUrl(findHotelById(\''+esc(p.id)+'\')),\'_blank\',\'noopener\')">🗺️ ดูข้อมูล Maps</button></div>' +
+    '<button class="hotel-detail-call" type="button" onclick="window.open(hotelMapsUrl(findHotelById(\''+esc(p.id)+'\')),\'_blank\',\'noopener\')">🗺️ ดูข้อมูล Maps</button></div>' +
     '<button class="btn-full btn-green press-scale" type="button" onclick="setDestFromPlace(\''+esc(p.id)+'\')">🎯 เพิ่มที่พักเป็นปลายทางให้ไรเดอร์</button>' +
-    '<button class="btn-full btn-gray press-scale" type="button" onclick="openHotelBooking(\''+esc(p.id)+'\')" style="margin-top:8px">ค้นหาที่พักต่อบน Agoda</button>' +
-    '<div class="hotel-detail-disclaimer">ข้อมูลรูปภาพและเบอร์โทรอาจมาจากแคตตาล็อกสถานที่หรือแหล่งข้อมูลสาธารณะ ควรตรวจสอบกับโรงแรมก่อนใช้บริการ ส่วน Agoda เป็นลิงก์ภายนอก ยังไม่ได้เชื่อมระบบจองของ ChauatGo</div>' +
+    '<div class="hotel-detail-disclaimer">ข้อมูลรูปภาพและเบอร์โทรอาจมาจากแคตตาล็อกสถานที่หรือแหล่งข้อมูลสาธารณะ ควรตรวจสอบกับโรงแรมก่อนเดินทาง</div>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()" style="margin-top:10px">ปิด</button>';
   openModal();
 }
