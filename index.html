@@ -7790,6 +7790,7 @@ window.openMapPage = function(keepPickerMode){
         map.invalidateSize();
         if (seed && isFinite(seed.lat) && isFinite(seed.lng)) {
           destHoldAddress = seed.address || '';
+          destHoldPlaceId = seed.placeId || '';
           panPinTo(seed.lat, seed.lng, 17);
           selectedDestination = { lat: seed.lat, lng: seed.lng, address: seed.address || '', note: seed.note || '', placeId: seed.placeId || '' };
           if (seed.address) showDestAddress(seed.address, seed);
