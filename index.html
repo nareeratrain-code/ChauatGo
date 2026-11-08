@@ -1065,11 +1065,14 @@ body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7F
   #map-page .map-back-btn { min-height: 44px; padding: 0 16px; }
   #map-page .reference-loc-bar {
     position: absolute;
-    top: calc(64px + env(safe-area-inset-top));
+    top: auto;
+    bottom: calc(var(--dest-sheet-h) + 12px + env(safe-area-inset-bottom));
     left: 12px;
-    right: 12px;
+    right: 86px;
     z-index: 560;
-    padding: 8px 0 0;
+    max-height: calc(100dvh - var(--dest-sheet-h) - 88px);
+    overflow-y: auto;
+    padding: 0;
     background: transparent;
     border: 0;
     pointer-events: none;
@@ -1099,8 +1102,8 @@ body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7F
     max-height: 72vh;
     border-radius: 24px 24px 0 0;
   }
-  #map-page .dest-sheet.expanded { --dest-sheet-h: 56vh; height: 56vh; }
-  #map-page:has(.dest-sheet.expanded) { --dest-sheet-h: 56vh; }
+  #map-page .dest-sheet.expanded { --dest-sheet-h: 42vh; height: 42vh; }
+  #map-page:has(.dest-sheet.expanded) { --dest-sheet-h: 42vh; }
   #map-page .dest-sheet-body { padding: 0 18px; }
   #map-page .dest-sheet-handle { height: 30px; }
   #map-page .dest-sheet-handle:before { width: 48px; height: 6px; margin-top: 10px; }
