@@ -47,6 +47,14 @@ test('reverse geocoding preserves the exact name of a directly selected hotel', 
   assert.match(block, /: destinationLabelForPoint\(\{ lat: lat, lng: lng, address: reverseLabel \}, '', true\)/);
 });
 
+test('opening the map carries the selected hotel placeId through the initial move', () => {
+  const start = html.indexOf("destHoldAddress = seed.address || ''");
+  assert.notEqual(start, -1);
+  const block = html.slice(start, start + 420);
+  assert.match(block, /destHoldPlaceId = seed\.placeId \|\| ''/);
+  assert.match(block, /placeId: seed\.placeId \|\| ''/);
+});
+
 test('hotel search input is large and touch-friendly', () => {
   assert.match(html, /\.hotel-search-wrap \{[^}]*padding: 4px[^}]*border-radius: 20px/);
   assert.match(html, /\.hotel-search-wrap input \{[^}]*min-height: 58px[^}]*font-size: 16px/);
