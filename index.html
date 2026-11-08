@@ -163,10 +163,16 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .m-tab { flex: 1; padding: 10px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; font-family: inherit; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .m-tab.active { background: linear-gradient(135deg, #4E9F2D, #34751E); color: #fff; border-color: var(--brand); }
 .merchant-source-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 14px 10px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
-.merchant-source-tab { min-height: 52px; padding: 7px 6px; border: 0; border-radius: 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; line-height: 1.25; font-weight: 900; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
+.merchant-source-tab { min-height: 52px; padding: 7px 6px; border: 0; border-radius: 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; line-height: 1.25; font-weight: 900; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s, transform .15s; }
 .merchant-source-tab small { display: block; margin-top: 2px; font-size: 10px; font-weight: 700; }
+.merchant-source-tab .delivery-icons { display: inline-flex; gap: 3px; margin-right: 3px; font-size: 15px; vertical-align: -1px; }
+.merchant-source-tab.partner-tab.active { background: linear-gradient(135deg, #E53935, #B71C1C); color: #fff; box-shadow: 0 7px 16px rgba(183, 28, 28, .28); }
+.merchant-source-tab.partner-tab.active small { color: #fff; }
+.merchant-source-tab.partner-tab.active .delivery-icons { filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+.merchant-source-tab:active { transform: scale(.98); }
 .merchant-source-tab.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
 .merchant-source-note { margin: 0 14px 12px; padding: 10px 12px; border-left: 4px solid var(--brand); border-radius: 10px; background: var(--brand-light); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 700; }
+.merchant-source-note.partner-note { border-left-color: #E53935; background: #FFF1F1; color: #7F1D1D; }
 .merchant-location-btn { margin-top: 8px; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px; background: var(--surface); color: var(--green); font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
 .local-place-card { display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-sm); }
 .local-place-icon { width: 54px; height: 54px; flex-shrink: 0; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--surface-2); font-size: 25px; }
@@ -945,8 +951,11 @@ button.chat-list-item:active { filter: brightness(.97); }
 .merchant-view .search-bar { background: #fff; border: 2px solid #111; border-radius: 999px; min-height: 52px; }
 .merchant-source-tabs { background: transparent; gap: 10px; padding: 0; }
 .merchant-source-tab { background: #fff; color: #111; border-radius: 18px; min-height: 64px; box-shadow: 0 6px 14px rgba(0,0,0,.1); }
-.merchant-source-tab.active { background: #fff; color: #0D6D35; box-shadow: 0 0 0 3px #168A45; }
+.merchant-source-tab.active { background: #fff; color: #111; box-shadow: 0 0 0 3px #168A45; }
+.merchant-source-tab.partner-tab.active { background: linear-gradient(135deg, #E53935, #B71C1C); color: #fff; box-shadow: 0 0 0 3px #9F1D1D, 0 8px 18px rgba(183,28,28,.28); }
+.merchant-source-tab.partner-tab.active small { color: #fff; }
 .merchant-source-note { background: #fff; color: #111; border-left: 5px solid #E85C00; border-radius: 16px; }
+.merchant-source-note.partner-note { background: #FFF1F1; color: #7F1D1D; border-left-color: #E53935; }
 .merchant-view .m-tab { background: #fff; color: #111; border: 2px solid #111; border-radius: 999px; min-height: 48px; }
 .merchant-view .m-tab.active { background: #168A45; color: #fff; border-color: #168A45; }
 .merchant-view[data-entry="shopping"] .m-filter-chip { background: #fff; color: #111; border: 2px solid #111; border-radius: 999px; min-height: 44px; }
@@ -1622,10 +1631,10 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="section-more press-scale" onclick="closeMerchantView()">✕ ปิด</div>
     </div>
     <div class="merchant-source-tabs" id="merchant-source-tabs">
-      <button class="merchant-source-tab active" data-source="partner" onclick="switchMerchantSource('partner')">🤝 ร้านพาร์ทเนอร์<small>สั่งได้ทันที</small></button>
+      <button class="merchant-source-tab partner-tab active" data-source="partner" onclick="switchMerchantSource('partner')"><span class="delivery-icons" aria-hidden="true">🚗 🛵</span> ร้านพาร์ทเนอร์<small>สั่งได้ทันที • มีบริการเดลิเวอรี</small></button>
       <button class="merchant-source-tab" data-source="local" onclick="switchMerchantSource('local')">📍 ร้านอาหารในพื้นที่<small>ปักหมุดให้ไรเดอร์</small></button>
     </div>
-    <div class="merchant-source-note" id="merchant-source-note">ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย</div>
+    <div class="merchant-source-note partner-note" id="merchant-source-note">🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน • ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย</div>
     <div class="merchant-search">
       <div class="search-bar" style="background:var(--surface);min-height:48px">
         <span style="font-size:16px;opacity:.5">🔍</span>
@@ -6393,9 +6402,12 @@ window.openMerchantView = async function(type){
   if (sourceTabs) sourceTabs.style.display = merchantMode === 'food' ? 'grid' : 'none';
   document.querySelectorAll('.merchant-source-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.source === merchantSource); });
   var sourceNote = $('merchant-source-note');
-  if (sourceNote) sourceNote.textContent = merchantMode === 'food'
-    ? 'ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
-    : '';
+  if (sourceNote) {
+    sourceNote.classList.toggle('partner-note', merchantMode === 'food' && merchantSource === 'partner');
+    sourceNote.innerHTML = merchantMode === 'food'
+      ? '🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน • ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
+      : '';
+  }
   if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantMode === 'food' ? 'flex' : 'none';
   if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
   if ($('merchant-map-btn')) $('merchant-map-btn').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
@@ -6435,9 +6447,12 @@ window.switchMerchantSource = function(source) {
   merchantSource = source === 'local' ? 'local' : 'partner';
   document.querySelectorAll('.merchant-source-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.source === merchantSource); });
   var sourceNote = $('merchant-source-note');
-  if (sourceNote) sourceNote.textContent = merchantSource === 'partner'
-    ? 'ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
-    : 'ร้านอาหารในพื้นที่ที่ยังไม่เข้าร่วม ChauatGo ใช้เป็นจุดหมายให้ไรเดอร์ไปซื้อได้';
+  if (sourceNote) {
+    sourceNote.classList.toggle('partner-note', merchantSource === 'partner');
+    sourceNote.innerHTML = merchantSource === 'partner'
+      ? '🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน • ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
+      : 'ร้านอาหารในพื้นที่ที่ยังไม่เข้าร่วม ChauatGo ใช้เป็นจุดหมายให้ไรเดอร์ไปซื้อได้';
+  }
   if (sourceNote && merchantSource === 'local') sourceNote.innerHTML += '<br><button type="button" class="merchant-location-btn" onclick="useMerchantLocation()">📍 ใช้ตำแหน่งฉันเพื่อเรียงใกล้ที่สุด</button>';
   if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantSource === 'partner' ? 'flex' : 'none';
   if (merchantSource === 'local') {
