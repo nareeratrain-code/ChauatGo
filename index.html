@@ -432,10 +432,12 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .map-center-pin-tip { position: absolute; left: 50%; bottom: 0; width: 1px; height: 1px; }
 .map-float-controls { position: absolute; right: 14px; bottom: calc(var(--dest-sheet-h) + 16px); display: flex; flex-direction: column; gap: 8px; z-index: 500; transition: bottom .25s ease; }
 .map-fab { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); border: none; box-shadow: var(--shadow-md); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; color: var(--text); }
-.dest-sheet { position: absolute; left: 0; right: 0; bottom: 0; height: var(--dest-sheet-h); max-height: 78%; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.16); z-index: 600; display: flex; flex-direction: column; transition: height .25s ease; }
+.dest-sheet { position: absolute; left: 0; right: 0; bottom: 0; height: var(--dest-sheet-h); max-height: 78%; background: var(--surface); color: var(--text); border-radius: 22px 22px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.16); z-index: 600; display: flex; flex-direction: column; transition: height .25s cubic-bezier(.22,.8,.24,1), border-radius .2s ease; will-change: height; }
 .dest-sheet.expanded { --dest-sheet-h: 72%; height: 72%; }
 #map-page:has(.dest-sheet.expanded) { --dest-sheet-h: 72%; }
+.dest-sheet.is-dragging { transition: none !important; user-select: none; border-radius: 24px 24px 0 0; }
 .dest-sheet-handle { width: 100%; height: 28px; border: none; background: transparent; padding: 0; cursor: grab; flex-shrink: 0; touch-action: none; }
+.dest-sheet-handle:active, .dest-sheet.is-dragging .dest-sheet-handle { cursor: grabbing; }
 .dest-sheet-handle:before { content: ''; display: block; width: 42px; height: 5px; border-radius: 99px; background: var(--border); margin: 10px auto 0; }
 .dest-sheet-body { flex: 1; min-height: 0; overflow: hidden; padding: 0 16px; }
 .dest-sheet.expanded .dest-sheet-body { overflow-y: auto; }
@@ -1055,6 +1057,59 @@ body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7F
 #map-page .dest-sheet { border-top: 5px solid #F97316; box-shadow: 0 -12px 30px rgba(9,62,58,.18); }
 #map-page .dest-cat-chip.on { background: #F97316; border-color: #F97316; }
 #map-page .map-confirm-btn { background: linear-gradient(135deg, #0F766E, #0B3B3A); box-shadow: 0 9px 22px rgba(15,118,110,.3); }
+/* Map-first mobile layout: keep the map dominant and float controls/sheet over it like Grab. */
+@media (max-width: 600px) {
+  #map-page { --dest-sheet-h: 28vh; min-height: 100dvh; }
+  #map-page .map-header-bar { min-height: 64px; padding: calc(10px + env(safe-area-inset-top)) 14px 10px; }
+  #map-page .map-header-bar h3 { font-size: 17px; line-height: 1.2; }
+  #map-page .map-back-btn { min-height: 44px; padding: 0 16px; }
+  #map-page .reference-loc-bar {
+    position: absolute;
+    top: calc(64px + env(safe-area-inset-top));
+    left: 12px;
+    right: 12px;
+    z-index: 560;
+    padding: 8px 0 0;
+    background: transparent;
+    border: 0;
+    pointer-events: none;
+  }
+  #map-page .reference-loc-bar .loc-actions { gap: 8px; pointer-events: auto; }
+  #map-page .reference-loc-bar .loc-action-btn {
+    min-height: 46px;
+    padding: 8px 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 8px 20px rgba(9,62,58,.16);
+    backdrop-filter: blur(8px);
+  }
+  #map-page .reference-loc-bar .loc-action-btn[data-refresh-gps] { color: #fff; }
+  #map-page .reference-loc-bar #map-loc-status {
+    max-width: 100%;
+    margin-top: 8px;
+    padding: 9px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    box-shadow: 0 6px 16px rgba(9,62,58,.12);
+    pointer-events: auto;
+  }
+  #map-page .dest-sheet {
+    height: 28vh;
+    max-height: 72vh;
+    border-radius: 24px 24px 0 0;
+  }
+  #map-page .dest-sheet.expanded { --dest-sheet-h: 56vh; height: 56vh; }
+  #map-page:has(.dest-sheet.expanded) { --dest-sheet-h: 56vh; }
+  #map-page .dest-sheet-body { padding: 0 18px; }
+  #map-page .dest-sheet-handle { height: 30px; }
+  #map-page .dest-sheet-handle:before { width: 48px; height: 6px; margin-top: 10px; }
+  #map-page .dest-search { min-height: 56px; font-size: 17px; }
+  #map-page .dest-cat-chip { min-height: 40px; padding: 8px 13px; font-size: 13px; }
+  #map-page .map-confirm-btn { min-height: 56px; margin-bottom: calc(12px + env(safe-area-inset-bottom)); border-radius: 18px; font-size: 16px; }
+  #map-page .map-float-controls { right: 14px; bottom: calc(var(--dest-sheet-h) + 14px); }
+  #map-page .map-fab { width: 56px; height: 56px; font-size: 24px; }
+}
 .bottom-nav { border-top: 1px solid #D1E7E1; box-shadow: 0 -10px 24px rgba(9,62,58,.12) !important; }
 .bottom-nav .nav-item.active .nav-icon-wrap { background: #0F766E; box-shadow: 0 5px 12px rgba(15,118,110,.25); }
 .modal-content, .pdpa-content, .loc-popup-content, .near-alert-card { border: 1px solid #D1E7E1; box-shadow: 0 20px 50px rgba(9,62,58,.2); }
@@ -7609,13 +7664,15 @@ function onDestSearchInput() {
 function setDestSheetExpanded(expanded) {
   var sheet = $('dest-sheet');
   var handle = $('dest-sheet-handle');
+  var page = $('map-page');
   if (!sheet) return;
-  if (sheet.classList.contains('expanded') === !!expanded && !sheet.style.height) return;
+  if (sheet.classList.contains('expanded') === !!expanded && !sheet.style.height && !(page && page.style.getPropertyValue('--dest-sheet-h'))) return;
   var before = map ? readPinLatLng() : null;
   var keep = ($('dest-address') && $('dest-address').dataset.address) || (selectedDestination && selectedDestination.address) || '';
   if (keep.indexOf('กำลังหาที่อยู่') === 0) keep = '';
   sheet.classList.toggle('expanded', !!expanded);
   sheet.style.height = '';
+  if (page) page.style.removeProperty('--dest-sheet-h');
   if (handle) handle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   if (map && before) {
     if (keep) destHoldAddress = keep;
@@ -7632,30 +7689,46 @@ function bindDestSheet() {
     handle.dataset.bound = '1';
     var startY = 0;
     var originY = 0;
+    var originHeight = 0;
     var dragging = false;
     handle.addEventListener('pointerdown', function(e) {
       dragging = true;
       startY = e.clientY;
       originY = e.clientY;
+      originHeight = sheet.getBoundingClientRect().height;
+      sheet.classList.add('is-dragging');
       handle.setPointerCapture(e.pointerId);
       sheet.style.transition = 'none';
     });
     handle.addEventListener('pointermove', function(e) {
       if (!dragging) return;
-      var next = sheet.getBoundingClientRect().height + (startY - e.clientY);
+      if (e.cancelable) e.preventDefault();
+      var viewportHeight = (window.visualViewport && window.visualViewport.height) || window.innerHeight || 1;
+      var minHeight = Math.max(180, viewportHeight * 0.26);
+      var maxHeight = viewportHeight * 0.72;
+      var raw = originHeight + (originY - e.clientY);
+      var next = raw;
+      if (raw < minHeight) next = minHeight - (minHeight - raw) * 0.24;
+      if (raw > maxHeight) next = maxHeight + (raw - maxHeight) * 0.24;
       startY = e.clientY;
-      next = Math.max(180, Math.min(window.innerHeight * 0.78, next));
       sheet.style.height = next + 'px';
+      var page = $('map-page');
+      if (page) page.style.setProperty('--dest-sheet-h', next + 'px');
     });
     function endDrag(e) {
       if (!dragging) return;
       dragging = false;
       var moved = Math.abs(e.clientY - originY);
       var h = sheet.getBoundingClientRect().height;
+      sheet.classList.remove('is-dragging');
       sheet.style.transition = '';
       sheet.style.height = '';
+      if (handle.hasPointerCapture && handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
       if (moved < 8) setDestSheetExpanded(!sheet.classList.contains('expanded'));
-      else setDestSheetExpanded(h > window.innerHeight * 0.4);
+      else {
+        var viewportHeight = (window.visualViewport && window.visualViewport.height) || window.innerHeight || 1;
+        setDestSheetExpanded(h > viewportHeight * 0.42);
+      }
     }
     handle.addEventListener('pointerup', endDrag);
     handle.addEventListener('pointercancel', endDrag);
@@ -7746,6 +7819,33 @@ function syncMapTitle() {
   if (bar) bar.style.display = (!mode || mode === 'reference') ? 'block' : 'none';
   renderReferenceLocationStatus();
 }
+
+var mapViewportSyncTimer = 0;
+function syncMapViewportAfterOrientation() {
+  var page = $('map-page');
+  var sheet = $('dest-sheet');
+  if (!page || !page.classList.contains('show')) return;
+  if (sheet) {
+    sheet.classList.remove('is-dragging');
+    sheet.style.transition = '';
+    sheet.style.height = '';
+  }
+  page.style.removeProperty('--dest-sheet-h');
+  if (map && map.invalidateSize) map.invalidateSize({ animate: false, pan: false });
+}
+function scheduleMapViewportSync() {
+  clearTimeout(mapViewportSyncTimer);
+  mapViewportSyncTimer = setTimeout(function() {
+    syncMapViewportAfterOrientation();
+    requestAnimationFrame(function() {
+      syncMapViewportAfterOrientation();
+      requestAnimationFrame(syncMapViewportAfterOrientation);
+    });
+  }, 80);
+}
+window.addEventListener('resize', scheduleMapViewportSync, { passive: true });
+window.addEventListener('orientationchange', scheduleMapViewportSync, { passive: true });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleMapViewportSync, { passive: true });
 
 window.openMapPage = function(keepPickerMode){
   if (!keepPickerMode) {
