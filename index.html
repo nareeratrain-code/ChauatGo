@@ -1089,6 +1089,8 @@ button.chat-list-item:active { filter: brightness(.97); }
 #hotel-tools .hotel-directory-note { background: #fff; color: #111; border-left: 5px solid #E85C00; border-radius: 16px; }
 #hotel-tools .loc-action-btn[data-refresh-gps] { background: linear-gradient(135deg, #E53935, #B71C1C); }
 #hotel-tools .loc-action-btn[data-pick-map] { background: #fff; color: #111; border: 2px solid #111; }
+#hotel-tools .hotel-location-tools { display: none; }
+#hotel-tools.hotel-place-selected .hotel-location-tools { display: block; }
   #hotel-tools .place-district-select { background: #fff; border: 2px solid #111; border-radius: 16px; color: #111; }
   #hotel-tools .hotel-search-wrap input { background: #fff; border: 0; border-radius: 16px; color: #111; }
 #map-page .map-back-btn { background: #fff; color: #111; border-radius: 999px; min-height: 40px; }
@@ -1677,14 +1679,14 @@ select:focus-visible, [role="button"]:focus-visible {
     </div>
     <div id="hotel-tools" style="display:none">
       <div class="hotel-directory-note">ค้นหาโรงแรมและรีสอร์ตได้ทุกอำเภอทุกตำบลในจังหวัดนครศรีธรรมราชจากช่องเดียว ไม่ต้องเลือกอำเภอหรือตำบลก่อน</div>
-      <div class="reference-loc-bar">
+      <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="hotel-search-input" type="search" placeholder="ค้นหาชื่อโรงแรมหรือรีสอร์ท..."></div>
+      <div class="reference-loc-bar hotel-location-tools" aria-label="เครื่องมือปรับตำแหน่งหลังเลือกที่พัก">
         <div class="loc-actions">
           <button type="button" class="loc-action-btn" data-refresh-gps="reference">📍 อัปเดตตำแหน่ง GPS</button>
           <button type="button" class="loc-action-btn" data-pick-map="reference">🗺️ เลือกจากแผนที่</button>
         </div>
         <div id="hotel-loc-status"></div>
       </div>
-      <div class="hotel-search-wrap"><span class="hotel-search-icon">🔍</span><input id="hotel-search-input" type="search" placeholder="ค้นหาชื่อโรงแรมหรือรีสอร์ท..."></div>
       <div class="dest-osm-credit">© OpenStreetMap contributors · Wikidata (CC0) · ข้อมูลเปิดภาครัฐ (Open Data Common) — การท่องเที่ยวแห่งประเทศไทย · ขอบเขตตำบล HDX COD-AB (CC BY-IGO)</div>
     </div>
     <div id="tourist-tools" style="display:none">
@@ -6572,7 +6574,7 @@ window.showCategory = function(cat){
   if($('tourist-tools')) $('tourist-tools').style.display = cat === 'tourist' ? 'block' : 'none';
   if($('restaurant-tools')) $('restaurant-tools').style.display = cat === 'restaurant' ? 'block' : 'none';
   if (cat !== 'hotel' && $('category-grid')) $('category-grid').className = 'food-grid';
-  if (cat === 'hotel') { hotelSearchQuery = ''; if ($('hotel-search-input')) $('hotel-search-input').value = ''; renderReferenceLocationStatus(); }
+  if (cat === 'hotel') { hotelSearchQuery = ''; if ($('hotel-search-input')) $('hotel-search-input').value = ''; if ($('hotel-tools')) $('hotel-tools').classList.remove('hotel-place-selected'); renderReferenceLocationStatus(); }
   if (cat === 'tourist') { touristSearchQuery = ''; if ($('tourist-search-input')) $('tourist-search-input').value = ''; }
   var filtered = PLACES.filter(function(p){return p.category===code;});
   var grid = $('category-grid'); if(!grid) return;
@@ -8442,6 +8444,7 @@ window.setDestFromPlace = function(placeId){
   var p = findHotelById(placeId);
   if (!p) return;
   selectedDestination = { lat: p.lat, lng: p.lng, address: p.name, placeId: p.id || placeId };
+  if ($('hotel-tools')) $('hotel-tools').classList.add('hotel-place-selected');
   mapPickerMode = 'ride-dest';
   closeModal(); openMapPage(true); setDestSearchMode(false);
   setTimeout(function(){ if (map) setDestination(p.lat, p.lng, true, p.name, p.id || placeId); }, 500);
