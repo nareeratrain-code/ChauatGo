@@ -44,8 +44,8 @@ test('food partner source is visually prominent and advertises delivery from ent
   assert.match(html, /class="merchant-source-note partner-note"[^>]*>จัดส่งถึงบ้านโดยไรเดอร์ ChauatGo/);
   assert.match(css, /\.merchant-source-tabs\s*\{[^}]*grid-template-columns: 1fr/);
   assert.match(css, /\.merchant-source-tab\.partner-tab\s*\{[^}]*min-height: 76px[^}]*font-size: 17px/);
-  assert.match(css, /\.merchant-source-tab\.partner-tab\.active\s*\{[^}]*#E53935[^}]*#B71C1C/);
-  assert.match(css, /\.merchant-source-note\.partner-note\s*\{[^}]*#E53935/);
+  assert.match(css, /\.merchant-source-tab\.partner-tab\.active\s*\{[^}]*#F97316[^}]*#EA580C/);
+  assert.match(css, /\.merchant-source-note\.partner-note\s*\{[^}]*#F97316/);
   assert.match(html, /sourceNote\.classList\.toggle\('partner-note', merchantSource === 'partner'\)/);
   assert.match(html, /merchantSource = 'partner';/);
 });
@@ -65,6 +65,7 @@ test('partner food screen uses a compact header, delivery address, cart, and cap
   assert.match(css, /\.merchant-view \.m-tab[\s\S]*border-radius: 999px/);
   assert.match(css, /\.merchant-view \.merchant-search \.search-bar[\s\S]*box-shadow/);
   assert.match(css, /\.partner-food-banner \.merchant-source-tabs[\s\S]*#F97316/);
+  assert.match(css, /\.partner-source-main[\s\S]*font-size: 24px/);
   assert.match(html, /merchant-card-detail-row/);
   assert.match(html, /เวลาส่ง ' \+ esc\(deliveryText\)/);
   assert.match(html, /โปรโมชั่น ' \+ esc\(promoText\)/);
@@ -83,6 +84,24 @@ test('partner food cards have a safe mock preview and empty-catalog fallback', (
   assert.match(html, /if \(isPartnerMockPreview\(\)\)/);
   assert.match(html, /if \(!all\.length\) all = PARTNER_MOCK_MERCHANTS/);
   assert.match(html, /merchantsCache = PARTNER_MOCK_MERCHANTS\.map/);
+});
+
+test('restaurant detail page has menu discovery controls and mock detail support', () => {
+  assert.match(html, /window\.openMerchantDetail = async function\(merchantId\)/);
+  assert.match(html, /getMockMerchantMenus\(merchantId\)/);
+  assert.match(html, /data-store-category="' \+ theme\.key/);
+  assert.match(html, /store-detail-summary/);
+  assert.match(html, /ส่งประมาณ ' \+ esc\(deliveryTime\)/);
+  assert.match(html, /id="store-menu-search-input"/);
+  assert.match(html, /placeholder="ค้นหาเมนูอาหาร/);
+  assert.match(html, /renderStoreMenuChips\(menus, m\.menuCategories\)/);
+  assert.match(html, /window\.filterStoreDetailMenu = function\(query\)/);
+  assert.match(html, /window\.filterStoreMenuCategory = function\(category\)/);
+  assert.match(html, /window\.clearStoreMenuSearch = function\(\)/);
+  assert.match(css, /\.store-detail-summary/);
+  assert.match(css, /\.store-menu-chips[\s\S]*overflow-x: auto/);
+  assert.match(css, /\.store-menu-chip\.active[\s\S]*background: var\(--store\)/);
+  assert.match(css, /\.store-detail-menu-list \.menu-detail-img[\s\S]*width: 82px/);
 });
 
 test('focused menu screens hide the global search and restore it on close', () => {
