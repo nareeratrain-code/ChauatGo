@@ -3,7 +3,7 @@ const fs = require('fs');
 const test = require('node:test');
 
 const html = fs.readFileSync('index.html', 'utf8');
-const cssStart = html.indexOf('/* ═══ MENU ENTRY');
+const cssStart = html.indexOf('<style>');
 const css = html.slice(cssStart, html.indexOf('</style>', cssStart));
 
 test('each home menu keeps its entry behavior', () => {
@@ -39,15 +39,50 @@ test('food partner source is visually prominent and advertises delivery from ent
   assert.match(html, /class="merchant-source-tab partner-tab active"[^>]*data-source="partner"/);
   assert.doesNotMatch(html, /class="merchant-source-tab"[^>]*data-source="local"/);
   assert.match(html, /<div class="section-title">🍽️ ร้านอาหารในพื้นที่<\/div>/);
-  assert.match(html, /<span class="delivery-icons"[^>]*>🚗 🛵<\/span> ร้านพาร์ทเนอร์/);
+  assert.match(html, /<span class="delivery-icons"[^>]*>🚗 🛵<\/span><span>ร้านพาร์ทเนอร์<\/span>/);
   assert.match(html, /สั่งได้ทันที • มีบริการเดลิเวอรี/);
-  assert.match(html, /class="merchant-source-note partner-note"[^>]*>🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน/);
+  assert.match(html, /class="merchant-source-note partner-note"[^>]*>จัดส่งถึงบ้านโดยไรเดอร์ ChauatGo/);
   assert.match(css, /\.merchant-source-tabs\s*\{[^}]*grid-template-columns: 1fr/);
   assert.match(css, /\.merchant-source-tab\.partner-tab\s*\{[^}]*min-height: 76px[^}]*font-size: 17px/);
   assert.match(css, /\.merchant-source-tab\.partner-tab\.active\s*\{[^}]*#E53935[^}]*#B71C1C/);
   assert.match(css, /\.merchant-source-note\.partner-note\s*\{[^}]*#E53935/);
   assert.match(html, /sourceNote\.classList\.toggle\('partner-note', merchantSource === 'partner'\)/);
   assert.match(html, /merchantSource = 'partner';/);
+});
+
+test('partner food screen uses a compact header, delivery address, cart, and capsule tabs', () => {
+  assert.match(html, /สั่งครบ จบที่เดียว/);
+  assert.match(html, /class="partner-food-topbar"/);
+  assert.match(html, /id="partner-food-address-label"/);
+  assert.match(html, /id="partner-food-cart-count"/);
+  assert.match(html, /onclick="openMapPicker\('food'\)"/);
+  assert.match(html, /onclick="switchMerchantTab\('cart'\)"/);
+  assert.match(html, /class="partner-food-banner"/);
+  assert.match(html, /class="partner-source-cta">ดูร้าน/);
+  assert.match(html, /class="merchant-search-clear"/);
+  assert.match(html, /window\.clearMerchantSearch = function\(\)/);
+  assert.match(css, /\.merchant-view \.merchant-tabs[\s\S]*overflow-x: auto/);
+  assert.match(css, /\.merchant-view \.m-tab[\s\S]*border-radius: 999px/);
+  assert.match(css, /\.merchant-view \.merchant-search \.search-bar[\s\S]*box-shadow/);
+  assert.match(css, /\.partner-food-banner \.merchant-source-tabs[\s\S]*#F97316/);
+  assert.match(html, /merchant-card-detail-row/);
+  assert.match(html, /เวลาส่ง ' \+ esc\(deliveryText\)/);
+  assert.match(html, /โปรโมชั่น ' \+ esc\(promoText\)/);
+});
+
+test('partner food cards have a safe mock preview and empty-catalog fallback', () => {
+  assert.match(html, /var PARTNER_MOCK_MERCHANTS = \[/);
+  assert.match(html, /images\/jay-ying-padthai\.jpg/);
+  assert.match(html, /deliveryTime: '25–35 นาที'/);
+  assert.match(html, /promoLabel: 'ส่งฟรีเมื่อครบ ฿199'/);
+  assert.match(html, /images\/khao-kha-moo-nong-or\.jpg/);
+  assert.match(html, /deliveryTime: '15–25 นาที'/);
+  assert.match(html, /promoLabel: 'ซื้อ 2 แถม 1'/);
+  assert.match(html, /function isPartnerMockPreview\(\)/);
+  assert.match(html, /new URLSearchParams\(window\.location\.search\)\.get\('mock-partner'\) === '1'/);
+  assert.match(html, /if \(isPartnerMockPreview\(\)\)/);
+  assert.match(html, /if \(!all\.length\) all = PARTNER_MOCK_MERCHANTS/);
+  assert.match(html, /merchantsCache = PARTNER_MOCK_MERCHANTS\.map/);
 });
 
 test('focused menu screens hide the global search and restore it on close', () => {
