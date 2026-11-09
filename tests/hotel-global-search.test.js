@@ -61,3 +61,14 @@ test('hotel search input is large and touch-friendly', () => {
   assert.match(html, /\.hotel-search-wrap input:focus \{[^}]*transform: translateY\(-1px\)/);
   assert.match(html, /\.hotel-search-icon \{[^}]*font-size: 24px/);
 });
+
+test('hotel search is first and location controls stay hidden until a hotel is selected', () => {
+  const toolsStart = html.indexOf('<div id="hotel-tools"');
+  const toolsEnd = html.indexOf('</div>\n    <div id="tourist-tools"', toolsStart);
+  const tools = html.slice(toolsStart, toolsEnd);
+  assert.ok(tools.indexOf('id="hotel-search-input"') < tools.indexOf('class="reference-loc-bar hotel-location-tools"'));
+  assert.match(html, /#hotel-tools \.hotel-location-tools \{ display: none; \}/);
+  assert.match(html, /#hotel-tools\.hotel-place-selected \.hotel-location-tools \{ display: block; \}/);
+  assert.match(html, /classList\.remove\('hotel-place-selected'\)/);
+  assert.match(html, /classList\.add\('hotel-place-selected'\)/);
+});
