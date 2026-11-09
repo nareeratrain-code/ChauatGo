@@ -22,9 +22,10 @@ test('mobile map picker keeps controls touch-safe and readable over the map', ()
   assert.match(source, /#map-page \.map-float-controls \{ right: 14px; bottom: calc\(var\(--dest-sheet-h\) \+ 14px\); \}/);
 });
 
-test('destination selection shows a Thai location confirmation popup after a pick', () => {
-  assert.match(source, /id="location-picked-popup"[^>]+role="status"[^>]+aria-live="polite"/);
-  assert.match(source, /id="location-picked-title">เลือกตำแหน่งของคุณ<\/h2>/);
+test('destination selection does not add an overlapping confirmation popup after a pick', () => {
+  assert.doesNotMatch(source, /id="location-picked-popup"/);
+  assert.doesNotMatch(source, /เลือกตำแหน่งของคุณ<\/h2>/);
+  assert.match(source, /window\.showLocationPickedPopup = function\(\)\{\s*return false;/);
   assert.match(source, /destSelectionPopupPending = true;/);
   assert.match(source, /showLocationPickedPopup\(\);/);
   assert.match(source, /window\.closeLocationPickedPopup/);

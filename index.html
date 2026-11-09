@@ -170,11 +170,11 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .partner-food-cart b { position: absolute; top: -7px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: var(--orange); color: #fff; font-size: 10px; }
 .partner-food-banner { margin: 0 0 14px; border-radius: 19px; overflow: hidden; background: #FFF1E6; box-shadow: 0 8px 18px rgba(234,88,12,.14); }
 .partner-food-banner .merchant-source-tabs { margin: 0; padding: 0; background: linear-gradient(135deg, #F97316, #C2410C); border-radius: 0; }
-.partner-food-banner .merchant-source-tab.partner-tab { min-height: 72px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 2px 10px; align-items: center; text-align: left; background: transparent; color: #fff; box-shadow: none; }
+.partner-food-banner .merchant-source-tab.partner-tab { width: 100%; min-height: 88px; padding: 15px 16px; display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 4px 12px; align-items: center; text-align: left; background: transparent; color: #fff; box-shadow: none; }
 .partner-food-banner .merchant-source-tab.partner-tab:hover { filter: brightness(1.04); }
-.partner-source-main { min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 900; }
-.partner-food-banner .merchant-source-tab small { grid-column: 1; margin: 0; color: rgba(255,255,255,.9); font-size: 11px; }
-.partner-source-cta { grid-column: 2; grid-row: 1 / span 2; min-height: 38px; padding: 0 13px; border: 1px solid rgba(255,255,255,.55); border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; color: #fff; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.partner-source-main { min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 24px; line-height: 1.15; font-weight: 900; }
+.partner-food-banner .merchant-source-tab small { grid-column: 1; margin: 0; color: rgba(255,255,255,.95); font-size: 13px; line-height: 1.25; }
+.partner-source-cta { grid-column: 2; grid-row: 1 / span 2; min-height: 46px; padding: 0 16px; border: 1px solid rgba(255,255,255,.7); border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; color: #fff; font-size: 14px; font-weight: 900; white-space: nowrap; }
 .partner-food-banner .merchant-source-note { margin: 0; padding: 10px 14px; border: 0; border-radius: 0; background: #FFF1E6; color: #8A3412; font-size: 11px; line-height: 1.4; }
 .merchant-view .merchant-search { position: relative; z-index: 2; margin: -26px 4px 12px; padding: 0; }
 .merchant-view .merchant-search .search-bar { min-height: 54px !important; padding: 0 12px; border: 3px solid #FED7AA; border-radius: 17px; box-shadow: 0 10px 20px rgba(9,62,58,.16); }
@@ -196,8 +196,9 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 @media (max-width: 390px) {
   .partner-food-topbar { gap: 6px; }
   .partner-food-cart { min-width: 70px; padding-left: 7px; padding-right: 7px; }
-  .partner-source-main { font-size: 15px; }
-  .partner-source-cta { padding: 0 10px; }
+  .partner-source-main { font-size: 24px; }
+  .partner-food-banner .merchant-source-tab small { font-size: 11px; }
+  .partner-source-cta { min-height: 42px; padding: 0 12px; font-size: 12px; }
 }
 
 .merchant-tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
@@ -207,7 +208,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-source-tab { min-height: 52px; padding: 7px 6px; border: 0; border-radius: 11px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; line-height: 1.25; font-weight: 900; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s, transform .15s; }
 .merchant-source-tab small { display: block; margin-top: 2px; font-size: 10px; font-weight: 700; }
 .merchant-source-tab .delivery-icons { display: inline-flex; gap: 3px; margin-right: 3px; font-size: 15px; vertical-align: -1px; }
-.merchant-source-tab.partner-tab.active { background: linear-gradient(135deg, #E53935, #B71C1C); color: #fff; box-shadow: 0 7px 16px rgba(183, 28, 28, .28); }
+.merchant-source-tab.partner-tab.active { background: linear-gradient(135deg, #F97316, #EA580C); color: #fff; box-shadow: 0 7px 16px rgba(234, 88, 12, .28); }
 .merchant-source-tab.partner-tab.active small { color: #fff; }
 .merchant-source-tab.partner-tab.active .delivery-icons { filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
 .merchant-source-tab.partner-tab { width: 100%; min-height: 76px; font-size: 17px; }
@@ -215,7 +216,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-source-tab:active { transform: scale(.98); }
 .merchant-source-tab.active { background: var(--surface); color: var(--green); box-shadow: var(--shadow-sm); }
 .merchant-source-note { margin: 0 14px 12px; padding: 10px 12px; border-left: 4px solid var(--brand); border-radius: 10px; background: var(--brand-light); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 700; }
-.merchant-source-note.partner-note { border-left-color: #E53935; background: #FFF1F1; color: #7F1D1D; }
+.merchant-source-note.partner-note { border-left-color: #F97316; background: #FFF7ED; color: #9A3412; }
 .merchant-location-btn { margin-top: 8px; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px; background: var(--surface); color: var(--green); font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
 .local-place-card { display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-sm); }
 .local-place-icon { width: 54px; height: 54px; flex-shrink: 0; border-radius: 14px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: var(--surface-2); font-size: 25px; }
@@ -668,12 +669,6 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 
 .near-alert-popup { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9700; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
 .near-alert-popup.show { display: flex; }
-.location-picked-popup { position: fixed; inset: 0; background: var(--overlay-bg); z-index: 9680; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px); }
-.location-picked-popup.show { display: flex; }
-.location-picked-card { width: min(360px, 100%); box-sizing: border-box; padding: 24px 20px 20px; text-align: center; background: var(--surface); color: var(--text); border: 1px solid #D1E7E1; border-top: 6px solid var(--green); border-radius: 24px; box-shadow: 0 20px 50px rgba(9,62,58,.25); animation: bounceIn .35s cubic-bezier(.32,.72,0,1); }
-.location-picked-icon { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 10px; border-radius: 50%; background: #E4F4EC; font-size: 34px; }
-.location-picked-card h2 { margin: 0 0 6px; color: var(--brand); font-size: 22px; font-weight: 900; }
-.location-picked-card p { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; font-weight: 700; }
 .near-alert-card { background: var(--surface); border-radius: 24px; padding: 28px 22px; width: 100%; max-width: 400px; text-align: center; animation: bounceIn .5s cubic-bezier(.32,.72,0,1); box-shadow: 0 24px 60px rgba(0,0,0,.3); border-top: 6px solid var(--green); }
 .near-alert-icon { font-size: 72px; margin-bottom: 12px; animation: bellShake 1s infinite; }
 .near-alert-card h2 { font-size: 24px; font-weight: 900; color: var(--brand); margin-bottom: 6px; }
@@ -973,6 +968,31 @@ button.chat-list-item:active { filter: brightness(.97); }
 .store-detail-cart-empty { color:var(--store-dark); text-align:center; font-size:12px; font-weight:800; padding:10px 0; }
 .store-detail-footer { display: flex; justify-content: center; margin-top: 16px; }
 .store-detail-close-btn { min-height: 44px; width: 100%; border: 0; border-radius: 14px; background: var(--surface-2); color: var(--text-muted); font: 900 13px inherit; cursor: pointer; }
+.store-detail-hero::after { content: ''; position: absolute; inset: auto 0 0; height: 72px; background: linear-gradient(transparent, rgba(0,0,0,.38)); pointer-events: none; }
+.store-detail-hero img, .store-detail-hero-fallback { position: relative; z-index: 0; }
+.store-detail-hero-meta { position: absolute; left: 16px; right: 68px; bottom: 14px; z-index: 1; color: #fff; font-size: 11px; font-weight: 900; text-shadow: 0 1px 5px rgba(0,0,0,.5); }
+.store-detail-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; margin: 14px 0 12px; }
+.store-detail-summary-item { min-height: 48px; padding: 7px 6px; border: 1px solid var(--store-border); border-radius: 13px; background: var(--store-bg); text-align: center; }
+.store-detail-summary-item strong { display: block; color: var(--store-dark); font-size: 12px; font-weight: 900; }
+.store-detail-summary-item small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 9px; font-weight: 800; }
+.store-detail-menu-tools { position: sticky; top: -1px; z-index: 4; padding: 8px 0 4px; background: var(--surface); }
+.store-menu-search { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid var(--store-border); border-radius: 13px; background: var(--surface-2); }
+.store-menu-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 700 12px inherit; }
+.store-menu-search button { width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+.store-menu-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 4px; scrollbar-width: none; }
+.store-menu-chips::-webkit-scrollbar { display: none; }
+.store-menu-chip { flex: 0 0 auto; min-height: 34px; padding: 7px 13px; border: 1px solid var(--store-border); border-radius: 999px; background: var(--surface); color: var(--store-dark); font: 800 11px inherit; cursor: pointer; }
+.store-menu-chip.active { border-color: var(--store); background: var(--store); color: #fff; box-shadow: 0 4px 10px color-mix(in srgb,var(--store) 22%,transparent); }
+.store-detail-menu-list .menu-detail-card { min-height: 92px; margin-bottom: 9px; padding: 10px; background: var(--surface); box-shadow: 0 5px 14px rgba(9,62,58,.07); }
+.store-detail-menu-list .menu-detail-img { width: 82px; height: 82px; border-radius: 14px; background: var(--store-bg); }
+.store-detail-menu-list .menu-detail-name { font-size: 14px; }
+.store-detail-menu-list .menu-detail-desc { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.35; }
+.store-detail-menu-list .menu-add-btn { width: 40px; height: 40px; box-shadow: 0 5px 12px color-mix(in srgb,var(--store) 24%,transparent); }
+.store-detail-cart-toggle { position: sticky; bottom: 8px; z-index: 5; }
+@media (max-width: 390px) {
+  .store-detail-summary-item strong { font-size: 11px; }
+  .store-detail-menu-list .menu-detail-img { width: 72px; height: 72px; }
+}
 @media (max-width: 480px) {
   .header .cg-logo { width: 48px; height: 48px; border-radius: 14px; }
   .header .cg-brand-name,
@@ -1033,10 +1053,10 @@ button.chat-list-item:active { filter: brightness(.97); }
 .merchant-source-tab.partner-tab { width: 100%; min-height: 76px; font-size: 17px; }
 .merchant-source-tab.partner-tab small { font-size: 12px; }
 .merchant-source-tab.active { background: #fff; color: #111; box-shadow: 0 0 0 3px #168A45; }
-.merchant-source-tab.partner-tab.active { background: linear-gradient(135deg, #E53935, #B71C1C); color: #fff; box-shadow: 0 0 0 3px #9F1D1D, 0 8px 18px rgba(183,28,28,.28); }
+.merchant-source-tab.partner-tab.active { background: linear-gradient(135deg, #F97316, #EA580C); color: #fff; box-shadow: 0 0 0 3px #C2410C, 0 8px 18px rgba(234,88,12,.28); }
 .merchant-source-tab.partner-tab.active small { color: #fff; }
 .merchant-source-note { background: #fff; color: #111; border-left: 5px solid #E85C00; border-radius: 16px; }
-.merchant-source-note.partner-note { background: #FFF1F1; color: #7F1D1D; border-left-color: #E53935; }
+.merchant-source-note.partner-note { background: #FFF7ED; color: #9A3412; border-left-color: #F97316; }
 .merchant-view .m-tab { background: #fff; color: #111; border: 2px solid #111; border-radius: 999px; min-height: 48px; }
 .merchant-view .m-tab.active { background: #168A45; color: #fff; border-color: #168A45; }
 .merchant-view[data-entry="shopping"] .m-filter-chip { background: #fff; color: #111; border: 2px solid #111; border-radius: 999px; min-height: 44px; }
@@ -1610,15 +1630,6 @@ select:focus-visible, [role="button"]:focus-visible {
   </div>
 </div>
 
-<div class="location-picked-popup" id="location-picked-popup" role="status" aria-live="polite" aria-modal="true" aria-labelledby="location-picked-title">
-  <div class="location-picked-card">
-    <div class="location-picked-icon" aria-hidden="true">📍</div>
-    <h2 id="location-picked-title">เลือกตำแหน่งของคุณ</h2>
-    <p>ระบบบันทึกตำแหน่งที่เลือกไว้แล้ว</p>
-    <button type="button" class="btn-full btn-green press-scale" onclick="closeLocationPickedPopup()">ตกลง</button>
-  </div>
-</div>
-
 <div class="near-alert-popup" id="nearAlertPopup">
   <div class="near-alert-card">
     <div class="near-alert-icon" id="near-alert-icon">🔔</div>
@@ -2140,12 +2151,10 @@ window.showToast = function(msg,type){
 };
 
 window.showLocationPickedPopup = function(){
-  var pop = $('location-picked-popup');
-  if (pop) pop.classList.add('show');
+  return false;
 };
 window.closeLocationPickedPopup = function(){
-  var pop = $('location-picked-popup');
-  if (pop) pop.classList.remove('show');
+  return false;
 };
 
 function haversine(lat1,lng1,lat2,lng2){
@@ -3282,14 +3291,31 @@ function merchantCategoryTheme(category) {
   return { key: 'shop', icon: '🛍️', label: 'ร้านค้า' };
 }
 
+function getMockMerchantMenus(merchantId) {
+  var common = [
+    { id: merchantId + '-menu-1', name: 'เมนูขายดีของร้าน', description: 'ทำสดใหม่ทุกออเดอร์ เสิร์ฟพร้อมเครื่องเคียง', price: 79, category: 'เมนูแนะนำ', image: 'images/jay-ying-padthai.jpg', promotion: { active: true, type: 'percent', value: 10 } },
+    { id: merchantId + '-menu-2', name: 'จานอิ่มคุ้ม', description: 'อิ่มครบในจานเดียว เหมาะสำหรับมื้อกลางวัน', price: 99, category: 'เมนูแนะนำ', image: 'images/khao-kha-moo-nong-or.jpg' },
+    { id: merchantId + '-menu-3', name: 'เครื่องดื่มเย็น', description: 'เลือกความหวานได้ในขั้นตอนสั่งซื้อ', price: 39, category: 'เครื่องดื่ม', image: 'images/dew-coffee-cha-uat.webp' },
+    { id: merchantId + '-menu-4', name: 'ของหวานปิดท้าย', description: 'เมนูหวานสำหรับทานคู่กับอาหาร', price: 59, category: 'ของหวาน', image: 'images/wan-jai-icecream-pizza.jpg' }
+  ];
+  return common;
+}
+
 window.openMerchantDetail = async function(merchantId) {
   closeAllShopsModal();
   try {
-    var snap = await db.collection('merchants').doc(merchantId).get();
-    if (!snap.exists) return showToast('ไม่พบร้านค้า', 'error');
-    var m = Object.assign({ id: snap.id }, snap.data());
-    var menuSnap = await db.collection('menus').where('merchantId', '==', merchantId).get();
-    var menus = menuSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }).filter(function(menu){ return !isMenuHidden(menu); });
+    var m, menus;
+    if (String(merchantId).indexOf('mock-partner-') === 0) {
+      m = PARTNER_MOCK_MERCHANTS.find(function(shop) { return shop.id === merchantId; });
+      if (!m) return showToast('ไม่พบร้านตัวอย่าง', 'error');
+      menus = getMockMerchantMenus(merchantId);
+    } else {
+      var snap = await db.collection('merchants').doc(merchantId).get();
+      if (!snap.exists) return showToast('ไม่พบร้านค้า', 'error');
+      m = Object.assign({ id: snap.id }, snap.data());
+      var menuSnap = await db.collection('menus').where('merchantId', '==', merchantId).get();
+      menus = menuSnap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }).filter(function(menu){ return !isMenuHidden(menu); });
+    }
     window._currentMerchant = {
       id: merchantId,
       name: m.name || '',
@@ -3298,9 +3324,11 @@ window.openMerchantDetail = async function(merchantId) {
       verified: m.verified === true
     };
     window._menus = menus;
+    window._currentMenuCategories = m.menuCategories || [];
+    window._storeMenuCategory = '';
     var theme = merchantCategoryTheme(m.category);
     var imgUrl = m.image || m.imageUrl || m.logo || m.shopImage || '';
-    var hasImg = /^https?:\/\//i.test(String(imgUrl));
+    var hasImg = /^(https?:\/\/|\/|images\/)/i.test(String(imgUrl));
     var imgHtml = hasImg
       ? '<img src="' + esc(imgUrl) + '" alt="' + esc(m.name || 'รูปหน้าร้าน') + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
       : '';
@@ -3310,16 +3338,20 @@ window.openMerchantDetail = async function(merchantId) {
     var mapsUrl = m.mapsUrl || (window.buildGoogleMapsSearchUrl ? window.buildGoogleMapsSearchUrl(m.name || '', m.lat, m.lng) : '');
     var rating = (m.ratingAvg && m.ratingCount) ? '⭐ ' + Number(m.ratingAvg).toFixed(1) + ' • ' + m.ratingCount + ' รีวิว' : 'ยังไม่มีรีวิว';
     var openStatus = m.isOpen === false ? '🔴 ปิดชั่วคราว' : '🟢 เปิดรับออเดอร์';
+    var deliveryTime = m.deliveryTime || m.deliveryEta || '—';
+    var minOrder = m.minimumOrder || m.minOrder || '—';
     var menuListHtml = renderMenuGrouped(menus, m.menuCategories);
+    var menuChipsHtml = renderStoreMenuChips(menus, m.menuCategories);
     $('modal-body').innerHTML =
       '<div class="store-detail-page" data-store-category="' + theme.key + '">' +
         '<button class="store-detail-close press-scale" onclick="closeModal()" aria-label="ปิดรายละเอียดร้าน">✕</button>' +
-        '<div class="store-detail-hero">' + imgHtml + '</div>' +
-        '<div class="store-detail-body">' +
+          '<div class="store-detail-hero">' + imgHtml + '<div class="store-detail-hero-meta">' + openStatus + ' • ส่งประมาณ ' + esc(deliveryTime) + '</div></div>' +
+          '<div class="store-detail-body">' +
           '<div class="store-detail-kicker">' + theme.icon + ' ' + theme.label + '</div>' +
           '<h2 class="store-detail-name">' + esc(m.name || 'ร้านค้า') + '</h2>' +
           '<div class="store-detail-sub">' + esc(m.address || m.description || 'ข้อมูลร้านค้าในพื้นที่ชะอวด') + '</div>' +
           '<div class="store-detail-status">' + openStatus + ' <span>•</span> <span>' + esc(rating) + '</span></div>' +
+          '<div class="store-detail-summary"><div class="store-detail-summary-item"><strong>' + esc(deliveryTime) + '</strong><small>เวลาจัดส่ง</small></div><div class="store-detail-summary-item"><strong>' + esc(rating.replace('⭐ ','')) + '</strong><small>คะแนนร้าน</small></div><div class="store-detail-summary-item"><strong>' + esc(String(minOrder)) + '</strong><small>ขั้นต่ำ</small></div></div>' +
           '<div class="store-detail-actions">' +
             '<a class="store-detail-action' + (phoneHref ? '' : ' disabled') + '" href="' + (phoneHref ? esc(phoneHref) : '#') + '">📞 โทร</a>' +
             '<a class="store-detail-action' + (mapsUrl ? '' : ' disabled') + '" href="' + (mapsUrl ? esc(mapsUrl) : '#') + '" target="_blank" rel="noopener">🗺️ แผนที่</a>' +
@@ -3328,13 +3360,51 @@ window.openMerchantDetail = async function(merchantId) {
           '<button id="store-detail-cart-button" class="store-detail-cart-toggle" onclick="toggleStoreDetailCart()">🛒 ดูตะกร้า <span id="store-detail-cart-count">(0)</span></button>' +
           '<div id="store-detail-cart-panel" class="store-detail-cart-panel"></div>' +
           '<div class="store-detail-note">สั่งอาหารจากร้านนี้ได้ในแชท/ตะกร้า ChauatGo • ตรวจสอบสถานะร้านและเมนูก่อนสั่งทุกครั้ง</div>' +
-          '<div class="store-detail-menu-head"><span class="store-detail-menu-title">เมนูของร้าน</span><span class="store-detail-menu-count">' + menus.length + ' รายการ</span></div>' +
+          '<div class="store-detail-menu-head"><span class="store-detail-menu-title">เมนูของร้าน</span><span id="store-detail-menu-count" class="store-detail-menu-count">' + menus.length + ' รายการ</span></div>' +
+          '<div class="store-detail-menu-tools"><div class="store-menu-search"><span aria-hidden="true">⌕</span><input id="store-menu-search-input" type="search" placeholder="ค้นหาเมนูอาหาร..." aria-label="ค้นหาเมนูอาหาร" oninput="filterStoreDetailMenu(this.value)"><button type="button" onclick="clearStoreMenuSearch()" aria-label="ล้างคำค้น">×</button></div><div id="store-menu-chips" class="store-menu-chips">' + menuChipsHtml + '</div></div>' +
           '<div class="store-detail-menu-list">' + menuListHtml + '</div>' +
           '<div class="store-detail-footer"><button class="store-detail-close-btn press-scale" onclick="closeModal()">ปิดหน้าร้าน</button></div>' +
         '</div>' +
       '</div>';
     openModal();
   } catch (e) { console.error(e); showToast('โหลดไม่สำเร็จ', 'error'); }
+};
+
+function renderStoreMenuChips(menus, menuCategories) {
+  var cats = [];
+  (menuCategories || []).forEach(function(c) {
+    var name = typeof c === 'string' ? c : (c && (c.name || c.id));
+    if (name && cats.indexOf(name) === -1) cats.push(name);
+  });
+  menus.forEach(function(menu) { if (menu.category && cats.indexOf(menu.category) === -1) cats.push(menu.category); });
+  return '<button type="button" class="store-menu-chip active" data-category="" onclick="filterStoreMenuCategory(this.dataset.category)">ทั้งหมด</button>' + cats.map(function(cat) {
+    return '<button type="button" class="store-menu-chip" data-category="' + esc(cat) + '" onclick="filterStoreMenuCategory(this.dataset.category)">' + esc(cat) + '</button>';
+  }).join('');
+}
+
+window.filterStoreDetailMenu = function(query) {
+  var q = String(query || '').trim().toLowerCase();
+  var category = window._storeMenuCategory || '';
+  var filtered = (window._menus || []).filter(function(menu) {
+    var matchesText = !q || [menu.name, menu.description, menu.category].join(' ').toLowerCase().indexOf(q) !== -1;
+    return matchesText && (!category || menu.category === category);
+  });
+  var list = document.querySelector('.store-detail-menu-list');
+  if (list) list.innerHTML = renderMenuGrouped(filtered, window._currentMenuCategories || []);
+  var count = $('store-detail-menu-count');
+  if (count) count.textContent = filtered.length + ' รายการ';
+};
+
+window.filterStoreMenuCategory = function(category) {
+  window._storeMenuCategory = category || '';
+  document.querySelectorAll('.store-menu-chip').forEach(function(chip) { chip.classList.toggle('active', chip.dataset.category === window._storeMenuCategory); });
+  filterStoreDetailMenu(($('store-menu-search-input') || {}).value || '');
+};
+
+window.clearStoreMenuSearch = function() {
+  var input = $('store-menu-search-input');
+  if (input) { input.value = ''; input.focus(); }
+  filterStoreDetailMenu('');
 };
 
 function renderMenuGrouped(menus, menuCategories) {
@@ -3373,8 +3443,8 @@ function renderMenuGrouped(menus, menuCategories) {
 }
 
 function renderMenuDetailCard(menu) {
-  var hasImg = menu.image && menu.image.startsWith('http');
-  var imgHtml = hasImg ? '<img src="' + esc(menu.image) + '" style="width:100%;height:100%;object-fit:cover">' : '🍽️';
+  var hasImg = menu.image && /^(https?:\/\/|\/|images\/)/i.test(String(menu.image));
+  var imgHtml = hasImg ? '<img src="' + esc(menu.image) + '" alt="' + esc(menu.name || 'รูปเมนู') + '" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">' : '🍽️';
   var status = menu.status || 'available'; var isOut = status === 'out_of_stock';
   var hasPromo = !!(menu.promotion && menu.promotion.active && Number(menu.promotion.value) > 0);
   var promoLabel = getPromoLabel(menu); var finalPrice = calcFinalPrice(menu); var originalPrice = Number(menu.price || 0);
