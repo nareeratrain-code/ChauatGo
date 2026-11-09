@@ -65,7 +65,7 @@ test('partner food screen uses a compact header, delivery address, cart, and cap
   assert.match(css, /\.merchant-view \.m-tab[\s\S]*border-radius: 999px/);
   assert.match(css, /\.merchant-view \.merchant-search \.search-bar[\s\S]*box-shadow/);
   assert.match(css, /\.partner-food-banner \.merchant-source-tabs[\s\S]*#F97316/);
-  assert.match(css, /\.partner-source-main[\s\S]*font-size: 24px/);
+  assert.match(css, /\.partner-source-main[\s\S]*font-size: 21px[\s\S]*white-space: nowrap/);
   assert.match(html, /merchant-card-detail-row/);
   assert.match(html, /เวลาส่ง ' \+ esc\(deliveryText\)/);
   assert.match(html, /โปรโมชั่น ' \+ esc\(promoText\)/);
