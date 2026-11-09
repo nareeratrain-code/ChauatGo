@@ -87,6 +87,8 @@ let cameraFile = null;
 let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
 let arrivedCustomerNotifiedOrderIds = new Set();
+let expressProofBlob = null;
+let expressProofUrl = '';
 // Local UI state: rider reached pickup point and must see photo/price actions.
 let pickupGuideOrderIds = new Set();
 const autoChatSent = new Set();
@@ -159,7 +161,7 @@ function riderMayConfirmPay(j) {
   if (j.customerPaidAt || j.status === 'customer_paid') return false;
   // Ride and express transfer are confirmed at the destination, not at pickup.
   if (j.type === 'ride') return j.status === 'on_the_way' && !!j.riderArrivedCustomerChatAt;
-  if (j.type === 'express') return j.status === 'on_the_way' && j.paymentMode !== 'cash';
+  if (j.type === 'express') return false;
   return j.status === 'accepted' || j.status === 'ready' || j.status === 'picked_up';
 }
 
@@ -192,6 +194,71 @@ async function markRideArrived(jobId) {
 
 function payReceivedButton(id) {
   return `<button type="button" class="jc-primary-btn jc-green" data-paid="${esc(id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`;
+}
+
+async function markExpressArrived(jobId) {
+  const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
+  if (!job || job.type !== 'express' || job.status !== 'on_the_way') return showToast('งานส่งด่วนยังไม่อยู่ระหว่างเดินทาง', 'warning');
+  if (job.deliveryProofUrl) return showToast('บันทึกรูปส่งถึงปลายทางแล้ว', 'info');
+  try {
+    await db.collection('orders').doc(jobId).update({
+      riderArrivedCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    job.riderArrivedCustomerChatAt = new Date();
+    renderJobs();
+    openExpressProofModal(jobId);
+  } catch (err) {
+    showToast(riderFirebaseErrorText(err, 'บันทึกว่าถึงปลายทางไม่สำเร็จ'), 'error');
+  }
+}
+
+function openExpressProofModal(jobId) {
+  expressProofBlob = null;
+  expressProofUrl = '';
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `<div style="text-align:center;margin-bottom:14px"><div style="font-size:48px">📸</div><h2 style="font-size:20px;font-weight:900">ยืนยันพัสดุถึงปลายทาง</h2><p style="color:var(--text-muted);font-size:13px;font-weight:700">ถ่ายรูปพัสดุที่ส่งถึงผู้รับแล้ว ก่อนยืนยันจบงาน</p></div>
+    <div style="border:2px dashed var(--border);border-radius:12px;min-height:170px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--surface-2)"><img id="express-proof-preview" alt="รูปยืนยันส่งถึงปลายทาง" style="display:none;width:100%;max-height:240px;object-fit:cover"><div id="express-proof-placeholder" style="font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกรูป</div></div>
+    <div class="photo-source-row" style="margin-top:10px"><button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('express-proof-camera').click()">📷 ถ่ายรูป</button><button type="button" class="photo-source-btn ripple" onclick="document.getElementById('express-proof-gallery').click()">🖼️ คลังภาพ</button></div>
+    <input id="express-proof-camera" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleExpressProof(event)"><input id="express-proof-gallery" type="file" accept="image/*" style="display:none" onchange="handleExpressProof(event)">
+    <div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="action-btn-big btn-gray-big" style="flex:1" onclick="closeModal()">ยกเลิก</button><button type="button" id="express-proof-submit" class="action-btn-big btn-green-big" style="flex:1" disabled onclick="submitExpressProof('${esc(jobId)}')">✅ ยืนยันรูปและจบงาน</button></div>`;
+  $('modalOverlay')?.classList.add('show');
+}
+
+async function handleExpressProof(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    expressProofBlob = await compressImage(file, 1000, 0.8);
+    const preview = $('express-proof-preview');
+    const placeholder = $('express-proof-placeholder');
+    if (preview) { preview.src = URL.createObjectURL(expressProofBlob); preview.style.display = 'block'; }
+    if (placeholder) placeholder.style.display = 'none';
+    const submit = $('express-proof-submit');
+    if (submit) submit.disabled = false;
+  } catch (err) { showToast('ประมวลผลรูปยืนยันไม่สำเร็จ', 'error'); }
+}
+
+async function submitExpressProof(jobId) {
+  if (!expressProofBlob) return showToast('กรุณาถ่ายรูปพัสดุที่ถึงปลายทางแล้ว', 'warning');
+  const btn = $('express-proof-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+  try {
+    const path = `orders/${jobId}/riders/${currentUser.uid}/delivery_proof_${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(expressProofBlob, { contentType: 'image/jpeg' });
+    expressProofUrl = await ref.getDownloadURL();
+    await db.collection('orders').doc(jobId).update({ deliveryProofUrl: expressProofUrl, deliveryProofPath: path, deliveryProofAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const job = allJobs.find(j => j.id === jobId) || allHistory.find(j => j.id === jobId);
+    if (job) { job.deliveryProofUrl = expressProofUrl; job.deliveryProofPath = path; }
+    closeModal();
+    renderJobs();
+    await confirmDeliver(jobId);
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันรูปและจบงาน'; }
+    showToast(riderFirebaseErrorText(err, 'บันทึกรูปยืนยันไม่สำเร็จ'), 'error');
+  }
 }
 
 function ridePayReceivedButton(id) {
@@ -1750,8 +1817,14 @@ function renderJobCard(j, type) {
         ? ridePayReceivedButton(j.id)
         : `<button type="button" class="jc-primary-btn jc-green" data-arrive-customer="${esc(j.id)}">📍 ถึงปลายทางแล้ว</button>`}
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
-    } else if (j.type === 'express' && !orderIsCash(j) && !customerPaid) {
-      primaryAction = `${payReceivedButton(j.id)}
+    } else if (j.type === 'express' && !j.riderArrivedCustomerChatAt) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-arrive-customer="${esc(j.id)}">📍 ถึงปลายทางแล้ว</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (j.type === 'express' && !j.deliveryProofUrl) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-express-proof="${esc(j.id)}">📸 ถ่ายรูปยืนยันส่งถึงปลายทาง</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (j.type === 'express') {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ยืนยันส่งถึงปลายทาง</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else {
       primaryAction = `<button class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ${j.type === 'ride' ? 'ถึงที่หมายแล้ว' : 'ส่งสำเร็จ'}</button>
@@ -2186,7 +2259,7 @@ async function recordShopArrival(jobId, job) {
     });
     job.status = 'picked_up';
     job.pickedUpAt = new Date();
-    const qrSent = job.paymentMode !== 'cash' && typeof sendRiderQrPaymentChat === 'function'
+    const qrSent = job.type !== 'express' && job.paymentMode !== 'cash' && typeof sendRiderQrPaymentChat === 'function'
       ? await sendRiderQrPaymentChat(jobId, 'shop_arrived')
       : false;
     if (!qrSent) sendAutomatedChatLater(jobId, 'shop_arrived');
@@ -3137,9 +3210,9 @@ function openDeliverModal(job, fin) {
   mc.innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:48px">✅</div>
-      <h2 style="font-size:20px;font-weight:900;margin-top:8px">ยืนยันส่งสำเร็จ</h2>
+        <h2 style="font-size:20px;font-weight:900;margin-top:8px">${job.type === 'express' ? 'ยืนยันส่งพัสดุถึงปลายทาง' : 'ยืนยันส่งสำเร็จ'}</h2>
       <p style="color:var(--text-muted);font-size:13px;font-weight:600;margin-top:4px">
-        กดยืนยันเมื่อส่งอาหารให้ลูกค้าแล้ว
+        ${job.type === 'express' ? 'ระบบบันทึกรูปหลักฐานแล้ว กดยืนยันเพื่อจบงาน' : 'กดยืนยันเมื่อส่งอาหารให้ลูกค้าแล้ว'}
       </p>
     </div>
 
@@ -3185,6 +3258,9 @@ async function confirmDeliver(jobId) {
     const income = result && result.riderIncome != null ? result.riderIncome : fin.totalRider;
     showToast('✅ ส่งสำเร็จ! +฿' + fmt(income));
     sendAutomatedChatLater(jobId, 'delivered');
+    if (job.type === 'express' && !orderIsCash(job)) {
+      await sendRiderQrPaymentChat(jobId, 'arrived_customer');
+    }
     closeModal();
     clearPaymentTimers();
     stopGPS();
@@ -3230,8 +3306,10 @@ function showJobDetail(jobId) {
     ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — กรุณาเก็บค่าบริการจากลูกค้า</div>`
     : job.type === 'ride' && job.status === 'on_the_way' && !job.customerPaidAt
     ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">🚗 กำลังพาผู้โดยสารไปปลายทาง — เมื่อถึงแล้วกด “ถึงปลายทางแล้ว” ก่อนรับสลิป</div>`
-    : job.type === 'express' && job.status === 'on_the_way' && !orderIsCash(job) && !job.customerPaidAt
-    ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📍 ถึงที่หมายแล้ว — รับค่าบริการจากลูกค้า</div>`
+    : job.type === 'express' && job.status === 'on_the_way' && !job.riderArrivedCustomerChatAt
+    ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">🚀 กำลังนำพัสดุไปส่ง — ยังไม่ต้องรับชำระเงิน</div>`
+    : job.type === 'express' && job.status === 'on_the_way' && !job.deliveryProofUrl
+    ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">📸 ถึงปลายทางแล้ว — กรุณาถ่ายรูปพัสดุเพื่อยืนยันก่อนจบงาน</div>`
     : orderIsCash(job) && job.type === 'shopping' && orderHasShopSlip(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
     ? `<div style="background:#E8F5E9;border-left:4px solid var(--green);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--green);font-weight:900">🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า — เก็บเงินสดปลายทาง</div>`
     : orderIsCash(job) && ['picked_up', 'on_the_way', 'customer_paid'].includes(job.status)
@@ -3590,7 +3668,7 @@ async function checkArrivalForActiveOrders(myLat, myLng) {
       }
     }
 
-    if (job.status === 'on_the_way' && job.lat && job.lng && !arrivedCustomerNotifiedOrderIds.has(job.id)) {
+    if (job.type !== 'express' && job.status === 'on_the_way' && job.lat && job.lng && !arrivedCustomerNotifiedOrderIds.has(job.id)) {
       const dist = haversine(myLat, myLng, job.lat, job.lng) * 1000;
       if (dist <= CUSTOMER_ARRIVAL_RADIUS_M) {
         arrivedCustomerNotifiedOrderIds.add(job.id);
@@ -4594,7 +4672,7 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-reject-slip],[data-confirm-reject-slip],[data-close-modal],[data-shop-closed],[data-paid],[data-start-deliver],[data-arrive-customer],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-reject-slip],[data-confirm-reject-slip],[data-close-modal],[data-shop-closed],[data-paid],[data-start-deliver],[data-arrive-customer],[data-express-proof],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
@@ -4609,7 +4687,12 @@ document.addEventListener('click', async (e) => {
     else if (t.dataset.shopClosed) await reportShopClosed(t.dataset.shopClosed);
     else if (t.dataset.paid) await confirmPaymentReceived(t.dataset.paid);
     else if (t.dataset.startDeliver) await startDelivery(t.dataset.startDeliver);
-    else if (t.dataset.arriveCustomer) await markRideArrived(t.dataset.arriveCustomer);
+    else if (t.dataset.arriveCustomer) {
+      const job = allJobs.find(j => j.id === t.dataset.arriveCustomer) || allHistory.find(j => j.id === t.dataset.arriveCustomer);
+      if (job?.type === 'express') await markExpressArrived(t.dataset.arriveCustomer);
+      else await markRideArrived(t.dataset.arriveCustomer);
+    }
+    else if (t.dataset.expressProof) openExpressProofModal(t.dataset.expressProof);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);
     else if (t.dataset.chat) openChatWithCustomer(t.dataset.chat);

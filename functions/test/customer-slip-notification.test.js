@@ -2,7 +2,56 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { customerSlipNotification, customerQuoteNotification } = require('../notifications');
+const {
+  customerSlipNotification,
+  customerQuoteNotification,
+  expressArrivalNotification,
+  expressDeliveredNotification
+} = require('../notifications');
+
+test('notifies the Express customer once when the rider reaches the destination', () => {
+  const message = expressArrivalNotification(
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', status: 'on_the_way' },
+    {
+      type: 'express', userId: 'customer-1', riderId: 'rider-1', code: 'EX-100',
+      status: 'on_the_way', riderArrivedCustomerChatAt: { seconds: 10 }
+    },
+    'order-arrival'
+  );
+  assert.equal(message.title, '📍 ไรเดอร์ถึงปลายทางแล้ว');
+  assert.match(message.body, /EX-100/);
+  assert.match(message.body, /ออกมารับพัสดุ/);
+  assert.equal(message.data.type, 'express_arrived_customer');
+});
+
+test('does not notify Express arrival again when the marker already existed', () => {
+  const marker = { seconds: 10 };
+  assert.equal(expressArrivalNotification(
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', riderArrivedCustomerChatAt: marker },
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', riderArrivedCustomerChatAt: marker },
+    'order-arrival'
+  ), null);
+});
+
+test('notifies the Express customer once when delivery is completed', () => {
+  const message = expressDeliveredNotification(
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', status: 'on_the_way' },
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', code: 'EX-101', status: 'done' },
+    'order-done'
+  );
+  assert.equal(message.title, '✅ ส่งพัสดุสำเร็จแล้ว');
+  assert.match(message.body, /EX-101/);
+  assert.match(message.body, /QR Code/);
+  assert.equal(message.data.type, 'express_delivered');
+});
+
+test('does not notify Express completion again after a terminal status', () => {
+  assert.equal(expressDeliveredNotification(
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', status: 'done' },
+    { type: 'express', userId: 'customer-1', riderId: 'rider-1', status: 'done' },
+    'order-done'
+  ), null);
+});
 
 test('notifies the customer once when rider uploads product photo and actual price', () => {
   const message = customerQuoteNotification(

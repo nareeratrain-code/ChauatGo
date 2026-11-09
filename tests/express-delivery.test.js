@@ -17,7 +17,7 @@ test('express leaves pickup without a customer transfer', () => {
   assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'cash' }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'picked_up' }), false);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'accepted' }), false);
-  assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'on_the_way' }), true);
+  assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'on_the_way' }), false);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'cash', status: 'on_the_way' }), false);
 });
 
@@ -46,12 +46,19 @@ test('express picked_up card starts delivery instead of waiting for a transfer',
   assert.match(rider, /📦 รับพัสดุแล้ว • กำลังไปส่ง/);
   assert.match(rider, /📦 รับพัสดุแล้ว — กดเริ่มส่ง/);
   assert.match(rider, /j\.type !== 'express'/);
+  assert.match(rider, /data-express-proof/);
+  assert.match(rider, /deliveryProofUrl/);
+  assert.match(rider, /sendRiderQrPaymentChat\(jobId, 'arrived_customer'\)/);
 });
 
 test('customer tracking does not tell an express pickup to transfer first', () => {
   assert.match(app, /o\.type === 'express' && o\.status === 'picked_up'/);
   assert.match(app, /รับพัสดุแล้ว/);
   assert.match(app, /ไรเดอร์กำลังไปส่ง/);
+  assert.match(app, /o\.type === 'express' && o\.status === 'on_the_way' && o\.riderArrivedCustomerChatAt/);
+  assert.match(app, /ไรเดอร์ถึงปลายทางแล้ว/);
+  assert.match(app, /กรุณาออกมารับพัสดุ — รอรูปยืนยันการส่ง/);
+  assert.match(app, /_orderNoticeArrival/);
   const confirm = orders.slice(orders.indexOf('async function confirmPaymentReceived'), orders.indexOf('module.exports'));
   assert.match(confirm, /order\.type === 'ride' \|\| order\.type === 'express'/);
   assert.match(confirm, /fareAtDestination/);
