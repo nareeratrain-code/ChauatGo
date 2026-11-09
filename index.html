@@ -4119,6 +4119,7 @@ function subscribeUserOrders(){
       var all = snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
       all.sort(function(a,b){return (b.createdAt&&b.createdAt.seconds||0)-(a.createdAt&&a.createdAt.seconds||0);});
       var prevStatus = window._orderNoticeStatus || {};
+      var arrivalNotice = window._orderNoticeArrival || {};
       all.forEach(function(o){
         if (o.status === 'cancelled' && o.cancelReason && prevStatus[o.id] && prevStatus[o.id] !== 'cancelled') {
           showToast((o.code || 'ออเดอร์') + ' • ' + o.cancelReason, 'warning');
@@ -4126,9 +4127,19 @@ function subscribeUserOrders(){
         if (o.status === 'shop_closed' && prevStatus[o.id] && prevStatus[o.id] !== 'shop_closed') {
           showToast((o.code || 'ออเดอร์') + ' • ร้านปิด ต้องชำระค่าบริการ', 'warning');
         }
+        var arrived = o.type === 'express' && !!o.riderArrivedCustomerChatAt;
+        if (arrived && arrivalNotice[o.id] === false) {
+          showToast((o.code || 'ออเดอร์') + ' • 📍 ไรเดอร์ถึงปลายทางแล้ว กรุณาออกมารับพัสดุ', 'info');
+        }
+        arrivalNotice[o.id] = arrived;
+        if (o.type === 'express' && (o.status === 'done' || o.status === 'delivered')
+          && prevStatus[o.id] && prevStatus[o.id] !== 'done' && prevStatus[o.id] !== 'delivered') {
+          showToast((o.code || 'ออเดอร์') + ' • ✅ ส่งพัสดุสำเร็จแล้ว', 'success');
+        }
         prevStatus[o.id] = o.status;
       });
       window._orderNoticeStatus = prevStatus;
+      window._orderNoticeArrival = arrivalNotice;
       paintUserOrders(all);
     }, function(err){
       // Mobile browsers can suspend Firestore listeners while backgrounded.
@@ -4928,7 +4939,9 @@ function renderTrackingInfo(o){
   if (o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) {
     s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
   }
-  if (o.type === 'express' && o.status === 'picked_up') {
+  if (o.type === 'express' && o.status === 'on_the_way' && o.riderArrivedCustomerChatAt) {
+    s = { icon: '📍', title: 'ไรเดอร์ถึงปลายทางแล้ว', sub: 'กรุณาออกมารับพัสดุ — รอรูปยืนยันการส่ง' };
+  } else if (o.type === 'express' && o.status === 'picked_up') {
     s = { icon: '📦', title: 'รับพัสดุแล้ว', sub: 'ไรเดอร์กำลังไปส่ง' };
   } else if (o.type === 'ride' && o.status === 'picked_up') {
     s = { icon: '🚗', title: 'รับผู้โดยสารแล้ว', sub: 'กำลังไปปลายทาง' };
@@ -4962,6 +4975,9 @@ function renderTrackingInfo(o){
     {label:'ออกเดินทาง',time:o.onTheWayAt},
     {label:'ส่งถึงลูกค้า',time:o.deliveredAt || o.doneAt}
   ];
+  if (o.type === 'express') {
+    timeline.splice(7, 0, {label:'ไรเดอร์ถึงปลายทาง', time:o.riderArrivedCustomerChatAt});
+  }
   var html = '';
   if (o.paymentMode === 'cash') timeline = timeline.filter(function(t){ return !t.transferOnly; });
   timeline.forEach(function(t, idx){
@@ -5126,13 +5142,14 @@ window.showOrderBill = async function(orderId) {
 
     var confirmHtml = '';
     var feeAtEnd = o.type === 'express' || o.type === 'ride';
-    var riderQrHtml = (!isCash && feeAtEnd && o.riderQrCodeUrl)
+    var expressCompleted = o.type === 'express' && (o.status === 'done' || o.status === 'delivered');
+    var riderQrHtml = (!isCash && feeAtEnd && o.riderQrCodeUrl && (o.type !== 'express' || expressCompleted))
       ? '<div style="background:#E8F5E9;border:2px solid #168A45;border-radius:14px;padding:14px;margin:14px 0;text-align:center">' +
         '<div style="font-size:14px;font-weight:900;color:#168A45">📱 สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์</div>' +
         '<img src="' + esc(o.riderQrCodeUrl) + '" alt="QR รับชำระค่าบริการไรเดอร์" style="display:block;width:min(250px,100%);aspect-ratio:1;object-fit:contain;margin:10px auto;background:#fff;border-radius:12px;padding:8px" onclick="openLightbox(\'' + esc(o.riderQrCodeUrl) + '\')">' +
         '<div style="font-size:12px;font-weight:800;color:#2E7D32">' + (o.type === 'express' ? 'โอนแล้วกด โอนเงินแล้ว แล้วแนบสลิปเพื่อแจ้งไรเดอร์' : 'โอนแล้วไม่ต้องแนบสลิป ให้ไรเดอร์กดยืนยันรับเงิน') + '</div>' +
       '</div>'
-      : ((!isCash && feeAtEnd && o.riderId)
+      : ((!isCash && feeAtEnd && o.riderId && (o.type !== 'express' || expressCompleted))
         ? '<div style="background:#FFF8E1;border-left:4px solid #FFB300;border-radius:10px;padding:12px;margin:14px 0;font-size:12px;font-weight:800;color:#7A5200">ℹ️ ไรเดอร์ยังไม่ได้แนบ QR Code กรุณาติดต่อไรเดอร์ในแชท หรือเลือกชำระเงินสด</div>'
         : '');
     if (o.deliveryCode) {

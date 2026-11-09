@@ -4,6 +4,42 @@ function hasPaidAt(value) {
   return !!(value && value.customerPaidAt);
 }
 
+function expressCode(after, orderId) {
+  return after.code ? `ออเดอร์ ${after.code}` : `ออเดอร์ ${orderId}`;
+}
+
+function expressArrivalNotification(before, after, orderId) {
+  if (!after || after.type !== 'express' || !after.userId || !after.riderId) return null;
+  if (!after.riderArrivedCustomerChatAt || (before && before.riderArrivedCustomerChatAt)) return null;
+  return {
+    title: '📍 ไรเดอร์ถึงปลายทางแล้ว',
+    body: `${expressCode(after, orderId)} ไรเดอร์ถึงจุดส่งแล้ว กรุณาออกมารับพัสดุและรอรูปยืนยันการส่ง`,
+    data: {
+      type: 'express_arrived_customer',
+      orderId: String(orderId),
+      status: String(after.status || 'on_the_way')
+    }
+  };
+}
+
+function expressDeliveredNotification(before, after, orderId) {
+  if (!after || after.type !== 'express' || !after.userId || !after.riderId) return null;
+  if (after.status !== 'done' && after.status !== 'delivered') return null;
+  if (before && (before.status === 'done' || before.status === 'delivered')) return null;
+  const paymentInstruction = after.paymentMode === 'cash'
+    ? 'กรุณาชำระค่าบริการกับไรเดอร์ตามวิธีเงินสดที่เลือก'
+    : 'กรุณาชำระค่าบริการผ่าน QR Code ในแชท';
+  return {
+    title: '✅ ส่งพัสดุสำเร็จแล้ว',
+    body: `${expressCode(after, orderId)} ส่งถึงปลายทางเรียบร้อยแล้ว ${paymentInstruction}`,
+    data: {
+      type: 'express_delivered',
+      orderId: String(orderId),
+      status: String(after.status)
+    }
+  };
+}
+
 function customerSlipNotification(before, after, orderId) {
   if (!after || !after.riderId || !hasPaidAt(after)) return null;
   // A slip upload is not payment. Notify only when the customer confirms,
@@ -49,4 +85,9 @@ function customerQuoteNotification(before, after, orderId) {
   };
 }
 
-module.exports = { customerSlipNotification, customerQuoteNotification };
+module.exports = {
+  customerSlipNotification,
+  customerQuoteNotification,
+  expressArrivalNotification,
+  expressDeliveredNotification
+};

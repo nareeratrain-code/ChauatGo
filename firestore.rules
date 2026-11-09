@@ -875,6 +875,22 @@ service cloud.firestore {
         );
     }
 
+    function riderExpressProofOk(orderId) {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.type == 'express'
+        && resource.data.status == 'on_the_way'
+        && resource.data.riderArrivedCustomerChatAt is timestamp
+        && unchanged('status')
+        && unchanged('riderId')
+        && identityFrozen()
+        && onlyChanged(['deliveryProofUrl', 'deliveryProofPath', 'deliveryProofAt'])
+        && request.resource.data.deliveryProofUrl is string
+        && request.resource.data.deliveryProofUrl.size() <= 2000
+        && request.resource.data.deliveryProofPath is string
+        && request.resource.data.deliveryProofPath.matches('orders/' + orderId + '/riders/' + myUid() + '/delivery_proof_[0-9]+\\.jpg')
+        && changedToTimestamp('deliveryProofAt');
+    }
+
     function merchantCookingOk() {
       return moneyFrozen() && isOrderMerchant()
         && resource.data.status in ['searching', 'pending']
@@ -959,6 +975,8 @@ service cloud.firestore {
                           ? expressFarePaidOk()
                           : changed.hasOnly(['status', 'customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
                             ? (customerPaidOk() || riderCustomerPaidOk())
+                            : changed.hasOnly(['deliveryProofUrl', 'deliveryProofPath', 'deliveryProofAt'])
+                              ? riderExpressProofOk(orderId)
                             : changed.hasOnly(['riderNearCustomerAt', 'riderNearCustomerChatAt', 'riderArrivedCustomerChatAt', 'riderQrCodeUrl', 'riderQrCodePath'])
                             ? riderNearCustomerOk()
                             : changed.hasOnly(['rated', 'ratedAt'])

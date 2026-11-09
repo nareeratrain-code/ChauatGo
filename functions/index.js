@@ -8,7 +8,12 @@ const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const D = require('./dispatch');
 const Orders = require('./orders');
-const { customerSlipNotification, customerQuoteNotification } = require('./notifications');
+const {
+  customerSlipNotification,
+  customerQuoteNotification,
+  expressArrivalNotification,
+  expressDeliveredNotification
+} = require('./notifications');
 const { recordConsentEvent } = require('./consent');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
@@ -84,6 +89,21 @@ exports.onCustomerQuoteReady = onDocumentWritten('orders/{orderId}', async (even
   const message = customerQuoteNotification(before, after, event.params.orderId);
   if (!message) return;
   await D.notifyCustomer(db, after.userId, message);
+});
+
+// Notify the customer at the two explicit Express hand-off milestones. Each
+// builder checks the before/after transition so Firestore retries or unrelated
+// order updates do not send duplicate pushes.
+exports.onExpressDeliveryNotification = onDocumentWritten('orders/{orderId}', async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  if (!after || after.type !== 'express' || !after.userId) return;
+
+  const arrival = expressArrivalNotification(before, after, event.params.orderId);
+  if (arrival) await D.notifyCustomer(db, after.userId, arrival);
+
+  const delivered = expressDeliveredNotification(before, after, event.params.orderId);
+  if (delivered) await D.notifyCustomer(db, after.userId, delivered);
 });
 
 // GP transfer requests are client-created, but the merchant financial

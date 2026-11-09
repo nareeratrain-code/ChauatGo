@@ -23,6 +23,8 @@ test('notification clicks follow data.type', () => {
   assert.match(sw, /near_customer/);
   assert.match(sw, /food_ready/);
   assert.match(indexHtml, /type: 'near_customer'/);
+  assert.match(sw, /express_arrived_customer/);
+  assert.match(sw, /express_delivered/);
 });
 
 test('clients use the order callables and drop the unused fee constants', () => {

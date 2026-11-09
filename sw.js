@@ -96,7 +96,8 @@ try {
 
 function notificationPath(data) {
   const type = String((data && data.type) || '');
-  if (type === 'near_customer' || type === 'customer_order' || type === 'order_update') return '/';
+  if (type === 'near_customer' || type === 'customer_order' || type === 'order_update'
+    || type === 'express_arrived_customer' || type === 'express_delivered') return '/';
   if (type === 'food_ready' || type === 'manual_assign' || type === 'dispatch_notice'
     || type === 'customer_slip_uploaded') return '/rider.html';
   return '/rider.html';
