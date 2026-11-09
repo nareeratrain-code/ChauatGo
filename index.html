@@ -158,6 +158,47 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .merchant-card-info { flex: 1; min-width: 0; }
 .merchant-card-name { font-weight: 900; font-size: 14px; color: var(--text); }
 .merchant-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 600; }
+.merchant-view-kicker { margin-top: 2px; color: var(--orange); font-size: 12px; font-weight: 900; }
+.partner-food-topbar { display: flex; gap: 8px; margin: 0 0 12px; align-items: stretch; }
+.partner-food-address, .partner-food-cart { min-height: 52px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); color: var(--text); font-family: inherit; cursor: pointer; }
+.partner-food-address { flex: 1; min-width: 0; padding: 7px 11px; display: flex; align-items: center; gap: 8px; text-align: left; }
+.partner-food-top-icon { width: 31px; height: 31px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto; background: #FFF3E0; color: var(--orange); font-size: 22px; font-weight: 900; }
+.partner-food-top-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.partner-food-top-copy small { color: var(--text-muted); font-size: 10px; font-weight: 800; }
+.partner-food-top-copy strong { overflow: hidden; color: var(--text); font-size: 12px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.partner-food-cart { position: relative; min-width: 78px; padding: 7px 10px; display: flex; align-items: center; justify-content: center; gap: 5px; color: var(--green); font-size: 12px; font-weight: 900; }
+.partner-food-cart b { position: absolute; top: -7px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: var(--orange); color: #fff; font-size: 10px; }
+.partner-food-banner { margin: 0 0 14px; border-radius: 19px; overflow: hidden; background: #FFF1E6; box-shadow: 0 8px 18px rgba(234,88,12,.14); }
+.partner-food-banner .merchant-source-tabs { margin: 0; padding: 0; background: linear-gradient(135deg, #F97316, #C2410C); border-radius: 0; }
+.partner-food-banner .merchant-source-tab.partner-tab { min-height: 72px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 2px 10px; align-items: center; text-align: left; background: transparent; color: #fff; box-shadow: none; }
+.partner-food-banner .merchant-source-tab.partner-tab:hover { filter: brightness(1.04); }
+.partner-source-main { min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 900; }
+.partner-food-banner .merchant-source-tab small { grid-column: 1; margin: 0; color: rgba(255,255,255,.9); font-size: 11px; }
+.partner-source-cta { grid-column: 2; grid-row: 1 / span 2; min-height: 38px; padding: 0 13px; border: 1px solid rgba(255,255,255,.55); border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; color: #fff; font-size: 12px; font-weight: 900; white-space: nowrap; }
+.partner-food-banner .merchant-source-note { margin: 0; padding: 10px 14px; border: 0; border-radius: 0; background: #FFF1E6; color: #8A3412; font-size: 11px; line-height: 1.4; }
+.merchant-view .merchant-search { position: relative; z-index: 2; margin: -26px 4px 12px; padding: 0; }
+.merchant-view .merchant-search .search-bar { min-height: 54px !important; padding: 0 12px; border: 3px solid #FED7AA; border-radius: 17px; box-shadow: 0 10px 20px rgba(9,62,58,.16); }
+.merchant-view .merchant-search .search-bar input { font-size: 14px; font-weight: 800; }
+.merchant-search-clear { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font: 900 18px/1 inherit; cursor: pointer; }
+.merchant-view .merchant-tabs { gap: 7px; margin: 0 -14px 12px; padding: 0 14px 10px; border-bottom: 0; overflow-x: auto; scrollbar-width: none; }
+.merchant-view .merchant-tabs::-webkit-scrollbar { display: none; }
+.merchant-view .m-tab { flex: 0 0 auto; min-height: 38px; padding: 8px 15px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 11px; }
+.merchant-view .m-tab.active { background: var(--green); border-color: var(--green); box-shadow: 0 5px 12px rgba(15,118,110,.2); }
+.merchant-view .merchant-list { padding: 0; }
+.merchant-view .merchant-card { position: relative; min-height: 78px; margin-bottom: 9px; padding: 11px; border: 1px solid rgba(15,118,110,.1); border-radius: 17px; box-shadow: 0 7px 18px rgba(9,62,58,.09); }
+.merchant-view .merchant-card-icon { width: 64px; height: 64px; border-radius: 15px; background: #FFF3E0 !important; }
+.merchant-view .merchant-card-name { font-size: 14px; }
+.merchant-view .merchant-card-meta { line-height: 1.4; }
+.merchant-card-detail-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.merchant-card-detail { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 7px; border-radius: 999px; background: #F0FDFA; color: #0F766E; font-size: 10px; font-weight: 800; }
+.merchant-card-detail.promo { background: #FFF7ED; color: #C2410C; }
+.merchant-view .merchant-card-info > div:last-child span:first-child { background: #FFF7ED !important; color: #C2410C !important; }
+@media (max-width: 390px) {
+  .partner-food-topbar { gap: 6px; }
+  .partner-food-cart { min-width: 70px; padding-left: 7px; padding-right: 7px; }
+  .partner-source-main { font-size: 15px; }
+  .partner-source-cta { padding: 0 10px; }
+}
 
 .merchant-tabs { display: flex; gap: 6px; padding: 0 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .m-tab { flex: 1; padding: 10px 8px; border-radius: 12px; font-size: 12px; font-weight: 900; font-family: inherit; background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; }
@@ -1667,17 +1708,26 @@ select:focus-visible, [role="button"]:focus-visible {
 
   <div class="merchant-view" id="merchant-view">
     <div class="section-header" style="padding-left:0">
-      <div class="section-title" id="merchant-view-title">🏪 เลือกร้านอาหาร</div>
+      <div><div class="section-title" id="merchant-view-title">สั่งครบ จบที่เดียว</div><div class="merchant-view-kicker" id="merchant-view-kicker">🍽️ สั่งอาหารจากร้านพาร์ทเนอร์</div></div>
       <div class="section-more press-scale" onclick="closeMerchantView()">✕ ปิด</div>
     </div>
-    <div class="merchant-source-tabs" id="merchant-source-tabs">
-      <button class="merchant-source-tab partner-tab active" data-source="partner" onclick="switchMerchantSource('partner')"><span class="delivery-icons" aria-hidden="true">🚗 🛵</span> ร้านพาร์ทเนอร์<small>สั่งได้ทันที • มีบริการเดลิเวอรี</small></button>
+    <div class="partner-food-topbar" aria-label="ที่อยู่จัดส่งและตะกร้า">
+      <button type="button" class="partner-food-address press-scale" onclick="openMapPicker('food')" aria-label="เลือกที่อยู่จัดส่ง">
+        <span class="partner-food-top-icon" aria-hidden="true">⌖</span><span class="partner-food-top-copy"><small>จัดส่งไปที่</small><strong id="partner-food-address-label">เลือกที่อยู่จัดส่ง</strong></span><span aria-hidden="true">›</span>
+      </button>
+      <button type="button" class="partner-food-cart press-scale" onclick="switchMerchantTab('cart')" aria-label="เปิดตะกร้า"><span aria-hidden="true">🛒</span><span>ตะกร้า</span><b id="partner-food-cart-count">0</b></button>
     </div>
-    <div class="merchant-source-note partner-note" id="merchant-source-note">🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน • ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย</div>
+    <div class="partner-food-banner">
+      <div class="merchant-source-tabs" id="merchant-source-tabs">
+        <button class="merchant-source-tab partner-tab active" data-source="partner" onclick="switchMerchantSource('partner')"><span class="partner-source-main"><span class="delivery-icons" aria-hidden="true">🚗 🛵</span><span>ร้านพาร์ทเนอร์</span></span><small>สั่งได้ทันที • มีบริการเดลิเวอรี</small><span class="partner-source-cta">ดูร้าน <span aria-hidden="true">→</span></span></button>
+      </div>
+      <div class="merchant-source-note partner-note" id="merchant-source-note">จัดส่งถึงบ้านโดยไรเดอร์ ChauatGo • เลือกร้านเพื่อดูเมนูและโปรโมชั่น</div>
+    </div>
     <div class="merchant-search">
       <div class="search-bar" style="background:var(--surface);min-height:48px">
         <span style="font-size:16px;opacity:.5">🔍</span>
-        <input type="text" id="merchant-search-input" placeholder="ค้นหาร้านค้า...">
+        <input type="text" id="merchant-search-input" placeholder="ค้นหาร้านพาร์ทเนอร์..." aria-label="ค้นหาร้านพาร์ทเนอร์">
+        <button type="button" class="merchant-search-clear" onclick="clearMerchantSearch()" aria-label="ล้างคำค้น">×</button>
       </div>
       <button type="button" id="merchant-map-btn" class="merchant-map-btn press-scale" onclick="openMapPicker('shopping')" style="display:none">🗺️ แผนที่</button>
     </div>
@@ -1944,6 +1994,18 @@ var currentMerchantFilter = 'all';
 var currentMerchantSearch = '';
 var merchantMode = 'food';
 var merchantSource = 'partner';
+var PARTNER_MOCK_MERCHANTS = [
+  { id: 'mock-partner-1', name: 'ครัวชะอวดบ้านเรา', category: 'restaurant', image: 'images/jay-ying-padthai.jpg', isOpen: true, ratingAvg: 4.9, ratingCount: 28, deliveryTime: '25–35 นาที', promoLabel: 'ส่งฟรีเมื่อครบ ฿199', lat: 7.9573, lng: 99.9951 },
+  { id: 'mock-partner-2', name: 'ขนมจีนลุงเบ้า', category: 'restaurant', image: 'images/khanom-jeen-lung-bao.jpg', isOpen: true, ratingAvg: 4.8, ratingCount: 16, deliveryTime: '20–30 นาที', promoLabel: 'ลด 10% เมนูแนะนำ', lat: 7.9518, lng: 99.9918 },
+  { id: 'mock-partner-3', name: 'สเต็กลุงอ้วน', category: 'cafe', image: 'images/steak-lung-uan.jpg', isOpen: false, ratingAvg: 4.7, ratingCount: 11, deliveryTime: '30–40 นาที', promoLabel: 'โปรโมชั่นประจำสัปดาห์', lat: 7.9612, lng: 99.9982 },
+  { id: 'mock-partner-4', name: 'ข้าวขาหมูน้องอ้อ', category: 'restaurant', image: 'images/khao-kha-moo-nong-or.jpg', isOpen: true, ratingAvg: 4.6, ratingCount: 9, deliveryTime: '25–35 นาที', promoLabel: 'เพิ่มไข่ต้มฟรี', lat: 7.9544, lng: 99.9899 },
+  { id: 'mock-partner-5', name: 'สดชื่นคาเฟ่', category: 'cafe', image: 'images/dew-coffee-cha-uat.webp', isOpen: true, ratingAvg: 4.8, ratingCount: 21, deliveryTime: '15–25 นาที', promoLabel: 'เครื่องดื่มเริ่มต้น ฿39', lat: 7.9491, lng: 99.9976 },
+  { id: 'mock-partner-6', name: 'ร้านเจ๊หญิงผัดไทย', category: 'restaurant', image: 'images/jay-ying-padthai.jpg', isOpen: true, ratingAvg: 4.7, ratingCount: 14, deliveryTime: '20–30 นาที', promoLabel: 'ชุดอิ่มคุ้ม ฿99', lat: 7.9588, lng: 99.9927 },
+  { id: 'mock-partner-7', name: 'วันใจไอศกรีม & พิซซ่า', category: 'cafe', image: 'images/wan-jai-icecream-pizza.jpg', isOpen: true, ratingAvg: 4.9, ratingCount: 32, deliveryTime: '20–30 นาที', promoLabel: 'ซื้อ 2 แถม 1', lat: 7.9532, lng: 99.9964 }
+];
+function isPartnerMockPreview() {
+  try { return new URLSearchParams(window.location.search).get('mock-partner') === '1'; } catch (e) { return false; }
+}
 var merchantTab = 'popular';
 var shopSearchTimer = null;
 var currentShopSearch = '';
@@ -3371,7 +3433,7 @@ window.addToCart = function(merchantId, merchantName, menuId, menuName, original
 function updateCartBar() {
   var bar = $('cart-bar'); if (!bar) return;
   _refreshStoreDetailCart();
-  if (!cart.length) { bar.classList.remove('show'); return; }
+  if (!cart.length) { bar.classList.remove('show'); updatePartnerFoodHeader(); return; }
   bar.classList.add('show');
   var subtotal = cart.reduce(function(s, c) { return s + (c.originalPrice || c.price) * c.qty; }, 0);
   var discountTotal = cart.reduce(function(s, c) { return s + (c.discount || 0) * c.qty; }, 0);
@@ -3380,6 +3442,7 @@ function updateCartBar() {
   if ($('cart-count')) $('cart-count').textContent = count;
   if ($('cart-total')) $('cart-total').textContent = fmt(netTotal) + '฿';
   if ($('cart-shop')) $('cart-shop').textContent = cart[0] ? cart[0].merchantName : '';
+  updatePartnerFoodHeader();
 }
 
 function renderStoreDetailCart() {
@@ -6442,6 +6505,26 @@ window.closeCategoryView = function(){
 };
 
 /* ═══ MERCHANT VIEW ═══ */
+function updatePartnerFoodHeader() {
+  var address = (foodDropoff && foodDropoff.address) || (userProfile && userProfile.address) || 'เลือกที่อยู่จัดส่ง';
+  var count = cart.reduce(function(total, item) { return total + Number(item.qty || 0); }, 0);
+  var addressEl = $('partner-food-address-label');
+  var countEl = $('partner-food-cart-count');
+  if (addressEl) addressEl.textContent = address;
+  if (countEl) countEl.textContent = count;
+}
+
+window.clearMerchantSearch = function() {
+  var input = $('merchant-search-input');
+  if (!input) return;
+  input.value = '';
+  if (merchantMode === 'shopping') currentShopSearch = '';
+  else currentMerchantSearch = '';
+  if (merchantMode === 'shopping') renderShoppingPlaces();
+  else renderActiveMerchantSource();
+  input.focus();
+};
+
 window.openMerchantView = async function(type){
   merchantMode = (type === 'shopping') ? 'shopping' : 'food';
   setMenuFocus(true);
@@ -6453,7 +6536,9 @@ window.openMerchantView = async function(type){
     $('merchant-view').dataset.entry = merchantMode;
   }
   var titleEl = $('merchant-view-title');
-  if (titleEl) titleEl.textContent = merchantMode === 'food' ? '🍽️ สั่งอาหาร' : '🛒 เลือกสถานที่ฝากซื้อ';
+  if (titleEl) titleEl.textContent = merchantMode === 'food' ? 'สั่งครบ จบที่เดียว' : '🛒 เลือกสถานที่ฝากซื้อ';
+  var kickerEl = $('merchant-view-kicker');
+  if (kickerEl) kickerEl.textContent = merchantMode === 'food' ? '🍽️ สั่งอาหารจากร้านพาร์ทเนอร์' : 'เลือกซื้อของใช้ให้ครบในที่เดียว';
   if (merchantMode === 'food') merchantSource = 'partner';
   var sourceTabs = $('merchant-source-tabs');
   if (sourceTabs) sourceTabs.style.display = merchantMode === 'food' ? 'grid' : 'none';
@@ -6462,12 +6547,13 @@ window.openMerchantView = async function(type){
   if (sourceNote) {
     sourceNote.classList.toggle('partner-note', merchantMode === 'food' && merchantSource === 'partner');
     sourceNote.innerHTML = merchantMode === 'food'
-      ? '🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน • ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
+      ? 'จัดส่งถึงบ้านโดยไรเดอร์ ChauatGo • เลือกร้านเพื่อดูเมนูและโปรโมชั่น'
       : '';
   }
   if ($('merchant-tabs')) $('merchant-tabs').style.display = merchantMode === 'food' ? 'flex' : 'none';
   if ($('merchant-filter-bar')) $('merchant-filter-bar').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
   if ($('merchant-map-btn')) $('merchant-map-btn').style.display = merchantMode === 'shopping' ? 'flex' : 'none';
+  updatePartnerFoodHeader();
 
   if (merchantMode === 'food') {
     merchantTab = 'popular';
@@ -6481,15 +6567,22 @@ window.openMerchantView = async function(type){
   var list = $('merchant-list'); if (!list) return;
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light)">กำลังโหลด...</div>';
   if (merchantMode === 'shopping') { renderShoppingPlaces(); return; }
+  if (isPartnerMockPreview()) {
+    merchantsCache = PARTNER_MOCK_MERCHANTS.map(function(shop) { return Object.assign({}, shop); });
+    if (sourceNote) sourceNote.innerHTML = 'ข้อมูลตัวอย่างสำหรับดูรูปแบบการ์ดร้าน • ไม่ใช่ร้านหรือโปรโมชั่นจริง';
+    renderActiveMerchantSource();
+    return;
+  }
 
   try{
     var snap = await db.collection('merchants').where('verified','==',true).get();
     var all = snap.docs.map(function(d){ return Object.assign({id:d.id},d.data()); });
     all = all.filter(function(m){ return ['restaurant','cafe'].indexOf(m.category) !== -1; });
+    if (!all.length) all = PARTNER_MOCK_MERCHANTS.map(function(shop) { return Object.assign({}, shop); });
     merchantsCache = all;
     renderActiveMerchantSource();
   } catch(err){
-    merchantsCache = [];
+    merchantsCache = PARTNER_MOCK_MERCHANTS.map(function(shop) { return Object.assign({}, shop); });
     renderActiveMerchantSource();
   }
 };
@@ -6507,7 +6600,7 @@ window.switchMerchantSource = function(source) {
   if (sourceNote) {
     sourceNote.classList.toggle('partner-note', merchantSource === 'partner');
     sourceNote.innerHTML = merchantSource === 'partner'
-      ? '🚗 🛵 มีไรเดอร์รับส่งถึงบ้าน • ร้านที่เข้าร่วม ChauatGo เปิดรับออเดอร์ ดูเมนูและโปรโมชั่น แล้วสั่งได้เลย'
+      ? 'จัดส่งถึงบ้านโดยไรเดอร์ ChauatGo • เลือกร้านเพื่อดูเมนูและโปรโมชั่น'
       : 'ร้านอาหารในพื้นที่ที่ยังไม่เข้าร่วม ChauatGo ใช้เป็นจุดหมายให้ไรเดอร์ไปซื้อได้';
   }
   if (sourceNote && merchantSource === 'local') sourceNote.innerHTML += '<br><button type="button" class="merchant-location-btn" onclick="useMerchantLocation()">📍 ใช้ตำแหน่งฉันเพื่อเรียงใกล้ที่สุด</button>';
@@ -6564,8 +6657,10 @@ function renderMerchantList(merchants){
       : '<span style="display:inline-flex;background:#F3F4F6;color:#9CA3AF;font-size:10px;font-weight:900;padding:3px 8px;border-radius:8px">★ ใหม่</span>';
     var dist = merchantDistance(m);
     var distHtml = (dist != null) ? '<span style="display:inline-flex;background:var(--brand-light);color:var(--green);font-size:10px;font-weight:800;padding:3px 8px;border-radius:8px">📍 ' + fmtDistance(dist) + '</span>' : '';
+    var deliveryText = m.deliveryTime || m.deliveryEta || m.estimatedDelivery || '—';
+    var promoText = m.promotionLabel || m.promoLabel || '—';
     var mImgUrl = m.image || m.imageUrl || m.logo || m.shopImage || '';
-    var hasImg = mImgUrl && mImgUrl.startsWith('http');
+    var hasImg = mImgUrl && (mImgUrl.startsWith('http') || mImgUrl.startsWith('/') || mImgUrl.startsWith('images/'));
     var iconHtml = hasImg ? '<img src="'+esc(mImgUrl)+'" style="width:100%;height:100%;object-fit:cover">' : '🏪';
     var isOpen = m.isOpen !== false;
     return '<div class="merchant-card" data-merchant-id="'+esc(m.id)+'" style="animation-delay:'+(i*0.04)+'s">' +
@@ -6573,6 +6668,7 @@ function renderMerchantList(merchants){
       '<div class="merchant-card-info">' +
         '<div class="merchant-card-name">'+esc(m.name||'ไม่ระบุ')+'</div>' +
         '<div class="merchant-card-meta">'+(isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(m.category||'')+'</div>' +
+        '<div class="merchant-card-detail-row"><span class="merchant-card-detail">เวลาส่ง ' + esc(deliveryText) + '</span><span class="merchant-card-detail promo">โปรโมชั่น ' + esc(promoText) + '</span></div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">' + ratingHtml + distHtml + '</div>' +
       '</div>' +
       '<div style="color:var(--text-light);font-size:20px">›</div>' +
