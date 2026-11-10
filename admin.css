@@ -799,3 +799,47 @@ main { padding: 0 14px 30px; }
 @media (min-width: 481px) {
   .stat-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ═══ PAYOUT AUDIT ═══ */
+.payout-audit-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.page-title { font-size:22px; font-weight:900; color:var(--text); }
+.page-subtitle { margin-top:4px; color:var(--text-muted); font-size:12px; font-weight:700; }
+.payout-audit-lock { white-space:nowrap; padding:8px 10px; border-radius:999px; background:var(--green-light); color:var(--green); font-size:11px; font-weight:900; }
+.payout-audit-filters { display:grid; grid-template-columns:minmax(220px,2fr) 1fr 1fr; gap:8px; padding:12px; margin:0 0 18px; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow-sm); }
+.payout-audit-filters select, .payout-audit-filters input { min-width:0; width:100%; border:1px solid var(--border); border-radius:10px; padding:10px 11px; background:var(--input-bg); color:var(--text); font-family:inherit; font-size:12px; font-weight:700; outline:none; }
+.payout-audit-filters label { display:flex; align-items:center; gap:6px; color:var(--text-muted); font-size:11px; font-weight:800; }
+.payout-audit-filters label input { flex:1; }
+.payout-filter-search { display:flex; align-items:center; gap:7px; min-width:0; border:1px solid var(--border); border-radius:10px; padding:0 10px; background:var(--input-bg); }
+.payout-filter-search input { border:0; padding-left:0; background:transparent; }
+.payout-filter-search input:focus, .payout-audit-filters select:focus, .payout-audit-filters input:focus { border-color:var(--brand); box-shadow:0 0 0 3px rgba(118,184,42,.12); }
+.payout-filter-clear { margin:0; padding:10px 12px; width:auto; font-size:12px; }
+.payout-ledger-card { border-left:4px solid var(--green); }
+.payout-ledger-amount { color:var(--green); font-size:19px; font-weight:900; margin-bottom:5px; }
+.payout-empty { margin-bottom:18px; }
+.payout-detail-hero { padding:18px; margin-bottom:16px; text-align:center; border-radius:16px; background:linear-gradient(135deg,var(--green-light),var(--surface-2)); border:1px solid var(--border); }
+.payout-detail-status { color:var(--green); font-size:13px; font-weight:900; }
+.payout-detail-amount { margin:5px 0; color:var(--text); font-size:34px; font-weight:900; }
+.payout-detail-key { color:var(--text-muted); font-size:10px; font-weight:700; word-break:break-all; }
+.payout-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.payout-detail-grid > div { padding:10px; border-radius:10px; background:var(--surface-2); }
+.payout-detail-grid span { display:block; color:var(--text-muted); font-size:10px; font-weight:700; margin-bottom:3px; }
+.payout-detail-grid b { display:block; color:var(--text); font-size:12px; overflow-wrap:anywhere; }
+.payout-detail-note { margin-top:12px; padding:11px 12px; border-radius:10px; background:var(--yellow-light); color:var(--text); font-size:12px; font-weight:700; }
+.payout-order-list { margin-top:16px; }
+.payout-detail-section-title { margin-bottom:8px; color:var(--text); font-size:13px; font-weight:900; }
+.payout-order-row { display:grid; grid-template-columns:1.2fr 1.8fr auto; gap:8px; align-items:center; padding:9px 0; border-bottom:1px solid var(--border); color:var(--text-muted); font-size:11px; font-weight:700; }
+.payout-order-row span:first-child { color:var(--brand); font-weight:900; }
+.payout-order-row b { color:var(--text); white-space:nowrap; }
+@media (max-width: 480px) {
+  .payout-audit-head { align-items:flex-start; }
+  .page-title { font-size:18px; }
+  .payout-audit-lock { font-size:10px; padding:6px 8px; }
+  .payout-audit-filters { grid-template-columns:1fr 1fr; }
+  .payout-filter-search { grid-column:1 / -1; }
+  .payout-filter-clear { grid-column:1 / -1; width:100%; }
+  .payout-audit-stats { grid-template-columns:1fr 1fr; }
+  .payout-detail-amount { font-size:30px; }
+  .payout-order-row { grid-template-columns:1fr auto; }
+  .payout-order-row span:nth-child(2) { grid-column:1 / 2; }
+  .payout-order-row b { grid-column:2; grid-row:1 / span 2; }
+}

@@ -956,7 +956,11 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       await root.collection('riders').doc('rider-new').set({
         verified: false, riderId: 'rider-new'
       });
-      await root.collection('merchants').doc('shop1').set({ verified: true, name: 'ร้านทดสอบ' });
+      await root.collection('merchants').doc('shop1').set({ verified: true, name: 'ร้านทดสอบ', gpPending: 20, gpPaid: 0 });
+      await root.collection('gp_transfers').doc('gp-review-1').set({
+        merchantId: 'shop1', merchantName: 'ร้านทดสอบ', status: 'pending', amount: 20,
+        slipPath: 'gp_slips/shop1/review-1.jpg', createdAt: new Date()
+      });
       await root.doc('config/dispatch').set({ mode: 'manual' });
       await root.collection('orders').doc('open1').set({
         type: 'food', status: 'cooking', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ', riderId: null
@@ -1068,6 +1072,8 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['stranger deny list', () => assertFails(stdb.collection('orders').limit(5).get())],
       ['admin list', () => assertSucceeds(adb.collection('orders').limit(5).get())],
       ['admin save config', () => assertSucceeds(adb.doc('config/dispatch').set({ mode: 'manual', radiusStepsKm: [3, 5, 8] }))],
+      ['admin cannot review GP directly', () => assertFails(adb.collection('gp_transfers').doc('gp-review-1').update({ status: 'verified' }))],
+      ['admin cannot create payout directly', () => assertFails(adb.collection('rider_payouts').doc('browser-payout').set({ riderId: 'rider1', amount: 20, status: 'paid' }))],
       ['gp amount too high', () => assertFails(sdb.collection('gp_transfers').add({
         merchantId: 'shop1', status: 'pending', amount: 200000, slipPath: 'gp_slips/shop1/1.jpg'
       }))],

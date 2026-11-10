@@ -26,12 +26,13 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
    ═══════════════════════════════════════════════════════════════════ */
 const store = {
   merchants: [], orders: [], riders: [], users: [], places: [],
-  chats: [], gpTransfers: [],
+  chats: [], gpTransfers: [], payouts: [],
   gpsRiders: [], dispatchConfig: null, dispatchOffers: null, dispatchOffersOrder: ''
 };
 const filters = {
   orders: 'all', q: '', riderStatus: '',
-  merchantStatus: 'all', gpRange: 'today'
+  merchantStatus: 'all', gpRange: 'today',
+  payoutStatus: 'all', payoutRider: '', payoutFrom: '', payoutTo: ''
 };
 let current = 'dashboard';
 let unsubs = [];
@@ -310,6 +311,17 @@ function orderFoodTotal(o) {
   return Number(o.itemsTotal || o.foodTotal || 0);
 }
 
+function payoutEligibleOrders(riderId) {
+  return store.orders.filter(o =>
+    ['done', 'delivered'].includes(o.status)
+    && o.riderId === riderId
+    && o.riderPayoutPaid !== true
+    && typeof o.gpRider === 'number'
+    && Number.isFinite(o.gpRider)
+    && o.gpRider > 0
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    8. AUTH
    ═══════════════════════════════════════════════════════════════════ */
@@ -458,16 +470,18 @@ auth.onAuthStateChanged(async user => {
    10. START / STOP subscriptions
    ═══════════════════════════════════════════════════════════════════ */
 function start() {
-  const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'gp_transfers'];
+  const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'gp_transfers', 'rider_payouts'];
 
   collections.forEach(k => {
     const unsub = db.collection(k)
-      .limit(k === 'orders' ? 200 : 100)
+      .limit(k === 'orders' ? 200 : (k === 'rider_payouts' ? 500 : 100))
       .onSnapshot(s => {
         const items = s.docs.map(d => ({ id: d.id, ...d.data() }));
 
         if (k === 'gp_transfers') {
           store.gpTransfers = items;
+        } else if (k === 'rider_payouts') {
+          store.payouts = items;
         } else {
           store[k] = items;
         }
@@ -547,7 +561,14 @@ function getBadgeCounts() {
   const pendingRiders = store.riders.filter(r => r.verified === false).length;
   const newOrders = store.orders.filter(o => ['searching', 'pending'].includes(o.status)).length;
   const pendingGpSlips = store.gpTransfers.filter(t => t.status === 'pending').length;
-  const pendingPayouts = 0; // TODO: จาก payouts collection
+  const pendingPayouts = store.orders.filter(o =>
+    ['done', 'delivered'].includes(o.status)
+    && o.riderId
+    && o.riderPayoutPaid !== true
+    && typeof o.gpRider === 'number'
+    && Number.isFinite(o.gpRider)
+    && o.gpRider > 0
+  ).length;
 
   const manualDispatch = store.orders.filter(o => o.dispatchState === 'manual' && !o.riderId).length;
 
@@ -571,6 +592,7 @@ function renderNav() {
     else if (k === 'riders' && b.pendingRiders) badge = `<span class="nav-badge">${b.pendingRiders}</span>`;
     else if (k === 'orders' && b.newOrders) badge = `<span class="nav-badge">${b.newOrders}</span>`;
     else if (k === 'gpTransfers' && b.pendingGpSlips) badge = `<span class="nav-badge">${b.pendingGpSlips}</span>`;
+    else if (k === 'payouts' && b.pendingPayouts) badge = `<span class="nav-badge">${b.pendingPayouts}</span>`;
     else if (k === 'dispatch' && b.manualDispatch) badge = `<span class="nav-badge">${b.manualDispatch}</span>`;
 
     return `<button class="ripple ${k === current ? 'on' : ''}" data-go="${k}">
@@ -1162,14 +1184,21 @@ function gpTransfers() {
    19. PAYOUTS (โอน GP 2% ให้ไรเดอร์)
    ═══════════════════════════════════════════════════════════════════ */
 function payouts() {
-  // คำนวณ GP 2% ค้างจ่ายต่อไรเดอร์ (จากออเดอร์ที่เสร็จแล้ว)
-  const completed = store.orders.filter(o => ['done', 'delivered'].includes(o.status));
+  // แสดงเฉพาะ GP ไรเดอร์จากออเดอร์ที่ยังไม่ถูกจ่าย และใช้ค่าที่ Server คำนวณ
+  // แล้วเท่านั้น เพื่อไม่ให้ยอดจาก foodTotal ที่ client แก้ได้ถูกนำไปโอน
+  const completed = store.orders.filter(o =>
+    ['done', 'delivered'].includes(o.status)
+    && o.riderId
+    && o.riderPayoutPaid !== true
+    && typeof o.gpRider === 'number'
+    && Number.isFinite(o.gpRider)
+    && o.gpRider > 0
+  );
   const byRider = {};
 
   completed.forEach(o => {
     if (!o.riderId) return;
-    const food = orderFoodTotal(o);
-    const gp2 = Math.round(food * GP_RIDER_SHARE * 100) / 100;
+    const gp2 = Math.round(Number(o.gpRider) * 100) / 100;
     if (!byRider[o.riderId]) {
       byRider[o.riderId] = {
         name: o.riderName || 'ไม่ระบุ',
@@ -1183,28 +1212,55 @@ function payouts() {
 
   const rows = Object.entries(byRider).sort((a, b) => b[1].total - a[1].total);
 
-  if (!rows.length) {
-    return '<div class="empty"><div class="icon">💸</div><div>ยังไม่มี GP ที่ต้องจ่าย</div><div style="font-size:12px;margin-top:8px">เมื่อมีออเดอร์เสร็จ GP 2% จะแสดงที่นี่</div></div>';
-  }
-
   const total = rows.reduce((s, [, r]) => s + r.total, 0);
+  const riderName = id => store.riders.find(r => r.id === id)?.name || 'ไรเดอร์ไม่ระบุ';
+  const riderNames = Object.fromEntries(store.riders.map(r => [r.id, r.name || r.id]));
+  const ledger = window.ChauatPayoutAuditUtils
+    ? window.ChauatPayoutAuditUtils.filterPayouts(store.payouts, {
+      query: filters.q, status: filters.payoutStatus, riderId: filters.payoutRider,
+      from: filters.payoutFrom, to: filters.payoutTo, riderNames
+    })
+    : store.payouts.slice();
+  const paidTotal = ledger.filter(p => p.status === 'paid').reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const paidCount = ledger.filter(p => p.status === 'paid').length;
+  const statusLabel = p => p.status === 'paid' ? '✅ โอนแล้ว' : (p.status === 'cancelled' ? '❌ ยกเลิก' : '⏳ ' + (p.status || 'ไม่ทราบสถานะ'));
+  const statusClass = p => p.status === 'paid' ? '' : 'w';
 
-  return `<div class="stat-grid">
+  return `<div class="payout-audit-head">
+    <div><div class="page-title">💸 ตรวจสอบยอดโอนไรเดอร์</div><div class="page-subtitle">Ledger จาก Cloud Function • อ่านอย่างเดียว • ตรวจย้อนหลังได้</div></div>
+    <div class="payout-audit-lock">🔒 Server Ledger</div>
+  </div>
+  <div class="stat-grid payout-audit-stats">
     <div class="stat-card orange">
       <div class="stat-icon">💸</div>
-      <div class="stat-value">฿${total.toFixed(0)}</div>
-      <div class="stat-label">GP 2% รวม</div>
+      <div class="stat-value">฿${fmt(total)}</div>
+      <div class="stat-label">ยอดรอโอน</div>
       <div class="stat-sub">${rows.length} ไรเดอร์</div>
     </div>
     <div class="stat-card purple">
       <div class="stat-icon">🛵</div>
       <div class="stat-value">${rows.reduce((s, [, r]) => s + r.count, 0)}</div>
-      <div class="stat-label">ออเดอร์รวม</div>
+      <div class="stat-label">ออเดอร์รอโอน</div>
+      <div class="stat-sub">ใช้ gpRider จาก Server</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-icon">✅</div>
+      <div class="stat-value">฿${fmt(paidTotal)}</div>
+      <div class="stat-label">โอนแล้วในผลค้นหา</div>
+      <div class="stat-sub">${paidCount} รายการ</div>
     </div>
   </div>
 
-  <div class="section-divider"><div class="title">💸 ยอดต้องโอนให้ไรเดอร์ (GP 2%)</div><div class="line"></div></div>
+  <div class="payout-audit-filters">
+    <div class="payout-filter-search"><span>🔍</span><input id="payout-q" data-payout-filter="q" value="${esc(filters.q)}" placeholder="ค้นหา payoutId, ไรเดอร์, ออเดอร์, รอบโอน..." autocomplete="off"></div>
+    <select data-payout-filter="status" aria-label="กรองสถานะ Payout"><option value="all" ${filters.payoutStatus === 'all' ? 'selected' : ''}>ทุกสถานะ</option><option value="paid" ${filters.payoutStatus === 'paid' ? 'selected' : ''}>✅ โอนแล้ว</option><option value="cancelled" ${filters.payoutStatus === 'cancelled' ? 'selected' : ''}>❌ ยกเลิก</option></select>
+    <select data-payout-filter="rider" aria-label="กรองไรเดอร์"><option value="">ไรเดอร์ทั้งหมด</option>${store.riders.slice().sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), 'th')).map(r => `<option value="${esc(r.id)}" ${filters.payoutRider === r.id ? 'selected' : ''}>${esc(r.name || r.id)}</option>`).join('')}</select>
+    <label>ตั้งแต่ <input type="date" data-payout-filter="from" value="${esc(filters.payoutFrom)}"></label>
+    <label>ถึง <input type="date" data-payout-filter="to" value="${esc(filters.payoutTo)}"></label>
+    <button class="btn-secondary payout-filter-clear" type="button" data-payout-clear>ล้างตัวกรอง</button>
+  </div>
 
+  ${rows.length ? `<div class="section-divider"><div class="title">💸 ยอดต้องโอนให้ไรเดอร์</div><div class="line"></div></div>
   ${rows.map(([riderId, r]) => `
     <div class="data-card">
       <div class="data-card-header">
@@ -1224,17 +1280,27 @@ function payouts() {
         ${r.phone ? `<a href="tel:${esc(r.phone)}" class="blue" style="text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center">📞 โทร</a>` : ''}
       </div>
     </div>
-  `).join('')}`;
+  `).join('')}` : '<div class="empty payout-empty"><div class="icon">✅</div><div>ไม่มีรายการที่รอโอน</div><div style="font-size:12px;margin-top:8px">ระบบจะแสดงยอดเมื่อออเดอร์เสร็จและมี gpRider จาก Server</div></div>'}
+
+  <div class="section-divider"><div class="title">🧾 ประวัติการโอนจาก Server</div><div class="line"></div></div>
+  ${ledger.length ? ledger.map(p => `<div class="data-card payout-ledger-card">
+    <div class="data-card-header">
+      <div class="data-card-icon" style="background:var(--green-light)">🧾</div>
+      <div class="data-card-info">
+        <div class="data-card-name">${esc(riderName(p.riderId))}</div>
+        <div class="data-card-meta">🔑 ${esc(p.payoutId || p.payoutKey || p.id)}</div>
+        <div class="data-card-meta">🕐 ${fmtTime(p.paidAt || p.createdAt)} • 📦 ${Array.isArray(p.orderIds) ? p.orderIds.length : Number(p.orderCount || 0)} ออเดอร์</div>
+        ${p.roundLabel ? `<div class="data-card-meta">📅 รอบ: ${esc(p.roundLabel)}</div>` : ''}
+      </div>
+      <div style="text-align:right"><div class="payout-ledger-amount">฿${fmt(p.amount)}</div><span class="tag ${statusClass(p)}">${esc(statusLabel(p))}</span></div>
+    </div>
+    <div class="data-card-actions"><button class="blue" data-view-payout="${esc(p.id)}">🔎 ตรวจรายละเอียด</button></div>
+  </div>`).join('') : '<div class="empty payout-empty"><div class="icon">🧾</div><div>ไม่พบประวัติการโอนตามตัวกรอง</div></div>'}`;
 }
 
 function payoutRider(riderId) {
-  const completed = store.orders.filter(o =>
-    ['done', 'delivered'].includes(o.status) && o.riderId === riderId
-  );
-  const total = completed.reduce((s, o) => {
-    const food = orderFoodTotal(o);
-    return s + Math.round(food * GP_RIDER_SHARE * 100) / 100;
-  }, 0);
+  const completed = payoutEligibleOrders(riderId);
+  const total = completed.reduce((s, o) => s + Math.round(Number(o.gpRider) * 100) / 100, 0);
 
   const rider = store.riders.find(r => r.id === riderId);
 
@@ -1248,11 +1314,37 @@ function payoutRider(riderId) {
     <div class="meta" style="margin-bottom:12px;font-weight:900">🛵 ${esc(rider?.name || 'ไม่ระบุ')}</div>
     <div class="meta" style="margin-bottom:12px">📞 ${esc(rider?.phone || '—')}</div>
 
+    <div class="form-field"><label>📅 รอบโอน (ไม่บังคับ)</label><input id="payout-round-label" maxlength="80" placeholder="เช่น รอบวันที่ 10 พ.ย. 2026"></div>
     <div class="form-field"><label>📝 หมายเหตุ (ไม่บังคับ)</label><textarea id="payout-note" rows="2" placeholder="เช่น โอนผ่าน KBank xxxx"></textarea></div>
 
-    <button class="btn-primary" style="width:100%" data-confirm-payout="${esc(riderId)}">✅ ยืนยันโอนแล้ว</button>
+    <button class="btn-primary" style="width:100%" data-confirm-payout="${esc(riderId)}" ${completed.length ? '' : 'disabled'}>✅ ยืนยันโอนแล้ว</button>
     <button class="btn-secondary" style="width:100%;margin-top:8px" onclick="closeModal()">ยกเลิก</button>
   `);
+}
+
+function viewPayoutDetail(payoutId) {
+  const p = store.payouts.find(x => x.id === payoutId);
+  if (!p) return showToast('ไม่พบรายการ Payout', 'warning');
+  const rider = store.riders.find(r => r.id === p.riderId);
+  const orderIds = Array.isArray(p.orderIds) ? p.orderIds : [];
+  const status = p.status === 'paid' ? '✅ โอนแล้ว' : (p.status || 'ไม่ทราบสถานะ');
+  openModal('🧾 รายละเอียด Rider Payout', `<div class="payout-detail-hero">
+    <div class="payout-detail-status">${esc(status)}</div><div class="payout-detail-amount">฿${fmt(p.amount)}</div>
+    <div class="payout-detail-key">${esc(p.payoutId || p.payoutKey || p.id)}</div>
+  </div>
+  <div class="payout-detail-grid">
+    <div><span>ไรเดอร์</span><b>${esc(rider?.name || p.riderId || '—')}</b></div>
+    <div><span>Rider ID</span><b>${esc(p.riderId || '—')}</b></div>
+    <div><span>วันที่โอน</span><b>${esc(fmtTime(p.paidAt || p.createdAt))}</b></div>
+    <div><span>ผู้ดำเนินการ</span><b>${esc(p.paidBy || '—')}</b></div>
+    <div><span>รอบโอน</span><b>${esc(p.roundLabel || '—')}</b></div>
+    <div><span>จำนวนออเดอร์</span><b>${orderIds.length}</b></div>
+  </div>
+  ${p.note ? `<div class="payout-detail-note">📝 ${esc(p.note)}</div>` : ''}
+  <div class="payout-order-list"><div class="payout-detail-section-title">📦 ออเดอร์ในชุดโอน</div>${orderIds.length ? orderIds.map(id => {
+    const o = store.orders.find(x => x.id === id);
+    return `<div class="payout-order-row"><span>${esc(orderCode(o) || id)}</span><span>${o ? esc(statusLabel(o)) : 'ไม่พบข้อมูลในรายการล่าสุด'}</span><b>${o ? '฿' + fmt(o.gpRider) : '—'}</b></div>`;
+  }).join('') : '<div class="meta">ไม่มีรายการออเดอร์</div>'}</div>`);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1726,7 +1818,7 @@ document.addEventListener('click', async e => {
     '[data-verify-rider],[data-toggle-rider],[data-del],[data-merchant-status],' +
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],' +
-    '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-change-role],' +
+    '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-view-payout],[data-payout-clear],[data-change-role],' +
     '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset],' +
     '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps],' +
     '[data-dispatch-save],[data-dispatch-assign],[data-dispatch-history],[data-shop-accept]'
@@ -1750,6 +1842,19 @@ document.addEventListener('click', async e => {
     if (t.dataset.gpRange) {
       filters.gpRange = t.dataset.gpRange;
       render();
+      return;
+    }
+    if (t.dataset.payoutClear !== undefined) {
+      filters.q = '';
+      filters.payoutStatus = 'all';
+      filters.payoutRider = '';
+      filters.payoutFrom = '';
+      filters.payoutTo = '';
+      render();
+      return;
+    }
+    if (t.dataset.viewPayout) {
+      viewPayoutDetail(t.dataset.viewPayout);
       return;
     }
     if (t.dataset.merchantStatus) {
@@ -1906,32 +2011,18 @@ document.addEventListener('click', async e => {
     if (t.dataset.verifyGp) {
       const gp = store.gpTransfers.find(x => x.id === t.dataset.verifyGp);
       if (!gp) return;
-      await db.collection('gp_transfers').doc(gp.id).update({
-        status: 'verified',
-        verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        verifiedBy: auth.currentUser.uid
-      });
-      // หัก gpPending ของร้าน (ถ้ามี)
-      if (gp.merchantId) {
-        const m = store.merchants.find(x => x.id === gp.merchantId);
-        if (m) {
-          const newPending = Math.max(0, Number(m.gpPending || 0) - Number(gp.amount || 0));
-          await db.collection('merchants').doc(m.id).update({ gpPending: newPending });
-        }
-      }
-      showToast('✅ ยืนยันสลิปแล้ว');
+      if (!window.ChauatFn) return showToast('ระบบตรวจสลิปยังไม่พร้อม — กรุณาติดตั้ง Cloud Functions', 'error');
+      const result = await ChauatFn.callFunction('reviewGpTransfer', { transferId: gp.id, action: 'verify' }, auth);
+      showToast(result && result.alreadyReviewed ? 'ℹ️ สลิปนี้ตรวจสอบไว้แล้ว' : '✅ ยืนยันสลิปและปรับยอดร้านแบบ Transaction แล้ว');
       closeModal();
       return;
     }
 
     if (t.dataset.rejectGp) {
       if (!confirm('ปฏิเสธสลิปนี้?')) return;
-      await db.collection('gp_transfers').doc(t.dataset.rejectGp).update({
-        status: 'rejected',
-        rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        rejectedBy: auth.currentUser.uid
-      });
-      showToast('❌ ปฏิเสธแล้ว');
+      if (!window.ChauatFn) return showToast('ระบบตรวจสลิปยังไม่พร้อม — กรุณาติดตั้ง Cloud Functions', 'error');
+      const result = await ChauatFn.callFunction('reviewGpTransfer', { transferId: t.dataset.rejectGp, action: 'reject' }, auth);
+      showToast(result && result.alreadyReviewed ? 'ℹ️ สลิปนี้ตรวจสอบไว้แล้ว' : '❌ ปฏิเสธสลิปแล้ว');
       closeModal();
       return;
     }
@@ -1945,34 +2036,17 @@ document.addEventListener('click', async e => {
     if (t.dataset.confirmPayout) {
       const riderId = t.dataset.confirmPayout;
       const note = ($('payout-note')?.value.trim()) || '';
-      const completed = store.orders.filter(o =>
-        ['done', 'delivered'].includes(o.status) && o.riderId === riderId
-      );
-      const total = completed.reduce((s, o) => {
-        const food = orderFoodTotal(o);
-        return s + Math.round(food * GP_RIDER_SHARE * 100) / 100;
-      }, 0);
-
-      await db.collection('rider_payouts').add({
+      const roundLabel = ($('payout-round-label')?.value.trim()) || '';
+      const completed = payoutEligibleOrders(riderId);
+      if (!completed.length) return showToast('ไม่พบยอดที่ยังไม่เคยโอน', 'warning');
+      if (!window.ChauatFn) return showToast('ระบบโอนยังไม่พร้อม — กรุณาติดตั้ง Cloud Functions', 'error');
+      const result = await ChauatFn.callFunction('createRiderPayout', {
         riderId,
-        riderName: store.riders.find(r => r.id === riderId)?.name || 'ไม่ระบุ',
-        amount: total,
-        orderCount: completed.length,
+        orderIds: completed.map(o => o.id),
         note,
-        status: 'paid',
-        paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-        paidBy: auth.currentUser.uid
-      });
-
-      // mark order ว่าโอนแล้ว
-      for (const o of completed) {
-        await db.collection('orders').doc(o.id).update({
-          riderPayoutPaid: true,
-          riderPayoutPaidAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-
-      showToast('✅ บันทึกการโอนแล้ว');
+        roundLabel
+      }, auth);
+      showToast(result && result.alreadyPaid ? 'ℹ️ รายการนี้ถูกบันทึกการโอนไว้แล้ว' : '✅ บันทึกการโอนแบบปลอดภัยแล้ว');
       closeModal();
       return;
     }
@@ -2118,6 +2192,14 @@ document.addEventListener('click', async e => {
    26. INPUT/CHANGE EVENTS
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('input', e => {
+  if (e.target.dataset && e.target.dataset.payoutFilter === 'q') {
+    filters.q = e.target.value;
+    const pos = e.target.selectionStart;
+    render();
+    const q = document.querySelector('[data-payout-filter="q"]');
+    if (q) { q.focus(); q.setSelectionRange(pos, pos); }
+    return;
+  }
   if (e.target.id === 'q') {
     filters.q = e.target.value;
     const pos = e.target.selectionStart;
@@ -2128,6 +2210,15 @@ document.addEventListener('input', e => {
 });
 
 document.addEventListener('change', async e => {
+  if (e.target.dataset && e.target.dataset.payoutFilter) {
+    const key = e.target.dataset.payoutFilter;
+    if (key === 'status') filters.payoutStatus = e.target.value;
+    if (key === 'rider') filters.payoutRider = e.target.value;
+    if (key === 'from') filters.payoutFrom = e.target.value;
+    if (key === 'to') filters.payoutTo = e.target.value;
+    render();
+    return;
+  }
   if (e.target.id === 'ofilter') {
     filters.orders = e.target.value;
     render();
