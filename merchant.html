@@ -614,7 +614,14 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
   padding: 12px 14px;
   padding-top: max(12px, env(safe-area-inset-top));
 }
-#app .app-header { flex-wrap: nowrap; }
+#app .app-header { flex-wrap: wrap; align-items: center; }
+#app .app-header .header-info { flex: 1 1 100%; min-width: 0; }
+#app .app-header .header-info .name,
+#app .app-header .header-info .status {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 #app .app-header .cg-brand {
   flex: 0 1 auto;
   justify-content: flex-start;
@@ -868,6 +875,8 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
       <div id="new-orders-list"></div>
       <div class="section-title">🍳 กำลังทำ <span class="section-count" id="cnt-cooking">0</span></div>
       <div id="cooking-orders-list"></div>
+      <div class="section-title">🛵 รอไรเดอร์รับ <span class="section-count" id="cnt-wait">0</span></div>
+      <div id="wait-orders-list"></div>
       <div class="section-title">✅ เสร็จแล้ววันนี้ <span class="section-count" id="cnt-done">0</span></div>
       <div id="done-orders-list"></div>
       <div id="orders-empty" class="empty-state" style="display:none">
@@ -944,6 +953,21 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
         <h4>📋 ประวัติ GP ที่โอนแล้ว</h4>
         <div id="gp-history-list"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="new-order-popup" id="stock-modal">
+  <div class="new-order-card" style="text-align:left">
+    <h2>วัตถุดิบหมด</h2>
+    <div class="sub">เลือกรายการที่ทำให้ไม่ได้ และบอกลูกค้าได้</div>
+    <div id="stock-items"></div>
+    <label class="form-field" style="display:block;margin-top:10px">โน้ตถึงลูกค้า
+      <input id="stock-note" maxlength="300" placeholder="เช่น เนื้อหมดวันนี้">
+    </label>
+    <div class="new-order-actions">
+      <button type="button" class="order-btn btn-accept ripple" onclick="submitStockIssue()">ส่งให้ลูกค้าเลือก</button>
+      <button type="button" class="order-btn btn-gray ripple" onclick="closeStockIssue()">ปิด</button>
     </div>
   </div>
 </div>

@@ -42,10 +42,12 @@ test('a shop reads the safe inbox and its private profile, not customer PII', {
         userName: 'สมชาย ใจดี', userPhone: '0812345678'
       });
       await root.collection('orders').doc('active1').collection('tracking').doc('current').set({ lat: 8.41, lng: 99.98 });
-      await root.collection('chats').doc('active1').set({ orderId: 'active1', userId: 'cust1', merchantId: 'shop1' });
-      await root.collection('chats').doc('done1').set({ orderId: 'done1', userId: 'cust1', merchantId: 'shop1' });
-      await root.collection('chats').doc('active1').collection('messages').doc('m1').set({ text: 'ไม่ใส่ผัก', senderId: 'cust1' });
-      await root.collection('chats').doc('done1').collection('messages').doc('m1').set({ text: 'เบอร์ 0812345678', senderId: 'cust1' });
+      await root.collection('chats').doc('active1').set({ orderId: 'active1', thread: 'rider', userId: 'cust1', riderId: 'rider1', merchantId: 'shop1' });
+      await root.collection('chats').doc('active1__shop').set({ orderId: 'active1', thread: 'shop', userId: 'cust1', merchantId: 'shop1', riderId: '' });
+      await root.collection('chats').doc('done1__shop').set({ orderId: 'done1', thread: 'shop', userId: 'cust1', merchantId: 'shop1', riderId: '' });
+      await root.collection('chats').doc('active1').collection('messages').doc('m1').set({ text: 'ถึงร้านแล้ว', senderId: 'rider1' });
+      await root.collection('chats').doc('active1__shop').collection('messages').doc('m1').set({ text: 'ไม่ใส่ผัก', senderId: 'cust1' });
+      await root.collection('chats').doc('done1__shop').collection('messages').doc('m1').set({ text: 'เบอร์ 0812345678', senderId: 'cust1' });
       await root.collection('merchants').doc('shop1').collection('orderInbox').doc('active1').set({
         orderId: 'active1', shortId: 'OD-1', customerName: 'สมชาย จ.', note: 'ไม่ใส่ผัก',
         items: [{ name: 'ข้าวแกง', qty: 1, price: 40 }], status: 'searching', safe: true
@@ -62,14 +64,15 @@ test('a shop reads the safe inbox and its private profile, not customer PII', {
     await assertFails(shop.collection('orders').doc('done1').get());
     await assertFails(shop.collection('orders').doc('active1').collection('private').doc('contacts').get());
     await assertFails(shop.collection('orders').doc('active1').collection('tracking').doc('current').get());
-    await assertFails(shop.collection('chats').doc('done1').collection('messages').doc('m1').get());
+    await assertFails(shop.collection('chats').doc('done1__shop').collection('messages').doc('m1').get());
+    await assertFails(shop.collection('chats').doc('active1').collection('messages').doc('m1').get());
 
     const inbox = await assertSucceeds(shop.collection('merchants').doc('shop1').collection('orderInbox').doc('active1').get());
     assert.equal(inbox.data().customerName, 'สมชาย จ.');
     assert.equal(inbox.data().note, 'ไม่ใส่ผัก');
     assert.equal(inbox.data().userPhone, undefined);
     assert.equal(inbox.data().address, undefined);
-    await assertSucceeds(shop.collection('chats').doc('active1').collection('messages').doc('m1').get());
+    await assertSucceeds(shop.collection('chats').doc('active1__shop').collection('messages').doc('m1').get());
     await assertSucceeds(shop.collection('merchants').doc('shop1').collection('orderInbox').doc('done1').get());
 
     const profile = await assertSucceeds(shop.collection('merchants').doc('shop1').collection('private').doc('profile').get());

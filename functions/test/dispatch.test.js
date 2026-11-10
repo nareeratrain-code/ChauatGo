@@ -1183,7 +1183,10 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         type: 'express', status: 'accepted', userId: 'cust1', riderId: 'rider1', merchantId: 'shop1',
         userName: 'ลูกค้า', riderName: 'สมหญิง', code: 'OD-CHAT'
       });
-      await root.collection('chats').doc('chat1').set({ orderId: 'chat1' });
+      await root.collection('chats').doc('chat1').set({ orderId: 'chat1', thread: 'rider', userId: 'cust1', riderId: 'rider1', merchantId: 'shop1' });
+      await root.collection('chats').doc('chat1__shop').set({
+        orderId: 'chat1', thread: 'shop', userId: 'cust1', merchantId: 'shop1', riderId: ''
+      });
       await root.collection('orders').doc('chat2').set({
         type: 'ride', status: 'accepted', userId: 'cust1', riderId: 'rider1', merchantId: '',
         code: 'OD-CHAT2'
@@ -1219,7 +1222,9 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       }))],
       ['customer message on legacy chat', () => assertSucceeds(cdb.collection('chats').doc('chat1').collection('messages').add(msg('cust1', 'user', 'ถึงไหนแล้ว')))],
       ['rider message on legacy chat', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(msg('rider1', 'rider', 'กำลังไป')))],
-      ['shop system message', () => assertSucceeds(sdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'ยกเลิก'), { systemMessage: true })))],
+      ['shop cannot post on the rider thread', () => assertFails(sdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'วัตถุดิบหมด'), { systemMessage: true })))],
+      ['shop posts on the shop thread', () => assertSucceeds(sdb.collection('chats').doc('chat1__shop').collection('messages').add(Object.assign(msg('shop1', 'merchant', 'วัตถุดิบหมด'), { systemMessage: true })))],
+      ['rider cannot read the shop thread', () => assertFails(rdb.collection('chats').doc('chat1__shop').collection('messages').limit(5).get())],
       ['food photo without a slip, then slip, then leave', async () => {
         await assertSucceeds(cdb.collection('orders').doc('food-ready').update({
           customerOrderConfirmed: true,

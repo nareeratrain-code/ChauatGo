@@ -141,11 +141,13 @@ service firebase.storage {
         && (
           firestore.get(chatPath(chatId)).data.get('userId', '') == request.auth.uid
           || (
-            firestore.get(chatPath(chatId)).data.get('riderId', '') == request.auth.uid
+            firestore.get(chatPath(chatId)).data.get('thread', '') != 'shop'
+            && firestore.get(chatPath(chatId)).data.get('riderId', '') == request.auth.uid
             && !orderFinished(chatId)
           )
           || (
-            firestore.get(chatPath(chatId)).data.get('merchantId', '') == request.auth.uid
+            firestore.get(chatPath(chatId)).data.get('thread', '') == 'shop'
+            && firestore.get(chatPath(chatId)).data.get('merchantId', '') == request.auth.uid
             && !orderFinished(chatId)
           )
         );

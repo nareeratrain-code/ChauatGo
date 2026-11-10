@@ -70,6 +70,13 @@ test('storage rules match every client upload path', async () => {
         fare: 20,
         items: [{ name: 'item', qty: 1, price: 70 }]
       });
+      await db.doc('chats/ord1__shop').set({
+        orderId: 'ord1',
+        thread: 'shop',
+        userId: 'cust1',
+        merchantId: 'shop1',
+        riderId: ''
+      });
       await db.doc('chats/ord1').set({
         orderId: 'ord1',
         userId: 'cust1',
@@ -208,7 +215,8 @@ test('storage rules match every client upload path', async () => {
 
       ['customer chat image', () => assertSucceeds(put(cs, 'chats/ord1/images/1_cust1.jpg'))],
       ['rider chat image', () => assertSucceeds(put(rs, 'chats/ord1/images/1_rider1.jpg'))],
-      ['shop chat image', () => assertSucceeds(put(ss, 'chats/ord1/images/1_shop1.jpg'))],
+      ['shop cannot put an image on the rider thread', () => assertFails(put(ss, 'chats/ord1/images/1_shop1.jpg'))],
+      ['shop chat image', () => assertSucceeds(put(ss, 'chats/ord1__shop/images/1_shop1.jpg'))],
       ['stranger chat image', () => assertFails(put(ts, 'chats/ord1/images/1_stranger.jpg'))],
       ['customer parcel photo in own folder', () => assertSucceeds(put(cs, 'chats/cust1/images/parcel_1.jpg'))],
       ['stranger parcel photo in customer folder', () => assertFails(put(ts, 'chats/cust1/images/parcel_2.jpg'))],

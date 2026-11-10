@@ -4508,6 +4508,24 @@ function renderHistoryCard(o) {
       (canReorderCompleted(o) ? '<button type="button" class="history-reorder" onclick="reorderCompletedOrder(\'' + esc(o.id) + '\')">สั่งอีกครั้ง</button>' : '') +
     '</div></article>';
 }
+function stockIssuePanel(o) {
+  if (!o) return '';
+  var issue = o.stockIssue || null;
+  var refund = Number(o.refundDue) > 0
+    ? '<div class="order-note">ต้องคืนเงิน ฿' + fmt(o.refundDue) + '</div>'
+    : '';
+  if (!issue || issue.status !== 'pending') return refund;
+  var names = (issue.items || []).map(function(item){ return esc(item.name); }).join(', ');
+  return '<div class="stock-prompt">' +
+    '<b>วัตถุดิบหมด</b>' +
+    '<div>' + names + '</div>' +
+    (issue.note ? '<div>' + esc(issue.note) + '</div>' : '') +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">' +
+      '<button type="button" class="rate-btn" onclick="swapStockItem(\'' + esc(o.id) + '\')">เปลี่ยนเมนู</button>' +
+      '<button type="button" class="rate-btn" onclick="removeStockItems(\'' + esc(o.id) + '\')">เอาออก</button>' +
+      '<button type="button" class="rate-btn" onclick="cancelStockOrder(\'' + esc(o.id) + '\')">ยกเลิกออเดอร์</button>' +
+    '</div></div>' + refund;
+}
 function renderOrderCard(o){
   var statusMap = {
     searching:'⏳ หาไรเดอร์', pending:'🔔 รอร้านรับ',
@@ -4630,7 +4648,9 @@ function renderOrderCard(o){
     (window.ChauatCall ? ChauatCall.buttons(o.id) : '') +
     '<div class="order-track-progress">' + progressDots + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
+      (o.merchantId && ['done','delivered','cancelled','shop_closed'].indexOf(o.status) === -1 ? '<button class="rate-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'shop\')">💬 แชทร้าน</button>' : '') +
       (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท • ยอดเงิน/สลิป</button>':'') +
+      stockIssuePanel(o) +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
@@ -5344,6 +5364,93 @@ window.setRating = function(target, value) {
   renderStars(target === 'merchant' ? 'rating-merchant-stars' : 'rating-rider-stars', target);
 };
 
+function cachedOrder(orderId) {
+  return (window._cachedOrders || []).filter(function(order){ return order.id === orderId; })[0] || null;
+}
+function stockMoney(order, items) {
+  var food = Math.round(items.reduce(function(sum, item){
+    return sum + (Number(item.price) || 0) * (Number(item.qty) || 0);
+  }, 0));
+  var fare = Number(order.fare) || 0;
+  var tip = Number(order.cashTip) || 0;
+  var oldFood = Number(order.foodTotal != null ? order.foodTotal : order.itemsTotal) || 0;
+  var paid = !!order.customerPaidAt && order.paymentMode !== 'cash';
+  return {
+    food: food,
+    total: food + fare + tip,
+    refundDue: paid ? Math.max(0, Math.round(oldFood - food)) : 0
+  };
+}
+function withoutMissingItems(order, replacement) {
+  var gone = {};
+  (order.stockIssue && order.stockIssue.items || []).forEach(function(item){ gone[item.name] = true; });
+  var items = (order.items || []).filter(function(item){ return !gone[item.name]; }).map(function(item){
+    return { name: item.name, qty: Number(item.qty) || 1, price: Number(item.price) || 0 };
+  });
+  if (replacement) items.push({ name: replacement.name, qty: 1, price: Number(replacement.price) || 0 });
+  return items;
+}
+async function writeStockChoice(order, status, replacement) {
+  var items = withoutMissingItems(order, replacement);
+  var money = stockMoney(order, items);
+  await db.collection('orders').doc(order.id).update({
+    items: items,
+    itemsText: items.map(function(item){ return item.name + ' x' + item.qty; }).join(', '),
+    foodTotal: money.food,
+    itemsTotal: money.food,
+    total: money.total,
+    refundDue: money.refundDue,
+    stockIssue: {
+      status: status,
+      items: order.stockIssue.items || [],
+      note: order.stockIssue.note || ''
+    }
+  });
+  showToast(money.refundDue > 0 ? 'ปรับรายการแล้ว • ต้องคืนเงิน ฿' + fmt(money.refundDue) : 'ปรับรายการแล้ว');
+}
+window.swapStockItem = async function(orderId) {
+  var order = cachedOrder(orderId);
+  if (!order || !order.stockIssue || order.stockIssue.status !== 'pending') return showToast('ไม่มีรายการที่หมด', 'info');
+  var snap = await db.collection('menus').where('merchantId', '==', order.merchantId).get();
+  var menus = [];
+  snap.forEach(function(doc){
+    var menu = doc.data() || {};
+    if ((menu.status || 'available') === 'available' && menu.name) menus.push(menu);
+  });
+  if (!menus.length) return showToast('ร้านไม่มีเมนูให้เปลี่ยน', 'warning');
+  var typed = prompt('พิมพ์ชื่อเมนูที่จะเปลี่ยน\n' + menus.map(function(menu){ return menu.name + ' ฿' + menu.price; }).join('\n'));
+  if (!typed) return;
+  var pick = menus.filter(function(menu){ return menu.name === typed.trim(); })[0];
+  if (!pick) return showToast('ไม่พบเมนูนี้', 'error');
+  try { await writeStockChoice(order, 'swapped', pick); }
+  catch (err) { showToast('เปลี่ยนเมนูไม่สำเร็จ', 'error'); }
+};
+window.removeStockItems = async function(orderId) {
+  var order = cachedOrder(orderId);
+  if (!order || !order.stockIssue) return;
+  if (!confirm('เอาเมนูที่หมดออก และคำนวณยอดใหม่?')) return;
+  try { await writeStockChoice(order, 'removed', null); }
+  catch (err) { showToast('ปรับรายการไม่สำเร็จ', 'error'); }
+};
+window.cancelStockOrder = async function(orderId) {
+  var order = cachedOrder(orderId);
+  if (!order || !order.stockIssue) return;
+  if (!confirm('ยกเลิกออเดอร์นี้เพราะวัตถุดิบหมด?')) return;
+  try {
+    await db.collection('orders').doc(orderId).update({
+      status: 'cancelled',
+      cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+      cancelledBy: 'customer',
+      cancelReason: 'วัตถุดิบหมด',
+      stockIssue: {
+        status: 'cancelled',
+        items: order.stockIssue.items || [],
+        note: order.stockIssue.note || ''
+      }
+    });
+    showToast('ยกเลิกออเดอร์แล้ว');
+  } catch (err) { showToast('ยกเลิกไม่สำเร็จ', 'error'); }
+};
 window.closeRatingModal = function() {
   if ($('rating-modal')) $('rating-modal').classList.remove('show');
   ratingOrder = null; ratingMerchant = 0; ratingRider = 0;
@@ -5374,11 +5481,12 @@ window.submitRating = async function() {
 };
 
 /* ═══ CHAT ═══ */
-window.openChatPage = async function(orderId) {
+window.openChatPage = async function(orderId, thread) {
   if (!currentUser) { showLoginModal(); return; }
   if (!orderId) return;
+  thread = thread === 'shop' ? 'shop' : 'rider';
   var known = chatListById[orderId] || ((window._cachedOrders || []).filter(function(o){ return o.id === orderId; })[0]);
-  activeChatId = orderId;
+  activeChatId = chatDocId(orderId, thread);
   if ($('chat-title')) $('chat-title').textContent = (known && (known.userId === currentUser.uid ? known.riderName : known.userName)) || 'แชท';
   if ($('chat-subtitle')) $('chat-subtitle').textContent = known ? (orderLabel(known) + ' • ' + (known.title || 'ออเดอร์')) : 'กำลังเปิดแชท...';
   var page = $('chat-page');
@@ -5396,20 +5504,24 @@ window.openChatPage = async function(orderId) {
       if (box) box.innerHTML = '<div class="chat-empty">ไม่มีสิทธิ์เปิดแชทนี้</div>';
       return showToast('ไม่มีสิทธิ์','error');
     }
-    if (!o.riderId) {
+    if (thread === 'rider' && !o.riderId) {
       if (box) box.innerHTML = '<div class="chat-empty">ยังไม่มีไรเดอร์รับงาน</div>';
       return showToast('ยังไม่มีไรเดอร์รับงาน','warning');
     }
-    var ensured = await ensureOrderChat(orderId, o);
+    if (thread === 'shop' && !o.merchantId) {
+      if (box) box.innerHTML = '<div class="chat-empty">ออเดอร์นี้ไม่มีร้าน</div>';
+      return showToast('ออเดอร์นี้ไม่มีร้าน','warning');
+    }
+    var ensured = await ensureOrderChat(orderId, o, thread);
     await ensureCustomerSlipChatMessage(orderId, o);
     var isUser = ensured.role === 'user';
     activeChatRole = ensured.role;
-    var otherName = isUser ? (o.riderName || 'ไรเดอร์') : (o.userName || 'ลูกค้า');
+    var otherName = !isUser ? (o.userName || 'ลูกค้า') : (thread === 'shop' ? (o.merchantName || 'ร้าน') : (o.riderName || 'ไรเดอร์'));
     window._chatOrder = o;
     if ($('chat-title')) $('chat-title').textContent = otherName;
     if ($('chat-subtitle')) $('chat-subtitle').textContent = orderLabel(o) + ' • ' + (o.title || 'ออเดอร์');
     if (page) page.classList.add('show');
-    subscribeChatMessages(orderId);
+    subscribeChatMessages(activeChatId);
     setTimeout(scrollChatToBottom, 300);
   } catch (e) {
     console.warn('openChatPage:', e.message);
@@ -5425,9 +5537,17 @@ window.closeChatPage = function() {
   activeChatId = null;
 };
 
-function subscribeChatMessages(orderId) {
+function orderIdFromChat(chatId) {
+  var id = String(chatId || '');
+  return id.slice(-6) === '__shop' ? id.slice(0, -6) : id;
+}
+function chatDocId(orderId, thread) {
+  return thread === 'shop' ? orderId + '__shop' : orderId;
+}
+function subscribeChatMessages(chatId) {
+  var orderId = orderIdFromChat(chatId);
   if (chatUnsub) chatUnsub();
-  chatUnsub = db.collection('chats').doc(orderId).collection('messages')
+  chatUnsub = db.collection('chats').doc(chatId).collection('messages')
     .orderBy('createdAt','asc').limit(200)
     .onSnapshot(function(snap){
       var box = $('chat-messages'); if (!box) return;
@@ -5500,19 +5620,22 @@ function chatPartyRole(order) {
   return '';
 }
 
-function chatBodyFromOrder(order) {
+function chatBodyFromOrder(order, thread) {
+  var shop = thread === 'shop';
   return {
-    orderId: order.id || activeChatId || '',
+    orderId: order.id || orderIdFromChat(activeChatId) || '',
+    thread: shop ? 'shop' : 'rider',
     userId: order.userId || '',
     userName: order.userName || 'ลูกค้า',
-    riderId: order.riderId || '',
-    riderName: order.riderName || '',
+    riderId: shop ? '' : (order.riderId || ''),
+    riderName: shop ? '' : (order.riderName || ''),
     merchantId: order.merchantId || '',
     merchantName: order.merchantName || ''
   };
 }
 
-async function ensureOrderChat(orderId, knownOrder) {
+async function ensureOrderChat(orderId, knownOrder, thread) {
+  thread = thread === 'shop' ? 'shop' : 'rider';
   var order = knownOrder;
   if (!order) {
     var orderSnap = await db.collection('orders').doc(orderId).get();
@@ -5529,8 +5652,8 @@ async function ensureOrderChat(orderId, knownOrder) {
     denied.code = 'permission-denied';
     throw denied;
   }
-  var chatRef = db.collection('chats').doc(orderId);
-  var body = chatBodyFromOrder(order);
+  var chatRef = db.collection('chats').doc(chatDocId(orderId, thread));
+  var body = chatBodyFromOrder(order, thread);
   body.orderId = orderId;
   var snap = null;
   try { snap = await chatRef.get(); } catch (e) { snap = null; }
@@ -5596,7 +5719,7 @@ window.sendChatMessage = async function() {
   var text = inp.value.trim(); if (!text) return;
   inp.value = '';
   try {
-    var ensured = await ensureOrderChat(activeChatId);
+    var ensured = await ensureOrderChat(orderIdFromChat(activeChatId), null, String(activeChatId).slice(-6) === '__shop' ? 'shop' : 'rider');
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       senderId: currentUser.uid,
       senderRole: ensured.role,
@@ -5644,7 +5767,7 @@ window.handleChatImage = async function(event) {
     var ref = storage.ref(path);
     var snap = await ref.put(file, { contentType: file.type });
     var url = await snap.ref.getDownloadURL();
-    var ensured = await ensureOrderChat(activeChatId);
+    var ensured = await ensureOrderChat(orderIdFromChat(activeChatId), null, String(activeChatId).slice(-6) === '__shop' ? 'shop' : 'rider');
     await db.collection('chats').doc(activeChatId).collection('messages').add({
       senderId: currentUser.uid,
       senderRole: ensured.role,

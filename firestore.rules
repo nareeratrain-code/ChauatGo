@@ -949,6 +949,70 @@ service cloud.firestore {
         && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
     }
 
+    function merchantStockIssueOk() {
+      return isOrderMerchant()
+        && resource.data.type == 'food'
+        && resource.data.partnerShop == true
+        && resource.data.status in ['cooking', 'accepted', 'ready']
+        && identityFrozen()
+        && unchanged('riderId')
+        && unchanged('status')
+        && onlyChanged(['stockIssue'])
+        && (!resource.data.keys().hasAny(['stockIssue'])
+          || resource.data.stockIssue.get('status', '') == '')
+        && request.resource.data.stockIssue.keys().hasAll(['status', 'items', 'note'])
+        && request.resource.data.stockIssue.status == 'pending'
+        && request.resource.data.stockIssue.items is list
+        && request.resource.data.stockIssue.items.size() > 0
+        && request.resource.data.stockIssue.items.size() <= 20
+        && request.resource.data.stockIssue.note is string
+        && request.resource.data.stockIssue.note.size() <= 300;
+    }
+
+    function customerStockChoiceOk() {
+      let oldFood = resource.data.get('foodTotal', resource.data.get('itemsTotal', 0));
+      let paidTransfer = resource.data.get('customerPaidAt', null) != null
+        && resource.data.get('paymentMode', '') != 'cash';
+      let refund = oldFood - request.resource.data.foodTotal;
+      return isOrderCustomer()
+        && resource.data.type == 'food'
+        && resource.data.status in ['cooking', 'accepted', 'ready']
+        && request.resource.data.status == resource.data.status
+        && resource.data.keys().hasAny(['stockIssue'])
+        && resource.data.stockIssue.status == 'pending'
+        && identityFrozen()
+        && unchanged('riderId')
+        && unchanged('fare')
+        && unchanged('cashTip')
+        && onlyChanged(['items', 'itemsText', 'foodTotal', 'itemsTotal', 'total', 'refundDue', 'stockIssue'])
+        && request.resource.data.stockIssue.status in ['removed', 'swapped']
+        && request.resource.data.foodTotal is number
+        && request.resource.data.foodTotal >= 0
+        && request.resource.data.foodTotal <= oldFood
+        && request.resource.data.itemsTotal == request.resource.data.foodTotal
+        && request.resource.data.items is list
+        && request.resource.data.items.size() <= 40
+        && request.resource.data.total == request.resource.data.foodTotal
+          + resource.data.get('fare', 0)
+          + resource.data.get('cashTip', 0)
+        && request.resource.data.refundDue is number
+        && request.resource.data.refundDue == (paidTransfer ? refund : 0);
+    }
+
+    function customerStockCancelOk() {
+      return isOrderCustomer()
+        && resource.data.type == 'food'
+        && resource.data.status in ['cooking', 'accepted', 'ready']
+        && request.resource.data.status == 'cancelled'
+        && resource.data.keys().hasAny(['stockIssue'])
+        && resource.data.stockIssue.status == 'pending'
+        && request.resource.data.stockIssue.status == 'cancelled'
+        && cancelFieldsOk('customer')
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'stockIssue']);
+    }
+
     function merchantReadyOk() {
       return moneyFrozen() && isOrderMerchant()
         && request.resource.data.foodReady == true
@@ -1013,7 +1077,13 @@ service cloud.firestore {
                                 ? merchantCookingOk()
                                 : changed.hasOnly(['foodReady', 'readyAt', 'status', 'foodDeliveryStage'])
                                   ? merchantReadyOk()
-                                  : false);
+                                  : changed.hasOnly(['stockIssue'])
+                                    ? merchantStockIssueOk()
+                                    : changed.hasOnly(['items', 'itemsText', 'foodTotal', 'itemsTotal', 'total', 'refundDue', 'stockIssue'])
+                                      ? customerStockChoiceOk()
+                                      : changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'stockIssue'])
+                                        ? customerStockCancelOk()
+                                        : false);
     }
 
     function orderIsFinished() {
@@ -1044,8 +1114,8 @@ service cloud.firestore {
 
     function chatParticipantOn(data) {
       return data.get('userId', '') == myUid()
-        || data.get('riderId', '') == myUid()
-        || data.get('merchantId', '') == myUid();
+        || (data.get('thread', '') != 'shop' && data.get('riderId', '') == myUid())
+        || (data.get('thread', '') == 'shop' && data.get('merchantId', '') == myUid());
     }
 
     function blankId(value) {
@@ -1070,11 +1140,67 @@ service cloud.firestore {
         || orderParty(orderId, 'merchantId');
     }
 
+    // Shop messages live on chats/{orderId}__shop. Rider messages stay on
+    // chats/{orderId}. A missing orderId means the document id is the order.
+    function chatOrder(chatId) {
+      return exists(chatPath(chatId))
+        && get(chatPath(chatId)).data.get('orderId', '') != ''
+        ? get(chatPath(chatId)).data.orderId
+        : chatId;
+    }
+
     function chatIdsFollowOrder(chatId) {
-      return exists(orderPath(chatId))
-        && blankId(request.resource.data.get('userId', '')) == blankId(get(orderPath(chatId)).data.get('userId', ''))
-        && blankId(request.resource.data.get('riderId', '')) == blankId(get(orderPath(chatId)).data.get('riderId', ''))
-        && blankId(request.resource.data.get('merchantId', '')) == blankId(get(orderPath(chatId)).data.get('merchantId', ''));
+      let oid = request.resource.data.get('orderId', '') != ''
+        ? request.resource.data.orderId
+        : chatId;
+      return exists(orderPath(oid))
+        && blankId(request.resource.data.get('userId', '')) == blankId(get(orderPath(oid)).data.get('userId', ''))
+        && blankId(request.resource.data.get('merchantId', '')) == blankId(get(orderPath(oid)).data.get('merchantId', ''))
+        && (
+          request.resource.data.get('thread', '') == 'shop'
+            ? chatId == oid + '__shop' && request.resource.data.get('riderId', '') == ''
+            : chatId == oid
+              && blankId(request.resource.data.get('riderId', '')) == blankId(get(orderPath(oid)).data.get('riderId', ''))
+        );
+    }
+
+    function shopThread(chatId) {
+      return exists(chatPath(chatId))
+        && get(chatPath(chatId)).data.get('thread', '') == 'shop';
+    }
+
+    // The rider cannot read the shop thread. The shop cannot read the rider thread.
+    function canReadThread(chatId) {
+      return exists(chatPath(chatId)) && (
+        shopThread(chatId)
+          ? (
+            get(chatPath(chatId)).data.get('userId', '') == myUid()
+            || get(chatPath(chatId)).data.get('merchantId', '') == myUid()
+          )
+          : (
+            get(chatPath(chatId)).data.get('userId', '') == myUid()
+            || get(chatPath(chatId)).data.get('riderId', '') == myUid()
+          )
+      );
+    }
+
+    function messageThreadOk(chatId) {
+      return exists(chatPath(chatId)) && (
+        shopThread(chatId)
+          ? request.resource.data.senderRole in ['user', 'merchant', 'admin']
+          : request.resource.data.senderRole in ['user', 'rider', 'admin']
+      );
+    }
+
+    // After the rider picks the food up, the shop thread is history.
+    function shopChatClosed(chatId) {
+      let oid = chatOrder(chatId);
+      return exists(orderPath(oid))
+        && get(orderPath(oid)).data.get('merchantId', '') == myUid()
+        && get(orderPath(oid)).data.get('userId', '') != myUid()
+        && get(orderPath(oid)).data.get('status', '') in [
+          'picked_up', 'customer_paid', 'on_the_way', 'done', 'delivered', 'cancelled', 'shop_closed'
+        ];
     }
 
     function messageOk() {
@@ -1473,12 +1599,15 @@ service cloud.firestore {
         ? isAuth()
         : (
           isAdmin()
+          || resource.data.get('userId', '') == myUid()
           || (
-            !readerIsFinishedRider(chatId)
-            && (
-              isOrderParty(chatId)
-              || (isAuth() && chatParticipantOn(resource.data))
-            )
+            resource.data.get('thread', '') == 'shop'
+            && resource.data.get('merchantId', '') == myUid()
+          )
+          || (
+            resource.data.get('thread', '') != 'shop'
+            && resource.data.get('riderId', '') == myUid()
+            && !readerIsFinishedRider(chatId)
           )
         );
       allow create: if isAuth() && (
@@ -1511,18 +1640,14 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if isAdmin()
           || (
-            !readerIsFinishedStaff(chatId)
-            && (
-              isOrderParty(chatId)
-              || chatParty(chatId, 'userId')
-              || chatParty(chatId, 'riderId')
-              || chatParty(chatId, 'merchantId')
-            )
+            canReadThread(chatId)
+            && !readerIsFinishedRider(chatOrder(chatId))
+            && !shopChatClosed(chatId)
           );
-        allow create: if messageOk() && (
-          (messageFrom(chatId, 'user', 'userId') && !customerLockedOut(chatId))
-          || (messageFrom(chatId, 'rider', 'riderId') && !readerIsFinishedRider(chatId))
-          || (messageFrom(chatId, 'merchant', 'merchantId') && !readerIsFinishedMerchant(chatId))
+        allow create: if messageOk() && messageThreadOk(chatId) && (
+          (messageFrom(chatId, 'user', 'userId') && !customerLockedOut(chatOrder(chatId)))
+          || (messageFrom(chatId, 'rider', 'riderId') && !readerIsFinishedRider(chatOrder(chatId)))
+          || (messageFrom(chatId, 'merchant', 'merchantId') && !shopChatClosed(chatId))
           || (request.resource.data.senderRole == 'admin' && isAdmin())
         );
         allow update, delete: if isAdmin();

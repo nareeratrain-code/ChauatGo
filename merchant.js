@@ -206,6 +206,20 @@ function orderIsHistory(o) {
   return !!o && ['done', 'delivered', 'cancelled', 'shop_closed'].includes(o.status);
 }
 
+function shopChatId(orderId) {
+  return orderId + '__shop';
+}
+
+function shopWaitingPickup(o) {
+  if (!o || orderIsHistory(o)) return false;
+  if (['picked_up', 'customer_paid', 'on_the_way'].includes(o.status)) return false;
+  return o.status === 'ready' || ((o.status === 'accepted' || o.status === 'cooking') && (o.foodReady || o.readyAt));
+}
+
+function shopHistory(o) {
+  return orderIsHistory(o) || (!!o && ['picked_up', 'customer_paid', 'on_the_way'].includes(o.status));
+}
+
 function calcFinalPrice(menu) {
   if (!menu || !menu.price) return 0;
   if (!menu.promotion || !menu.promotion.active) return Number(menu.price);
@@ -920,22 +934,26 @@ function renderOrders() {
   }
   if (loading) loading.style.display = 'none';
   const pending = allOrders.filter(o => o.status === 'searching' || o.status === 'pending');
-  const cooking = allOrders.filter(isShopKitchen);
-  const done = allOrders.filter(o => orderIsHistory(o) && isToday(o.doneAt || o.deliveredAt || o.cancelledAt || o.createdAt));
+  const cooking = allOrders.filter(o => isShopKitchen(o) && !shopWaitingPickup(o));
+  const waiting = allOrders.filter(shopWaitingPickup);
+  const done = allOrders.filter(o => shopHistory(o) && isToday(o.doneAt || o.deliveredAt || o.cancelledAt || o.pickedUpAt || o.createdAt));
 
   const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
   el('cnt-new', pending.length);
   el('cnt-cooking', cooking.length);
+  el('cnt-wait', waiting.length);
   el('cnt-done', done.length);
 
   const nl = $('new-orders-list');
   if (nl) nl.innerHTML = pending.map(o => renderOrderCard(o)).join('');
   const cl = $('cooking-orders-list');
   if (cl) cl.innerHTML = cooking.map(o => renderOrderCard(o)).join('');
+  const wl = $('wait-orders-list');
+  if (wl) wl.innerHTML = waiting.map(o => renderOrderCard(o)).join('');
   const dl = $('done-orders-list');
   if (dl) dl.innerHTML = done.slice(0, 10).map(o => renderOrderCard(o)).join('');
 
-  if (empty) empty.style.display = (pending.length + cooking.length + done.length) === 0 ? 'block' : 'none';
+  if (empty) empty.style.display = (pending.length + cooking.length + waiting.length + done.length) === 0 ? 'block' : 'none';
 }
 
 function statusChip(status) {
@@ -958,7 +976,8 @@ function statusChip(status) {
 
 function renderOrderCard(o) {
   const isCash = o.paymentMode === 'cash';
-  const finished = orderIsHistory(o);
+  const finished = shopHistory(o);
+  const waiting = shopWaitingPickup(o);
   const foodTotal = calcOrderFoodTotal(o);
   const itemsHtml = (o.items || []).map(i =>
     `<div class="item-row"><span class="item-name">${esc(i.name)} × ${i.qty}</span><b>฿${fmt(i.price * i.qty)}</b></div>`
@@ -973,12 +992,12 @@ function renderOrderCard(o) {
       <button type="button" class="order-btn btn-accept ripple" onclick="openPrepPicker('${esc(o.id)}')">✅ รับออเดอร์</button>
       <button type="button" class="order-btn btn-reject ripple" onclick="cancelOrder('${esc(o.id)}')">❌ ปฏิเสธ</button>
     </div>`;
-  } else if (!finished && (o.status === 'cooking' || (o.status === 'accepted' && !o.foodReady && !o.readyAt))) {
+  } else if (!finished && !waiting && (o.status === 'cooking' || (o.status === 'accepted' && !o.foodReady && !o.readyAt))) {
     actions = `<div class="order-actions two">
       <button type="button" class="order-btn btn-ready ripple" onclick="readyOrder('${esc(o.id)}')">✅ พร้อมส่ง</button>
-      <button type="button" class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รายละเอียด</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="openStockIssue('${esc(o.id)}')">วัตถุดิบหมด</button>
     </div>`;
-  } else if (!finished && o.status === 'ready') {
+  } else if (waiting) {
     actions = `<div class="order-actions">
       <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รอดำเนินการ</button>
     </div>`;
@@ -988,11 +1007,12 @@ function renderOrderCard(o) {
     </div>`;
   }
 
-  const callRow = !finished && window.ChauatCall ? ChauatCall.buttons(o.id) : '';
-  const contactActions = finished ? '' : `<div class="order-actions two" style="margin-top:8px">
+  const contactActions = finished ? '' : `<div class="order-actions" style="margin-top:8px">
       <button class="order-btn btn-blue ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
-      ${o.riderId ? `<button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>` : ''}
-    </div>${callRow}`;
+    </div>`;
+  const stockNote = o.stockIssue && o.stockIssue.status
+    ? `<div class="order-note">วัตถุดิบ: ${esc(o.stockIssue.status === 'pending' ? 'รอลูกค้าเลือก' : o.stockIssue.status)}${o.stockIssue.note ? ' • ' + esc(o.stockIssue.note) : ''}</div>`
+    : '';
 
   const badge = isCash
     ? '<span class="cash-badge">💵 เงินสด</span>'
@@ -1016,6 +1036,7 @@ function renderOrderCard(o) {
     </div>
     <div class="order-items">${itemsHtml}</div>
     ${noteHtml}
+    ${stockNote}
     <div class="order-total">
       <div><div class="sub">ยอดอาหาร</div><div>฿${fmt(foodTotal)}</div></div>
       <div class="amt">฿${fmt(foodTotal)}</div>
@@ -1032,6 +1053,7 @@ const PREP_CHOICES = [10, 15, 20];
 const DEFAULT_PREP_MINUTES = 15;
 let prepPickOrderId = null;
 let prepPickMinutes = DEFAULT_PREP_MINUTES;
+let stockOrderId = null;
 
 function isShopKitchen(o) {
   if (!o) return false;
@@ -1117,6 +1139,47 @@ async function acceptOrder(orderId, prepMinutes) {
   }
 }
 
+function openStockIssue(orderId) {
+  const order = allOrders.find(x => x.id === orderId);
+  if (!order || shopHistory(order) || shopWaitingPickup(order)) return showToast('แจ้งหมดได้ก่อนอาหารพร้อม', 'info');
+  stockOrderId = orderId;
+  const box = $('stock-items');
+  if (box) {
+    box.innerHTML = (order.items || []).map((item, index) =>
+      `<label class="stock-pick"><input type="checkbox" value="${index}"> ${esc(item.name)} × ${esc(item.qty)}</label>`
+    ).join('') || '<div>ไม่มีรายการ</div>';
+  }
+  if ($('stock-note')) $('stock-note').value = '';
+  $('stock-modal')?.classList.add('show');
+}
+
+function closeStockIssue() {
+  $('stock-modal')?.classList.remove('show');
+  stockOrderId = null;
+}
+
+async function submitStockIssue() {
+  const order = allOrders.find(x => x.id === stockOrderId);
+  if (!order) return closeStockIssue();
+  const picked = Array.from(document.querySelectorAll('#stock-items input:checked')).map(el => Number(el.value));
+  if (!picked.length) return showToast('เลือกรายการที่หมด', 'error');
+  const items = picked.map(index => ({
+    name: String((order.items[index] && order.items[index].name) || ''),
+    qty: Number(order.items[index] && order.items[index].qty) || 0,
+    price: Number(order.items[index] && order.items[index].price) || 0
+  })).filter(item => item.name);
+  const note = String($('stock-note')?.value || '').trim().slice(0, 300);
+  try {
+    await db.collection('orders').doc(order.id).update({
+      stockIssue: { status: 'pending', items: items, note: note }
+    });
+    showToast('แจ้งลูกค้าแล้ว');
+    closeStockIssue();
+  } catch (err) {
+    showToast(merchantFirebaseErrorText(err, 'แจ้งไม่สำเร็จ'), 'error');
+  }
+}
+
 async function readyOrder(orderId) {
   const order = allOrders.find(x => x.id === orderId);
   if (!order || orderIsHistory(order)) return showToast('ไม่พบออเดอร์', 'error');
@@ -1150,7 +1213,7 @@ async function cancelOrder(orderId) {
 
     /* แจ้งลูกค้าใน chat */
     try {
-      const chatRef = db.collection('chats').doc(orderId);
+      const chatRef = db.collection('chats').doc(shopChatId(orderId));
       const chatSnap = await chatRef.get();
 
       if (!chatSnap.exists) {
@@ -1158,8 +1221,9 @@ async function cancelOrder(orderId) {
           orderId: orderId,
           userId: order.userId || '',
           userName: customerLabel(order),
-          riderId: order.riderId || '',
-          riderName: order.riderName || '',
+          thread: 'shop',
+          riderId: '',
+          riderName: '',
           merchantId: currentUser.uid,
           merchantName: merchantProfile.name,
           lastMessage: '',
@@ -1171,7 +1235,7 @@ async function cancelOrder(orderId) {
 
       const cancelMessage = `❌ ร้านค้ายกเลิกออเดอร์\n📝 เหตุผล: ${reason || 'ร้านค้ายกเลิก'}\n\nขออภัยในความไม่สะดวก 🙏`;
 
-      await db.collection('chats').doc(orderId).collection('messages').add({
+      await db.collection('chats').doc(shopChatId(orderId)).collection('messages').add({
         text: cancelMessage,
         senderId: currentUser.uid,
         senderRole: 'merchant',
@@ -1180,7 +1244,7 @@ async function cancelOrder(orderId) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      await db.collection('chats').doc(orderId).update({
+      await db.collection('chats').doc(shopChatId(orderId)).update({
         lastMessage: '❌ ยกเลิก: ' + (reason || 'ร้านค้ายกเลิก'),
         lastSenderId: currentUser.uid,
         lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1203,7 +1267,7 @@ async function cancelOrder(orderId) {
 function viewOrderDetail(orderId) {
   const o = allOrders.find(x => x.id === orderId);
   if (!o) return;
-  const finished = orderIsHistory(o);
+  const finished = shopHistory(o);
   const foodTotal = calcOrderFoodTotal(o);
   const gp = calcGp(foodTotal, merchantProfile);
   const isCash = o.paymentMode === 'cash';
@@ -1251,11 +1315,7 @@ function viewOrderDetail(orderId) {
   }
 
   const actionsHtml = finished ? '' : `
-    ${window.ChauatCall ? ChauatCall.buttons(o.id) : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <button class="order-btn btn-cook ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
-      ${o.riderId ? `<button class="order-btn btn-gray ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>` : ''}
-    </div>
+    <button class="order-btn btn-cook ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
   `;
   const $actions = $('order-detail-actions');
   if ($actions) $actions.innerHTML = actionsHtml;
@@ -2277,8 +2337,8 @@ async function submitGpTransfer() {
 async function openChatWithCustomer(orderId) {
   const o = allOrders.find(x => x.id === orderId);
   if (!o) return showToast('ไม่พบออเดอร์', 'error');
-  if (orderIsHistory(o)) return showToast('งานนี้จบแล้ว', 'info');
-  activeChatId = orderId;
+  if (shopHistory(o)) return showToast('งานนี้จบแล้ว', 'info');
+  activeChatId = shopChatId(orderId);
   activeChatCallRole = 'customer';
   activeChatPartnerName = customerLabel(o);
   await openChatRoom(orderId, activeChatPartnerName, '🧾 ' + orderLabel(o) + ' • ' + (o.title || 'ออเดอร์'));
@@ -2298,18 +2358,20 @@ async function openChatWithRider(orderId) {
 }
 
 async function openChatRoom(orderId, name, sub) {
+  const chatId = shopChatId(orderId);
   try {
-    const chatRef = db.collection('chats').doc(orderId);
+    const chatRef = db.collection('chats').doc(chatId);
     const snap = await chatRef.get();
     if (!snap.exists) {
       const o = allOrders.find(x => x.id === orderId);
       if (!o) return;
       await chatRef.set({
         orderId: orderId,
+        thread: 'shop',
         userId: o.userId || '',
         userName: customerLabel(o),
-        riderId: o.riderId || '',
-        riderName: o.riderName || 'ไรเดอร์',
+        riderId: '',
+        riderName: '',
         merchantId: currentUser.uid,
         merchantName: merchantProfile.name,
         lastMessage: '', lastSenderId: '',
@@ -2324,7 +2386,7 @@ async function openChatRoom(orderId, name, sub) {
   $('chatContainer')?.classList.add('show');
 
   if (activeChatUnsub) activeChatUnsub();
-  activeChatUnsub = db.collection('chats').doc(orderId).collection('messages')
+  activeChatUnsub = db.collection('chats').doc(chatId).collection('messages')
     .orderBy('createdAt', 'asc').limit(200)
     .onSnapshot(snap => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2366,16 +2428,20 @@ function renderChatMessages(msgs) {
   el.scrollTop = el.scrollHeight;
 }
 
-async function ensureMerchantChat(orderId) {
+async function ensureMerchantChat(chatOrOrderId) {
+  const orderId = String(chatOrOrderId || '').endsWith('__shop')
+    ? String(chatOrOrderId).slice(0, -6)
+    : chatOrOrderId;
   const data = allOrders.find(x => x.id === orderId);
-  if (!data || orderIsHistory(data)) throw new Error('missing-order');
-  const chatRef = db.collection('chats').doc(orderId);
+  if (!data || shopHistory(data)) throw new Error('missing-order');
+  const chatRef = db.collection('chats').doc(shopChatId(orderId));
   const body = {
     orderId,
+    thread: 'shop',
     userId: data.userId || '',
     userName: customerLabel(data),
-    riderId: data.riderId || '',
-    riderName: data.riderName || '',
+    riderId: '',
+    riderName: '',
     merchantId: currentUser.uid,
     merchantName: merchantProfile?.name || ''
   };

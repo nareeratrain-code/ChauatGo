@@ -18,6 +18,9 @@ test('merchant shell matches the phone admin layout', () => {
   assert.match(html, /data-stock="out_of_stock"/);
   assert.match(html, /rejectFromPopup\(\)/);
   assert.match(html, /acceptFromPopup\(\)/);
+  assert.match(html, /white-space: nowrap/);
+  assert.match(html, /รอไรเดอร์รับ/);
+  assert.match(html, /วัตถุดิบหมด/);
 });
 
 test('merchant orders come from the safe inbox and respect the saved alert sound', () => {
@@ -30,8 +33,11 @@ test('merchant orders come from the safe inbox and respect the saved alert sound
   assert.equal(js.includes('userPhone'), false);
   assert.match(js, /function orderIsHistory/);
   assert.match(js, /function setMenuStock/);
+  assert.match(js, /__shop/);
+  assert.match(js, /function shopWaitingPickup/);
+  assert.match(js, /function openStockIssue/);
   const card = js.slice(js.indexOf('function renderOrderCard'), js.indexOf('function isShopKitchen'));
-  assert.match(card, /orderIsHistory/);
+  assert.match(card, /shopHistory/);
   assert.equal(card.includes('openChatWithCustomer'), true);
   const historyBranch = card.slice(card.indexOf('const contactActions'));
   assert.match(historyBranch, /finished \? ''/);
