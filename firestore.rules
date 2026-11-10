@@ -1022,10 +1022,7 @@ service cloud.firestore {
 
     function canReadOrder() {
       return isAdmin()
-        || (isAuth() && (
-          resource.data.get('userId', '') == myUid()
-          || resource.data.get('merchantId', '') == myUid()
-        ));
+        || (isAuth() && resource.data.get('userId', '') == myUid());
     }
 
     // Open-job reads are separate allows. One OR that mixes "any cooking
@@ -1121,7 +1118,6 @@ service cloud.firestore {
     }
 
     // The customer cannot keep writing chat or calls after the order is finished.
-    // The rider, shop, and admin still can.
     function customerLockedOut(orderId) {
       return exists(orderPath(orderId))
         && finishedOrder(get(orderPath(orderId)).data)
@@ -1136,6 +1132,33 @@ service cloud.firestore {
         && get(orderPath(orderId)).data.get('riderId', '') == myUid()
         && finishedOrder(get(orderPath(orderId)).data)
         && get(orderPath(orderId)).data.get('userId', '') != myUid();
+    }
+
+    // A finished shop reads merchants/{id}/orderInbox, which has no phone,
+    // address, or coordinates. get() ignores rules, so chat must say so too.
+    function readerIsFinishedMerchant(orderId) {
+      return exists(orderPath(orderId))
+        && get(orderPath(orderId)).data.get('merchantId', '') == myUid()
+        && finishedOrder(get(orderPath(orderId)).data)
+        && get(orderPath(orderId)).data.get('userId', '') != myUid();
+    }
+
+    function readerIsOrderMerchant(orderId) {
+      return exists(orderPath(orderId))
+        && get(orderPath(orderId)).data.get('merchantId', '') == myUid()
+        && get(orderPath(orderId)).data.get('userId', '') != myUid();
+    }
+
+    // One lookup for chat lists. A second get() on the same rule pushes a
+    // customer chat query over the rules expression limit.
+    function readerIsFinishedStaff(orderId) {
+      return exists(orderPath(orderId))
+        && get(orderPath(orderId)).data.get('userId', '') != myUid()
+        && (
+          get(orderPath(orderId)).data.get('riderId', '') == myUid()
+          || get(orderPath(orderId)).data.get('merchantId', '') == myUid()
+        )
+        && finishedOrder(get(orderPath(orderId)).data);
     }
 
     function orderPath(orderId) {
@@ -1155,7 +1178,7 @@ service cloud.firestore {
         && (
           data.get('userId', '') == myUid()
           || (data.get('riderId', '') != '' && data.get('riderId', '') == myUid() && !finishedOrder(data))
-          || (data.get('merchantId', '') != '' && data.get('merchantId', '') == myUid())
+          || (data.get('merchantId', '') != '' && data.get('merchantId', '') == myUid() && !finishedOrder(data))
         )
       );
     }
@@ -1266,6 +1289,12 @@ service cloud.firestore {
         allow create: if isAuth() && myUid() == merchantId && privateCreateOk();
         allow update: if isAuth() && myUid() == merchantId && privateUpdateOk();
         allow delete: if isAdmin();
+      }
+
+      // Shop-safe order projection. The shop never reads orders/{id}.
+      match /orderInbox/{orderId} {
+        allow read: if isAdmin() || (isAuth() && myUid() == merchantId);
+        allow write: if false;
       }
     }
 
@@ -1429,7 +1458,11 @@ service cloud.firestore {
     }
 
     match /orders/{orderId}/tracking/{trackingId} {
-      allow read: if isAdmin() || (isOrderParty(orderId) && !readerIsFinishedRider(orderId));
+      allow read: if isAdmin() || (
+        isOrderParty(orderId)
+        && !readerIsFinishedRider(orderId)
+        && !readerIsOrderMerchant(orderId)
+      );
       allow write: if false;
     }
 
@@ -1454,6 +1487,7 @@ service cloud.firestore {
       );
       allow update: if (
           !customerLockedOut(chatId)
+          && !readerIsFinishedMerchant(chatId)
           && isOrderParty(chatId)
           && chatIdsFollowOrder(chatId)
           && onlyChanged([
@@ -1463,6 +1497,7 @@ service cloud.firestore {
         )
         || (
           !customerLockedOut(chatId)
+          && !readerIsFinishedMerchant(chatId)
           && isAuth()
           && resource != null
           && chatParticipantOn(resource.data)
@@ -1476,7 +1511,7 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if isAdmin()
           || (
-            !readerIsFinishedRider(chatId)
+            !readerIsFinishedStaff(chatId)
             && (
               isOrderParty(chatId)
               || chatParty(chatId, 'userId')
@@ -1487,7 +1522,7 @@ service cloud.firestore {
         allow create: if messageOk() && (
           (messageFrom(chatId, 'user', 'userId') && !customerLockedOut(chatId))
           || (messageFrom(chatId, 'rider', 'riderId') && !readerIsFinishedRider(chatId))
-          || messageFrom(chatId, 'merchant', 'merchantId')
+          || (messageFrom(chatId, 'merchant', 'merchantId') && !readerIsFinishedMerchant(chatId))
           || (request.resource.data.senderRole == 'admin' && isAdmin())
         );
         allow update, delete: if isAdmin();

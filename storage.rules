@@ -128,11 +128,10 @@ service firebase.storage {
         ];
     }
 
-    // After the job ends the rider must not download customer slips, photos,
-    // or chat images. The customer, shop, and admin still can.
+    // The shop does not download customer slips or order photos. The rider
+    // loses them once the job is finished. The customer and admin still can.
     function orderParty(orderId) {
       return isOrderCustomer(orderId)
-        || isOrderShop(orderId)
         || (isOrderRider(orderId) && !orderFinished(orderId));
     }
 
@@ -145,7 +144,10 @@ service firebase.storage {
             firestore.get(chatPath(chatId)).data.get('riderId', '') == request.auth.uid
             && !orderFinished(chatId)
           )
-          || firestore.get(chatPath(chatId)).data.get('merchantId', '') == request.auth.uid
+          || (
+            firestore.get(chatPath(chatId)).data.get('merchantId', '') == request.auth.uid
+            && !orderFinished(chatId)
+          )
         );
     }
 

@@ -606,6 +606,104 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
   .shop-info-name-big { font-size: 15px; }
   .shop-info-row { font-size: 12px; }
 }
+
+.app-header {
+  border-radius: 0;
+  margin: 0;
+  box-shadow: none;
+  padding: 12px 14px;
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+#app .app-header { flex-wrap: nowrap; }
+#app .app-header .cg-brand {
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  padding: 0;
+}
+#app .app-header .cg-brand-name { font-size: 20px; }
+.nav-tabs { margin: 0; padding: 8px 10px 4px; background: var(--bg); }
+.container { padding: 8px 12px 28px; }
+.shop-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.shop-summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 10px;
+  min-height: 92px;
+}
+.shop-summary-card span, .shop-summary-card small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.shop-summary-card strong {
+  display: block;
+  margin: 6px 0 2px;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text);
+}
+.shop-summary-card.money {
+  background: #168A45;
+  border-color: #0E5C2E;
+}
+.shop-summary-card.money span,
+.shop-summary-card.money small { color: #fff; }
+.shop-summary-card.money strong {
+  color: #FF9800;
+  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+}
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.status-chip.searching, .status-chip.pending, .status-chip.cooking, .status-chip.picked_up, .status-chip.customer_paid { background: #FFF3E0; color: #E65100; }
+.status-chip.accepted, .status-chip.ready, .status-chip.on_the_way, .status-chip.done, .status-chip.delivered { background: #E8F5E9; color: #168A45; }
+.status-chip.cancelled, .status-chip.shop_closed { background: #FFEBEE; color: #C62828; }
+[data-theme="dark"] .status-chip.searching,
+[data-theme="dark"] .status-chip.pending,
+[data-theme="dark"] .status-chip.cooking { background: #3A2A14; color: #FFB74D; }
+[data-theme="dark"] .status-chip.done,
+[data-theme="dark"] .status-chip.delivered,
+[data-theme="dark"] .status-chip.on_the_way { background: #14301C; color: #8FD334; }
+.stock-filters, .status-filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; }
+.status-filter {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 12px;
+  font-weight: 900;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.status-filter.on { background: #111; color: #fff; border-color: #111; }
+[data-theme="dark"] .status-filter.on { background: #FF9800; color: #111; border-color: #FF9800; }
+.order-btn, .btn-primary, .add-menu-btn, .menu-action-btn { min-height: 44px; border-radius: 12px; font-weight: 900; }
+.order-note { margin: 8px 0; padding: 8px 10px; border-radius: 10px; background: var(--orange-light); color: #E65100; font-size: 12px; font-weight: 800; }
+.history-item { width: 100%; text-align: left; border: 1px solid var(--border); background: var(--surface); color: inherit; font-family: inherit; }
+.new-order-actions { display: grid; gap: 10px; }
+.new-order-actions .order-btn { min-height: 56px; font-size: 18px; }
+.new-order-actions .btn-reject { background: #E53935; color: #fff; }
+.orders-loading, #menus-loading { padding: 28px 12px; }
+@media (max-width: 420px) {
+  .shop-summary { grid-template-columns: 1fr; }
+  .shop-summary-card strong { font-size: 28px; }
+}
 </style>
 </head>
 <body>
@@ -746,16 +844,25 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
   <div class="container">
     <!-- TAB ORDERS -->
     <div class="tab-content active" id="tab-orders">
-      <div class="hero-card">
-        <div class="hero-label">💰 ยอดขายวันนี้</div>
-        <div class="hero-value" id="hero-revenue">0฿</div>
-        <div class="hero-sub" id="hero-sub">📦 0 ออเดอร์</div>
+      <div class="shop-summary" id="shop-summary">
+        <article class="shop-summary-card">
+          <span>ออเดอร์วันนี้</span>
+          <strong id="stat-done">—</strong>
+          <small id="hero-sub">กำลังโหลด</small>
+        </article>
+        <article class="shop-summary-card">
+          <span>ยอดขายวันนี้</span>
+          <strong id="hero-revenue">—</strong>
+          <small id="stat-new">ออเดอร์ใหม่</small>
+        </article>
+        <article class="shop-summary-card money">
+          <span>GP ค้างโอน</span>
+          <strong id="stat-gp">—</strong>
+          <small>จากโปรไฟล์ร้าน</small>
+        </article>
       </div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="ico">🔔</div><div class="val" id="stat-new">0</div><div class="lbl">ออเดอร์ใหม่</div></div>
-        <div class="stat-card"><div class="ico">🍳</div><div class="val" id="stat-cooking">0</div><div class="lbl">กำลังทำ</div></div>
-        <div class="stat-card"><div class="ico">✅</div><div class="val" id="stat-done">0</div><div class="lbl">เสร็จวันนี้</div></div>
-        <div class="stat-card"><div class="ico">💸</div><div class="val" id="stat-gp">0฿</div><div class="lbl">GP วันนี้</div></div>
+      <div id="orders-loading" class="empty-state orders-loading">
+        <div class="icon">⏳</div><h4>กำลังโหลดออเดอร์</h4>
       </div>
       <div class="section-title">🔔 ออเดอร์ใหม่ <span class="section-count" id="cnt-new">0</span></div>
       <div id="new-orders-list"></div>
@@ -776,6 +883,15 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
         <span class="menu-count" id="menu-count-text">0 เมนู</span>
       </div>
       <button class="add-menu-btn ripple" onclick="openMenuForm()">➕ เพิ่มเมนูใหม่</button>
+      <div class="stock-filters" id="stock-filters">
+        <button type="button" class="status-filter on" data-stock="all" onclick="filterStock('all', this)">ทั้งหมด</button>
+        <button type="button" class="status-filter" data-stock="available" onclick="filterStock('available', this)">พร้อมขาย</button>
+        <button type="button" class="status-filter" data-stock="out_of_stock" onclick="filterStock('out_of_stock', this)">หมด</button>
+        <button type="button" class="status-filter" data-stock="hidden" onclick="filterStock('hidden', this)">ซ่อน</button>
+      </div>
+      <div id="menus-loading" class="empty-state">
+        <div class="icon">⏳</div><h4>กำลังโหลดเมนู</h4>
+      </div>
       <div class="menu-list" id="menu-list"></div>
       <div id="menus-empty" class="empty-state" style="display:none">
         <div class="icon">🍽️</div><h4>ยังไม่มีเมนู</h4><p>เพิ่มเมนูอาหารเพื่อให้ลูกค้าสั่งได้</p>
@@ -841,7 +957,8 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
     <div class="new-order-detail" id="new-order-detail"></div>
     <div class="new-order-actions">
       <button type="button" class="order-btn btn-accept ripple" onclick="acceptFromPopup()">✅ รับออเดอร์</button>
-      <button type="button" class="order-btn btn-reject ripple" onclick="closeNewOrderPopup()">⏰ ดูภายหลัง</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="rejectFromPopup()">❌ ปฏิเสธ</button>
+      <button type="button" class="order-btn btn-gray ripple" onclick="closeNewOrderPopup()">ดูภายหลัง</button>
     </div>
   </div>
 </div>

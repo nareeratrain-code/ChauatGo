@@ -20,6 +20,7 @@ const { merchantHistoryEntry } = require('./gp-history');
 const { FINANCE_KEYS, mergedFinance, migrateMerchantDoc, privateProfileRef } = require('./merchant-private');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 const { syncRiderHistory } = require('./rider-history');
+const { syncMerchantInbox } = require('./merchant-inbox');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
 // every new revision at once. On a small regional CPU quota that aborts some
@@ -97,8 +98,10 @@ function fail(err) {
 // from the order the customer can still read. Full contact stays in
 // orders/{id}/private/contacts for admins.
 exports.onRiderJobHistory = onDocumentWritten('orders/{orderId}', async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
   const after = event.data.after.exists ? event.data.after.data() : null;
   await syncRiderHistory(db, event.params.orderId, after);
+  await syncMerchantInbox(db, event.params.orderId, before, after);
 });
 
 exports.onOrderDispatch = onDocumentWritten('orders/{orderId}', async (event) => {

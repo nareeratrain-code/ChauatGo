@@ -967,7 +967,11 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       });
       await root.collection('orders').doc('food-new').set({
         type: 'food', status: 'searching', userId: 'cust1', merchantId: 'shop1', merchantName: 'ร้านทดสอบ', riderId: null,
-        partnerShop: true, code: 'OD-NEW'
+        partnerShop: true, code: 'OD-NEW', userPhone: '0812345678', address: '99/1 หมู่ 3', lat: 8.1, lng: 99.9
+      });
+      await root.collection('merchants').doc('shop1').collection('orderInbox').doc('food-new').set({
+        orderId: 'food-new', shortId: 'OD-NEW', customerName: 'สมชาย จ.', status: 'searching',
+        items: [{ name: 'ข้าว', qty: 1, price: 40 }], note: 'ไม่ใส่ผัก', safe: true
       });
       await root.collection('orders').doc('food-directory').set({
         type: 'food', status: 'searching', userId: 'cust1', merchantId: '', merchantName: 'ร้านทั่วไป', riderId: null,
@@ -1022,7 +1026,8 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['rider cannot list food before the shop accepts', () => assertFails(rdb.collection('orders').where('riderId', '==', null).where('status', 'in', ['searching', 'pending', 'cooking', 'ready']).limit(10).get())],
       ['rider cannot read food before the shop accepts', () => assertFails(rdb.collection('orders').doc('food-new').get())],
       ['customer still reads food waiting on the shop', () => assertSucceeds(cdb.collection('orders').doc('food-new').get())],
-      ['shop still reads its waiting order', () => assertSucceeds(sdb.collection('orders').doc('food-new').get())],
+      ['shop cannot read the customer order', () => assertFails(sdb.collection('orders').doc('food-new').get())],
+      ['shop reads the safe inbox row', () => assertSucceeds(sdb.collection('merchants').doc('shop1').collection('orderInbox').doc('food-new').get())],
       ['rider reads an open ride', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', null).where('type', '==', 'ride').where('status', 'in', ['searching', 'pending']).limit(10).get())],
       ['rider reads that ride', () => assertSucceeds(rdb.collection('orders').doc('ride-open').get())],
       ['rider reads directory food', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', null).where('type', '==', 'food').where('partnerShop', '==', false).where('status', 'in', ['searching', 'pending']).limit(10).get())],
@@ -1067,7 +1072,7 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         orderId: 'track1', userId: 'cust1', userName: 'ลูกค้า', merchantId: 'shop1', riderId: 'rider1',
         merchantRating: 5, riderRating: 5, comment: '', createdAt: new Date()
       }))],
-      ['shop list', () => assertSucceeds(sdb.collection('orders').where('merchantId', '==', 'shop1').limit(10).get())],
+      ['shop cannot list raw orders', () => assertFails(sdb.collection('orders').where('merchantId', '==', 'shop1').limit(10).get())],
       ['stranger deny one', () => assertFails(stdb.collection('orders').doc('open1').get())],
       ['stranger deny list', () => assertFails(stdb.collection('orders').limit(5).get())],
       ['admin list', () => assertSucceeds(adb.collection('orders').limit(5).get())],
