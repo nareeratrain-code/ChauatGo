@@ -32,7 +32,7 @@ const store = {
 const filters = {
   orders: 'all', q: '', riderStatus: '',
   merchantStatus: 'all', gpRange: 'today',
-  payoutStatus: 'all', payoutRider: '', payoutFrom: '', payoutTo: ''
+  payoutStatus: 'all', payoutRider: '', payoutFrom: '', payoutTo: '', financeDate: ''
 };
 let current = 'dashboard';
 let unsubs = [];
@@ -665,6 +665,21 @@ function dashboard() {
     (r.status === 'active' || r.status === 'available') && r.verified !== false
   ).length;
 
+  const financeDate = filters.financeDate || new Date().toISOString().slice(0, 10);
+  const finance = window.ChauatPayoutAuditUtils?.summarizeDailyFinance(store.orders, store.payouts, {
+    date: financeDate,
+    getOrderValues: o => {
+      const fare = Number(o.fare || 0);
+      const food = orderFoodTotal(o);
+      return {
+        fare, food,
+        platformGp: calcMainGp(fare).platform,
+        storeGp: calcStoreGp(food).total,
+        riderPayout: Number(o.gpRider || 0)
+      };
+    }
+  }) || { orderCount: 0, totalGp: 0, platformGp: 0, storeGp: 0, expectedRiderPayout: 0, unpaidRiderPayout: 0, paidPayout: 0, paidPayoutCount: 0, pendingPayout: 0, pendingPayoutCount: 0, payoutCount: 0, fare: 0, food: 0 };
+
   const hero = `<div class="hero-card">
     <div class="hero-label">💰 GP แพลตฟอร์มวันนี้ (20% ของค่าส่ง)</div>
     <div class="hero-amount">฿${todayGp.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
@@ -792,7 +807,21 @@ function dashboard() {
     </div>`;
   }).join('');
 
-  return `${hero}${stats}
+  const financeCards = `<div class="finance-daily-panel">
+    <div class="finance-daily-head">
+      <div><div class="finance-daily-title">🧾 สรุปการเงินรายวัน</div><div class="finance-daily-subtitle">เทียบยอด GP กับรายการโอนไรเดอร์จาก Server Ledger</div></div>
+      <label class="finance-date-field">วันที่ <input type="date" data-finance-date value="${esc(financeDate)}" aria-label="เลือกวันที่สรุปการเงิน"></label>
+    </div>
+    <div class="finance-daily-grid">
+      <div class="finance-daily-card gp"><span>💰 GP รวม</span><strong>฿${fmt(finance.totalGp)}</strong><small>แพลตฟอร์ม ฿${fmt(finance.platformGp)} • ร้าน ฿${fmt(finance.storeGp)}</small></div>
+      <div class="finance-daily-card orders"><span>📦 งานเสร็จ</span><strong>${finance.orderCount}</strong><small>ค่าบริการ ฿${fmt(finance.fare)} • อาหาร ฿${fmt(finance.food)}</small></div>
+      <div class="finance-daily-card payout"><span>🛵 ควรโอนไรเดอร์</span><strong>฿${fmt(finance.expectedRiderPayout)}</strong><small>ยังไม่โอน ฿${fmt(finance.unpaidRiderPayout)}</small></div>
+      <div class="finance-daily-card paid"><span>✅ โอนแล้ว</span><strong>฿${fmt(finance.paidPayout)}</strong><small>${finance.paidPayoutCount} รายการใน Ledger</small></div>
+    </div>
+    <div class="finance-daily-footer"><span>⏳ Payout รอตรวจในวันเลือก: <b>฿${fmt(finance.pendingPayout)}</b> (${finance.pendingPayoutCount})</span><span>รายการ Payout ทั้งหมด: <b>${finance.payoutCount}</b></span></div>
+  </div>`;
+
+  return `${hero}${stats}${financeCards}
     <div class="section-divider"><div class="title">🎯 ต้องทำอะไรต่อ</div><div class="line"></div></div>
     ${actions.join('')}
     <div class="section-divider"><div class="title">🕐 ออเดอร์ล่าสุด</div><div class="line"></div></div>
@@ -2210,6 +2239,11 @@ document.addEventListener('input', e => {
 });
 
 document.addEventListener('change', async e => {
+  if (e.target.dataset && e.target.dataset.financeDate !== undefined) {
+    filters.financeDate = e.target.value || '';
+    render();
+    return;
+  }
   if (e.target.dataset && e.target.dataset.payoutFilter) {
     const key = e.target.dataset.payoutFilter;
     if (key === 'status') filters.payoutStatus = e.target.value;

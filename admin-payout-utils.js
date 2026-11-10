@@ -47,5 +47,47 @@
     });
   }
 
-  return { asDate, payoutSearchText, filterPayouts };
+  function localDayKey(value) {
+    const date = asDate(value);
+    if (!date) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function summarizeDailyFinance(orders, payouts, options = {}) {
+    const dateKey = String(options.date || localDayKey(new Date()));
+    const getOrderValues = typeof options.getOrderValues === 'function'
+      ? options.getOrderValues : () => ({ platformGp: 0, storeGp: 0, riderPayout: 0 });
+    const completed = (Array.isArray(orders) ? orders : []).filter(order =>
+      ['done', 'delivered'].includes(order?.status) && localDayKey(order?.createdAt) === dateKey
+    );
+    const totals = completed.reduce((sum, order) => {
+      const values = getOrderValues(order) || {};
+      sum.platformGp += Number(values.platformGp || 0);
+      sum.storeGp += Number(values.storeGp || 0);
+      sum.riderPayout += Number(values.riderPayout || 0);
+      sum.fare += Number(values.fare || 0);
+      sum.food += Number(values.food || 0);
+      if (order.riderPayoutPaid !== true && Number(values.riderPayout || 0) > 0) {
+        sum.unpaidRiderPayout += Number(values.riderPayout || 0);
+      }
+      return sum;
+    }, { platformGp: 0, storeGp: 0, riderPayout: 0, unpaidRiderPayout: 0, fare: 0, food: 0 });
+    const dayPayouts = (Array.isArray(payouts) ? payouts : []).filter(p => localDayKey(p?.paidAt || p?.createdAt) === dateKey);
+    const paidPayouts = dayPayouts.filter(p => p?.status === 'paid');
+    const pendingPayouts = dayPayouts.filter(p => !['paid', 'cancelled'].includes(p?.status));
+    return {
+      date: dateKey, orderCount: completed.length,
+      platformGp: totals.platformGp, storeGp: totals.storeGp,
+      totalGp: totals.platformGp + totals.storeGp,
+      fare: totals.fare, food: totals.food,
+      expectedRiderPayout: totals.riderPayout,
+      unpaidRiderPayout: totals.unpaidRiderPayout,
+      paidPayout: paidPayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0),
+      paidPayoutCount: paidPayouts.length,
+      pendingPayout: pendingPayouts.reduce((sum, p) => sum + Number(p.amount || 0), 0),
+      pendingPayoutCount: pendingPayouts.length, payoutCount: dayPayouts.length
+    };
+  }
+
+  return { asDate, localDayKey, payoutSearchText, filterPayouts, summarizeDailyFinance };
 });
