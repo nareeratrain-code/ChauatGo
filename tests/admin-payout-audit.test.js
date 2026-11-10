@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { filterPayouts, payoutSearchText } = require('../admin-payout-utils');
+const { filterPayouts, payoutSearchText, summarizeDailyFinance } = require('../admin-payout-utils');
 
 const root = path.resolve(__dirname, '..');
 const admin = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
@@ -84,4 +84,36 @@ test('Payout audit has mobile responsive styles', () => {
   assert.match(css, /\.payout-audit-filters/);
   assert.match(css, /\.payout-detail-grid/);
   assert.match(css, /@media \(max-width: 480px\)/);
+});
+
+test('daily finance summary reconciles completed orders and payout ledger by local day', () => {
+  const orders = [
+    { id: 'o1', status: 'done', createdAt: new Date('2026-11-11T09:00:00+07:00'), riderPayoutPaid: false },
+    { id: 'o2', status: 'delivered', createdAt: new Date('2026-11-11T16:00:00+07:00'), riderPayoutPaid: true },
+    { id: 'o3', status: 'done', createdAt: new Date('2026-11-10T16:00:00+07:00'), riderPayoutPaid: false }
+  ];
+  const payouts = [
+    { id: 'p1', status: 'paid', amount: 2, paidAt: new Date('2026-11-11T20:00:00+07:00') },
+    { id: 'p2', status: 'pending', amount: 1, createdAt: new Date('2026-11-11T21:00:00+07:00') },
+    { id: 'p3', status: 'paid', amount: 99, paidAt: new Date('2026-11-10T20:00:00+07:00') }
+  ];
+  const result = summarizeDailyFinance(orders, payouts, {
+    date: '2026-11-11',
+    getOrderValues: o => ({ fare: 100, food: 200, platformGp: 20, storeGp: 6, riderPayout: o.id === 'o1' ? 2 : 3 })
+  });
+  assert.equal(result.orderCount, 2);
+  assert.equal(result.totalGp, 52);
+  assert.equal(result.expectedRiderPayout, 5);
+  assert.equal(result.unpaidRiderPayout, 2);
+  assert.equal(result.paidPayout, 2);
+  assert.equal(result.pendingPayout, 1);
+  assert.equal(result.paidPayoutCount, 1);
+});
+
+test('Admin dashboard exposes daily finance date control and reconciliation cards', () => {
+  assert.match(admin, /สรุปการเงินรายวัน/);
+  assert.match(admin, /data-finance-date/);
+  assert.match(admin, /summarizeDailyFinance/);
+  assert.match(admin, /expectedRiderPayout/);
+  assert.match(css, /\.finance-daily-grid/);
 });
