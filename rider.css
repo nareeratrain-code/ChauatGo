@@ -1664,6 +1664,198 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+#app .app-header {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 8px 10px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+#app .app-header::after { display: none; }
+#app .header-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#app .header-info .name,
+#app .header-info .status {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+#app .header-info .name { flex: 1 1 auto; font-size: 15px; }
+#app .header-info .status { display: none; }
+#app .header-info .trust-badge { margin: 0; flex: 0 0 auto; }
+#app .online-toggle { min-width: 0; min-height: 40px; padding: 4px 8px 4px 4px; }
+#app .header-theme {
+  position: static;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+.rider-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9CA3AF;
+  flex: 0 0 auto;
+}
+#app.rider-online .status-dot { background: #00A651; }
+#rider-work-guide {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+  font-size: 12px !important;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sound-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 18px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sound-icon-btn.ready { background: #E8F5E9; border-color: #86EFAC; }
+[data-theme="dark"] .sound-icon-btn.ready { background: #143224; border-color: #166534; color: #C5F6D5; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+#app .container { padding-top: 10px; }
+#app .hero-card {
+  background: #168A45;
+  border-color: #0E5C2E;
+  color: #fff;
+}
+#app .hero-label,
+#app .hero-sub,
+#app .hero-label .rd-ico { color: #fff; }
+#app .hero-amount {
+  color: #FF9800;
+  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+}
+#app .hero-grid-cell {
+  background: rgba(255,255,255,.16);
+  color: #fff;
+}
+#app .hero-grid-cell .lbl {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  white-space: normal;
+  overflow: visible;
+  color: #fff;
+  min-height: 32px;
+}
+#app .hero-grid-cell .val { color: #fff; }
+#app .hero-grid-cell.warn {
+  background: rgba(0,0,0,.12);
+  border: 0;
+}
+#app .hero-grid-cell.warn .lbl,
+#app .hero-grid-cell.warn .val {
+  color: #FF9800;
+  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+}
+#job-filter-bar {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  overflow: hidden !important;
+  margin: 8px 0;
+}
+#job-filter-bar .job-filter-btn {
+  min-width: 0 !important;
+  width: 100%;
+  white-space: normal !important;
+  line-height: 1.2;
+  padding: 8px 2px !important;
+  font-size: 11px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+.job-filter-hint {
+  margin: 0 2px 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+#app.has-active-job .hero-grid,
+#app.has-active-job .stats-mini,
+#app.has-active-job #rider-work-guide { display: none; }
+#app.has-active-job .hero-card { padding: 8px 12px; margin-bottom: 8px; }
+#app.has-active-job .hero-amount { font-size: 22px; margin-top: 0; }
+#active-jobs-list .jc-primary-btn { min-height: 56px; font-size: 18px; }
+#active-jobs-list .jc-nav-btn,
+#active-jobs-list .chauat-call-btn {
+  min-height: 52px;
+  font-size: 16px;
+  width: 100%;
+}
+#active-jobs-list .chauat-call-row { display: flex; flex-direction: column; gap: 8px; }
+.chat-unread {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #E53935;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  align-items: center;
+  justify-content: center;
+}
+.chat-unread[hidden] { display: none; }
+[data-theme="dark"] #app .hero-card { background: #168A45; }
+[data-theme="dark"] #rider-work-guide { color: #F5F5F5 !important; }
+
 .rider-history-card {
   background: var(--surface, #fff);
   border: 1px solid var(--border, #E5E7EB);

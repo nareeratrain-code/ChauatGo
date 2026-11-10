@@ -614,11 +614,7 @@ function updateRiderSoundStatus(icon, text, ready) {
   const card = $('rider-sound-status');
   if (iconEl) iconEl.textContent = icon || '🔔';
   if (textEl) textEl.textContent = text || '';
-  if (card) {
-    card.style.background = ready ? '#EFF8F1' : '#FFF8E7';
-    card.style.borderColor = ready ? '#CDE8D2' : '#F4D58A';
-    card.style.color = ready ? '#1F5A2A' : '#765400';
-  }
+  if (card) card.classList.toggle('ready', !!ready);
 }
 
 function unlockRiderAudio() {
@@ -1401,19 +1397,21 @@ function updateOnlineToggle() {
   btn.setAttribute('aria-pressed', isOnline ? 'true' : 'false');
   lbl.textContent = isOnline ? 'ออนไลน์' : 'ออฟไลน์';
   st.textContent = !riderProfile
-    ? 'กำลังโหลดบัญชี'
+    ? 'กำลังโหลด'
     : !verified
-    ? 'รอการอนุมัติ'
+    ? 'รออนุมัติ'
     : (isOnline ? 'พร้อมรับงาน' : 'ออฟไลน์');
+  const app = $('app');
+  if (app) app.classList.toggle('rider-online', isOnline);
   const guide = $('rider-work-guide');
   if (guide) {
-    guide.innerHTML = !riderProfile
-      ? 'กำลังตรวจสอบข้อมูลไรเดอร์ กรุณารอสักครู่'
+    guide.textContent = !riderProfile
+      ? 'กำลังตรวจสอบบัญชี'
       : !verified
-        ? '⏳ บัญชียังรอการอนุมัติจากแอดมิน<br><span style="font-size:11px;opacity:.8">ปุ่มกดได้เพื่อดูสถานะ แต่จะเริ่มรับงานได้หลังอนุมัติ</span>'
+        ? 'รอแอดมินอนุมัติก่อนรับงาน'
         : isOnline
-          ? '🟢 สถานะพร้อมรับงานแล้ว<br>🍽️ อาหาร Partner จะแสดงหลังร้านกดรับออเดอร์ • 📦 งานส่งด่วนแสดงได้ทันที'
-          : '🔘 กดปุ่ม “ออฟไลน์” ด้านบนเพื่อเปลี่ยนเป็น “พร้อมรับงาน”<br>🍽️ อาหาร Partner จะแสดงหลังร้านกดรับออเดอร์ • 📦 งานส่งด่วนแสดงได้ทันที';
+          ? 'พร้อมรับงาน • อาหาร Partner หลังร้านรับ • ส่งด่วนทันที'
+          : 'กดออนไลน์เพื่อรับงาน';
   }
   renderJobs();
   updatePushBanner();
@@ -1665,6 +1663,25 @@ function riderNavBlock(job, opts) {
     '<div class="jc-nav-actions">' + stops.map((stop) => riderNavAnchor(stop, stage)).join('') + '</div></div>';
 }
 
+const riderChatUnread = {};
+const riderChatWatch = {};
+
+function markRiderChatRead(orderId) {
+  riderChatUnread[orderId] = false;
+  document.querySelectorAll('[data-chat-badge="' + orderId + '"]').forEach((el) => { el.hidden = true; });
+}
+
+function watchRiderThread(orderId) {
+  if (!orderId || !db || riderChatWatch[orderId]) return;
+  riderChatWatch[orderId] = db.collection('chats').doc(orderId).onSnapshot((snap) => {
+    const data = snap.exists ? (snap.data() || {}) : {};
+    if (data.thread === 'shop') return;
+    const unread = !!(data.lastSenderId && currentUser && data.lastSenderId !== currentUser.uid && activeChatId !== orderId);
+    riderChatUnread[orderId] = unread;
+    document.querySelectorAll('[data-chat-badge="' + orderId + '"]').forEach((el) => { el.hidden = !unread; });
+  }, () => {});
+}
+
 function renderJobs() {
   const myId = currentUser?.uid;
 
@@ -1691,6 +1708,9 @@ function renderJobs() {
   if (doneSec) doneSec.style.display = doneToday.length > 0 ? 'block' : 'none';
   if (emptyEl) emptyEl.style.display =
     (newJobs.length + activeJobs.length + doneToday.length) === 0 ? 'block' : 'none';
+  const appEl = $('app');
+  if (appEl) appEl.classList.toggle('has-active-job', activeJobs.length > 0);
+  activeJobs.forEach((job) => watchRiderThread(job.id));
 
   const nc = $('new-count'); if (nc) nc.textContent = newJobs.length;
   const ac = $('active-count'); if (ac) ac.textContent = activeJobs.length;
@@ -1742,7 +1762,7 @@ function renderJobCard(j, type) {
     : '🍽️';
 
   const jobFinished = ['done', 'delivered', 'cancelled', 'shop_closed'].includes(j.status);
-  const chatBtn = jobFinished ? '' : `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
+  const chatBtn = jobFinished ? '' : `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬<span class="chat-unread" data-chat-badge="${esc(j.id)}" ${riderChatUnread[j.id] ? '' : 'hidden'}>1</span></button>`;
   const callRow = (!jobFinished && !isNew && j.riderId === currentUser?.uid && window.ChauatCall) ? ChauatCall.buttons(j.id) : '';
 
   const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`
@@ -3987,6 +4007,7 @@ async function openChatWithCustomer(orderId) {
   if (!job) return showToast('ไม่พบออเดอร์', 'error');
 
   activeChatId = orderId;
+  markRiderChatRead(orderId);
   activeChatCallRole = 'customer';
   activeChatPartnerName = job.userName || 'ลูกค้า';
 
@@ -3996,6 +4017,7 @@ async function openChatWithCustomer(orderId) {
     if (!snap.exists) {
       await chatRef.set({
         orderId: orderId,
+        thread: 'rider',
         userId: job.userId || '',
         userName: job.userName || 'ลูกค้า',
         riderId: currentUser.uid,
@@ -4047,6 +4069,7 @@ async function openChatRoom(orderId, name, sub) {
   if (!job) return showToast('ไม่พบออเดอร์', 'error');
 
   activeChatId = orderId;
+  markRiderChatRead(orderId);
   activeChatCallRole = 'customer';
   activeChatPartnerName = name || job.userName || 'ลูกค้า';
 
@@ -4056,6 +4079,7 @@ async function openChatRoom(orderId, name, sub) {
     if (!snap.exists) {
       await chatRef.set({
         orderId: orderId,
+        thread: 'rider',
         userId: job.userId || '',
         userName: job.userName || 'ลูกค้า',
         riderId: currentUser.uid,
