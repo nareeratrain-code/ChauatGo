@@ -1664,3 +1664,14 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+.rider-history-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #E5E7EB);
+  border-radius: 16px;
+  padding: 14px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.rider-history-top { display: flex; justify-content: space-between; font-weight: 900; }

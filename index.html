@@ -642,6 +642,14 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .track-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 .order-track-card { background: var(--surface); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-sm); border-left: 4px solid var(--brand); }
+.order-history-card { background: var(--surface); border-radius: 16px; padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+.order-history-top, .order-history-total, .order-history-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.order-history-date, .order-history-route, .order-history-items, .order-history-money { margin-top: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); line-height: 1.45; }
+.order-history-total { margin-top: 10px; font-weight: 900; }
+.order-history-status.done, .order-history-status.delivered { color: #168A45; }
+.order-history-status.cancelled, .order-history-status.shop_closed { color: #C62828; }
+.history-reorder { min-height: 44px; border: 0; border-radius: 12px; padding: 0 16px; background: #FF6B35; color: #111; font-weight: 900; font-family: inherit; }
+.history-rate { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-weight: 800; font-family: inherit; }
 .order-track-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .order-track-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
 .order-track-title { font-size: 14px; font-weight: 900; color: var(--text); }
@@ -4082,7 +4090,7 @@ function paintUserOrders(all){
   var active = window._cachedOrders.filter(function(o){return finished.indexOf(o.status)===-1;});
   var done = window._cachedOrders.filter(function(o){return finished.indexOf(o.status)!==-1;});
   if($('active-orders')) $('active-orders').innerHTML = active.map(renderOrderCard).join('');
-  if($('done-orders')) $('done-orders').innerHTML = done.map(renderOrderCard).join('');
+  if($('done-orders')) $('done-orders').innerHTML = done.map(renderHistoryCard).join('');
   if($('empty-orders')) $('empty-orders').style.display = window._cachedOrders.length===0?'block':'none';
   monitorRiderProximity(active);
 }
@@ -4182,7 +4190,9 @@ function orderPrepNote(o) {
 
 /* REORDER_HELPERS_START */
 function canReorderCompleted(order) {
-  return !!order && ['done', 'delivered'].indexOf(order.status) !== -1 && ['food', 'express', 'shopping'].indexOf(order.type) !== -1;
+  return !!order
+    && ['done', 'delivered', 'cancelled', 'shop_closed'].indexOf(order.status) !== -1
+    && ['food', 'express', 'shopping', 'ride'].indexOf(order.type) !== -1;
 }
 
 function reorderPoint(lat, lng, address) {
@@ -4398,6 +4408,22 @@ async function reorderFood(order) {
   checkout();
 }
 
+function reorderRide(order) {
+  var origin = reorderPoint(order.fromLat, order.fromLng, order.from);
+  var dest = reorderPoint(order.lat, order.lng, order.to || order.address);
+  rideOrigin = origin && isFinite(origin.lat) ? origin : null;
+  selectedDestination = dest && isFinite(dest.lat) ? dest : null;
+  rideDraft = {
+    from: order.from || (origin && origin.address) || '',
+    to: order.to || order.address || '',
+    note: order.note || '',
+    phone: order.userPhone || ''
+  };
+  var known = { motorcycle: 1, car: 1, pickup: 1, van: 1 };
+  openRideOrderForm({ type: known[order.vehicle] ? order.vehicle : 'motorcycle' });
+  showToast('ตรวจสอบจุดรับและปลายทางก่อนยืนยัน', 'info');
+}
+
 function reorderExpress(order) {
   var packed = expressReorderDraft(order);
   expOrigin = packed.origin && isFinite(packed.origin.lat) ? packed.origin : null;
@@ -4428,6 +4454,7 @@ window.reorderCompletedOrder = async function(orderId) {
   if (order.type === 'food') return reorderFood(order);
   if (order.type === 'express') return reorderExpress(order);
   if (order.type === 'shopping') return reorderShopping(order);
+  if (order.type === 'ride') return reorderRide(order);
 };
 
 
@@ -4437,6 +4464,49 @@ function expressTransferOwed(o) {
 function expressTransferClick(o) {
   var ready = !!(o.customerSlipUrl && o.customerSlipStatus !== 'rejected');
   return (ready ? 'confirmCustomerPaid' : 'pickCustomerSlip') + "('" + esc(o.id) + "')";
+}
+function maskPublicName(name) {
+  var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || '';
+  var last = Array.from(parts[parts.length - 1]);
+  var initial = '';
+  for (var i = 0; i < last.length; i++) {
+    if (/[ก-ฮ]/.test(last[i])) { initial = last[i]; break; }
+  }
+  return parts.slice(0, -1).join(' ') + ' ' + (initial || last[0] || '') + '.';
+}
+function historyWhen(value) {
+  var d = value && value.toDate ? value.toDate() : (value && value.seconds ? new Date(value.seconds * 1000) : null);
+  if (!d || isNaN(d.getTime())) return '—';
+  return d.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+function historyItems(o) {
+  if (Array.isArray(o.items) && o.items.length && typeof o.items[0] === 'object') {
+    return o.items.map(function(item) {
+      return esc((item.name || item.menuName || 'รายการ') + ' x' + (item.qty || 1));
+    }).join(' • ');
+  }
+  return esc(o.itemsText || (typeof o.items === 'string' ? o.items : '') || '');
+}
+function renderHistoryCard(o) {
+  var typeName = { food: 'อาหาร', shopping: 'ฝากซื้อ', express: 'ส่งด่วน', ride: 'เรียกรถ' }[o.type] || 'งาน';
+  var statusName = { done: 'สำเร็จ', delivered: 'ส่งถึง', cancelled: 'ยกเลิก', shop_closed: 'ร้านปิด' }[o.status] || o.status;
+  var route = esc((o.shopPlaceName || o.merchantName || o.from || 'จุดรับ') + ' → ' + (o.to || o.address || 'ปลายทาง'));
+  var fare = Number(o.fare) || 0;
+  var goods = Number(o.foodTotal != null ? o.foodTotal : (typeof o.itemsTotal === 'number' ? o.itemsTotal : 0)) || 0;
+  var tip = o.paymentMode === 'cash' ? Number(o.cashTip || 0) : 0;
+  var lines = historyItems(o);
+  return '<article class="order-history-card">' +
+    '<div class="order-history-top"><b>' + esc(typeName) + '</b><span class="order-history-status ' + esc(o.status) + '">' + esc(statusName) + '</span></div>' +
+    '<div class="order-history-date">' + esc(historyWhen(o.createdAt || o.doneAt)) + '</div>' +
+    '<div class="order-history-route">' + route + '</div>' +
+    (lines ? '<div class="order-history-items">' + lines + '</div>' : '') +
+    '<div class="order-history-money">ค่าสินค้า ฿' + fmt(goods) + ' • ค่าบริการ ฿' + fmt(fare) + (tip ? ' • ค่าบริการเงินสด ฿' + fmt(tip) : '') + '</div>' +
+    '<div class="order-history-total"><span>' + (o.paymentMode === 'cash' ? 'เงินสด' : 'โอน') + (o.riderName ? ' • ' + esc(maskPublicName(o.riderName)) : '') + '</span><b>฿' + fmt(o.total || (goods + fare + tip)) + '</b></div>' +
+    '<div class="order-history-actions">' +
+      (['done', 'delivered'].indexOf(o.status) !== -1 && !o.rated ? '<button type="button" class="history-rate" onclick="openRatingModal(\'' + esc(o.id) + '\')">ให้คะแนน</button>' : '') +
+      (canReorderCompleted(o) ? '<button type="button" class="history-reorder" onclick="reorderCompletedOrder(\'' + esc(o.id) + '\')">สั่งอีกครั้ง</button>' : '') +
+    '</div></article>';
 }
 function renderOrderCard(o){
   var statusMap = {

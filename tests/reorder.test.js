@@ -26,12 +26,12 @@ const menu = (extra) => Object.assign({
   id: 'm1', name: 'ข้าวผัด', price: 40, status: 'available'
 }, extra);
 
-test('reorder is only for completed food, express, and shopping', () => {
+test('reorder is offered for finished food, shopping, express, and ride', () => {
   assert.equal(context.canReorderCompleted({ status: 'done', type: 'food' }), true);
   assert.equal(context.canReorderCompleted({ status: 'delivered', type: 'express' }), true);
   assert.equal(context.canReorderCompleted({ status: 'done', type: 'shopping' }), true);
-  assert.equal(context.canReorderCompleted({ status: 'cancelled', type: 'food' }), false);
-  assert.equal(context.canReorderCompleted({ status: 'done', type: 'ride' }), false);
+  assert.equal(context.canReorderCompleted({ status: 'cancelled', type: 'food' }), true);
+  assert.equal(context.canReorderCompleted({ status: 'done', type: 'ride' }), true);
   assert.equal(context.canReorderCompleted({ status: 'searching', type: 'express' }), false);
 });
 

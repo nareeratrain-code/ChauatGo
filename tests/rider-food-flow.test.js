@@ -67,7 +67,8 @@ test('Rider arrival copy keeps shop wording only for partner food', () => {
 });
 
 test('Rider history: งานฝากซื้อที่จบด้วย delivered ต้องแสดงในรายการและรายได้', () => {
-  assert.match(rider, /where\('status', 'in', \['done', 'delivered', 'cancelled', 'shop_closed'\]\)/);
+  assert.match(rider, /collection\('jobHistory'\)/);
+  assert.match(rider, /function renderRiderHistoryCard/);
   assert.match(rider, /j\.status === 'done' \|\| j\.status === 'delivered'/);
   assert.match(rider, /j\.deliveredAt \|\| j\.doneAt \|\| j\.createdAt/);
 });

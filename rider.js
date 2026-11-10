@@ -1344,18 +1344,18 @@ function subscribeJobs() {
 
 function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
-  myHistoryUnsub = db.collection('orders')
-    .where('riderId', '==', currentUser.uid)
-    .where('status', 'in', ['done', 'delivered', 'cancelled', 'shop_closed'])
+  if (!currentUser) return;
+  myHistoryUnsub = db.collection('riders').doc(currentUser.uid).collection('jobHistory')
+    .orderBy('completedAt', 'desc')
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
         const data = d.data();
-        return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
+        return { id: d.id, ...data, safe: true, createdAt: toDate(data.completedAt || data.createdAt) };
       });
       updateHeroStats();
       renderJobs();
-    });
+    }, (err) => console.warn('job history', err && err.code));
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1701,8 +1701,22 @@ function renderJobs() {
   const ajl = $('active-jobs-list');
   if (ajl) ajl.innerHTML = activeJobs.map(j => renderJobCard(j, 'active')).join('');
   const djl = $('done-jobs-list');
-  if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
+  if (djl) djl.innerHTML = doneToday.slice(0, 10).map(renderRiderHistoryCard).join('');
   mountRiderCardMaps();
+}
+
+function renderRiderHistoryCard(job) {
+  const typeName = { food: 'อาหาร', shopping: 'ฝากซื้อ', express: 'ส่งด่วน', ride: 'เรียกรถ' }[job.type] || 'งาน';
+  const statusName = { done: 'สำเร็จ', delivered: 'ส่งถึง', cancelled: 'ยกเลิก', shop_closed: 'ร้านปิด' }[job.status] || (job.status || '');
+  const pay = job.paymentMode === 'cash' ? 'เงินสด' : 'โอน';
+  return `<article class="rider-history-card">
+    <div class="rider-history-top"><b>${esc(typeName)}</b><span>${esc(statusName)}</span></div>
+    <div>${esc(fmtDateTime(job.completedAt || job.createdAt))}</div>
+    <div>${esc(job.pickupLabel || 'จุดรับ')} → ${esc(job.dropoffArea || 'พื้นที่ปลายทาง')}</div>
+    <div>${Number(job.distanceKm || 0).toFixed(1)} กม. • ${esc(pay)} • ${esc(job.shortId || '')}</div>
+    <div>ค่าส่ง ฿${fmt(job.fare || 0)}${Number(job.cashTip) > 0 ? ' • ทิป ฿' + fmt(job.cashTip) : ''}</div>
+    <div>ได้รับ ฿${fmt(job.riderIncome || 0)}${Number(job.riderOwe) > 0 ? ' • หัก ฿' + fmt(job.riderOwe) : ''}</div>
+  </article>`;
 }
 
 function renderJobCard(j, type) {
@@ -1727,8 +1741,9 @@ function renderJobCard(j, type) {
     : (j.type === 'shopping') ? '🛒'
     : '🍽️';
 
-  const chatBtn = `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
-  const callRow = (!isNew && j.riderId === currentUser?.uid && window.ChauatCall) ? ChauatCall.buttons(j.id) : '';
+  const jobFinished = ['done', 'delivered', 'cancelled', 'shop_closed'].includes(j.status);
+  const chatBtn = jobFinished ? '' : `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
+  const callRow = (!jobFinished && !isNew && j.riderId === currentUser?.uid && window.ChauatCall) ? ChauatCall.buttons(j.id) : '';
 
   const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`;
 
@@ -1853,7 +1868,7 @@ function renderJobCard(j, type) {
       </div>
 
       <div class="jc-body">
-        ${riderNavBlock(j, { preview: type === 'done' ? '' : type })}
+        ${jobFinished ? '' : riderNavBlock(j, { preview: type === 'done' ? '' : type })}
         <div class="jc-row">
           <span class="jc-row-icon">🕐</span>
           <span class="jc-row-text">${timeAgo(j.createdAt)}</span>
@@ -3325,19 +3340,23 @@ function showJobDetail(jobId) {
       : (job.status === 'picked_up'
         ? `<div style="background:#FFF3E0;border-left:4px solid var(--orange);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#E65100;font-weight:900">⏳ รอลูกค้าโอนเงิน</div>`
         : ''));
-  const payActionHtml = riderMayConfirmPay(job)
+  const jobFinished = ['done', 'delivered', 'cancelled', 'shop_closed'].includes(job.status);
+  const payActionHtml = jobFinished ? '' : (riderMayConfirmPay(job)
     ? `<button type="button" class="action-btn-big btn-green-big ripple" style="width:100%;margin-bottom:8px" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ได้รับเงินแล้ว</button>`
     : (job.type === 'ride' && job.status === 'on_the_way' && !job.customerPaidAt
       ? `<button type="button" class="action-btn-big btn-green-big ripple" style="width:100%;margin-bottom:8px" data-arrive-customer="${esc(job.id)}">📍 ถึงปลายทางแล้ว</button>`
-      : '');
+      : ''));
 
   destroyRiderJobMap();
+  const historyNav = jobFinished ? '' : riderNavBlock(job);
+  const historyProof = jobFinished ? '' : (foodImgHtml + slipImgHtml);
+  const historyCall = jobFinished ? '' : (job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : '');
 
   mc.innerHTML = `
     <h2 style="font-size:18px;font-weight:900;margin-bottom:12px">📋 รายละเอียดงาน</h2>
     ${codeHtml}
     ${payStatusHtml}
-    ${hasMapPoint ? '<div id="rider-job-map" style="height:240px;border-radius:14px;margin-bottom:14px;overflow:hidden"></div>' : ''}
+    ${!jobFinished && hasMapPoint ? '<div id="rider-job-map" style="height:240px;border-radius:14px;margin-bottom:14px;overflow:hidden"></div>' : ''}
     <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px">
       <div style="font-weight:900;font-size:15px;margin-bottom:8px">${esc(job.title || 'งาน')}</div>
       <div style="font-size:13px;font-weight:700;color:var(--text-muted);line-height:1.9">
@@ -3350,9 +3369,8 @@ function showJobDetail(jobId) {
         ${(job.foodReady || job.readyAt) ? `<div style="color:var(--green);font-weight:900">✅ อาหารพร้อมแล้ว</div>` : ''}
       </div>
     </div>
-    ${riderNavBlock(job)}
-    ${foodImgHtml}
-    ${slipImgHtml}
+    ${historyNav}
+    ${historyProof}
     <div style="background:var(--green-light);border-radius:12px;padding:14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:800;padding:4px 0">
         <span>💰 ค่าบริการ</span><span style="font-weight:900">฿${fmt(fin.fare)}</span>
@@ -3362,9 +3380,9 @@ function showJobDetail(jobId) {
       </div>
       ${fin.isCash && fin.tip > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;padding:4px 0;color:#8A5A00"><span>ทิปเงินสด</span><span style="font-weight:900">+ ฿${fmt(fin.tip)}</span></div>` : ''}
     </div>
-    ${job.riderId === currentUser?.uid && window.ChauatCall ? ChauatCall.buttons(job.id) : ''}
+    ${historyCall}
     ${payActionHtml}
-    ${job.status !== 'done' && job.status !== 'delivered' ? `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>` : ''}
+    ${jobFinished ? '' : `<button class="action-btn-big btn-gray-big ripple" style="width:100%;margin-bottom:8px" onclick="openChatWithCustomer('${esc(job.id)}')">💬 แชทกับลูกค้า</button>`}
     <button class="action-btn-big btn-gray-big ripple" style="width:100%" onclick="closeModal()">ปิด</button>
   `;
   $('modalOverlay').classList.add('show');
