@@ -1745,7 +1745,8 @@ function renderJobCard(j, type) {
   const chatBtn = jobFinished ? '' : `<button class="jc-icon-btn" onclick="event.stopPropagation();openChatWithCustomer('${esc(j.id)}')" title="แชท">💬</button>`;
   const callRow = (!jobFinished && !isNew && j.riderId === currentUser?.uid && window.ChauatCall) ? ChauatCall.buttons(j.id) : '';
 
-  const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`;
+  const codeHtml = `<div style="font-size:11px;font-weight:900;color:var(--brand);margin-bottom:4px">🧾 ${esc(orderLabel(j))}</div>`
+    + (Number(j.refundDue) > 0 ? `<div style="font-size:12px;font-weight:900;color:#E65100">ต้องคืนลูกค้า ฿${fmt(j.refundDue)}</div>` : '');
 
   const foodIsReady = !!(j.foodReady || j.readyAt || j.status === 'ready');
   const shopSlip = orderHasShopSlip(j);

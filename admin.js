@@ -942,6 +942,7 @@ function orderDetail(id) {
     <div class="meta" style="white-space:pre-wrap;background:var(--surface-2);padding:12px;border-radius:10px;margin-bottom:12px">${esc(itemsText(o.items))}</div>
 
     <div class="meta" style="margin-top:12px">👤 ${esc(o.userName || '')} • ${esc(o.userPhone || '')}</div>
+    ${Number(o.refundDue) > 0 ? `<div class="meta" style="color:#E65100;font-weight:900">ต้องคืนลูกค้า ฿${fmt(o.refundDue)}</div>` : ''}
     <div class="meta">📍 ${esc(o.address || '')}</div>
 
     ${o.riderName ? `<div class="meta" style="margin-top:8px;color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}${o.riderPhone ? ' • ' + esc(o.riderPhone) : ''}</div>` : ''}

@@ -48,6 +48,14 @@ function merchantSummary(orderId, after) {
   put(summary, 'merchantId', after.merchantId);
   put(summary, 'riderName', after.riderName ? maskThaiName(after.riderName) : '');
   put(summary, 'cancelReason', after.cancelReason);
+  if (after.stockIssue && typeof after.stockIssue === 'object') {
+    summary.stockIssue = {
+      status: String(after.stockIssue.status || ''),
+      note: String(after.stockIssue.note || '').slice(0, 300),
+      items: safeItems(after.stockIssue.items)
+    };
+  }
+  if (Number(after.refundDue) > 0) summary.refundDue = Number(after.refundDue);
   ['createdAt', 'cookingAt', 'readyAt', 'doneAt', 'deliveredAt', 'cancelledAt', 'shopClosedAt'].forEach((key) => {
     if (after[key]) summary[key] = after[key];
   });
