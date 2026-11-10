@@ -339,6 +339,7 @@ service cloud.firestore {
         'fare', 'total', 'foodTotal', 'itemsTotal', 'subtotal', 'netTotal',
         'discountTotal', 'cashTip', 'items', 'riderIncome', 'riderOwe',
         'riderPaid', 'gpTotal', 'gpRider', 'gpPlatform', 'chargedTotal',
+        'riderPayoutPaid', 'riderPayoutPaidAt', 'riderPayoutId', 'riderPayoutBy',
         'partnerShop', 'shopDisclaimerAccepted'
       ]);
     }
@@ -1426,11 +1427,16 @@ service cloud.firestore {
         && request.resource.data.get('roundLabel', '') is string
         && request.resource.data.get('roundLabel', '').size() <= 80
         && request.resource.data.createdAt is timestamp;
-      allow update, delete: if isAdmin();
+      // Status and review timestamps are changed by reviewGpTransfer only.
+      allow update, delete: if false;
     }
 
     match /rider_payouts/{payoutId} {
-      allow read, create, update, delete: if isAdmin();
+      // Payout records and order payout flags are written together by the
+      // trusted Cloud Function transaction. Admin may read the ledger but
+      // cannot create, edit, or delete a financial record from the browser.
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // Consent Events are created by the trusted Cloud Function only.

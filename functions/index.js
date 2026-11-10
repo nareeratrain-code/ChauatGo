@@ -5,9 +5,10 @@ const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp, getApps } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
 const D = require('./dispatch');
 const Orders = require('./orders');
+const { normalizeId, normalizeOrderIds, buildPayoutId, calculatePayoutOrders } = require('./payout');
 const {
   customerSlipNotification,
   customerQuoteNotification,
@@ -36,6 +37,19 @@ console.info('[appcheck] enforce=' + APP_CHECK_ENFORCE);
 function guardAppCheck(req, name) {
   try {
     assertAppCheck(req, name, APP_CHECK_ENFORCE);
+  } catch (err) {
+    if (err && err.code === 'app-check') {
+      throw new HttpsError('unauthenticated', 'แอปไม่ผ่านการตรวจสอบ');
+    }
+    throw err;
+  }
+}
+
+// Financial write endpoints must not fall back to the soft App Check mode.
+// Authentication and role checks remain separate and are still required.
+function guardRequiredAppCheck(req, name) {
+  try {
+    assertAppCheck(req, name, true);
   } catch (err) {
     if (err && err.code === 'app-check') {
       throw new HttpsError('unauthenticated', 'แอปไม่ผ่านการตรวจสอบ');
@@ -117,12 +131,12 @@ exports.onGpTransferCreated = onDocumentCreated('gp_transfers/{transferId}', asy
     slipPath: transfer.slipPath,
     note: transfer.note || '',
     roundLabel: transfer.roundLabel || '',
+    status: 'pending',
     verified: false,
     transferId: event.params.transferId,
     createdAt: transfer.createdAt || new Date()
   };
   await db.collection('merchants').doc(transfer.merchantId).update({
-    gpPending: 0,
     gpHistory: FieldValue.arrayUnion(entry),
     lastGpTransferAt: FieldValue.serverTimestamp()
   });
@@ -308,6 +322,201 @@ exports.manualAssignRider = onCall(CALL, async (req) => {
     return await D.manualAssign(db, req.auth.uid, data.orderId, data.riderId);
   } catch (err) {
     fail(err);
+  }
+});
+
+// Financially sensitive payout writes must happen on the trusted backend.
+// The payout id is deterministic for rider + sorted order ids, and the order
+// flags plus payout record are committed in one transaction. This makes a
+// double tap, retry, or two open Admin tabs idempotent.
+exports.createRiderPayout = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'createRiderPayout');
+  if (!(await D.callerIsAdmin(db, req.auth))) {
+    throw new HttpsError('permission-denied', 'เฉพาะแอดมินการเงิน');
+  }
+
+  const data = req.data || {};
+  let riderId;
+  let orderIds;
+  try {
+    riderId = normalizeId(data.riderId, 'รหัสไรเดอร์');
+    orderIds = normalizeOrderIds(data.orderIds);
+  } catch (err) {
+    throw new HttpsError('invalid-argument', err.message);
+  }
+  if (data.note != null && typeof data.note !== 'string') throw new HttpsError('invalid-argument', 'หมายเหตุต้องเป็นข้อความ');
+  if (data.roundLabel != null && typeof data.roundLabel !== 'string') throw new HttpsError('invalid-argument', 'ชื่อรอบโอนต้องเป็นข้อความ');
+  const note = (data.note || '').trim();
+  if (note.length > 300) throw new HttpsError('invalid-argument', 'หมายเหตุยาวเกิน 300 ตัวอักษร');
+  const roundLabel = (data.roundLabel || '').trim();
+  if (roundLabel.length > 80) throw new HttpsError('invalid-argument', 'ชื่อรอบโอนยาวเกิน 80 ตัวอักษร');
+
+  const payoutId = buildPayoutId(riderId, orderIds);
+  const payoutRef = db.collection('rider_payouts').doc(payoutId);
+  const orderRefs = orderIds.map((id) => db.collection('orders').doc(id));
+
+  try {
+    const result = await db.runTransaction(async (tx) => {
+      const existing = await tx.get(payoutRef);
+      if (existing.exists) {
+        const previous = existing.data();
+        const previousIds = Array.isArray(previous.orderIds) ? normalizeOrderIds(previous.orderIds) : [];
+        if (previous.status !== 'paid'
+          || previous.riderId !== riderId
+          || previous.payoutKey !== payoutId
+          || previousIds.join('|') !== orderIds.join('|')) {
+          throw new Error('พบเอกสาร Payout เดิมที่ข้อมูลไม่ตรงกัน');
+        }
+        return { ok: true, alreadyPaid: true, payoutId, ...previous };
+      }
+
+      const orderSnaps = [];
+      for (const ref of orderRefs) orderSnaps.push(await tx.get(ref));
+      const orders = orderSnaps.map((snap, index) => {
+        if (!snap.exists) throw new Error(`ไม่พบออเดอร์ ${orderIds[index]}`);
+        return { id: snap.id, ...snap.data() };
+      });
+      const payout = calculatePayoutOrders(orders, riderId);
+      const paidAt = FieldValue.serverTimestamp();
+      tx.create(payoutRef, {
+        payoutId,
+        riderId: payout.riderId,
+        orderIds: payout.orderIds,
+        amount: payout.amount,
+        orderCount: payout.orderIds.length,
+        note,
+        roundLabel,
+        status: 'paid',
+        payoutKey: payoutId,
+        paidAt,
+        paidBy: req.auth.uid
+      });
+      for (const ref of orderRefs) {
+        tx.update(ref, {
+          riderPayoutPaid: true,
+          riderPayoutPaidAt: paidAt,
+          riderPayoutId: payoutId,
+          riderPayoutBy: req.auth.uid
+        });
+      }
+      return { ok: true, alreadyPaid: false, payoutId, ...payout };
+    });
+    console.info(JSON.stringify({ event: 'rider_payout_created', payoutId, riderId, orderCount: orderIds.length, amount: result.amount || 0, alreadyPaid: result.alreadyPaid === true }));
+    return result;
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    if (err && /ถูกโอนไปแล้ว|ยังไม่เสร็จ|ขาดยอด|ไม่พบออเดอร์|ไม่ตรง|เอกสาร Payout เดิม/.test(err.message || '')) {
+      throw new HttpsError('failed-precondition', err.message);
+    }
+    console.error('createRiderPayout failed', err);
+    throw new HttpsError('internal', 'บันทึกยอดโอนไม่สำเร็จ');
+  }
+});
+
+// Review a merchant GP slip and its merchant balance atomically. A retry of
+// the same decision is harmless; a verified transfer can never be rejected
+// or verified twice, and a rejected transfer cannot later be approved.
+exports.reviewGpTransfer = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'reviewGpTransfer');
+  if (!(await D.callerIsAdmin(db, req.auth))) {
+    throw new HttpsError('permission-denied', 'เฉพาะแอดมินการเงิน');
+  }
+  const data = req.data || {};
+  let transferId;
+  try {
+    transferId = normalizeId(data.transferId, 'รหัสสลิป');
+  } catch (err) {
+    throw new HttpsError('invalid-argument', err.message);
+  }
+  const action = typeof data.action === 'string' ? data.action.trim() : '';
+  if (!['verify', 'reject'].includes(action)) {
+    throw new HttpsError('invalid-argument', 'ข้อมูลการตรวจสลิปไม่ครบ');
+  }
+
+  const transferRef = db.collection('gp_transfers').doc(transferId);
+  try {
+    const result = await db.runTransaction(async (tx) => {
+      const transferSnap = await tx.get(transferRef);
+      if (!transferSnap.exists) throw new Error('ไม่พบรายการสลิป GP');
+      const transfer = transferSnap.data();
+      const currentStatus = String(transfer.status || 'pending');
+      if (currentStatus === 'verified') {
+        if (action === 'verify') return { ok: true, alreadyReviewed: true, status: currentStatus, transferId };
+        throw new Error('สลิปนี้อนุมัติแล้ว ไม่สามารถปฏิเสธได้');
+      }
+      if (currentStatus === 'rejected') {
+        if (action === 'reject') return { ok: true, alreadyReviewed: true, status: currentStatus, transferId };
+        throw new Error('สลิปนี้ถูกปฏิเสธแล้ว ไม่สามารถอนุมัติได้');
+      }
+      if (currentStatus !== 'pending') throw new Error('สถานะสลิปไม่ถูกต้อง');
+
+      const merchantId = String(transfer.merchantId || '').trim();
+      const amount = Number(transfer.amount || 0);
+      if (!merchantId) throw new Error('ไม่พบร้านค้าของสลิป');
+      const merchantRef = db.collection('merchants').doc(merchantId);
+      const merchantSnap = await tx.get(merchantRef);
+      if (!merchantSnap.exists) throw new Error('ไม่พบข้อมูลร้านค้า');
+      const merchant = merchantSnap.data();
+      const now = Timestamp.now();
+      const pending = Number(merchant.gpPending || 0);
+      const history = Array.isArray(merchant.gpHistory) ? merchant.gpHistory : [];
+      const historyEntry = {
+        amount: transfer.amount,
+        slipUrl: transfer.slipUrl || '',
+        slipPath: transfer.slipPath || '',
+        note: transfer.note || '',
+        roundLabel: transfer.roundLabel || '',
+        transferId,
+        createdAt: transfer.createdAt || now
+      };
+      let historyMatched = false;
+      const reviewedHistory = history.map((entry) => {
+        if (!entry || entry.transferId !== transferId) return entry;
+        historyMatched = true;
+        return Object.assign({}, entry, action === 'verify'
+          ? { status: 'verified', verified: true, verifiedAt: now, verifiedBy: req.auth.uid }
+          : { status: 'rejected', verified: false, rejectedAt: now, rejectedBy: req.auth.uid });
+      });
+      if (!historyMatched) reviewedHistory.push(Object.assign({}, historyEntry,
+        action === 'verify'
+          ? { status: 'verified', verified: true, verifiedAt: now, verifiedBy: req.auth.uid }
+          : { status: 'rejected', verified: false, rejectedAt: now, rejectedBy: req.auth.uid }));
+
+      if (action === 'reject') {
+        tx.update(transferRef, { status: 'rejected', rejectedAt: now, rejectedBy: req.auth.uid });
+        tx.update(merchantRef, {
+          gpHistory: reviewedHistory,
+          lastGpTransferStatus: 'rejected',
+          lastGpTransferId: transferId,
+          lastGpTransferReviewedAt: now
+        });
+        return { ok: true, alreadyReviewed: false, status: 'rejected', transferId, merchantId };
+      }
+
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('ข้อมูลยอด GP ไม่ถูกต้อง');
+      if (!Number.isFinite(pending) || pending < amount) throw new Error('ยอด GP ค้างไม่พอสำหรับสลิปนี้');
+      tx.update(transferRef, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid });
+      tx.update(merchantRef, {
+        gpPending: Math.round((pending - amount + Number.EPSILON) * 100) / 100,
+        gpPaid: Math.round((Number(merchant.gpPaid || 0) + amount + Number.EPSILON) * 100) / 100,
+        gpHistory: reviewedHistory,
+        lastGpTransferStatus: 'verified',
+        lastGpTransferId: transferId,
+        lastGpTransferReviewedAt: now
+      });
+      return { ok: true, alreadyReviewed: false, status: 'verified', transferId, merchantId, amount };
+    });
+    console.info(JSON.stringify({ event: 'gp_transfer_reviewed', transferId, status: result.status, alreadyReviewed: result.alreadyReviewed === true }));
+    return result;
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    if (err && /ไม่พบ|ไม่สามารถ|สถานะ|ข้อมูลยอด|ยอด GP/.test(err.message || '')) {
+      throw new HttpsError('failed-precondition', err.message);
+    }
+    console.error('reviewGpTransfer failed', err);
+    throw new HttpsError('internal', 'ตรวจสอบสลิป GP ไม่สำเร็จ');
   }
 });
 

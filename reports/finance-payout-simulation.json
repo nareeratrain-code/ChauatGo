@@ -1,0 +1,200 @@
+{
+  "rates": {
+    "platformFare": 0.2,
+    "riderFare": 0.8,
+    "storeGp": 0.03,
+    "riderFoodShare": 0.02,
+    "platformFoodShare": 0.01,
+    "cashTip": 5
+  },
+  "assumptions": [
+    "คำนวณจากฟิลด์ fare และ foodTotal/itemsTotal ตามสูตรปัจจุบัน",
+    "เงินสดใช้ cashTip 5 บาทเมื่อไม่ได้ระบุ cashTip",
+    "งานยกเลิกไม่นับ GP และไม่เข้า payout",
+    "safeExpected ตัดออเดอร์ที่ riderPayoutPaid=true ออกจากยอดโอนไรเดอร์",
+    "นี่คือ simulation แบบไม่เชื่อมต่อ Firebase Production"
+  ],
+  "simulation": {
+    "rows": [
+      {
+        "orderId": "SIM-RIDE-001",
+        "type": "ride",
+        "status": "done",
+        "paymentMode": "transfer",
+        "riderId": "rider-a",
+        "merchantId": null,
+        "fare": 100,
+        "food": 0,
+        "tip": 0,
+        "riderIncome": 80,
+        "platformFare": 20,
+        "storeGp": 0,
+        "riderFoodGp": 0,
+        "platformFoodGp": 0,
+        "totalGp": 20,
+        "payoutEligible": "rider-a",
+        "alreadyPaid": false
+      },
+      {
+        "orderId": "SIM-EXPRESS-001",
+        "type": "express",
+        "status": "delivered",
+        "paymentMode": "cash",
+        "riderId": "rider-a",
+        "merchantId": null,
+        "fare": 150,
+        "food": 0,
+        "tip": 5,
+        "riderIncome": 125,
+        "platformFare": 30,
+        "storeGp": 0,
+        "riderFoodGp": 0,
+        "platformFoodGp": 0,
+        "totalGp": 30,
+        "payoutEligible": "rider-a",
+        "alreadyPaid": false
+      },
+      {
+        "orderId": "SIM-FOOD-TRANSFER-001",
+        "type": "food",
+        "status": "done",
+        "paymentMode": "transfer",
+        "riderId": "rider-a",
+        "merchantId": "shop-a",
+        "fare": 40,
+        "food": 500,
+        "tip": 0,
+        "riderIncome": 32,
+        "platformFare": 8,
+        "storeGp": 15,
+        "riderFoodGp": 10,
+        "platformFoodGp": 5,
+        "totalGp": 23,
+        "payoutEligible": "rider-a",
+        "alreadyPaid": false
+      },
+      {
+        "orderId": "SIM-FOOD-CASH-001",
+        "type": "food",
+        "status": "done",
+        "paymentMode": "cash",
+        "riderId": "rider-b",
+        "merchantId": "shop-a",
+        "fare": 60,
+        "food": 850,
+        "tip": 5,
+        "riderIncome": 53,
+        "platformFare": 12,
+        "storeGp": 25.5,
+        "riderFoodGp": 17,
+        "platformFoodGp": 8.5,
+        "totalGp": 37.5,
+        "payoutEligible": "rider-b",
+        "alreadyPaid": false
+      },
+      {
+        "orderId": "SIM-CANCELLED-001",
+        "type": "food",
+        "status": "cancelled",
+        "paymentMode": "transfer",
+        "riderId": "rider-b",
+        "merchantId": "shop-b",
+        "fare": 50,
+        "food": 300,
+        "tip": 0,
+        "riderIncome": 40,
+        "platformFare": 10,
+        "storeGp": 9,
+        "riderFoodGp": 6,
+        "platformFoodGp": 3,
+        "totalGp": 19,
+        "payoutEligible": false,
+        "alreadyPaid": false
+      },
+      {
+        "orderId": "SIM-PAID-001",
+        "type": "food",
+        "status": "done",
+        "paymentMode": "transfer",
+        "riderId": "rider-b",
+        "merchantId": "shop-b",
+        "fare": 30,
+        "food": 1000,
+        "tip": 0,
+        "riderIncome": 24,
+        "platformFare": 6,
+        "storeGp": 30,
+        "riderFoodGp": 20,
+        "platformFoodGp": 10,
+        "totalGp": 36,
+        "payoutEligible": false,
+        "alreadyPaid": true
+      },
+      {
+        "orderId": "SIM-ROUNDING-001",
+        "type": "food",
+        "status": "done",
+        "paymentMode": "transfer",
+        "riderId": "rider-b",
+        "merchantId": "shop-b",
+        "fare": 33.33,
+        "food": 333.33,
+        "tip": 0,
+        "riderIncome": 26.66,
+        "platformFare": 6.67,
+        "storeGp": 10,
+        "riderFoodGp": 6.67,
+        "platformFoodGp": 3.33,
+        "totalGp": 16.67,
+        "payoutEligible": "rider-b",
+        "alreadyPaid": false
+      }
+    ],
+    "completedCount": 6,
+    "currentAdmin": {
+      "platformFareGp": 92.67,
+      "storeGp": 89.5,
+      "riderFoodGpPayout": 53.67,
+      "riderPayoutByRider": {
+        "rider-a": {
+          "orders": 3,
+          "amount": 10
+        },
+        "rider-b": {
+          "orders": 3,
+          "amount": 43.67
+        }
+      }
+    },
+    "safeExpected": {
+      "platformFareGp": 92.67,
+      "storeGp": 89.5,
+      "riderFoodGpPayout": 33.67,
+      "riderPayoutByRider": {
+        "rider-a": {
+          "orders": 3,
+          "amount": 10
+        },
+        "rider-b": {
+          "orders": 2,
+          "amount": 23.67
+        }
+      }
+    },
+    "byMerchantStoreGp": {
+      "shop-a": {
+        "orders": 2,
+        "amount": 40.5
+      },
+      "shop-b": {
+        "orders": 2,
+        "amount": 40
+      }
+    }
+  },
+  "duplicatePayoutRisk": {
+    "currentAdminIncludesAlreadyPaid": true,
+    "alreadyPaidIncludedAmount": 43.67,
+    "safeExpectedAmountForRiderB": 23.67
+  }
+}
