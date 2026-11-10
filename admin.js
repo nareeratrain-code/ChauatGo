@@ -469,6 +469,20 @@ auth.onAuthStateChanged(async user => {
 /* ═══════════════════════════════════════════════════════════════════
    10. START / STOP subscriptions
    ═══════════════════════════════════════════════════════════════════ */
+let merchantFinanceGen = 0;
+function attachMerchantFinance(items) {
+  const gen = ++merchantFinanceGen;
+  Promise.all(items.map((m) => db.collection('merchants').doc(m.id).collection('private').doc('profile').get().catch(() => null)))
+    .then((snaps) => {
+      if (gen !== merchantFinanceGen || store.merchants !== items) return;
+      snaps.forEach((snap, i) => {
+        if (snap && snap.exists && store.merchants[i]) Object.assign(store.merchants[i], snap.data());
+      });
+      render();
+    })
+    .catch(() => {});
+}
+
 function start() {
   const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'gp_transfers', 'rider_payouts'];
 
@@ -485,6 +499,7 @@ function start() {
         } else {
           store[k] = items;
         }
+        if (k === 'merchants') attachMerchantFinance(items);
 
         // แจ้งเตือนออเดอร์ใหม่
         if (k === 'orders') {

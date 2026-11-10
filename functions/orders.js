@@ -407,8 +407,14 @@ async function completeOrder(db, uid, orderId) {
     }
     let merchant = null;
     if (order.type === 'food' && order.merchantId) {
-      const merchantSnap = await tx.get(db.collection('merchants').doc(order.merchantId));
-      merchant = merchantSnap.exists ? (merchantSnap.data() || {}) : null;
+      const merchantRef = db.collection('merchants').doc(order.merchantId);
+      const merchantSnap = await tx.get(merchantRef);
+      const privateSnap = await tx.get(merchantRef.collection('private').doc('profile'));
+      merchant = Object.assign(
+        {},
+        merchantSnap.exists ? (merchantSnap.data() || {}) : {},
+        privateSnap.exists ? (privateSnap.data() || {}) : {}
+      );
     }
     const fare = round2(order.fare);
     const isCash = order.paymentMode === 'cash';

@@ -25,12 +25,25 @@
     });
   }
 
+  function localHost() {
+    var host = '';
+    try { host = String((root.location && root.location.hostname) || ''); } catch (e) { host = ''; }
+    return host === 'localhost' || host === '127.0.0.1';
+  }
+
   function start(app) {
     if (!app || started) return started;
     var key = siteKey();
     if (!key) {
       console.info('[appcheck] site key not set — App Check stays off');
       return null;
+    }
+    // Local only. Firebase prints a debug token in the console. Register that
+    // token in App Check → Manage debug tokens. Production hostnames do not
+    // set this, and the token itself is never written into the repo.
+    if (localHost() && root.FIREBASE_APPCHECK_DEBUG_TOKEN == null) {
+      root.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      console.info('[appcheck] localhost debug token — register the token printed below');
     }
     if (!root.firebase || !root.firebase.appCheck || !root.firebase.appCheck.ReCaptchaEnterpriseProvider) {
       console.warn('[appcheck] Firebase App Check Enterprise provider is not loaded');

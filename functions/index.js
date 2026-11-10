@@ -17,6 +17,7 @@ const {
 } = require('./notifications');
 const { recordConsentEvent } = require('./consent');
 const { merchantHistoryEntry } = require('./gp-history');
+const { FINANCE_KEYS, mergedFinance, migrateMerchantDoc, privateProfileRef } = require('./merchant-private');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
@@ -147,10 +148,33 @@ exports.onGpTransferCreated = onDocumentCreated('gp_transfers/{transferId}', asy
     transferId: event.params.transferId,
     createdAt: transfer.createdAt || new Date()
   });
-  await db.collection('merchants').doc(transfer.merchantId).update({
+  const merchantRef = db.collection('merchants').doc(transfer.merchantId);
+  const merchantSnap = await merchantRef.get();
+  if (merchantSnap.exists) await migrateMerchantDoc(merchantRef, merchantSnap.data());
+  await privateProfileRef(merchantRef).set({
     gpHistory: FieldValue.arrayUnion(entry),
     lastGpTransferAt: FieldValue.serverTimestamp()
-  });
+  }, { merge: true });
+});
+
+// Move GP balances, owner email and notes off the public shop document.
+// A write that still contains those fields is copied, then deleted, so the
+// follow-up write is clean and does not loop.
+exports.onMerchantFinanceSplit = onDocumentWritten('merchants/{merchantId}', async (event) => {
+  if (!event.data.after.exists) return;
+  await migrateMerchantDoc(event.data.after.ref, event.data.after.data());
+});
+
+exports.sweepMerchantFinance = onSchedule({
+  schedule: 'every 60 minutes',
+  timeoutSeconds: 120
+}, async () => {
+  const snap = await db.collection('merchants').limit(500).get();
+  let moved = 0;
+  for (const doc of snap.docs) {
+    if (await migrateMerchantDoc(doc.ref, doc.data())) moved += 1;
+  }
+  if (moved) console.info(JSON.stringify({ event: 'merchant_finance_moved', moved }));
 });
 
 // Ratings are accepted only for the customer's own completed order by Rules.
@@ -467,9 +491,11 @@ exports.reviewGpTransfer = onCall(CALL, async (req) => {
       const amount = Number(transfer.amount || 0);
       if (!merchantId) throw new Error('ไม่พบร้านค้าของสลิป');
       const merchantRef = db.collection('merchants').doc(merchantId);
+      const privateRef = privateProfileRef(merchantRef);
       const merchantSnap = await tx.get(merchantRef);
+      const privateSnap = await tx.get(privateRef);
       if (!merchantSnap.exists) throw new Error('ไม่พบข้อมูลร้านค้า');
-      const merchant = merchantSnap.data();
+      const merchant = mergedFinance(merchantSnap.data(), privateSnap.exists ? privateSnap.data() : {});
       const now = Timestamp.now();
       const pending = Number(merchant.gpPending || 0);
       const history = Array.isArray(merchant.gpHistory) ? merchant.gpHistory : [];
@@ -493,29 +519,39 @@ exports.reviewGpTransfer = onCall(CALL, async (req) => {
           ? { status: 'verified', verified: true, verifiedAt: now, verifiedBy: req.auth.uid }
           : { status: 'rejected', verified: false, rejectedAt: now, rejectedBy: req.auth.uid }));
 
-      if (action === 'reject') {
-        tx.update(transferRef, { status: 'rejected', rejectedAt: now, rejectedBy: req.auth.uid });
-        tx.update(merchantRef, {
-          gpHistory: reviewedHistory,
-          lastGpTransferStatus: 'rejected',
-          lastGpTransferId: transferId,
-          lastGpTransferReviewedAt: now
-        });
-        return { ok: true, alreadyReviewed: false, status: 'rejected', transferId, merchantId };
-      }
-
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error('ข้อมูลยอด GP ไม่ถูกต้อง');
-      if (!Number.isFinite(pending) || pending < amount) throw new Error('ยอด GP ค้างไม่พอสำหรับสลิปนี้');
-      tx.update(transferRef, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid });
-      tx.update(merchantRef, {
-        gpPending: Math.round((pending - amount + Number.EPSILON) * 100) / 100,
-        gpPaid: Math.round((Number(merchant.gpPaid || 0) + amount + Number.EPSILON) * 100) / 100,
+      const financePatch = {
         gpHistory: reviewedHistory,
-        lastGpTransferStatus: 'verified',
         lastGpTransferId: transferId,
         lastGpTransferReviewedAt: now
+      };
+      if (action === 'reject') {
+        financePatch.lastGpTransferStatus = 'rejected';
+      } else {
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error('ข้อมูลยอด GP ไม่ถูกต้อง');
+        if (!Number.isFinite(pending) || pending < amount) throw new Error('ยอด GP ค้างไม่พอสำหรับสลิปนี้');
+        financePatch.lastGpTransferStatus = 'verified';
+        financePatch.gpPending = Math.round((pending - amount + Number.EPSILON) * 100) / 100;
+        financePatch.gpPaid = Math.round((Number(merchant.gpPaid || 0) + amount + Number.EPSILON) * 100) / 100;
+      }
+      const publicDelete = {};
+      FINANCE_KEYS.forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(merchantSnap.data() || {}, key)) publicDelete[key] = FieldValue.delete();
       });
-      return { ok: true, alreadyReviewed: false, status: 'verified', transferId, merchantId, amount };
+      if (action === 'reject') {
+        tx.update(transferRef, { status: 'rejected', rejectedAt: now, rejectedBy: req.auth.uid });
+      } else {
+        tx.update(transferRef, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid });
+      }
+      tx.set(privateRef, financePatch, { merge: true });
+      if (Object.keys(publicDelete).length) tx.update(merchantRef, publicDelete);
+      return {
+        ok: true,
+        alreadyReviewed: false,
+        status: action === 'reject' ? 'rejected' : 'verified',
+        transferId,
+        merchantId,
+        amount: action === 'verify' ? amount : undefined
+      };
     });
     console.info(JSON.stringify({ event: 'gp_transfer_reviewed', transferId, status: result.status, alreadyReviewed: result.alreadyReviewed === true }));
     return result;

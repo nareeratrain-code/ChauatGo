@@ -81,24 +81,25 @@ Business rules used as the check:
 - What was wrong: there is no function named `expireDispatchOffers`. The callable is `expireDispatchOffer` (`functions/index.js`). `manualAssignRider` and `listMyConsentEvents` are normal `onCall` handlers with auth checks, the same options as the callables that succeed, and no missing import. Gen 2 defaults to 1 vCPU. Firebase CLI releases many Gen 2 updates at once, and each new revision is health-checked at that CPU. On a small Cloud Run CPU quota in `asia-southeast1` the health checks return “Container Healthcheck failed / Quota exceeded for total allowable CPU”, which the CLI prints as “failed to update” for whichever functions lose the race. That matches [firebase-tools#11001](https://github.com/firebase/firebase-tools/issues/11001). A missing index or a bad handler name would fail at run time, not at update time. `consent_events` already has the `subjectRef` + `receivedAt` index in `firestore.indexes.json`.
 - Fix in repo: `memory: '256MiB'`, `cpu: 'gcf_gen1'`, `concurrency: 1`. New revisions request the fractional CPU that 256MiB Gen 1 used, so one full rollout fits. This does not deploy anything.
 
-## Confirmed, not changed
+## Follow-up, resolved after PR #98
 
-### 7. High — verified shop documents are publicly readable, including balances
+These three items were still open after the first audit. They are closed in the follow-up branch. The original notes stay below so the first review can still be read.
 
-- File: `firestore.rules` line 1203.
-- `allow read` is true when `verified == true`, with no sign-in, or when any user is signed in. The shop list query is `where('verified','==',true)`, so the public read is what the customer app needs for name, hours, and photo. The same document also holds `phone`, `email`, `gpPending`, `gpPaid`, and `gpHistory`. Rules cannot hide fields. Moving money onto `merchants/{id}/finance` would touch the merchant app, admin finance, and the GP trigger together, so it is not in this change.
-- Recommendation: keep the public shop fields on `merchants`, and move GP totals and history to a subdocument that only the shop and an admin can read. Until then, do not put new slip URLs or bank account numbers on `merchants`.
+### 7. High — verified shop documents were publicly readable, including balances — resolved
 
-### 8. Medium — callable App Check is still in soft mode
+GP balances, owner email, alert-sound settings, internal notes, and bank fields now live on `merchants/{id}/private/profile`. Only that shop and an admin can read it. The public shop document still has the name, photo, address, hours, partner flag, ratings, menu categories, and the storefront phone the customer “call shop” button dials. A merchant write that still contains a finance field is copied to the private doc and deleted. `sweepMerchantFinance` repeats that move every hour for shops that are not edited. The partner list query `where('verified','==',true)` is unchanged.
 
-- Files: `functions/.env` (`APP_CHECK_ENFORCE=false`), `config/env.js` (`appCheckEnforce: false`), `functions/index.js` `CALL.enforceAppCheck: false`.
-- The client can attach a reCAPTCHA Enterprise token when the site key works. Enforcement is intentionally off so a missing token is not a CORS failure. With enforcement off, anyone who has the public web API key can call `createOrder` and the other callables. `createRiderPayout` and `reviewGpTransfer` already require an App Check token even in this mode.
-- Recommendation: confirm `[appcheck] ok fn=createOrder` in the function logs, then set `APP_CHECK_ENFORCE=true`, enforce Firestore, Storage, and Cloud Functions in the console, and leave Cloud Messaging unenforced. Do not flip this until a real phone upload has succeeded. No service-account private key is in git. The `AIza…` values in `rider.js`, `index.html`, `admin.js`, and `merchant.js` are the public Firebase web key.
+### 8. Medium — callable App Check was not enforced — resolved as a flagged rollout
 
-### 9. Medium — a cash customer can still set `customer_paid` while status is `picked_up`
+The client already activates reCAPTCHA Enterprise with the public site key for `chauat-go-i5ec.vercel.app`. Localhost now asks Firebase to print a debug token; register that token in the console and do not commit it. Callable rejection stays behind `functions/.env` `APP_CHECK_ENFORCE`, which is still `false`. Turn it on only after App Check metrics show verified traffic for a day or two. Firestore and Storage Enforce are console toggles and are not required for the app to run. Full steps are in the pull request and in `config/env.js`.
 
-- File: `firestore.rules` `customerPaidOk`.
-- Cash food and shopping can move `picked_up` → `customer_paid` without a slip. That matches “no slip”. It can happen before the rider has tapped “start delivery”, if the customer calls `confirmCustomerPaid`. The order-card markup builds a cash button and then clears it (`index.html` lines 4489 and 4544), so the card does not show it; chat can still call the function. Tightening this to `on_the_way` only would change the cash hand-off the shopping tests lock. Left as a recommendation.
+### 9. Medium — a cash customer could mark `picked_up` as paid — resolved
+
+`customerPaidOk` now rejects `paymentMode == 'cash'`. A transfer food or buy-for-me order can still move to `customer_paid` after a slip. Cash is recorded by `confirmPaymentReceived` when the rider is `on_the_way`. The customer page tells a cash customer that the rider confirms at delivery and does not write the paid flags.
+
+## Still open
+
+Items 7, 8, and 9 are resolved in the follow-up section above.
 
 ### 10. Low — navigation
 
@@ -164,9 +165,9 @@ Do not add `storage` or `hosting` for this change. The customer site on Vercel n
 
 ## ข้อที่ยืนยัน แต่ยังไม่แก้
 
-7. **สูง** — เอกสารร้านที่ยืนยันแล้วอ่านได้โดยไม่ต้องล็อกอิน รวมเบอร์ อีเมล ยอด GP และประวัติ (`firestore.rules` บรรทัด 1203) กฎ Firestore ซ่อนทีละฟิลด์ไม่ได้ การแยกเอกสารการเงินเป็นการเปลี่ยนหลายแอป จึงเหลือเป็นคำแนะนำ
-8. **กลาง** — App Check ยังไม่บังคับ (`functions/.env`, `config/env.js`) ใครก็เรียก callable ได้ถ้ามีคีย์เว็บสาธารณะ ไม่เปิดบังคับในชุดนี้เพราะจะล็อกผู้ใช้จริงถ้าโทเคนยังไม่พร้อม ไม่มี private key ของ service account ใน git
-9. **กลาง** — ลูกค้าเงินสดยังตั้ง `customer_paid` จากสถานะ `picked_up` ได้โดยไม่มีสลิป ซึ่งตรงกับ “ไม่ต้องมีสลิป” แต่เกิดได้ก่อนไรเดอร์กดออกส่ง การ์ดออเดอร์สร้างปุ่มแล้วลบทิ้ง (`index.html` บรรทัด 4489 และ 4544) ไม่ได้แก้เพราะเทสฝากซื้อล็อกพฤติกรรมนี้ไว้
+7. **สูง — แก้แล้ว** — ยอด GP อีเมลเจ้าของ โน้ต และข้อมูลบัญชี ย้ายไป `merchants/{id}/private/profile` ร้านเจ้าของและแอดมินเท่านั้นที่อ่านได้ รายการร้านร่วมยังอ่านชื่อ รูป ที่อยู่ เวลาเปิด และสถานะพาร์ทเนอร์ได้ เบอร์หน้าร้านยังอยู่บนเอกสารสาธารณะเพราะปุ่มโทรใช้เบอร์นั้น `sweepMerchantFinance` ย้ายของเก่าทุกชั่วโมง
+8. **กลาง — พร้อมเปิดใช้** — ไคลเอนต์เปิด reCAPTCHA Enterprise อยู่แล้ว การปฏิเสธ callable ยังปิดอยู่ที่ `APP_CHECK_ENFORCE=false` ให้ดูเมตริกหนึ่งถึงสองวันแล้วค่อยตั้งเป็น `true` แล้วดีพลอย functions การบังคับ Firestore/Storage ทำในคอนโซลทีหลัง แอปไม่รอสวิตช์นั้น localhost พิมพ์ debug token ให้ไปลงทะเบียน ห้ามคอมมิตโทเคน
+9. **กลาง — แก้แล้ว** — ลูกค้าเงินสดตั้ง `customer_paid` จาก `picked_up` ไม่ได้อีก งานโอนยังต้องมีสลิป เงินสดให้ไรเดอร์ยืนยันตอน `on_the_way`
 10. **ต่ำ** — ปุ่มนำทางมีทั้งจุดรับและจุดส่งเป็นพิกัดจริงของอาหาร ฝากซื้อ เรียกรถ และส่งด่วน (`rider.js` `riderStop`) ที่พักเป็นหมวดแผนที่แล้วกลายเป็นปลายทางของเรียกรถ ไม่ใช่ประเภทออเดอร์ใหม่ ถ้าร้านไม่มีพิกัด ปุ่มจะค้นจากชื่อแทน
 
 ## ข้อสงสัย

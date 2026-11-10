@@ -124,38 +124,31 @@ service cloud.firestore {
     }
     function merchantCreateOk() {
       return request.resource.data.keys().hasOnly([
-        'merchantId', 'name', 'category', 'phone', 'email', 'address',
+        'merchantId', 'name', 'category', 'phone', 'address',
         'openTime', 'closeTime', 'isOpen', 'verified', 'ratingAvg',
-        'ratingCount', 'gpStartDate', 'gpPending', 'gpPaid', 'gpConsent',
-        'soundSettings', 'createdAt'
+        'ratingCount', 'createdAt'
       ])
         && request.resource.data.merchantId == myUid()
         && request.resource.data.verified == false
         && request.resource.data.isOpen == false
         && request.resource.data.ratingAvg == 0
         && request.resource.data.ratingCount == 0
-        && request.resource.data.gpPending == 0
-        && request.resource.data.gpPaid == 0
-        && request.resource.data.gpConsent == true
         && request.resource.data.createdAt is timestamp
         && isValidString(request.resource.data.name, 1, 120)
         && isValidString(request.resource.data.category, 1, 40)
         && isValidString(request.resource.data.phone, 1, 30)
-        && isValidString(request.resource.data.email, 3, 200)
         && isValidString(request.resource.data.address, 1, 300)
         && isValidString(request.resource.data.openTime, 1, 10)
-        && isValidString(request.resource.data.closeTime, 1, 10)
-        && request.resource.data.soundSettings is map;
+        && isValidString(request.resource.data.closeTime, 1, 10);
     }
     function merchantProfileUpdateOk() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-        'name', 'phone', 'email', 'address', 'category', 'openTime', 'closeTime',
+        'name', 'phone', 'address', 'category', 'openTime', 'closeTime',
         'isOpen', 'lastToggle', 'image', 'imagePath', 'imageUpdatedAt',
-        'soundSettings', 'menuCategories'
+        'menuCategories'
       ])
         && changedToString('name', 1, 120)
         && changedToString('phone', 0, 30)
-        && changedToString('email', 0, 200)
         && changedToString('address', 0, 300)
         && changedToString('category', 0, 40)
         && changedToString('openTime', 0, 10)
@@ -163,8 +156,6 @@ service cloud.firestore {
         && changedToString('image', 0, 2000)
         && changedToString('imagePath', 0, 400)
         && changedToBool('isOpen')
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['soundSettings'])
-          || request.resource.data.soundSettings is map)
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['menuCategories'])
           || request.resource.data.menuCategories is list)
         && changedToTimestamp('lastToggle')
@@ -200,6 +191,36 @@ service cloud.firestore {
         && unchanged('isPending');
     }
 
+    // Owner email, GP balances, payout notes and alert sounds. The public
+    // shop document stays readable for the partner list. This doc does not.
+    function privateCreateOk() {
+      return request.resource.data.keys().hasOnly([
+          'email', 'soundSettings', 'notes', 'gpPending', 'gpPaid',
+          'gpHistory', 'gpStartDate', 'gpConsent'
+        ])
+        && request.resource.data.gpPending == 0
+        && request.resource.data.gpPaid == 0
+        && request.resource.data.gpConsent == true
+        && request.resource.data.gpHistory is list
+        && request.resource.data.gpHistory.size() == 0
+        && request.resource.data.gpStartDate == null
+        && request.resource.data.soundSettings is map
+        && isValidString(request.resource.data.email, 3, 200)
+        && (!('notes' in request.resource.data) || isValidString(request.resource.data.notes, 0, 500));
+    }
+    function privateUpdateOk() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'soundSettings', 'notes'])
+        && changedToString('email', 0, 200)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['soundSettings'])
+          || request.resource.data.soundSettings is map)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['notes'])
+          || isValidString(request.resource.data.get('notes', ''), 0, 500))
+        && unchanged('gpPending')
+        && unchanged('gpPaid')
+        && unchanged('gpHistory')
+        && unchanged('gpStartDate')
+        && unchanged('gpConsent');
+    }
     function merchantProfileWriteOk(merchantId) {
       return isAuth()
         && myUid() == merchantId
@@ -728,9 +749,10 @@ service cloud.firestore {
     function customerPaidOk() {
       return moneyFrozen() && isOrderCustomer()
         && buysGoods()
+        && resource.data.get('paymentMode', '') != 'cash'
         && resource.data.status == 'picked_up'
         && request.resource.data.status == 'customer_paid'
-        && (resource.data.get('paymentMode', '') == 'cash' || customerSlipNotRejected())
+        && customerSlipNotRejected()
         && identityFrozen()
         && unchanged('riderId')
         && onlyChanged(['status', 'customerPaid', 'customerPaidAt', 'foodDeliveryStage'])
@@ -1212,6 +1234,13 @@ service cloud.firestore {
       // Merchant deletion is an admin/server action. Client-side deletion
       // would orphan menus and historical orders.
       allow delete: if isAdmin();
+
+      match /private/{docId} {
+        allow read: if isAdmin() || (isAuth() && myUid() == merchantId);
+        allow create: if isAuth() && myUid() == merchantId && privateCreateOk();
+        allow update: if isAuth() && myUid() == merchantId && privateUpdateOk();
+        allow delete: if isAdmin();
+      }
     }
 
     match /riders/{riderId} {
