@@ -499,6 +499,8 @@ function start() {
         } else {
           store[k] = items;
         }
+        store.loaded = store.loaded || {};
+        store.loaded[k] = true;
         if (k === 'merchants') attachMerchantFinance(items);
 
         // แจ้งเตือนออเดอร์ใหม่
@@ -836,7 +838,13 @@ function dashboard() {
     <div class="finance-daily-footer"><span>⏳ Payout รอตรวจในวันเลือก: <b>฿${fmt(finance.pendingPayout)}</b> (${finance.pendingPayoutCount})</span><span>รายการ Payout ทั้งหมด: <b>${finance.payoutCount}</b></span></div>
   </div>`;
 
-  return `${hero}${stats}${financeCards}
+  const summary = `<section class="admin-summary" aria-label="สรุปวันนี้">
+    <article class="admin-summary-card"><span>ออเดอร์วันนี้</span><strong>${todayOrders}</strong><small>งานที่เสร็จวันนี้</small></article>
+    <article class="admin-summary-card"><span>ไรเดอร์พร้อมงาน</span><strong>${activeRiders}</strong><small>กำลังทำ ${active.length} งาน</small></article>
+    <article class="admin-summary-card money"><span>รายได้ GP วันนี้</span><strong>฿${todayGp.toLocaleString('th-TH', { maximumFractionDigits: 0 })}</strong><small>20% ของค่าส่ง</small></article>
+  </section>`;
+
+  return `${summary}${hero}${stats}${financeCards}
     <div class="section-divider"><div class="title">🎯 ต้องทำอะไรต่อ</div><div class="line"></div></div>
     ${actions.join('')}
     <div class="section-divider"><div class="title">🕐 ออเดอร์ล่าสุด</div><div class="line"></div></div>
@@ -856,14 +864,21 @@ function orders() {
   );
   list.sort((a, b) => ts(b) - ts(a));
 
-  const sel = `<select id="ofilter" style="margin-bottom:14px;padding:12px;min-height:48px;border-radius:12px;border:2px solid var(--border);background:var(--surface);font-family:inherit;font-weight:900;color:var(--text)">
+  if (!store.loaded || !store.loaded.orders) {
+    return '<div class="empty"><div class="icon">⏳</div><div>กำลังโหลดออเดอร์</div></div>';
+  }
+  const chipKeys = ['all', 'searching', 'accepted', 'on_the_way', 'done', 'cancelled'];
+  const chips = `<div class="status-filters" role="tablist">${chipKeys.map(k =>
+    `<button type="button" class="status-filter ${filters.orders === k ? 'on' : ''}" data-order-status="${k}">${k === 'all' ? 'ทั้งหมด' : esc(STATUS[k] || k)}</button>`
+  ).join('')}</div>`;
+  const sel = `<select id="ofilter" class="order-status-select" aria-label="กรองสถานะออเดอร์">
     <option value="all">ทุกสถานะ</option>
     ${Object.entries(STATUS).map(([k, v]) =>
       `<option value="${k}" ${filters.orders === k ? 'selected' : ''}>${v}</option>`
     ).join('')}
   </select>`;
 
-  return searchInput('ค้นหา OD, ชื่อ, หรือรหัสเอกสาร...') + sel + (list.map(o => {
+  return searchInput('ค้นหา OD, ชื่อ, หรือรหัสเอกสาร...') + chips + sel + (list.map(o => {
     const slipBadge = o.riderSlipUrl
       ? (o.riderSlipVerified ? '<span class="tag">📸 ✅</span>' : '<span class="tag w">📸 รอ</span>')
       : '';
@@ -884,7 +899,7 @@ function orders() {
           ${o.cancelReason ? `<div class="data-card-meta">${esc(o.cancelReason)}</div>` : ''}
           ${o.adminFlagReason ? `<div class="data-card-meta" style="color:#C62828;font-weight:800">${esc(o.adminFlagReason)}</div>` : ''}
         </div>
-        <span class="tag ${o.status === 'done' ? '' : o.status === 'cancelled' ? 'x' : 'w'}">${esc(statusLabel(o))}</span>
+        <span class="status-chip ${esc(o.status || 'muted')}">${esc(statusLabel(o))}</span>
       </div>
     </div>`;
   }).join('') || '<div class="empty"><div class="icon">📭</div><div>ไม่พบออเดอร์</div></div>');
@@ -1858,7 +1873,7 @@ function closeModal() {
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async e => {
   const t = e.target.closest(
-    '[data-go],[data-order],[data-open-chat],[data-verify-merchant],[data-edit-merchant],' +
+    '[data-go],[data-order],[data-order-status],[data-open-chat],[data-verify-merchant],[data-edit-merchant],' +
     '[data-verify-rider],[data-toggle-rider],[data-del],[data-merchant-status],' +
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],' +
@@ -1871,6 +1886,12 @@ document.addEventListener('click', async e => {
 
   try {
     // ─── Navigation ───
+    if (t.dataset.orderStatus) {
+      filters.orders = t.dataset.orderStatus;
+      render();
+      return;
+    }
+
     if (t.dataset.go) {
       current = t.dataset.go;
       filters.q = '';

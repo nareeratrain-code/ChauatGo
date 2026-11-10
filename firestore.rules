@@ -1113,6 +1113,19 @@ service cloud.firestore {
         && (orderParty(chatId, field) || chatParty(chatId, field));
     }
 
+    function finishedOrder(data) {
+      return data.status in ['done', 'delivered', 'cancelled', 'shop_closed'];
+    }
+
+    // The customer cannot keep writing chat or calls after the order is finished.
+    // The rider, shop, and admin still can.
+    function customerLockedOut(orderId) {
+      return exists(orderPath(orderId))
+        && finishedOrder(get(orderPath(orderId)).data)
+        && get(orderPath(orderId)).data.get('userId', '') == myUid()
+        && get(orderPath(orderId)).data.get('riderId', '') != myUid();
+    }
+
     function orderPath(orderId) {
       return /databases/$(database)/documents/orders/$(orderId);
     }
@@ -1149,6 +1162,7 @@ service cloud.firestore {
       let calleeRole = request.resource.data.calleeRole;
       return isAuth()
         && exists(orderPath(orderId))
+        && !finishedOrder(data)
         && caller == myUid()
         && caller != callee
         && callerRole in ['customer', 'rider', 'merchant']
@@ -1405,7 +1419,8 @@ service cloud.firestore {
         || (chatParticipantOn(request.resource.data) && !exists(orderPath(chatId)))
       );
       allow update: if (
-          isOrderParty(chatId)
+          !customerLockedOut(chatId)
+          && isOrderParty(chatId)
           && chatIdsFollowOrder(chatId)
           && onlyChanged([
             'userId', 'riderId', 'merchantId', 'userName', 'riderName', 'merchantName',
@@ -1413,7 +1428,8 @@ service cloud.firestore {
           ])
         )
         || (
-          isAuth()
+          !customerLockedOut(chatId)
+          && isAuth()
           && resource != null
           && chatParticipantOn(resource.data)
           && unchanged('userId')
@@ -1430,7 +1446,7 @@ service cloud.firestore {
           || chatParty(chatId, 'merchantId')
           || isAdmin();
         allow create: if messageOk() && (
-          messageFrom(chatId, 'user', 'userId')
+          (messageFrom(chatId, 'user', 'userId') && !customerLockedOut(chatId))
           || messageFrom(chatId, 'rider', 'riderId')
           || messageFrom(chatId, 'merchant', 'merchantId')
           || (request.resource.data.senderRole == 'admin' && isAdmin())
