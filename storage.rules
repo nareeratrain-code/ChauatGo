@@ -141,7 +141,10 @@ service firebase.storage {
         && firestore.exists(chatPath(chatId))
         && (
           firestore.get(chatPath(chatId)).data.get('userId', '') == request.auth.uid
-          || firestore.get(chatPath(chatId)).data.get('riderId', '') == request.auth.uid
+          || (
+            firestore.get(chatPath(chatId)).data.get('riderId', '') == request.auth.uid
+            && !orderFinished(chatId)
+          )
           || firestore.get(chatPath(chatId)).data.get('merchantId', '') == request.auth.uid
         );
     }
@@ -199,7 +202,7 @@ service firebase.storage {
     // firestore.get is not used, so a missing Storage service-agent grant
     // cannot deny this write.
     match /orders/{orderId}/riders/{uid}/{fileName} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid && !orderFinished(orderId);
       allow create, update: if isImage() && request.auth.uid == uid;
       allow delete: if signedIn() && request.auth.uid == uid;
     }
@@ -214,7 +217,9 @@ service firebase.storage {
       // Firestore lookup. The customer and shop can read it too, so the
       // goods photo in chat is not rider-only.
       allow read: if signedIn() && (
-        request.auth.uid == uid || isAdmin() || orderParty(orderId)
+        (request.auth.uid == uid && !orderFinished(orderId))
+        || isAdmin()
+        || orderParty(orderId)
       );
       allow create, update: if isImage() && request.auth.uid == uid;
       allow delete: if signedIn() && request.auth.uid == uid;

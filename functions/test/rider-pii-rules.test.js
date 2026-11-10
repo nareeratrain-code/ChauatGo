@@ -47,6 +47,8 @@ test('a rider can read customer details only while the job is active', {
       await root.collection('chats').doc('done1').set({ orderId: 'done1', userId: 'cust1', riderId: 'rider1' });
       await root.collection('chats').doc('active1').collection('messages').doc('m1').set({ text: 'ถึงแล้ว', senderId: 'cust1' });
       await root.collection('chats').doc('done1').collection('messages').doc('m1').set({ text: 'เบอร์ 0812345678', senderId: 'cust1' });
+      await root.collection('orders').doc('active1').collection('calls').doc('c1').set({ callerName: 'สมชาย ใจดี', callerUid: 'cust1' });
+      await root.collection('orders').doc('done1').collection('calls').doc('c1').set({ callerName: 'สมชาย ใจดี', callerUid: 'cust1' });
       await root.collection('riders').doc('rider1').collection('jobHistory').doc('done1').set({
         orderId: 'done1', shortId: 'OD-1', type: 'food', pickupLabel: 'ร้านข้าว',
         dropoffArea: 'ต.ชะอวด', fare: 30, status: 'done', safe: true
@@ -60,9 +62,12 @@ test('a rider can read customer details only while the job is active', {
     const active = await assertSucceeds(rider.collection('orders').doc('active1').get());
     assert.equal(active.data().userPhone, '0812345678');
     await assertSucceeds(rider.collection('chats').doc('active1').collection('messages').doc('m1').get());
+    await assertSucceeds(rider.collection('orders').doc('active1').collection('calls').doc('c1').get());
+    assert.equal(active.data().address, '99/1 หมู่ 3 ต.ชะอวด');
 
     await assertFails(rider.collection('orders').doc('done1').get());
     await assertFails(rider.collection('chats').doc('done1').collection('messages').doc('m1').get());
+    await assertFails(rider.collection('orders').doc('done1').collection('calls').doc('c1').get());
     await assertFails(rider.collection('orders').doc('done1').collection('private').doc('contacts').get());
 
     const history = await assertSucceeds(rider.collection('riders').doc('rider1').collection('jobHistory').doc('done1').get());

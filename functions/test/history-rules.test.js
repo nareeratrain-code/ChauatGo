@@ -4,7 +4,7 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 
-test('a customer cannot write chat on a finished order, and the rider still can', {
+test('a customer and rider cannot write chat on a finished order, and a live order still can', {
   skip: !process.env.FIRESTORE_EMULATOR_HOST
 }, async () => {
   const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');

@@ -45,6 +45,21 @@ test('storage rules match every client upload path', async () => {
         total: 32,
         code: 'OD-WAY'
       });
+      await db.doc('orders/ord-done').set({
+        type: 'food',
+        status: 'done',
+        userId: 'cust1',
+        merchantId: 'shop1',
+        riderId: 'rider1',
+        userPhone: '0812345678',
+        address: '99/1 หมู่ 3 ต.ชะอวด'
+      });
+      await db.doc('chats/ord-done').set({
+        orderId: 'ord-done',
+        userId: 'cust1',
+        riderId: 'rider1',
+        merchantId: 'shop1'
+      });
       await db.doc('orders/ord1').set({
         type: 'food',
         status: 'accepted',
@@ -101,6 +116,10 @@ test('storage rules match every client upload path', async () => {
         total: 35,
         code: 'OD-TEST'
       });
+      await ctx.storage().ref('slips/customers/cust1/ord-done/proof_1.jpg').put(JPEG, { contentType: 'image/jpeg' });
+      await ctx.storage().ref('chats/ord-done/images/1_cust1.jpg').put(JPEG, { contentType: 'image/jpeg' });
+      await ctx.storage().ref('chats/ord-done/riders/rider1/food_1.jpg').put(JPEG, { contentType: 'image/jpeg' });
+      await ctx.storage().ref('orders/ord-done/riders/rider1/food_1.jpg').put(JPEG, { contentType: 'image/jpeg' });
     });
 
     const plain = env.authenticatedContext('plain1');
@@ -174,6 +193,14 @@ test('storage rules match every client upload path', async () => {
       ['other rider cannot upload customer payment proof', () => assertFails(put(os, 'slips/customers/cust1/ord1/proof_3.jpg'))],
       ['customer cannot upload proof for another order', () => assertFails(put(cs, 'slips/customers/cust1/ord2/proof_1.jpg'))],
       ['rider reads customer payment proof', () => assertSucceeds(rs.ref('slips/customers/cust1/ord1/proof_1.jpg').getMetadata())],
+      ['finished rider cannot read the customer slip', () => assertFails(rs.ref('slips/customers/cust1/ord-done/proof_1.jpg').getMetadata())],
+      ['customer still reads a finished slip', () => assertSucceeds(cs.ref('slips/customers/cust1/ord-done/proof_1.jpg').getMetadata())],
+      ['admin still reads a finished slip', () => assertSucceeds(as.ref('slips/customers/cust1/ord-done/proof_1.jpg').getMetadata())],
+      ['shop still reads a finished slip', () => assertSucceeds(ss.ref('slips/customers/cust1/ord-done/proof_1.jpg').getMetadata())],
+      ['finished rider cannot read the chat image', () => assertFails(rs.ref('chats/ord-done/images/1_cust1.jpg').getMetadata())],
+      ['customer still reads a finished chat image', () => assertSucceeds(cs.ref('chats/ord-done/images/1_cust1.jpg').getMetadata())],
+      ['finished rider cannot read their chat photo of the job', () => assertFails(rs.ref('chats/ord-done/riders/rider1/food_1.jpg').getMetadata())],
+      ['finished rider cannot read their order photo of the job', () => assertFails(rs.ref('orders/ord-done/riders/rider1/food_1.jpg').getMetadata())],
       ['shop reads customer payment proof', () => assertSucceeds(ss.ref('slips/customers/cust1/ord1/proof_1.jpg').getMetadata())],
       ['stranger cannot read customer payment proof', () => assertFails(ts.ref('slips/customers/cust1/ord1/proof_1.jpg').getMetadata())],
       ['customer cannot overwrite customer payment proof', () => assertFails(cs.ref('slips/customers/cust1/ord1/proof_1.jpg').put(JPEG, { contentType: 'image/jpeg' }))],

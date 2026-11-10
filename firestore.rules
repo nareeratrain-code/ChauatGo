@@ -1154,7 +1154,7 @@ service cloud.firestore {
         && exists(orderPath(orderId))
         && (
           data.get('userId', '') == myUid()
-          || (data.get('riderId', '') != '' && data.get('riderId', '') == myUid())
+          || (data.get('riderId', '') != '' && data.get('riderId', '') == myUid() && !finishedOrder(data))
           || (data.get('merchantId', '') != '' && data.get('merchantId', '') == myUid())
         )
       );

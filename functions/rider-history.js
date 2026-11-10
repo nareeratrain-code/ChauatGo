@@ -15,8 +15,8 @@ function maskThaiName(name) {
   return parts.slice(0, -1).join(' ') + ' ' + thaiInitial(parts[parts.length - 1]) + '.';
 }
 
-// District or subdistrict only. A free-text address with a house number is
-// not copied into the rider history.
+// Pickup may be a district or subdistrict. A free-text address with a house
+// number is not copied into the rider history.
 function coarseArea(text) {
   const raw = String(text || '').replace(/\s+/g, ' ').trim();
   if (!raw) return '';
@@ -28,6 +28,13 @@ function coarseArea(text) {
   return '';
 }
 
+// Drop-off is district only. A subdistrict or street is not kept.
+function districtOnly(text) {
+  const raw = String(text || '').replace(/\s+/g, ' ').trim();
+  const district = raw.match(/(?:อำเภอ|อ\.)\s*([ก-๙A-Za-z.\-]+)/);
+  return district ? 'อ.' + district[1] : '';
+}
+
 function historySummary(orderId, after) {
   return {
     orderId: orderId,
@@ -35,7 +42,7 @@ function historySummary(orderId, after) {
     completedAt: after.doneAt || after.deliveredAt || after.cancelledAt || after.shopClosedAt || new Date(),
     type: after.type || '',
     pickupLabel: after.shopPlaceName || after.merchantName || coarseArea(after.from) || 'จุดรับ',
-    dropoffArea: coarseArea(after.to || after.address) || 'พื้นที่ปลายทาง',
+    dropoffArea: districtOnly(after.to || after.address) || 'พื้นที่ปลายทาง',
     distanceKm: Number(after.distanceKm) || 0,
     fare: Number(after.fare) || 0,
     cashTip: after.paymentMode === 'cash' ? Number(after.cashTip || 0) : 0,
@@ -70,6 +77,7 @@ module.exports = {
   FINISHED,
   maskThaiName,
   coarseArea,
+  districtOnly,
   historySummary,
   syncRiderHistory
 };
