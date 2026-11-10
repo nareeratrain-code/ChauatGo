@@ -6946,7 +6946,7 @@ window.openShopOrderForm = function(placeId, keepPrefill){
     '<div class="form-group"><label>💳 วิธีชำระเงิน</label><div style="display:flex;gap:10px">' +
       '<button type="button" id="shop-pay-transfer" class="pay-mode-btn ' + (selectedPaymentMode === 'transfer' ? 'active' : '') + '" onclick="setShoppingPaymentMode(\'transfer\')"><span class="emoji">💳</span><span>เงินโอน</span><span class="sub">โอนหลังเห็นยอดจริง</span></button>' +
       '<button type="button" id="shop-pay-cash" class="pay-mode-btn ' + (selectedPaymentMode === 'cash' ? 'active' : '') + '" onclick="setShoppingPaymentMode(\'cash\')"><span class="emoji">💵</span><span>เงินสด</span><span class="sub">จ่ายตอนรับของ</span></button>' +
-    '</div><div id="shop-pay-hint" style="margin-top:8px;font-size:12px;font-weight:800;color:var(--text-muted)">' + (selectedPaymentMode === 'cash' ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ' : 'ไรเดอร์จะแจ้งยอดสินค้าจริงหลังซื้อ แล้วจึงโอน') + '</div></div>' +
+    '</div><div id="shop-pay-hint" style="margin-top:8px;font-size:12px;font-weight:800;color:var(--text-muted)">' + (selectedPaymentMode === 'cash' ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ รวมค่าบริการเงินสด ฿5' : 'ไรเดอร์จะแจ้งยอดสินค้าจริงหลังซื้อ แล้วจึงโอน') + '</div></div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitShopOrder(\'' + esc(p.id) + '\')">✅ เรียกรถไปซื้อ (฿' + shopQuote.total + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
@@ -6967,7 +6967,7 @@ window.setShoppingPaymentMode = function(mode){
   if (cash) cash.classList.toggle('active', selectedPaymentMode === 'cash');
   var hint = $('shop-pay-hint');
   if (hint) hint.textContent = selectedPaymentMode === 'cash'
-    ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ'
+    ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ รวมค่าบริการเงินสด ฿5'
     : 'ไรเดอร์จะแจ้งยอดสินค้าจริงหลังซื้อ แล้วจึงโอน';
 };
 

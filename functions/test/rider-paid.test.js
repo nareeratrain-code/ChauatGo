@@ -29,11 +29,24 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.equal(JSON.stringify(base).includes(FORBIDDEN), false);
 
   await db.collection('orders').doc('ord-pay-wait').set(Object.assign({}, base, { status: 'picked_up' }));
-  const first = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-wait');
+  await assert.rejects(
+    () => Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-wait'),
+    (err) => err && err.code === 'failed-precondition'
+  );
+  const blockedExpress = (await db.collection('orders').doc('ord-pay-wait').get()).data();
+  assert.equal(blockedExpress.status, 'picked_up');
+  assert.equal(blockedExpress.customerPaidAt, undefined);
+
+  await db.collection('orders').doc('ord-food-wait').set(Object.assign({}, base, {
+    type: 'food',
+    partnerShop: false,
+    status: 'picked_up'
+  }));
+  const first = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-food-wait');
   assert.equal(first.ok, true);
   assert.equal(first.already, false);
   assert.equal(first.status, 'customer_paid');
-  const paid = (await db.collection('orders').doc('ord-pay-wait').get()).data();
+  const paid = (await db.collection('orders').doc('ord-food-wait').get()).data();
   assert.equal(paid.status, 'customer_paid');
   assert.equal(paid.customerPaid, true);
   assert.ok(paid.customerPaidAt);
@@ -41,22 +54,26 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.equal(paid.fare, 35);
   assert.equal(paid.total, 35);
   assert.equal(paid.riderIncome, undefined);
-  const msg = await db.collection('chats').doc('ord-pay-wait').collection('messages').doc('auto_payment_received').get();
+  const msg = await db.collection('chats').doc('ord-food-wait').collection('messages').doc('auto_payment_received').get();
   assert.equal(msg.exists, true);
   assert.match(msg.data().text, /ได้รับเงินโอน ฿35/);
   assert.match(msg.data().text, /กำลังออกไปส่ง/);
   assert.equal(msg.data().senderRole, 'rider');
   assert.equal(msg.data().automated, true);
-  const again = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-wait');
+  const again = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-food-wait');
   assert.equal(again.already, true);
   assert.equal(again.status, 'customer_paid');
 
   await assert.rejects(
-    () => Orders.confirmPaymentReceived(db, 'other-rider', 'ord-pay-wait'),
+    () => Orders.confirmPaymentReceived(db, 'other-rider', 'ord-food-wait'),
     (err) => err && err.message === 'not-yours'
   );
 
-  await db.collection('orders').doc('ord-pay-early').set(Object.assign({}, base, { status: 'accepted' }));
+  await db.collection('orders').doc('ord-pay-early').set(Object.assign({}, base, {
+    type: 'food',
+    partnerShop: false,
+    status: 'accepted'
+  }));
   const early = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-early');
   assert.equal(early.already, false);
   assert.equal(early.status, 'accepted');
@@ -82,17 +99,29 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   assert.equal((still.data().text.match(/ได้รับเงินโอน/g) || []).length, 1);
 
   await db.collection('orders').doc('ord-pay-cash').set(Object.assign({}, base, {
+    type: 'shopping',
     status: 'picked_up',
     paymentMode: 'cash',
     cashTip: 5
   }));
+  await assert.rejects(
+    () => Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-cash'),
+    (err) => err && err.code === 'failed-precondition'
+  );
+  const cashEarly = (await db.collection('orders').doc('ord-pay-cash').get()).data();
+  assert.equal(cashEarly.status, 'picked_up');
+  assert.equal(cashEarly.customerPaidAt, undefined);
+  await db.collection('orders').doc('ord-pay-cash').update({ status: 'on_the_way' });
   const cashPaid = await Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-pay-cash');
   assert.equal(cashPaid.ok, true);
-  assert.equal(cashPaid.status, 'customer_paid');
+  assert.equal(cashPaid.status, 'on_the_way');
   const cashDoc = (await db.collection('orders').doc('ord-pay-cash').get()).data();
-  assert.equal(cashDoc.status, 'customer_paid');
+  assert.equal(cashDoc.status, 'on_the_way');
   assert.ok(cashDoc.customerPaidAt);
   assert.equal(cashDoc.fare, 35);
+  const cashMsg = await db.collection('chats').doc('ord-pay-cash').collection('messages').doc('auto_payment_received').get();
+  assert.match(cashMsg.data().text, /ตอนรับของแล้ว/);
+  assert.doesNotMatch(cashMsg.data().text, /จึงซื้อ/);
 
   await db.collection('orders').doc('ord-pay-way').set(Object.assign({}, base, {
     type: 'food',
@@ -152,6 +181,8 @@ test('rider confirms a transfer was received', { skip: !process.env.FIRESTORE_EM
   }));
   await assert.rejects(
     () => Orders.confirmPaymentReceived(db, 'rider-pay', 'ord-partner-food-cash'),
-    (err) => err && err.code === 'failed-precondition' && /Partner/.test(err.message)
+    (err) => err && err.code === 'failed-precondition'
   );
+  const partnerCash = (await db.collection('orders').doc('ord-partner-food-cash').get()).data();
+  assert.equal(partnerCash.customerPaidAt, undefined);
 });

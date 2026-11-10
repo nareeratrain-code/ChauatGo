@@ -162,6 +162,9 @@ function riderMayConfirmPay(j) {
   // Ride and express transfer are confirmed at the destination, not at pickup.
   if (j.type === 'ride') return j.status === 'on_the_way' && !!j.riderArrivedCustomerChatAt;
   if (j.type === 'express') return false;
+  // Cash food and buy-for-me are collected when the goods are handed over.
+  // Do not offer "received" while the rider is still at the shop.
+  if (j.paymentMode === 'cash') return j.status === 'on_the_way';
   return j.status === 'accepted' || j.status === 'ready' || j.status === 'picked_up';
 }
 
@@ -2786,6 +2789,9 @@ async function submitFoodPhoto(pickupJob) {
   const shoppingPrice = pickupJob && pickupJob.type === 'shopping' ? Number($('pickup-goods-total')?.value) : 0;
   if (pickupJob && pickupJob.type === 'shopping' && !(shoppingPrice > 0)) {
     return showToast('⚠️ กรุณากรอกราคาสินค้าจริงก่อนส่งให้ลูกค้า', 'warning');
+  }
+  if (pickupJob && pickupJob.type === 'shopping' && shoppingPrice > 100000) {
+    return showToast('⚠️ ราคาสินค้าต้องไม่เกิน ฿100,000', 'warning');
   }
   if (pickupJob && orderNeedsKitchen(pickupJob) && !orderFoodReady(pickupJob)) {
     return showToast('รอร้านทำให้เสร็จก่อน', 'warning');

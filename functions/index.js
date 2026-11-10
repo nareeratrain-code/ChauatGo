@@ -16,9 +16,22 @@ const {
   expressDeliveredNotification
 } = require('./notifications');
 const { recordConsentEvent } = require('./consent');
+const { merchantHistoryEntry } = require('./gp-history');
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 
-setGlobalOptions({ region: 'asia-southeast1', maxInstances: 10 });
+// Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
+// every new revision at once. On a small regional CPU quota that aborts some
+// updates (expireDispatchOffer, manualAssignRider, listMyConsentEvents, and
+// whichever other callables lose the race) while the rest succeed.
+// Fractional gen1 CPU with concurrency 1 is the 256MiB footprint these
+// handlers actually need, so one rollout fits.
+setGlobalOptions({
+  region: 'asia-southeast1',
+  maxInstances: 10,
+  memory: '256MiB',
+  cpu: 'gcf_gen1',
+  concurrency: 1
+});
 
 if (!getApps().length) initializeApp();
 const db = getFirestore();
@@ -125,17 +138,15 @@ exports.onExpressDeliveryNotification = onDocumentWritten('orders/{orderId}', as
 exports.onGpTransferCreated = onDocumentCreated('gp_transfers/{transferId}', async (event) => {
   const transfer = event.data && event.data.data();
   if (!transfer || !transfer.merchantId) return;
-  const entry = {
+  const entry = merchantHistoryEntry({
     amount: transfer.amount,
-    slipUrl: transfer.slipUrl || '',
-    slipPath: transfer.slipPath,
     note: transfer.note || '',
     roundLabel: transfer.roundLabel || '',
     status: 'pending',
     verified: false,
     transferId: event.params.transferId,
     createdAt: transfer.createdAt || new Date()
-  };
+  });
   await db.collection('merchants').doc(transfer.merchantId).update({
     gpHistory: FieldValue.arrayUnion(entry),
     lastGpTransferAt: FieldValue.serverTimestamp()
@@ -462,20 +473,18 @@ exports.reviewGpTransfer = onCall(CALL, async (req) => {
       const now = Timestamp.now();
       const pending = Number(merchant.gpPending || 0);
       const history = Array.isArray(merchant.gpHistory) ? merchant.gpHistory : [];
-      const historyEntry = {
+      const historyEntry = merchantHistoryEntry({
         amount: transfer.amount,
-        slipUrl: transfer.slipUrl || '',
-        slipPath: transfer.slipPath || '',
         note: transfer.note || '',
         roundLabel: transfer.roundLabel || '',
         transferId,
         createdAt: transfer.createdAt || now
-      };
+      });
       let historyMatched = false;
       const reviewedHistory = history.map((entry) => {
-        if (!entry || entry.transferId !== transferId) return entry;
+        if (!entry || entry.transferId !== transferId) return merchantHistoryEntry(entry);
         historyMatched = true;
-        return Object.assign({}, entry, action === 'verify'
+        return Object.assign({}, merchantHistoryEntry(entry), action === 'verify'
           ? { status: 'verified', verified: true, verifiedAt: now, verifiedBy: req.auth.uid }
           : { status: 'rejected', verified: false, rejectedAt: now, rejectedBy: req.auth.uid });
       });

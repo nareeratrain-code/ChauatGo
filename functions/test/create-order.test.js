@@ -90,6 +90,35 @@ test('a shop without coordinates still uses the ฿20 base fee', async () => {
   assert.equal(cash.total, 340);
 });
 
+test('cash shopping stores the 5 baht service fee and transfer shopping does not', async () => {
+  const cashDb = memoryDb({});
+  const cash = await Orders.createOrder(cashDb, 'customer-shop', {
+    type: 'shopping',
+    paymentMode: 'cash',
+    items: 'น้ำแข็ง 1 ถุง',
+    shopPlaceLat: 8.0,
+    shopPlaceLng: 100.0,
+    fromLat: 8.01,
+    fromLng: 100.01,
+    fare: 1,
+    total: 1
+  });
+  assert.equal(cash.cashTip, 5);
+  assert.equal(cash.total, cash.fare + 5);
+  assert.equal(cashDb.written[0].cashTip, 5);
+  assert.equal(cashDb.written[0].paymentMode, 'cash');
+
+  const transferDb = memoryDb({});
+  const transfer = await Orders.createOrder(transferDb, 'customer-shop', {
+    type: 'shopping',
+    paymentMode: 'transfer',
+    items: 'น้ำแข็ง 1 ถุง'
+  });
+  assert.equal(transfer.cashTip, 0);
+  assert.equal(transfer.total, transfer.fare);
+  assert.equal(transferDb.written[0].cashTip, 0);
+});
+
 test('non-partner food requires the shop disclaimer and is not a partner order', async () => {
   const db = memoryDb({
     'merchants/shop-local': { name: 'ร้านทั่วไป', verified: false }

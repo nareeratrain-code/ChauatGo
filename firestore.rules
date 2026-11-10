@@ -469,9 +469,9 @@ service cloud.firestore {
 
     // Food and shopping attach proof while picked_up. Express pays at the
     // drop-off, so the same proof fields are allowed during on_the_way
-    // without moving the status backward.
+    // without moving the status backward. A ride has no slip.
     function customerMayAttachSlip() {
-      return resource.data.status == 'picked_up'
+      return (buysGoods() && resource.data.status == 'picked_up')
         || (resource.data.get('type', '') == 'express' && resource.data.status == 'on_the_way');
     }
 
@@ -727,6 +727,7 @@ service cloud.firestore {
 
     function customerPaidOk() {
       return moneyFrozen() && isOrderCustomer()
+        && buysGoods()
         && resource.data.status == 'picked_up'
         && request.resource.data.status == 'customer_paid'
         && (resource.data.get('paymentMode', '') == 'cash' || customerSlipNotRejected())
@@ -806,6 +807,10 @@ service cloud.firestore {
         && request.resource.data.foodImage.size() > 0
         && request.resource.data.foodTotal is number
         && request.resource.data.foodTotal > 0
+        && request.resource.data.foodTotal <= 100000
+        && request.resource.data.itemsTotal is number
+        && request.resource.data.itemsTotal > 0
+        && request.resource.data.itemsTotal <= 100000
         && request.resource.data.foodPriceUpdatedAt is timestamp
         && identityFrozen()
         && unchanged('riderId')
