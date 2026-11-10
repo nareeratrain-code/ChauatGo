@@ -1016,12 +1016,15 @@ service cloud.firestore {
                                   : false);
     }
 
+    function orderIsFinished() {
+      return resource.data.get('status', '') in ['done', 'delivered', 'cancelled', 'shop_closed'];
+    }
+
     function canReadOrder() {
       return isAdmin()
         || (isAuth() && (
           resource.data.get('userId', '') == myUid()
           || resource.data.get('merchantId', '') == myUid()
-          || resource.data.get('riderId', '') == myUid()
         ));
     }
 
@@ -1124,6 +1127,15 @@ service cloud.firestore {
         && finishedOrder(get(orderPath(orderId)).data)
         && get(orderPath(orderId)).data.get('userId', '') == myUid()
         && get(orderPath(orderId)).data.get('riderId', '') != myUid();
+    }
+
+    // get() ignores rules, so a rider who can no longer read the order could
+    // still open chat and tracking unless this is checked explicitly.
+    function readerIsFinishedRider(orderId) {
+      return exists(orderPath(orderId))
+        && get(orderPath(orderId)).data.get('riderId', '') == myUid()
+        && finishedOrder(get(orderPath(orderId)).data)
+        && get(orderPath(orderId)).data.get('userId', '') != myUid();
     }
 
     function orderPath(orderId) {
@@ -1268,6 +1280,11 @@ service cloud.firestore {
       allow update: if isAdmin()
         || riderProfileWriteOk(riderId);
       allow delete: if isAdmin();
+
+      match /jobHistory/{orderId} {
+        allow read: if isAdmin() || (isAuth() && myUid() == riderId);
+        allow write: if false;
+      }
     }
 
     match /menus/{menuId} {
@@ -1281,6 +1298,11 @@ service cloud.firestore {
 
     match /orders/{orderId} {
       allow read: if canReadOrder();
+      // Assigned rider, only while the job is still open. A finished job is
+      // read from riders/{uid}/jobHistory, which has no customer PII.
+      allow read: if isVerifiedRider()
+        && resource.data.riderId == myUid()
+        && !orderIsFinished();
       // Shop accepted: cooking/ready, nobody assigned yet. Food and any other type.
       allow read: if isVerifiedRider()
         && resource.data.riderId == null
@@ -1321,6 +1343,13 @@ service cloud.firestore {
       allow update: if orderUpdateAllowed(orderId);
 
       allow delete: if isAdmin();
+
+      // Full names and phone numbers. Admin only, so a finished order no
+      // longer exposes riderPhone to the customer or userPhone to the rider.
+      match /private/{docId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
 
       // Server-owned offers. Riders can read their own row. Nobody writes from the client.
       match /dispatchOffers/{offerId} {
@@ -1400,7 +1429,7 @@ service cloud.firestore {
     }
 
     match /orders/{orderId}/tracking/{trackingId} {
-      allow read: if isAdmin() || isOrderParty(orderId);
+      allow read: if isAdmin() || (isOrderParty(orderId) && !readerIsFinishedRider(orderId));
       allow write: if false;
     }
 
@@ -1410,9 +1439,14 @@ service cloud.firestore {
       allow read: if resource == null
         ? isAuth()
         : (
-          isOrderParty(chatId)
-          || (isAuth() && chatParticipantOn(resource.data))
-          || isAdmin()
+          isAdmin()
+          || (
+            !readerIsFinishedRider(chatId)
+            && (
+              isOrderParty(chatId)
+              || (isAuth() && chatParticipantOn(resource.data))
+            )
+          )
         );
       allow create: if isAuth() && (
         (isOrderParty(chatId) && chatIdsFollowOrder(chatId))
@@ -1440,14 +1474,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        allow read: if isOrderParty(chatId)
-          || chatParty(chatId, 'userId')
-          || chatParty(chatId, 'riderId')
-          || chatParty(chatId, 'merchantId')
-          || isAdmin();
+        allow read: if isAdmin()
+          || (
+            !readerIsFinishedRider(chatId)
+            && (
+              isOrderParty(chatId)
+              || chatParty(chatId, 'userId')
+              || chatParty(chatId, 'riderId')
+              || chatParty(chatId, 'merchantId')
+            )
+          );
         allow create: if messageOk() && (
           (messageFrom(chatId, 'user', 'userId') && !customerLockedOut(chatId))
-          || messageFrom(chatId, 'rider', 'riderId')
+          || (messageFrom(chatId, 'rider', 'riderId') && !readerIsFinishedRider(chatId))
           || messageFrom(chatId, 'merchant', 'merchantId')
           || (request.resource.data.senderRole == 'admin' && isAdmin())
         );

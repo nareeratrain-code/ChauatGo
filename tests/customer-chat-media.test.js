@@ -28,7 +28,7 @@ test('Food photo chat ใช้ URL เดิมจาก orders และ QR �
 
 test('Firestore Rules อนุญาตลูกค้าอ่าน Messages ของออเดอร์และรองรับ media fields', () => {
   assert.match(rulesSource, /match \/messages\/\{messageId\}/);
-  assert.match(rulesSource, /allow read: if isOrderParty\(chatId\)/);
+  assert.match(rulesSource, /isOrderParty\(chatId\)/);
   assert.match(rulesSource, /'imageUrl'/);
   assert.match(rulesSource, /'imagePath'/);
   assert.match(rulesSource, /'foodImageUrl', 'qrImageUrl'/);

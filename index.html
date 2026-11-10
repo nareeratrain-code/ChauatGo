@@ -4465,6 +4465,16 @@ function expressTransferClick(o) {
   var ready = !!(o.customerSlipUrl && o.customerSlipStatus !== 'rejected');
   return (ready ? 'confirmCustomerPaid' : 'pickCustomerSlip') + "('" + esc(o.id) + "')";
 }
+function maskPublicName(name) {
+  var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || '';
+  var last = Array.from(parts[parts.length - 1]);
+  var initial = '';
+  for (var i = 0; i < last.length; i++) {
+    if (/[ก-ฮ]/.test(last[i])) { initial = last[i]; break; }
+  }
+  return parts.slice(0, -1).join(' ') + ' ' + (initial || last[0] || '') + '.';
+}
 function historyWhen(value) {
   var d = value && value.toDate ? value.toDate() : (value && value.seconds ? new Date(value.seconds * 1000) : null);
   if (!d || isNaN(d.getTime())) return '—';
@@ -4492,7 +4502,7 @@ function renderHistoryCard(o) {
     '<div class="order-history-route">' + route + '</div>' +
     (lines ? '<div class="order-history-items">' + lines + '</div>' : '') +
     '<div class="order-history-money">ค่าสินค้า ฿' + fmt(goods) + ' • ค่าบริการ ฿' + fmt(fare) + (tip ? ' • ค่าบริการเงินสด ฿' + fmt(tip) : '') + '</div>' +
-    '<div class="order-history-total"><span>' + (o.paymentMode === 'cash' ? 'เงินสด' : 'โอน') + (o.riderName ? ' • ' + esc(o.riderName) : '') + '</span><b>฿' + fmt(o.total || (goods + fare + tip)) + '</b></div>' +
+    '<div class="order-history-total"><span>' + (o.paymentMode === 'cash' ? 'เงินสด' : 'โอน') + (o.riderName ? ' • ' + esc(maskPublicName(o.riderName)) : '') + '</span><b>฿' + fmt(o.total || (goods + fare + tip)) + '</b></div>' +
     '<div class="order-history-actions">' +
       (['done', 'delivered'].indexOf(o.status) !== -1 && !o.rated ? '<button type="button" class="history-rate" onclick="openRatingModal(\'' + esc(o.id) + '\')">ให้คะแนน</button>' : '') +
       (canReorderCompleted(o) ? '<button type="button" class="history-reorder" onclick="reorderCompletedOrder(\'' + esc(o.id) + '\')">สั่งอีกครั้ง</button>' : '') +

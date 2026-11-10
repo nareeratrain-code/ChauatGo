@@ -224,6 +224,5 @@ test('rider cards expose both navigation buttons, the note, and a map preview', 
   assert.match(css, /\.jc-nav-btn\.primary \{[^}]*linear-gradient\(135deg, var\(--green\), var\(--green-dark\)\)/);
   assert.match(css, /\[data-theme="dark"\] \.jc-nav-btn\.secondary/);
   assert.match(css, /\[data-theme="dark"\] \.jc-nav-warn/);
-  const readRule = rules.slice(rules.indexOf('function canReadOrder()'), rules.indexOf('function noDispatchControl'));
-  assert.match(readRule, /resource\.data\.get\('riderId', ''\) == myUid\(\)/);
+  assert.match(rules, /resource\.data\.riderId == myUid\(\)\s*\n\s*&& !orderIsFinished\(\)/);
 });

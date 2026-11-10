@@ -977,10 +977,23 @@ function orderDetail(id) {
       ${o.riderPhone ? `<a href="tel:${esc(o.riderPhone)}" class="btn-primary" style="text-decoration:none;text-align:center;background:var(--purple)">📞 โทรไรเดอร์</a>` : ''}
     </div>
 
+    <div id="admin-private-${esc(o.id)}" class="meta"></div>
     ${slipSection}
 
     ${o.status !== 'cancelled' && o.status !== 'done' ? `<button class="btn-primary" style="margin-top:14px;width:100%;background:var(--red)" data-cancel-order="${esc(o.id)}">❌ ยกเลิกออเดอร์</button>` : ''}
   `);
+  loadAdminPrivateContacts(o.id);
+}
+
+function loadAdminPrivateContacts(orderId) {
+  const box = document.getElementById('admin-private-' + orderId);
+  if (!box || typeof db === 'undefined') return;
+  db.collection('orders').doc(orderId).collection('private').doc('contacts').get().then((snap) => {
+    if (!box.isConnected) return;
+    if (!snap.exists) { box.textContent = ''; return; }
+    const c = snap.data() || {};
+    box.innerHTML = `<div style="margin-top:10px">ผู้ติดต่อเต็ม (แอดมิน): ${esc(c.userName || '—')} ${c.userPhone ? '• ' + esc(c.userPhone) : ''}<br>ไรเดอร์เต็ม: ${esc(c.riderName || '—')} ${c.riderPhone ? '• ' + esc(c.riderPhone) : ''}</div>`;
+  }).catch(() => {});
 }
 
 /* ═══════════════════════════════════════════════════════════════════

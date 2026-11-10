@@ -1344,18 +1344,18 @@ function subscribeJobs() {
 
 function subscribeHistory() {
   if (myHistoryUnsub) myHistoryUnsub();
-  myHistoryUnsub = db.collection('orders')
-    .where('riderId', '==', currentUser.uid)
-    .where('status', 'in', ['done', 'delivered', 'cancelled', 'shop_closed'])
+  if (!currentUser) return;
+  myHistoryUnsub = db.collection('riders').doc(currentUser.uid).collection('jobHistory')
+    .orderBy('completedAt', 'desc')
     .limit(100)
     .onSnapshot(snap => {
       allHistory = snap.docs.map(d => {
         const data = d.data();
-        return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
+        return { id: d.id, ...data, safe: true, createdAt: toDate(data.completedAt || data.createdAt) };
       });
       updateHeroStats();
       renderJobs();
-    });
+    }, (err) => console.warn('job history', err && err.code));
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1701,8 +1701,22 @@ function renderJobs() {
   const ajl = $('active-jobs-list');
   if (ajl) ajl.innerHTML = activeJobs.map(j => renderJobCard(j, 'active')).join('');
   const djl = $('done-jobs-list');
-  if (djl) djl.innerHTML = doneToday.slice(0, 10).map(j => renderJobCard(j, 'done')).join('');
+  if (djl) djl.innerHTML = doneToday.slice(0, 10).map(renderRiderHistoryCard).join('');
   mountRiderCardMaps();
+}
+
+function renderRiderHistoryCard(job) {
+  const typeName = { food: 'อาหาร', shopping: 'ฝากซื้อ', express: 'ส่งด่วน', ride: 'เรียกรถ' }[job.type] || 'งาน';
+  const statusName = { done: 'สำเร็จ', delivered: 'ส่งถึง', cancelled: 'ยกเลิก', shop_closed: 'ร้านปิด' }[job.status] || (job.status || '');
+  const pay = job.paymentMode === 'cash' ? 'เงินสด' : 'โอน';
+  return `<article class="rider-history-card">
+    <div class="rider-history-top"><b>${esc(typeName)}</b><span>${esc(statusName)}</span></div>
+    <div>${esc(fmtDateTime(job.completedAt || job.createdAt))}</div>
+    <div>${esc(job.pickupLabel || 'จุดรับ')} → ${esc(job.dropoffArea || 'พื้นที่ปลายทาง')}</div>
+    <div>${Number(job.distanceKm || 0).toFixed(1)} กม. • ${esc(pay)} • ${esc(job.shortId || '')}</div>
+    <div>ค่าส่ง ฿${fmt(job.fare || 0)}${Number(job.cashTip) > 0 ? ' • ทิป ฿' + fmt(job.cashTip) : ''}</div>
+    <div>ได้รับ ฿${fmt(job.riderIncome || 0)}${Number(job.riderOwe) > 0 ? ' • หัก ฿' + fmt(job.riderOwe) : ''}</div>
+  </article>`;
 }
 
 function renderJobCard(j, type) {

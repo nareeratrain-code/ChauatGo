@@ -39,7 +39,8 @@ test('a customer cannot write chat on a finished order, and the rider still can'
       createdAt: new Date()
     });
     await assertFails(customer.collection('chats').doc('done1').collection('messages').add(message('user')));
-    await assertSucceeds(rider.collection('chats').doc('done1').collection('messages').add(message('rider')));
+    await assertFails(rider.collection('chats').doc('done1').collection('messages').add(message('rider')));
+    await assertSucceeds(rider.collection('chats').doc('live1').collection('messages').add(message('rider')));
     await assertSucceeds(customer.collection('chats').doc('live1').collection('messages').add(message('user')));
     await assertFails(customer.collection('orders').doc('done1').update({
       status: 'customer_paid',
