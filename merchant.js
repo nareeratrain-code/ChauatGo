@@ -50,6 +50,9 @@ let merchantPublic = null;
 let merchantPrivate = null;
 let myOrdersUnsub = null;
 let myMenusUnsub = null;
+let ordersLoaded = false;
+let menusLoaded = false;
+let stockFilter = 'all';
 let audioCtx = null;
 let deferredPrompt = null;
 let isShopOpen = false;
@@ -191,8 +194,16 @@ function generateDeliveryCode() {
 function orderLabel(o) {
   const code = String((o && o.code) || '').trim();
   if (code) return code;
-  const id = String((o && o.id) || '');
+  const id = String((o && (o.shortId || o.id)) || '');
   return id.slice(-6).toUpperCase();
+}
+
+function customerLabel(o) {
+  return (o && o.customerName) ? String(o.customerName) : 'ลูกค้า';
+}
+
+function orderIsHistory(o) {
+  return !!o && ['done', 'delivered', 'cancelled', 'shop_closed'].includes(o.status);
 }
 
 function calcFinalPrice(menu) {
@@ -319,8 +330,10 @@ function playTone(freqs, interval = 0.15, duration = 0.18, volume = 0.35) {
 }
 
 function soundNewOrder() {
+  const volumeKey = currentSoundSettings.volume;
+  if (volumeKey === 'off' || volumeKey === 0 || currentSoundSettings.enabled === false) return;
   const tone = SOUND_TONES[currentSoundSettings.tone] || SOUND_TONES[1];
-  const volume = SOUND_VOLUMES[currentSoundSettings.volume] || SOUND_VOLUMES.mid;
+  const volume = SOUND_VOLUMES[volumeKey] || SOUND_VOLUMES.mid;
   playTone(tone.freqs, tone.interval, tone.duration, volume);
   if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
 }
@@ -746,85 +759,55 @@ function subscribeProfile() {
   });
 }
 
-/* ⭐ v3.8.1: subscribe searching orders — ไม่ต้อง orderBy */
+function applyOrderSnap(snap) {
+  const prevIds = seenOrderIds;
+  allOrders = snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+      doneAt: toDate(data.doneAt),
+      deliveredAt: toDate(data.deliveredAt),
+      cancelledAt: toDate(data.cancelledAt)
+    };
+  });
+  allOrders.sort((a, b) => {
+    const ta = a.createdAt ? a.createdAt.getTime() : 0;
+    const tb = b.createdAt ? b.createdAt.getTime() : 0;
+    return tb - ta;
+  });
+  const newOnes = allOrders.filter(o =>
+    !prevIds.has(o.id) && o.status === 'searching' &&
+    merchantProfile?.verified === true && isShopOpen
+  );
+  if (newOnes.length > 0 && prevIds.size > 0) {
+    startOrderLoop();
+    showNewOrderPopup(newOnes[0]);
+  }
+  const stillHasPending = allOrders.some(o => o.status === 'searching');
+  if (!stillHasPending && orderLoopTimer) stopOrderLoop();
+  seenOrderIds = new Set(allOrders.map(o => o.id));
+  ordersLoaded = true;
+  if (window.ChauatCall) ChauatCall.watch(allOrders.filter(o => !orderIsHistory(o)));
+  renderOrders();
+  updateHeroStats();
+  updateGpTab();
+  updateNavBadge();
+}
+
+/* Shop reads merchants/{uid}/orderInbox. The order document stays hidden. */
 function subscribeOrders() {
   if (myOrdersUnsub) myOrdersUnsub();
-  myOrdersUnsub = db.collection('orders')
-    .where('merchantId', '==', currentUser.uid)
+  ordersLoaded = false;
+  renderOrders();
+  myOrdersUnsub = db.collection('merchants').doc(currentUser.uid).collection('orderInbox')
     .limit(100)
-    .onSnapshot(snap => {
-      const prevIds = seenOrderIds;
-      allOrders = snap.docs.map(d => {
-        const data = d.data();
-        return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
-      });
-
-      /* ⭐ v3.8.1: Sort client-side */
-      allOrders.sort((a, b) => {
-        const ta = a.createdAt ? a.createdAt.getTime() : 0;
-        const tb = b.createdAt ? b.createdAt.getTime() : 0;
-        return tb - ta;
-      });
-
-      /* ⭐ v3.8.0: New orders = status "searching" */
-      const newOnes = allOrders.filter(o =>
-        !prevIds.has(o.id) && o.status === 'searching' &&
-        merchantProfile?.verified === true && isShopOpen
-      );
-
-      if (newOnes.length > 0 && prevIds.size > 0) {
-        startOrderLoop();
-        showNewOrderPopup(newOnes[0]);
-      }
-
-      const stillHasPending = allOrders.some(o => o.status === 'searching');
-      if (!stillHasPending && orderLoopTimer) stopOrderLoop();
-
-      seenOrderIds = new Set(allOrders.map(o => o.id));
-      isFirstOrdersLoad = false;
-      if (window.ChauatCall) ChauatCall.watch(allOrders);
-
+    .onSnapshot(applyOrderSnap, err => {
+      console.warn('Orders sub:', err && err.code);
+      ordersLoaded = true;
       renderOrders();
-      updateHeroStats();
-      updateGpTab();
-      updateNavBadge();
-    }, err => {
-      console.warn('Orders sub:', err.code);
-      /* ⭐ v3.8.1: Fallback ถ้า query fail */
-      if (err.code === 'failed-precondition') {
-        console.warn('⚠️ ต้อง composite index — fallback to query without filter');
-        /* ลองใช้ fallback: query ทั้งหมด + filter client-side */
-        if (myOrdersUnsub) myOrdersUnsub();
-        myOrdersUnsub = db.collection('orders').limit(100)
-          .onSnapshot(snap2 => {
-            allOrders = snap2.docs.map(d => {
-              const data = d.data();
-              return { id: d.id, ...data, createdAt: toDate(data.createdAt) };
-            }).filter(o => o.merchantId === currentUser.uid);
-
-            allOrders.sort((a, b) => {
-              const ta = a.createdAt ? a.createdAt.getTime() : 0;
-              const tb = b.createdAt ? b.createdAt.getTime() : 0;
-              return tb - ta;
-            });
-
-            const newOnes = allOrders.filter(o =>
-              !seenOrderIds.has(o.id) && o.status === 'searching' &&
-              merchantProfile?.verified === true && isShopOpen
-            );
-
-            if (newOnes.length > 0 && seenOrderIds.size > 0) {
-              startOrderLoop();
-              showNewOrderPopup(newOnes[0]);
-            }
-
-            seenOrderIds = new Set(allOrders.map(o => o.id));
-            renderOrders();
-            updateHeroStats();
-            updateGpTab();
-            updateNavBadge();
-          });
-      }
+      showToast('โหลดออเดอร์ไม่สำเร็จ', 'error');
     });
 }
 
@@ -834,6 +817,10 @@ function subscribeMenus() {
     .where('merchantId', '==', currentUser.uid)
     .onSnapshot(snap => {
       allMenus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      menusLoaded = true;
+      renderMenus();
+    }, () => {
+      menusLoaded = true;
       renderMenus();
     });
 }
@@ -902,13 +889,14 @@ function updateHeroStats() {
   const revEl = $('hero-revenue');
   if (revEl) revEl.textContent = '฿' + fmt(todayRevenue);
   const subEl = $('hero-sub');
-  if (subEl) subEl.textContent = `📦 ${doneToday.length} ออเดอร์`;
+  if (subEl) subEl.textContent = 'เสร็จแล้ว';
 
   const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
-  el('stat-new', allOrders.filter(o => o.status === 'searching' && isToday(o.createdAt)).length);
+  el('stat-new', 'ใหม่ ' + allOrders.filter(o => o.status === 'searching').length);
   el('stat-cooking', allOrders.filter(o => isShopKitchen(o) && isToday(o.createdAt)).length);
   el('stat-done', doneToday.length);
-  el('stat-gp', '฿' + fmt(todayGp));
+  el('stat-gp', '฿' + fmt(Number(merchantProfile && merchantProfile.gpPending || 0)));
+  el('stat-gp-today', '฿' + fmt(todayGp));
 }
 
 function updateNavBadge() {
@@ -923,9 +911,17 @@ function updateNavBadge() {
    15. RENDER ORDERS
    ═══════════════════════════════════════════════════════════════════ */
 function renderOrders() {
-  const pending = allOrders.filter(o => o.status === 'searching');
+  const loading = $('orders-loading');
+  const empty = $('orders-empty');
+  if (!ordersLoaded) {
+    if (loading) loading.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+    return;
+  }
+  if (loading) loading.style.display = 'none';
+  const pending = allOrders.filter(o => o.status === 'searching' || o.status === 'pending');
   const cooking = allOrders.filter(isShopKitchen);
-  const done = allOrders.filter(o => o.status === 'done' && isToday(o.createdAt));
+  const done = allOrders.filter(o => orderIsHistory(o) && isToday(o.doneAt || o.deliveredAt || o.cancelledAt || o.createdAt));
 
   const el = (id, val) => { const e = $(id); if (e) e.textContent = val; };
   el('cnt-new', pending.length);
@@ -939,82 +935,87 @@ function renderOrders() {
   const dl = $('done-orders-list');
   if (dl) dl.innerHTML = done.slice(0, 10).map(o => renderOrderCard(o)).join('');
 
-  const empty = $('orders-empty');
   if (empty) empty.style.display = (pending.length + cooking.length + done.length) === 0 ? 'block' : 'none';
+}
+
+function statusChip(status) {
+  const statusMap = {
+    searching: 'รอรับ',
+    pending: 'รอรับ',
+    cooking: 'กำลังทำ',
+    ready: 'พร้อมส่ง',
+    accepted: 'ไรเดอร์รับ',
+    picked_up: 'ไรเดอร์รับของ',
+    customer_paid: 'ลูกค้าโอน',
+    on_the_way: 'กำลังส่ง',
+    delivered: 'ส่งถึง',
+    done: 'เสร็จ',
+    cancelled: 'ยกเลิก',
+    shop_closed: 'ร้านปิด'
+  };
+  return `<span class="status-chip ${esc(status || '')}">${esc(statusMap[status] || status || '')}</span>`;
 }
 
 function renderOrderCard(o) {
   const isCash = o.paymentMode === 'cash';
-  const statusMap = {
-    searching: '🔔 รอรับ',
-    pending: '🔔 รอรับ',
-    cooking: '🍳 กำลังทำ',
-    ready: '✅ พร้อมส่ง',
-    accepted: '🛵 ไรเดอร์รับ',
-    picked_up: '📦 ไรเดอร์รับของ',
-    customer_paid: '💳 ลูกค้าโอน',
-    on_the_way: '🚀 กำลังส่ง',
-    delivered: '✅ ส่งถึง',
-    done: '✅ เสร็จ',
-    cancelled: '❌ ยกเลิก'
-  };
-  const statusLabel = statusMap[o.status] || o.status;
+  const finished = orderIsHistory(o);
   const foodTotal = calcOrderFoodTotal(o);
   const itemsHtml = (o.items || []).map(i =>
     `<div class="item-row"><span class="item-name">${esc(i.name)} × ${i.qty}</span><b>฿${fmt(i.price * i.qty)}</b></div>`
   ).join('') || `<div>${esc(o.itemsText || '—')}</div>`;
+  const noteHtml = o.note
+    ? `<div class="order-note">📝 ${esc(o.note)}</div>`
+    : '';
 
   let actions = '';
-  if (o.status === 'searching' || o.status === 'pending') {
+  if (!finished && (o.status === 'searching' || o.status === 'pending')) {
     actions = `<div class="order-actions two">
       <button type="button" class="order-btn btn-accept ripple" onclick="openPrepPicker('${esc(o.id)}')">✅ รับออเดอร์</button>
-      <button type="button" class="order-btn btn-reject ripple" onclick="cancelOrder('${esc(o.id)}')">❌ ยกเลิก</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="cancelOrder('${esc(o.id)}')">❌ ปฏิเสธ</button>
     </div>`;
-  } else if (o.status === 'cooking' || (o.status === 'accepted' && !o.foodReady && !o.readyAt)) {
+  } else if (!finished && (o.status === 'cooking' || (o.status === 'accepted' && !o.foodReady && !o.readyAt))) {
     actions = `<div class="order-actions two">
       <button type="button" class="order-btn btn-ready ripple" onclick="readyOrder('${esc(o.id)}')">✅ พร้อมส่ง</button>
       <button type="button" class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รายละเอียด</button>
     </div>`;
-  } else if (o.status === 'ready') {
+  } else if (!finished && o.status === 'ready') {
     actions = `<div class="order-actions">
       <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รอดำเนินการ</button>
     </div>`;
-  } else {
+  } else if (!finished) {
     actions = `<div class="order-actions">
       <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 ดูรายละเอียด</button>
     </div>`;
   }
 
-  /* โทรในแอป + แชท — ไม่แสดงเบอร์อีกฝ่าย */
-  const orderOpen = !['done', 'delivered', 'cancelled'].includes(o.status);
-  const callRow = orderOpen && window.ChauatCall ? ChauatCall.buttons(o.id) : '';
-  let contactActions = orderOpen ? `<div class="order-actions two" style="margin-top:8px">
+  const callRow = !finished && window.ChauatCall ? ChauatCall.buttons(o.id) : '';
+  const contactActions = finished ? '' : `<div class="order-actions two" style="margin-top:8px">
       <button class="order-btn btn-blue ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
       ${o.riderId ? `<button class="order-btn btn-ready ripple" onclick="openChatWithRider('${esc(o.id)}')">💬 แชทไรเดอร์</button>` : ''}
-    </div>${callRow}` : '';
+    </div>${callRow}`;
 
   const badge = isCash
     ? '<span class="cash-badge">💵 เงินสด</span>'
     : '<span class="transfer-badge">💳 โอน</span>';
-
   const riderInfo = o.riderName
-    ? `<div class="order-meta" style="color:var(--brand);font-weight:900">🛵 ${esc(o.riderName)}</div>`
+    ? `<div class="order-meta">🛵 ${esc(o.riderName)}</div>`
     : '';
 
-  return `<div class="order-card status-${o.status}">
+  return `<div class="order-card status-${esc(o.status)}">
     <div class="order-top">
       <div class="order-emoji">🍽️</div>
       <div class="order-info">
         <div class="order-id">🧾 ${esc(orderLabel(o))}</div>
-        <div class="order-title">${esc(o.userName || 'ลูกค้า')}</div>
-        <div class="order-meta">🕐 ${timeAgo(o.createdAt)} • ${statusLabel}</div>
+        <div class="order-title">${esc(customerLabel(o))}</div>
+        <div class="order-meta">🕐 ${timeAgo(o.createdAt)} ${statusChip(o.status)}</div>
         ${o.prepMinutes ? `<div class="order-meta">⏱️ เวลาทำประมาณ ${Number(o.prepMinutes)} นาที</div>` : ''}
-        ${(o.foodReady || o.readyAt) ? `<div class="order-meta" style="color:var(--green)">✅ อาหารพร้อมแล้ว</div>` : ''}
+        ${(o.foodReady || o.readyAt) ? `<div class="order-meta">✅ อาหารพร้อมแล้ว</div>` : ''}
         ${riderInfo}
         <div>${badge}</div>
       </div>
     </div>
     <div class="order-items">${itemsHtml}</div>
+    ${noteHtml}
     <div class="order-total">
       <div><div class="sub">ยอดอาหาร</div><div>฿${fmt(foodTotal)}</div></div>
       <div class="amt">฿${fmt(foodTotal)}</div>
@@ -1084,30 +1085,27 @@ async function confirmAcceptWithPrep() {
 
 async function acceptOrder(orderId, prepMinutes) {
   const minutes = PREP_CHOICES.includes(Number(prepMinutes)) ? Number(prepMinutes) : DEFAULT_PREP_MINUTES;
+  const order = allOrders.find(x => x.id === orderId);
+  if (!order) { showToast('ไม่พบออเดอร์', 'error'); return false; }
+  if (order.status !== 'searching' && order.status !== 'pending') {
+    showToast('ออเดอร์นี้ถูกรับไปแล้ว', 'error');
+    return false;
+  }
   try {
-    const ref = db.collection('orders').doc(orderId);
-    let codeShown = '';
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) throw new Error('missing');
-      const order = snap.data();
-      if (order.status !== 'searching' && order.status !== 'pending') throw new Error('not-new');
-      const updates = {
-        status: 'cooking',
-        cookingAt: firebase.firestore.FieldValue.serverTimestamp(),
-        prepMinutes: minutes,
-        foodDeliveryStage: 'preparing'
-      };
-      if (!order.code) {
-        updates.code = generateOrderCode();
-        updates.deliveryCode = generateDeliveryCode();
-        updates.codeCreatedAt = firebase.firestore.FieldValue.serverTimestamp();
-      }
-      codeShown = updates.code || order.code || orderLabel({ id: orderId });
-      tx.update(ref, updates);
-    });
+    const updates = {
+      status: 'cooking',
+      cookingAt: firebase.firestore.FieldValue.serverTimestamp(),
+      prepMinutes: minutes,
+      foodDeliveryStage: 'preparing'
+    };
+    if (!order.code) {
+      updates.code = generateOrderCode();
+      updates.deliveryCode = generateDeliveryCode();
+      updates.codeCreatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    }
+    await db.collection('orders').doc(orderId).update(updates);
     stopOrderLoop();
-    showToast('🍳 เริ่มทำอาหาร ประมาณ ' + minutes + ' นาที • Order ' + codeShown);
+    showToast('🍳 เริ่มทำอาหาร ประมาณ ' + minutes + ' นาที • Order ' + (updates.code || orderLabel(order)));
     return true;
   } catch (err) {
     console.error('acceptOrder error:', err);
@@ -1120,24 +1118,18 @@ async function acceptOrder(orderId, prepMinutes) {
 }
 
 async function readyOrder(orderId) {
+  const order = allOrders.find(x => x.id === orderId);
+  if (!order || orderIsHistory(order)) return showToast('ไม่พบออเดอร์', 'error');
   try {
-    const ref = db.collection('orders').doc(orderId);
-    let toldRider = false;
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) throw new Error('missing');
-      const order = snap.data();
-      const riderHasIt = !!(order.riderId) && ['accepted', 'picked_up', 'customer_paid', 'on_the_way'].includes(order.status);
-      const updates = {
-        readyAt: firebase.firestore.FieldValue.serverTimestamp(),
-        foodReady: true,
-        foodDeliveryStage: 'ready_for_pickup'
-      };
-      if (!riderHasIt) updates.status = 'ready';
-      toldRider = riderHasIt;
-      tx.update(ref, updates);
-    });
-    showToast(toldRider ? '✅ พร้อมส่ง — แจ้งไรเดอร์แล้ว' : '✅ พร้อมส่ง');
+    const riderHasIt = !!(order.riderId) && ['accepted', 'picked_up', 'customer_paid', 'on_the_way'].includes(order.status);
+    const updates = {
+      readyAt: firebase.firestore.FieldValue.serverTimestamp(),
+      foodReady: true,
+      foodDeliveryStage: 'ready_for_pickup'
+    };
+    if (!riderHasIt) updates.status = 'ready';
+    await db.collection('orders').doc(orderId).update(updates);
+    showToast(riderHasIt ? '✅ พร้อมส่ง — แจ้งไรเดอร์แล้ว' : '✅ พร้อมส่ง');
   } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
@@ -1165,7 +1157,7 @@ async function cancelOrder(orderId) {
         await chatRef.set({
           orderId: orderId,
           userId: order.userId || '',
-          userName: order.userName || 'ลูกค้า',
+          userName: customerLabel(order),
           riderId: order.riderId || '',
           riderName: order.riderName || '',
           merchantId: currentUser.uid,
@@ -1211,6 +1203,7 @@ async function cancelOrder(orderId) {
 function viewOrderDetail(orderId) {
   const o = allOrders.find(x => x.id === orderId);
   if (!o) return;
+  const finished = orderIsHistory(o);
   const foodTotal = calcOrderFoodTotal(o);
   const gp = calcGp(foodTotal, merchantProfile);
   const isCash = o.paymentMode === 'cash';
@@ -1221,7 +1214,7 @@ function viewOrderDetail(orderId) {
     </div>`
   ).join('') || `<div>${esc(o.itemsText || '—')}</div>`;
 
-  const codeHtml = `<div style="background:linear-gradient(135deg,#76B82A,#5A8E1F);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
+  const codeHtml = `<div style="background:linear-gradient(135deg,#168A45,#0E5C2E);color:#fff;border-radius:12px;padding:12px;margin-bottom:14px;text-align:center">
         <div style="font-size:11px;opacity:.9;font-weight:800">🧾 Order</div>
         <div style="font-size:24px;font-weight:900;letter-spacing:3px;margin-top:4px">${esc(orderLabel(o))}</div>
       </div>`;
@@ -1231,9 +1224,9 @@ function viewOrderDetail(orderId) {
     $content.innerHTML = `
       ${codeHtml}
       <div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:14px">
-        <div style="font-size:15px;font-weight:900">${esc(o.userName || 'ลูกค้า')}</div>
-        <div style="font-size:12px;color:var(--text-muted);font-weight:700;margin-top:4px">📍 ${esc(o.address || '—')}</div>
-        ${o.note ? `<div style="font-size:12px;color:#E65100;font-weight:700;margin-top:6px;padding:8px;background:#FFF3E0;border-radius:8px">📝 ${esc(o.note)}</div>` : ''}
+        <div style="font-size:15px;font-weight:900">${esc(customerLabel(o))}</div>
+        <div style="margin-top:8px">${statusChip(o.status)}</div>
+        ${o.note ? `<div class="order-note">📝 ${esc(o.note)}</div>` : ''}
       </div>
       <div style="margin-bottom:14px">
         <div style="font-size:13px;font-weight:900;margin-bottom:8px">🍽️ รายการอาหาร</div>
@@ -1257,7 +1250,7 @@ function viewOrderDetail(orderId) {
     `;
   }
 
-  const actionsHtml = `
+  const actionsHtml = finished ? '' : `
     ${window.ChauatCall ? ChauatCall.buttons(o.id) : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <button class="order-btn btn-cook ripple" onclick="openChatWithCustomer('${esc(o.id)}')">💬 แชทลูกค้า</button>
@@ -1282,8 +1275,9 @@ function showNewOrderPopup(order) {
   if (detail) {
     detail.innerHTML = `
       <div style="font-size:16px;font-weight:900;color:var(--brand);text-align:center;padding:8px;background:var(--brand-light);border-radius:8px;margin-bottom:10px">🧾 ${esc(orderLabel(order))}</div>
-      <div>👤 <b>${esc(order.userName || 'ลูกค้า')}</b></div>
-      <div>📍 ${esc((order.address || '').slice(0, 50))}</div>
+      <div>👤 <b>${esc(customerLabel(order))}</b></div>
+      ${(order.items || []).map(i => `<div>${esc(i.name)} × ${esc(i.qty)}</div>`).join('')}
+      ${order.note ? `<div class="order-note">📝 ${esc(order.note)}</div>` : ''}
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
         💰 <b style="font-size:18px;color:var(--green)">฿${fmt(foodTotal)}</b>
         ${isCash?'<div style="font-size:11px;color:#E65100;font-weight:900;margin-top:4px">💵 ลูกค้าจ่ายเงินสด</div>':'<div style="font-size:11px;color:#1976D2;font-weight:900;margin-top:4px">💳 ลูกค้าโอนเงิน</div>'}
@@ -1296,7 +1290,7 @@ function showNewOrderPopup(order) {
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
       new Notification('🔔 ออเดอร์ใหม่!', {
-        body: `${orderLabel(order)} • ${order.userName || 'ลูกค้า'} — ฿${fmt(foodTotal)}`,
+        body: `${orderLabel(order)} • ${customerLabel(order)} — ฿${fmt(foodTotal)}`,
         icon: '/icons/icon-512.png',
         tag: 'new-order-' + order.id
       });
@@ -1311,6 +1305,12 @@ function closeNewOrderPopup() {
 
 function acceptFromPopup() {
   if (newOrderPopupId) openPrepPicker(newOrderPopupId);
+}
+
+function rejectFromPopup() {
+  const id = newOrderPopupId;
+  closeNewOrderPopup();
+  if (id) cancelOrder(id);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1360,21 +1360,46 @@ function switchTab(tab, el) {
 /* ═══════════════════════════════════════════════════════════════════
    21. MENUS
    ═══════════════════════════════════════════════════════════════════ */
+function filterStock(filter, el) {
+  stockFilter = filter || 'all';
+  document.querySelectorAll('[data-stock]').forEach(btn => btn.classList.toggle('on', btn === el));
+  renderMenus();
+}
+
+async function setMenuStock(menuId, status) {
+  if (!menuId || !['available', 'out_of_stock', 'hidden'].includes(status)) return;
+  try {
+    await db.collection('menus').doc(menuId).update({ status: status });
+    showToast(status === 'out_of_stock' ? '🟡 วัตถุดิบหมด' : status === 'hidden' ? 'ซ่อนเมนูแล้ว' : '🟢 พร้อมขาย');
+  } catch (err) {
+    showToast(merchantFirebaseErrorText(err, 'อัปเดตสต็อกไม่สำเร็จ'), 'error');
+  }
+}
+
 function renderMenus() {
   const list = $('menu-list');
   if (!list) return;
   const empty = $('menus-empty');
+  const loading = $('menus-loading');
   const countText = $('menu-count-text');
-  if (countText) countText.textContent = allMenus.length + ' เมนู';
+  if (!menusLoaded) {
+    list.innerHTML = '';
+    if (loading) loading.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+    return;
+  }
+  if (loading) loading.style.display = 'none';
+  const visible = allMenus.filter(m => stockFilter === 'all' || (m.status || 'available') === stockFilter);
+  if (countText) countText.textContent = visible.length + ' / ' + allMenus.length + ' เมนู';
 
   if (!allMenus.length) {
     list.innerHTML = '';
     if (empty) empty.style.display = 'block';
     return;
   }
-  if (empty) empty.style.display = 'none';
+  if (empty) empty.style.display = visible.length ? 'none' : 'block';
 
-  list.innerHTML = allMenus.map(m => {
+  list.innerHTML = visible.map(m => {
     const hasImg = m.image && m.image.startsWith('http');
     const imgHtml = hasImg
       ? `<img src="${esc(m.image)}" onerror="this.parentElement.innerHTML='🍽️'">`
@@ -1413,6 +1438,7 @@ function renderMenus() {
         ${badgesHtml}
       </div>
       <div class="menu-item-actions">
+        <button class="menu-action-btn btn-edit-menu ripple" onclick="setMenuStock('${esc(m.id)}','${status === 'available' ? 'out_of_stock' : 'available'}')">${status === 'available' ? 'หมด' : 'พร้อม'}</button>
         <button class="menu-action-btn btn-edit-menu ripple" onclick="editMenu('${esc(m.id)}')">✏️</button>
         <button class="menu-action-btn btn-del-menu ripple" onclick="deleteMenu('${esc(m.id)}')">🗑️</button>
       </div>
@@ -1676,7 +1702,7 @@ function filterHistory(filter, el) {
 
 function renderHistory() {
   let filtered = [];
-  const done = allOrders.filter(o => o.status === 'done');
+  const done = allOrders.filter(orderIsHistory);
   if (currentHistoryFilter === 'today') filtered = done.filter(o => isToday(o.doneAt || o.createdAt));
   else if (currentHistoryFilter === 'week') filtered = done.filter(o => isThisWeek(o.doneAt || o.createdAt));
   else if (currentHistoryFilter === 'month') filtered = done.filter(o => isThisMonth(o.doneAt || o.createdAt));
@@ -1693,13 +1719,13 @@ function renderHistory() {
   }
   list.innerHTML = filtered.map(o => {
     const foodTotal = calcOrderFoodTotal(o);
-    return `<div class="history-item" onclick="viewOrderDetail('${esc(o.id)}')">
+    return `<button type="button" class="history-item" onclick="viewOrderDetail('${esc(o.id)}')">
       <div class="history-info">
         <div class="history-title">🧾 ${esc(orderLabel(o))}</div>
-        <div class="history-meta">${esc(o.userName || 'ลูกค้า')} • 🕐 ${fmtDateTime(o.doneAt || o.createdAt)}</div>
+        <div class="history-meta">${esc(customerLabel(o))} • 🕐 ${fmtDateTime(o.doneAt || o.deliveredAt || o.cancelledAt || o.createdAt)} ${statusChip(o.status)}</div>
       </div>
       <div class="history-amount">฿${fmt(foodTotal)}</div>
-    </div>`;
+    </button>`;
   }).join('');
 }
 
@@ -2251,9 +2277,10 @@ async function submitGpTransfer() {
 async function openChatWithCustomer(orderId) {
   const o = allOrders.find(x => x.id === orderId);
   if (!o) return showToast('ไม่พบออเดอร์', 'error');
+  if (orderIsHistory(o)) return showToast('งานนี้จบแล้ว', 'info');
   activeChatId = orderId;
   activeChatCallRole = 'customer';
-  activeChatPartnerName = o.userName || 'ลูกค้า';
+  activeChatPartnerName = customerLabel(o);
   await openChatRoom(orderId, activeChatPartnerName, '🧾 ' + orderLabel(o) + ' • ' + (o.title || 'ออเดอร์'));
   closeSheet('order-detail-sheet');
 }
@@ -2261,6 +2288,7 @@ async function openChatWithCustomer(orderId) {
 async function openChatWithRider(orderId) {
   const o = allOrders.find(x => x.id === orderId);
   if (!o) return showToast('ไม่พบออเดอร์', 'error');
+  if (orderIsHistory(o)) return showToast('งานนี้จบแล้ว', 'info');
   if (!o.riderId) return showToast('ยังไม่มีไรเดอร์รับงาน', 'warning');
   activeChatId = orderId;
   activeChatCallRole = 'rider';
@@ -2279,7 +2307,7 @@ async function openChatRoom(orderId, name, sub) {
       await chatRef.set({
         orderId: orderId,
         userId: o.userId || '',
-        userName: o.userName || 'ลูกค้า',
+        userName: customerLabel(o),
         riderId: o.riderId || '',
         riderName: o.riderName || 'ไรเดอร์',
         merchantId: currentUser.uid,
@@ -2339,22 +2367,17 @@ function renderChatMessages(msgs) {
 }
 
 async function ensureMerchantChat(orderId) {
-  const order = allOrders.find(x => x.id === orderId);
-  let data = order;
-  if (!data) {
-    const snap = await db.collection('orders').doc(orderId).get();
-    if (!snap.exists) throw new Error('missing-order');
-    data = { id: snap.id, ...snap.data() };
-  }
+  const data = allOrders.find(x => x.id === orderId);
+  if (!data || orderIsHistory(data)) throw new Error('missing-order');
   const chatRef = db.collection('chats').doc(orderId);
   const body = {
     orderId,
     userId: data.userId || '',
-    userName: data.userName || 'ลูกค้า',
+    userName: customerLabel(data),
     riderId: data.riderId || '',
     riderName: data.riderName || '',
-    merchantId: data.merchantId || '',
-    merchantName: data.merchantName || merchantProfile?.name || ''
+    merchantId: currentUser.uid,
+    merchantName: merchantProfile?.name || ''
   };
   let snap = null;
   try { snap = await chatRef.get(); } catch (e) { snap = null; }
