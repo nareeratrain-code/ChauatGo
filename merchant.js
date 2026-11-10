@@ -45,6 +45,9 @@ let activeChatPartnerName = null;
 let newOrderPopupId = null;
 let seenOrderIds = new Set();
 let myProfileUnsub = null;
+let myPrivateUnsub = null;
+let merchantPublic = null;
+let merchantPrivate = null;
 let myOrdersUnsub = null;
 let myMenusUnsub = null;
 let audioCtx = null;
@@ -518,13 +521,16 @@ async function handleSignup(e) {
 
     await db.collection('merchants').doc(createdUser.uid).set({
       merchantId: createdUser.uid,
-      name: shopName, category: category, phone: phone, email: email,
+      name: shopName, category: category, phone: phone,
       address: address, openTime: openTime, closeTime: closeTime,
       isOpen: false, verified: false,
       ratingAvg: 0, ratingCount: 0,
-      gpStartDate: null, gpPending: 0, gpPaid: 0, gpConsent: true,
-      soundSettings: { tone: 1, volume: 'mid', updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('merchants').doc(createdUser.uid).collection('private').doc('profile').set({
+      email: email,
+      gpStartDate: null, gpPending: 0, gpPaid: 0, gpConsent: true, gpHistory: [],
+      soundSettings: { tone: 1, volume: 'mid', updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
     });
 
     const notice = $('login-error');
@@ -564,6 +570,7 @@ async function handleMerchantLogout() {
   stopOrderLoop();
   closeSheet('menu-sheet');
   if (myProfileUnsub) myProfileUnsub();
+  if (myPrivateUnsub) myPrivateUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
   if (myMenusUnsub) myMenusUnsub();
   if (activeChatUnsub) activeChatUnsub();
@@ -581,6 +588,7 @@ auth.onAuthStateChanged(async (user) => {
   const epoch = ++authEpoch;
   if (isSigningUp) return;
   if (myProfileUnsub) myProfileUnsub();
+  if (myPrivateUnsub) myPrivateUnsub();
   if (myOrdersUnsub) myOrdersUnsub();
   if (myMenusUnsub) myMenusUnsub();
 
@@ -691,13 +699,35 @@ function requestNotificationPermission() {
 /* ═══════════════════════════════════════════════════════════════════
    13. SUBSCRIBE
    ═══════════════════════════════════════════════════════════════════ */
+function applyMerchantProfile() {
+  merchantProfile = Object.assign({ uid: currentUser.uid }, merchantPublic || {}, merchantPrivate || {});
+  loadSoundSettingsFromProfile();
+}
+
 function subscribeProfile() {
   if (myProfileUnsub) myProfileUnsub();
+  if (myPrivateUnsub) myPrivateUnsub();
+  myPrivateUnsub = db.collection('merchants').doc(currentUser.uid).collection('private').doc('profile').onSnapshot(snap => {
+    merchantPrivate = snap.exists ? snap.data() : {};
+    if (!merchantPublic) return;
+    const prevVerified = merchantProfile?.verified;
+    applyMerchantProfile();
+    if (prevVerified === false && merchantProfile.verified === true) {
+      showToast('🎉 แอดมินอนุมัติแล้ว!', 'success');
+      soundNewOrder();
+    }
+    updateHeader();
+    updatePendingBanner();
+    updateShopToggle();
+    updateHeroStats();
+    updateGpTab();
+    if ($('shop-profile-sheet')?.classList.contains('show')) loadShopAvatarPreview();
+  }, () => {});
   myProfileUnsub = db.collection('merchants').doc(currentUser.uid).onSnapshot(snap => {
     if (!snap.exists) return;
     const prevVerified = merchantProfile?.verified;
-    merchantProfile = { uid: currentUser.uid, ...snap.data() };
-    loadSoundSettingsFromProfile();
+    merchantPublic = snap.data();
+    applyMerchantProfile();
 
     if (prevVerified === false && merchantProfile.verified === true) {
       showToast('🎉 แอดมินอนุมัติแล้ว!', 'success');
@@ -1723,7 +1753,7 @@ async function saveSoundSettings() {
       tone: editingSoundTone, volume: editingSoundVolume,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    await db.collection('merchants').doc(currentUser.uid).update({ soundSettings: newSettings });
+    await db.collection('merchants').doc(currentUser.uid).collection('private').doc('profile').set({ soundSettings: newSettings }, { merge: true });
     currentSoundSettings = { tone: editingSoundTone, volume: editingSoundVolume };
     showToast('✅ บันทึกการตั้งค่าเสียงแล้ว');
     closeSheet('sound-settings-sheet');

@@ -4784,7 +4784,8 @@ window.confirmCustomerPaid = async function(orderId) {
     !String(cached.foodImage || '').trim()
   )) return showToast('รอไรเดอร์ส่งรูปสินค้าและระบุราคาสินค้าก่อน', 'warning');
   var cashPayment = cached && cached.paymentMode === 'cash';
-  if (!cashPayment && cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
+  if (cashPayment) return showToast('งานเงินสด ไรเดอร์เป็นคนยืนยันตอนส่งของ', 'info');
+  if (cached && !cached.customerSlipUrl) return showToast('กรุณาแนบสลิปการโอนก่อนยืนยัน', 'warning');
   if (!confirm(cashPayment ? 'ยืนยันว่าได้รับสินค้าและชำระเงินสดให้ไรเดอร์แล้ว?' : 'ยืนยันว่าโอนเงินให้ไรเดอร์แล้ว?')) return;
   var expressDropoff = cached && cached.type === 'express' && cached.status === 'on_the_way';
   try {

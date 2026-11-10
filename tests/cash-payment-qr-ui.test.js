@@ -29,13 +29,13 @@ test('Order Card ซ่อนปุ่มโอนและแสดงให้
   assert.match(card, /confirmCustomerPaid/);
 });
 
-test('Cash Order ยืนยันรับสินค้าและชำระเงินสดได้โดยไม่ใช้สลิป', () => {
+test('Cash Order ให้ไรเดอร์ยืนยันตอนส่ง ลูกค้าตั้งสถานะจ่ายเองไม่ได้', () => {
   const fnStart = indexSource.indexOf('window.confirmCustomerPaid = async function');
-  const fnEnd = indexSource.indexOf('\n}', fnStart) + 2;
+  const fnEnd = indexSource.indexOf('function monitorRiderProximity', fnStart);
   const fn = indexSource.slice(fnStart, fnEnd);
   assert.match(fn, /var cashPayment = cached && cached\.paymentMode === 'cash'/);
+  assert.match(fn, /if \(cashPayment\) return showToast\('งานเงินสด ไรเดอร์เป็นคนยืนยันตอนส่งของ'/);
   assert.match(fn, /ได้รับสินค้าและชำระเงินสดให้ไรเดอร์แล้ว/);
-  assert.match(fn, /if \(!cashPayment && cached && !cached\.customerSlipUrl\)/);
 });
 
 test('Rider QR Chat ไม่ส่งข้อความหรือ QR สำหรับออเดอร์เงินสด', () => {

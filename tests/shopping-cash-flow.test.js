@@ -55,11 +55,14 @@ test('Cash Shopping Flow: ไรเดอร์ส่งรูปสินค้
   assert.doesNotMatch(message, /QR/);
 });
 
-test('Cash Shopping Flow: ลูกค้ายืนยันรับสินค้าและชำระเงินสดโดยไม่ต้องแนบสลิป', () => {
+test('Cash Shopping Flow: ลูกค้าไม่ตั้งสถานะจ่ายเอง ไรเดอร์ยืนยันตอนส่ง', () => {
   assert.match(customer, /รับสินค้าและชำระเงินสด/);
   assert.match(customer, /ได้รับสินค้าและชำระเงินสดให้ไรเดอร์แล้ว/);
-  assert.match(customer, /if \(!cashPayment && cached && !cached\.customerSlipUrl\)/);
-  assert.match(rules, /resource\.data\.get\('paymentMode', ''\) == 'cash' \|\| customerSlipNotRejected\(\)/);
+  assert.match(customer, /งานเงินสด ไรเดอร์เป็นคนยืนยันตอนส่งของ/);
+  const paid = rules.slice(rules.indexOf('function customerPaidOk'), rules.indexOf('function expressFarePaidOk'));
+  assert.match(paid, /paymentMode', ''\) != 'cash'/);
+  assert.match(paid, /customerSlipNotRejected\(\)/);
+  assert.doesNotMatch(paid, /== 'cash'/);
 });
 
 test('Cash Shopping Flow: ไรเดอร์เห็นคำเตือนสำรองจ่ายและทิปก่อนรับงาน', () => {
