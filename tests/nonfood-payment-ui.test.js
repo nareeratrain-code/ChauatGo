@@ -20,10 +20,10 @@ test('Rider assignment copies only the QR URL to the order for Customer bill dis
   assert.doesNotMatch(dispatch, /riderQrCodePath: rider\.qrCodePath/);
 });
 
-test('Cash received can be recorded before a goods purchase, including partner food', () => {
-  assert.match(orders, /const cashWaiting = order\.paymentMode === 'cash'/);
-  assert.doesNotMatch(orders, /อาหาร Partner แบบเงินสดเก็บเงินตอนส่ง/);
-  assert.doesNotMatch(rider, /orderIsCash\(j\) && j\.type === 'food' && j\.partnerShop === true/);
+test('Cash food and buy-for-me are collected on delivery, not before the rider buys', () => {
+  assert.match(orders, /cashOnDelivery = goods && order\.paymentMode === 'cash' && order\.status === 'on_the_way'/);
+  assert.doesNotMatch(orders, /const cashWaiting = order\.paymentMode === 'cash'/);
+  assert.match(rider, /j\.paymentMode === 'cash'\) return j\.status === 'on_the_way'/);
 });
 
 test('Customer and Rider Toasts can be dismissed with one tap', () => {

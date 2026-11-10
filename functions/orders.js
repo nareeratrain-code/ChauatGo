@@ -262,6 +262,8 @@ async function createOrder(db, uid, data) {
     const quoted = shoppingFare(from, shopPoint);
     fare = quoted.fare;
     distanceKm = quoted.distanceKm;
+    // Same ฿5 cash service fee as food. The rider collects it on delivery.
+    cashTip = mode === 'cash' ? 5 : 0;
   }
 
   const net = food ? food.netTotal : 0;
@@ -345,6 +347,7 @@ async function createOrder(db, uid, data) {
     body.items = list;
     body.itemsText = list;
     body.paymentMode = mode;
+    body.cashTip = cashTip;
   }
 
   const ref = db.collection('orders').doc();
@@ -473,6 +476,14 @@ function ridePaymentReceivedText(order) {
   return '✅ ไรเดอร์ยืนยันว่าได้รับค่าบริการโอน ฿' + total + ' แล้วครับ/ค่ะ\nขอบคุณที่ใช้บริการ ChauatGo ครับ/ค่ะ';
 }
 
+function cashOnDeliveryText(order) {
+  const fare = round2(order && order.fare);
+  const goods = round2(order && (order.foodTotal || order.itemsTotal || 0));
+  const tip = order && order.cashTip != null ? round2(order.cashTip) : 5;
+  const due = round2(goods + fare + tip);
+  return '💵 ลูกค้าชำระเงินสด ฿' + due + ' ตอนรับของแล้วครับ/ค่ะ';
+}
+
 function precondition(message) {
   const err = new Error(message);
   err.code = 'failed-precondition';
@@ -590,26 +601,29 @@ async function confirmPaymentReceived(db, uid, orderId) {
       const err = new Error('not-yours');
       throw err;
     }
-    const beforePickup = order.status === 'accepted' || order.status === 'ready';
-    const waiting = order.status === 'picked_up';
+    const goods = order.type === 'food' || order.type === 'shopping';
+    const transferGoods = goods && order.paymentMode !== 'cash';
+    // Transfer food and buy-for-me: the rider may confirm before buying.
+    // Cash food and buy-for-me: collect on delivery, never before the purchase.
+    // Ride and express: the fee is settled at the destination, not at pickup.
+    const beforePickup = transferGoods && (order.status === 'accepted' || order.status === 'ready');
+    const waiting = transferGoods && order.status === 'picked_up';
     const fareAtDestination = (order.type === 'ride' || order.type === 'express') && order.status === 'on_the_way';
+    const cashOnDelivery = goods && order.paymentMode === 'cash' && order.status === 'on_the_way';
     if (order.type === 'ride' && fareAtDestination && !order.riderArrivedCustomerChatAt) {
       precondition('กรุณากดยืนยันว่าถึงปลายทางแล้วก่อนรับชำระเงิน');
     }
-    const cashWaiting = order.paymentMode === 'cash' && (waiting || fareAtDestination);
-    if (order.type === 'food' && order.partnerShop === true && order.paymentMode === 'cash') {
-      precondition('Partner Food ต้องยืนยันการชำระเงินตามขั้นตอนอาหารก่อน');
-    }
-    if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup || fareAtDestination)) {
+    const rideReady = fareAtDestination && (order.type !== 'ride' || !!order.riderArrivedCustomerChatAt);
+    if (order.customerPaidAt && (order.status === 'customer_paid' || beforePickup || rideReady || cashOnDelivery)) {
       result = { ok: true, already: true, status: order.status };
       return;
     }
-    if (!beforePickup && !waiting && !fareAtDestination) {
+    if (!beforePickup && !waiting && !rideReady && !cashOnDelivery) {
       precondition('ยืนยันรับเงินได้ระหว่างกำลังส่ง หรือตอนรอโอนก่อนรับของเท่านั้น');
     }
-    const text = fareAtDestination
+    const text = rideReady
       ? ridePaymentReceivedText(order)
-      : (cashWaiting ? '💵 ลูกค้าชำระเงินสดให้ไรเดอร์แล้วครับ/ค่ะ\nไรเดอร์ได้รับเงินแล้ว จึงซื้อหรือจ่ายร้านได้ครับ/ค่ะ' : paymentReceivedText(order, beforePickup));
+      : (cashOnDelivery ? cashOnDeliveryText(order) : paymentReceivedText(order, beforePickup));
     const patch = {
       customerPaid: true,
       customerPaidAt: FieldValue.serverTimestamp(),
@@ -638,7 +652,7 @@ async function confirmPaymentReceived(db, uid, orderId) {
         lastMessageAt: FieldValue.serverTimestamp()
       }, { merge: true });
     }
-    result = { ok: true, already: false, status: waiting ? 'customer_paid' : order.status };
+    result = { ok: true, already: false, status: patch.status || order.status };
   });
   return result;
 }
