@@ -27,6 +27,7 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 const store = {
   merchants: [], orders: [], riders: [], users: [], places: [],
   chats: [], gpTransfers: [], payouts: [],
+  settlement_queue: [], rider_remittances: [], payoutConfig: null,
   gpsRiders: [], dispatchConfig: null, dispatchOffers: null, dispatchOffersOrder: ''
 };
 const filters = {
@@ -38,6 +39,9 @@ let current = 'dashboard';
 let unsubs = [];
 let activeChatId = null;
 let activeChatUnsub = null;
+let activeSettleId = null;
+let settleUnsub = null;
+let payoutQrFile = null;
 let deferredPrompt = null;
 let audioCtx = null;
 let seenNewOrders = new Set();
@@ -77,6 +81,7 @@ const SECTIONS = [
   ['riders', '🛵', 'ไรเดอร์'],
   ['gp', '💰', 'GP'],
   ['gpTransfers', '📸', 'สลิป GP'],
+  ['settlement', '🏦', 'ชำระเงิน'],
   ['payouts', '💸', 'โอนไรเดอร์'],
   ['chats', '💬', 'แชท'],
   ['users', '👥', 'ผู้ใช้'],
@@ -484,7 +489,7 @@ function attachMerchantFinance(items) {
 }
 
 function start() {
-  const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'gp_transfers', 'rider_payouts'];
+  const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'gp_transfers', 'rider_payouts', 'settlement_queue', 'rider_remittances'];
 
   collections.forEach(k => {
     const unsub = db.collection(k)
@@ -494,6 +499,10 @@ function start() {
 
         if (k === 'gp_transfers') {
           store.gpTransfers = items;
+        } else if (k === 'settlement_queue') {
+          store.settlement_queue = items;
+        } else if (k === 'rider_remittances') {
+          store.rider_remittances = items;
         } else if (k === 'rider_payouts') {
           store.payouts = items;
         } else {
@@ -539,6 +548,10 @@ function start() {
     if (current === 'mapPlaces') render();
   });
   unsubs.push(overrideUnsub);
+  unsubs.push(db.doc('config/payout').onSnapshot(s => {
+    store.payoutConfig = s.exists ? (s.data() || {}) : {};
+    if (current === 'settlement') render();
+  }, () => {}));
   unsubs.push(db.doc('config/dispatch').onSnapshot(s => {
     store.dispatchConfig = s.exists ? (s.data() || {}) : null;
     if (current === 'dispatch') render();
@@ -578,6 +591,8 @@ function getBadgeCounts() {
   const pendingRiders = store.riders.filter(r => r.verified === false).length;
   const newOrders = store.orders.filter(o => ['searching', 'pending'].includes(o.status)).length;
   const pendingGpSlips = store.gpTransfers.filter(t => t.status === 'pending').length;
+  const settlementDue = (store.settlement_queue || []).filter(row => row && (row.status === 'due' || row.status === 'slip' || row.status === 'rejected' || Number(row.amount) > 0)).length
+    + (store.rider_remittances || []).filter(row => row.status === 'pending').length;
   const pendingPayouts = store.orders.filter(o =>
     ['done', 'delivered'].includes(o.status)
     && o.riderId
@@ -590,7 +605,7 @@ function getBadgeCounts() {
   const manualDispatch = store.orders.filter(o => o.dispatchState === 'manual' && !o.riderId).length;
 
   return {
-    pendingMerchants, pendingRiders, newOrders, pendingGpSlips, pendingPayouts, manualDispatch
+    pendingMerchants, pendingRiders, newOrders, pendingGpSlips, pendingPayouts, manualDispatch, settlementDue
   };
 }
 
@@ -609,6 +624,7 @@ function renderNav() {
     else if (k === 'riders' && b.pendingRiders) badge = `<span class="nav-badge">${b.pendingRiders}</span>`;
     else if (k === 'orders' && b.newOrders) badge = `<span class="nav-badge">${b.newOrders}</span>`;
     else if (k === 'gpTransfers' && b.pendingGpSlips) badge = `<span class="nav-badge">${b.pendingGpSlips}</span>`;
+    else if (k === 'settlement' && b.settlementDue) badge = `<span class="nav-badge">${b.settlementDue}</span>`;
     else if (k === 'payouts' && b.pendingPayouts) badge = `<span class="nav-badge">${b.pendingPayouts}</span>`;
     else if (k === 'dispatch' && b.manualDispatch) badge = `<span class="nav-badge">${b.manualDispatch}</span>`;
 
@@ -624,13 +640,13 @@ function render() {
   const mainEl = $('main');
   if (!mainEl) return;
   const active = document.activeElement;
-  const typing = current === 'dispatch' && active && mainEl.contains(active)
+  const typing = (current === 'dispatch' || current === 'settlement') && active && mainEl.contains(active)
     && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
   if (typing) return;
   destroyDispatchMap();
 
   const fn = {
-    dashboard, orders, merchants, riders, gp, gpTransfers, payouts, chats, users, mapPlaces, dispatch
+    dashboard, orders, merchants, riders, gp, gpTransfers, settlement, payouts, chats, users, mapPlaces, dispatch
   }[current];
 
   if (fn) {
@@ -1251,6 +1267,167 @@ function gpTransfers() {
       </div>
     </div>`;
   }).join('');
+}
+
+function settlement() {
+  const payout = store.payoutConfig || {};
+  const queue = (store.settlement_queue || []).filter(row =>
+    row && (row.status === 'due' || row.status === 'slip' || row.status === 'rejected' || Number(row.amount) > 0)
+  );
+  const slips = (store.rider_remittances || []).filter(row => row.status === 'pending' || row.status === 'rejected');
+  const shopSlips = (store.gpTransfers || []).filter(row => row.status === 'pending' || row.status === 'rejected');
+  const card = (title, meta, amount, actions) => `<div class="data-card">
+    <div class="data-card-header">
+      <div class="data-card-icon" style="background:#168A45;color:#fff">🏦</div>
+      <div class="data-card-info">
+        <div class="data-card-name">${title}</div>
+        <div class="data-card-meta settle-amt">฿${fmt(amount || 0)}</div>
+        <div class="data-card-meta">${meta}</div>
+      </div>
+    </div>
+    <div class="data-card-actions">${actions}</div>
+  </div>`;
+  const shops = queue.filter(row => row.kind === 'shop').map(row => card(
+    esc(row.partyName || 'ร้านค้า'),
+    esc(row.status === 'slip' ? 'มีสลิปรอตรวจ' : row.status === 'rejected' ? 'รอแนบสลิปใหม่' : 'GP ครบกำหนด'),
+    row.amount,
+    `<button class="blue" data-settle-chat="shop" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ร้าน')}">💬 แชท</button>`
+  )).join('');
+  const riders = queue.filter(row => row.kind === 'rider').map(row => card(
+    esc(row.partyName || 'ไรเดอร์'),
+    `ต้องโอนก่อน ${esc(row.cutoff || '21:00')} • ${esc(row.dateKey || '')}`,
+    row.amount,
+    `<button class="blue" data-settle-chat="rider" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ไรเดอร์')}">💬 แชท</button>`
+  )).join('');
+  const riderSlips = slips.map(row => card(
+    esc(row.riderName || 'ไรเดอร์'),
+    `${esc(row.status === 'rejected' ? 'ปฏิเสธแล้ว' : 'รอตรวจสลิป')} • ${esc(row.dateKey || '')}`,
+    row.amount,
+    `<button class="blue" data-view-remit="${esc(row.id)}">🖼️ ดูสลิป</button>
+     ${row.status === 'pending' ? `<button class="pri" data-verify-remit="${esc(row.id)}">✅ ยืนยัน</button><button class="dan" data-reject-remit="${esc(row.id)}">❌ ปฏิเสธ</button>` : ''}`
+  )).join('');
+  const gpSlips = shopSlips.map(row => card(
+    esc(row.merchantName || 'ร้านค้า'),
+    esc(row.status === 'rejected' ? 'ปฏิเสธแล้ว' : 'รอตรวจสลิป GP'),
+    row.amount,
+    `<button class="blue" data-view-slip="${esc(row.id)}">🖼️ ดูสลิป</button>
+     ${row.status === 'pending' ? `<button class="pri" data-verify-gp="${esc(row.id)}">✅ ยืนยัน</button><button class="dan" data-reject-gp="${esc(row.id)}">❌ ปฏิเสธ</button>` : ''}`
+  )).join('');
+  return `
+    <div class="section-divider"><div class="title">บัญชีรับเงิน ChauatGo</div><div class="line"></div></div>
+    <div class="data-card">
+      ${payout.qrUrl ? `<img src="${esc(payout.qrUrl)}" alt="QR" style="width:160px;border-radius:12px;background:#fff">` : '<div class="data-card-meta">ยังไม่มี QR</div>'}
+      <div class="form-field"><label>ชื่อบัญชี</label><input id="payout-account-name" value="${esc(payout.accountName || '')}" maxlength="120"></div>
+      <div class="form-field"><label>ธนาคาร</label><input id="payout-bank-name" value="${esc(payout.bankName || '')}" maxlength="80"></div>
+      <div class="form-field"><label>เลขบัญชี</label><input id="payout-account-number" value="${esc(payout.accountNumber || '')}" maxlength="40"></div>
+      <div class="form-field"><label>พร้อมเพย์</label><input id="payout-promptpay" value="${esc(payout.promptPay || '')}" maxlength="40"></div>
+      <div class="form-field"><label>รูป QR</label><input id="payout-qr-file" type="file" accept="image/*"></div>
+      <button class="btn-primary" data-save-payout="1">บันทึกบัญชีรับเงิน</button>
+    </div>
+    <div class="section-divider"><div class="title">ร้านที่ GP ครบกำหนด</div><div class="line"></div></div>
+    ${shops || '<div class="empty"><div>ยังไม่มีร้านที่ถึงกำหนด</div></div>'}
+    <div class="section-divider"><div class="title">สลิป GP รอตรวจ</div><div class="line"></div></div>
+    ${gpSlips || '<div class="empty"><div>ไม่มีสลิป GP รอตรวจ</div></div>'}
+    <div class="section-divider"><div class="title">ไรเดอร์ที่ต้องโอนก่อน 21:00</div><div class="line"></div></div>
+    ${riders || '<div class="empty"><div>ยังไม่มีไรเดอร์ที่มียอดวันนี้</div></div>'}
+    <div class="section-divider"><div class="title">สลิปไรเดอร์รอตรวจ</div><div class="line"></div></div>
+    ${riderSlips || '<div class="empty"><div>ไม่มีสลิปไรเดอร์รอตรวจ</div></div>'}`;
+}
+
+function onPayoutQrFile(input) {
+  payoutQrFile = input.files && input.files[0] ? input.files[0] : null;
+}
+
+async function savePayoutSettings() {
+  const accountName = ($('payout-account-name')?.value || '').trim();
+  const bankName = ($('payout-bank-name')?.value || '').trim();
+  const accountNumber = ($('payout-account-number')?.value || '').trim();
+  const promptPay = ($('payout-promptpay')?.value || '').trim();
+  const fileInput = $('payout-qr-file');
+  const file = (fileInput && fileInput.files && fileInput.files[0]) || payoutQrFile;
+  if (!accountName || (!accountNumber && !promptPay)) return showToast('ใส่ชื่อบัญชี และเลขบัญชีหรือพร้อมเพย์', 'warning');
+  let qrUrl = (store.payoutConfig && store.payoutConfig.qrUrl) || '';
+  let qrPath = (store.payoutConfig && store.payoutConfig.qrPath) || '';
+  try {
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) return showToast('รูปใหญ่เกิน 5MB', 'error');
+      qrPath = 'payout/qr/' + Date.now() + '.jpg';
+      const ref = storage.ref(qrPath);
+      await ref.put(file, { contentType: file.type && file.type.startsWith('image/') ? file.type : 'image/jpeg' });
+      qrUrl = await ref.getDownloadURL();
+      payoutQrFile = null;
+    }
+    await db.collection('config').doc('payout').set({
+      accountName, bankName, accountNumber, promptPay, qrUrl, qrPath,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    showToast('บันทึกบัญชีรับเงินแล้ว');
+  } catch (err) {
+    showToast('บันทึกบัญชีไม่สำเร็จ', 'error');
+  }
+}
+
+function openSettlementThread(kind, partyId, name) {
+  if (!partyId || (kind !== 'shop' && kind !== 'rider')) return;
+  activeSettleId = (kind === 'rider' ? 'rider_' : 'shop_') + partyId;
+  openModal(kind === 'rider' ? '💬 แชทไรเดอร์' : '💬 แชทร้าน', `
+    <div style="font-weight:900;margin-bottom:8px">${esc(name || '')}</div>
+    <div id="settle-msgs" style="max-height:46vh;overflow:auto;background:var(--surface-2);border-radius:12px;padding:10px">กำลังโหลด...</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <input id="settle-input" maxlength="2000" placeholder="พิมพ์ข้อความ">
+      <button class="btn-primary" data-send-settle="1">ส่ง</button>
+    </div>`);
+  const ref = db.collection('settlement_chats').doc(activeSettleId);
+  ref.get().then((snap) => {
+    if (snap.exists) return null;
+    return ref.set({
+      kind,
+      partyId,
+      partyName: String(name || ''),
+      lastMessage: '',
+      lastSenderId: auth.currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).catch(() => {});
+  if (settleUnsub) settleUnsub();
+  settleUnsub = ref.collection('messages').orderBy('createdAt', 'asc').limitToLast(80)
+    .onSnapshot((snap) => {
+      const box = $('settle-msgs');
+      if (!box) return;
+      box.innerHTML = snap.size ? snap.docs.map((doc) => {
+        const m = doc.data();
+        const who = m.senderRole === 'admin' ? 'แอดมิน' : (kind === 'rider' ? 'ไรเดอร์' : 'ร้าน');
+        return `<div style="margin:6px 0;font-weight:700"><b>${esc(who)}</b> ${esc(m.text || '')}</div>`;
+      }).join('') : 'ยังไม่มีข้อความ';
+      box.scrollTop = box.scrollHeight;
+    }, () => {
+      const box = $('settle-msgs');
+      if (box) box.textContent = 'เปิดแชทไม่สำเร็จ';
+    });
+}
+
+async function sendSettlementChat() {
+  const input = $('settle-input');
+  const text = input ? input.value.trim() : '';
+  if (!text || !activeSettleId || !auth.currentUser) return;
+  input.value = '';
+  const ref = db.collection('settlement_chats').doc(activeSettleId);
+  try {
+    await ref.collection('messages').add({
+      senderId: auth.currentUser.uid,
+      senderRole: 'admin',
+      text,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await ref.update({
+      lastMessage: text.slice(0, 140),
+      lastSenderId: auth.currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    showToast('ส่งข้อความไม่สำเร็จ', 'error');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1880,6 +2057,8 @@ function openModal(title, html) {
 function closeModal() {
   destroyAddPlaceMap();
   $('modal-overlay')?.classList.remove('show');
+  if (settleUnsub) { settleUnsub(); settleUnsub = null; }
+  activeSettleId = null;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1890,7 +2069,7 @@ document.addEventListener('click', async e => {
     '[data-go],[data-order],[data-order-status],[data-open-chat],[data-verify-merchant],[data-edit-merchant],' +
     '[data-verify-rider],[data-toggle-rider],[data-del],[data-merchant-status],' +
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
-    '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],' +
+    '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],[data-save-payout],[data-settle-chat],[data-send-settle],[data-view-remit],[data-verify-remit],[data-reject-remit],' +
     '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-view-payout],[data-payout-clear],[data-change-role],' +
     '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset],' +
     '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps],' +
@@ -2094,6 +2273,50 @@ document.addEventListener('click', async e => {
       const result = await ChauatFn.callFunction('reviewGpTransfer', { transferId: gp.id, action: 'verify' }, auth);
       showToast(result && result.alreadyReviewed ? 'ℹ️ สลิปนี้ตรวจสอบไว้แล้ว' : '✅ ยืนยันสลิปและปรับยอดร้านแบบ Transaction แล้ว');
       closeModal();
+      return;
+    }
+
+    if (t.dataset.savePayout) {
+      savePayoutSettings();
+      return;
+    }
+
+    if (t.dataset.settleChat) {
+      openSettlementThread(t.dataset.settleChat, t.dataset.party, t.dataset.partyName);
+      return;
+    }
+
+    if (t.dataset.sendSettle) {
+      sendSettlementChat();
+      return;
+    }
+
+    if (t.dataset.viewRemit) {
+      const slip = (store.rider_remittances || []).find(x => x.id === t.dataset.viewRemit);
+      if (!slip) return;
+      openModal('📸 สลิปไรเดอร์', `
+        ${slip.slipUrl ? `<img src="${esc(slip.slipUrl)}" alt="สลิป" style="width:100%;border-radius:12px">` : ''}
+        <div style="font-weight:900;margin-top:8px">${esc(slip.riderName || 'ไรเดอร์')} • ฿${fmt(slip.amount || 0)}</div>
+        <div>ต้องโอนก่อน 21:00 • ${esc(slip.dateKey || '')}</div>
+        ${slip.status === 'pending' ? `<div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn-primary" data-verify-remit="${esc(slip.id)}">✅ ยืนยัน</button>
+          <button class="btn-primary" style="background:var(--red)" data-reject-remit="${esc(slip.id)}">❌ ปฏิเสธ</button>
+        </div>` : ''}`);
+      return;
+    }
+
+    if (t.dataset.verifyRemit || t.dataset.rejectRemit) {
+      const remittanceId = t.dataset.verifyRemit || t.dataset.rejectRemit;
+      const action = t.dataset.verifyRemit ? 'verify' : 'reject';
+      if (action === 'reject' && !confirm('ปฏิเสธสลิปนี้? ไรเดอร์จะแนบใหม่ได้')) return;
+      if (!window.ChauatFn) return showToast('ระบบตรวจสลิปยังไม่พร้อม', 'error');
+      try {
+        const result = await ChauatFn.callFunction('reviewRiderRemittance', { remittanceId, action }, auth);
+        showToast(result && result.alreadyReviewed ? 'ตรวจสลิปนี้ไว้แล้ว' : (action === 'verify' ? 'ยืนยันยอดไรเดอร์แล้ว' : 'ปฏิเสธสลิปแล้ว'));
+        closeModal();
+      } catch (err) {
+        showToast((err && err.message) || 'ตรวจสลิปไม่สำเร็จ', 'error');
+      }
       return;
     }
 

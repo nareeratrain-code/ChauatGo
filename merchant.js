@@ -105,7 +105,12 @@ const GP_PLATFORM_SHARE = 0.01;
 const PROMO_DAYS = 60;
 const MAX_IMG_SIZE = 5 * 1024 * 1024;
 const ORDER_LOOP_INTERVAL = 3000;
-const GP_BANK_INFO = { bank: 'กสิกรไทย', accountNo: 'xxx-x-xxxxx-x', accountName: 'บริษัท Chauat Go จำกัด' };
+let payoutInstructions = null;
+let gpDueToasted = false;
+let gpTransfersPrimed = false;
+const seenRejectedGp = new Set();
+let gpTransferUnsub = null;
+let settlementChatUnsub = null;
 
 const SOUND_TONES = {
   1: { name: 'ติ๊ง-ติ๊ง', freqs: [880, 1108, 1318, 1108], interval: 0.18, duration: 0.18 },
@@ -748,8 +753,10 @@ function subscribeProfile() {
     updateShopToggle();
     updateHeroStats();
     updateGpTab();
+    maybeNotifyGpDue();
     if ($('shop-profile-sheet')?.classList.contains('show')) loadShopAvatarPreview();
   }, () => {});
+  subscribeGpTransfers();
   myProfileUnsub = db.collection('merchants').doc(currentUser.uid).onSnapshot(snap => {
     if (!snap.exists) return;
     const prevVerified = merchantProfile?.verified;
@@ -766,6 +773,7 @@ function subscribeProfile() {
     updateShopToggle();
     updateHeroStats();
     updateGpTab();
+    maybeNotifyGpDue();
 
     if ($('shop-profile-sheet')?.classList.contains('show')) {
       loadShopAvatarPreview();
@@ -1414,7 +1422,10 @@ function switchTab(tab, el) {
   const target = $('tab-' + tab);
   if (target) target.classList.add('active');
   if (tab === 'history') renderHistory();
-  if (tab === 'gp') updateGpTab();
+  if (tab === 'gp') {
+    updateGpTab();
+    loadPayoutInstructions();
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2188,6 +2199,149 @@ async function confirmCrop() {
 /* ═══════════════════════════════════════════════════════════════════
    27. GP TAB + TRANSFER
    ═══════════════════════════════════════════════════════════════════ */
+function shopDueAt(profile) {
+  const start = toDate(profile && profile.gpStartDate);
+  if (!start) return 0;
+  return start.getTime() + PROMO_DAYS * 86400000;
+}
+
+function shopSettlementDue() {
+  const pending = Math.round(Number(merchantProfile && merchantProfile.gpPending || 0) * 100) / 100;
+  const dueAt = shopDueAt(merchantProfile);
+  const due = dueAt > 0 && Date.now() >= dueAt && pending > 0;
+  return { due, amount: due ? pending : 0, dueAt };
+}
+
+function payoutLines(data) {
+  const p = data || {};
+  const qr = p.qrUrl
+    ? `<img class="settle-qr" alt="QR ชำระ ChauatGo" src="${esc(p.qrUrl)}">`
+    : '<div style="text-align:center;padding:8px 0">แอดมินยังไม่ได้ตั้ง QR</div>';
+  return `${qr}<div class="settle-lines">
+    <div><span>ธนาคาร</span><b>${esc(p.bankName || '—')}</b></div>
+    <div><span>เลขบัญชี / พร้อมเพย์</span><b>${esc(p.accountNumber || p.promptPay || '—')}</b></div>
+    <div><span>ชื่อบัญชี</span><b>${esc(p.accountName || '—')}</b></div>
+  </div>`;
+}
+
+async function loadPayoutInstructions() {
+  try {
+    const snap = await db.collection('config').doc('payout').get();
+    payoutInstructions = snap.exists ? (snap.data() || {}) : {};
+  } catch (err) {
+    payoutInstructions = {};
+  }
+  const box = $('gp-payout-box');
+  if (box) box.innerHTML = payoutLines(payoutInstructions);
+  updateGpTab();
+}
+
+function maybeNotifyGpDue() {
+  const due = shopSettlementDue();
+  if (!due.due || !merchantProfile.gpDueNotifiedAt || gpDueToasted) return;
+  gpDueToasted = true;
+  showToast('GP ครบกำหนดชำระ ฿' + fmt(due.amount), 'warning');
+}
+
+function subscribeGpTransfers() {
+  if (gpTransferUnsub) gpTransferUnsub();
+  gpTransferUnsub = db.collection('gp_transfers').where('merchantId', '==', currentUser.uid).limit(20)
+    .onSnapshot((snap) => {
+      snap.docs.forEach((doc) => {
+        if (doc.data().status === 'rejected' && !seenRejectedGp.has(doc.id)) {
+          seenRejectedGp.add(doc.id);
+          if (gpTransfersPrimed) showToast('สลิป GP ไม่ผ่าน แนบสลิปใหม่ได้', 'warning');
+        }
+      });
+      gpTransfersPrimed = true;
+    }, () => {});
+}
+
+function renderGpSettlement() {
+  const box = $('gp-settlement');
+  if (!box) return;
+  const due = shopSettlementDue();
+  if (!due.due) { box.innerHTML = ''; return; }
+  const when = new Date(due.dueAt).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+  box.innerHTML = `<div class="settle-due">
+    <div style="font-size:12px;font-weight:800">GP ครบกำหนดหลัง 60 วัน</div>
+    <div class="amt">฿${fmt(due.amount)}</div>
+    <div style="font-size:12px;font-weight:700;margin-top:4px">ครบกำหนด ${esc(when)}</div>
+    <button class="btn-primary ripple" style="margin-top:12px" onclick="openGpTransferForm()">โอนและแนบสลิป</button>
+    <button class="btn-secondary ripple" style="margin-top:8px" onclick="openShopSettlementChat()">💬 ถามแอดมิน</button>
+  </div>`;
+}
+
+async function ensureShopSettlementChat() {
+  const ref = db.collection('settlement_chats').doc('shop_' + currentUser.uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      kind: 'shop',
+      partyId: currentUser.uid,
+      partyName: String((merchantProfile && merchantProfile.name) || ''),
+      lastMessage: '',
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  return ref;
+}
+
+async function openShopSettlementChat() {
+  if (!currentUser) return;
+  openSheet('settlement-chat-sheet');
+  const log = $('settlement-chat-log');
+  if (log) log.textContent = 'กำลังโหลด...';
+  try {
+    const ref = await ensureShopSettlementChat();
+    if (settlementChatUnsub) settlementChatUnsub();
+    settlementChatUnsub = ref.collection('messages').orderBy('createdAt', 'asc').limitToLast(80)
+      .onSnapshot((snap) => {
+        const box = $('settlement-chat-log');
+        if (!box) return;
+        if (!snap.size) { box.textContent = 'ยังไม่มีข้อความ'; return; }
+        box.innerHTML = snap.docs.map((doc) => {
+          const m = doc.data();
+          const who = m.senderRole === 'admin' ? 'แอดมิน' : 'ร้าน';
+          return `<div class="line"><b>${esc(who)}</b> ${esc(m.text || '')}</div>`;
+        }).join('');
+        box.scrollTop = box.scrollHeight;
+      });
+  } catch (err) {
+    if (log) log.textContent = 'เปิดแชทไม่สำเร็จ';
+  }
+}
+
+function closeSettlementChat() {
+  closeSheet('settlement-chat-sheet');
+  if (settlementChatUnsub) { settlementChatUnsub(); settlementChatUnsub = null; }
+}
+
+async function sendShopSettlementChat() {
+  const input = $('settlement-chat-input');
+  const text = input ? input.value.trim() : '';
+  if (!text || !currentUser) return;
+  input.value = '';
+  try {
+    const ref = await ensureShopSettlementChat();
+    await ref.collection('messages').add({
+      senderId: currentUser.uid,
+      senderRole: 'shop',
+      text,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await ref.update({
+      lastMessage: text.slice(0, 140),
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    showToast(merchantFirebaseErrorText(err, 'ส่งข้อความไม่สำเร็จ'), 'error');
+  }
+}
+
 function updateGpTab() {
   if (!merchantProfile) return;
   const doneOrders = allOrders.filter(o => o.status === 'done');
@@ -2237,6 +2391,7 @@ function updateGpTab() {
   }
 
   renderGpHistory();
+  renderGpSettlement();
 }
 
 function renderGpHistory() {
@@ -2266,6 +2421,7 @@ function renderGpHistory() {
 
 function openGpTransferForm() {
   if (currentGpPending <= 0) return showToast('ไม่มี GP ค้างโอน', 'info');
+  loadPayoutInstructions();
   gpSlipFile = null;
   const amountEl = $('gp-transfer-amount');
   if (amountEl) amountEl.textContent = '฿' + fmt(currentGpPending);

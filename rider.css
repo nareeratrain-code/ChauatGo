@@ -640,12 +640,25 @@ body {
   backdrop-filter: blur(4px);
 }
 .sheet-overlay.show { display: flex; animation: fadeIn .2s; }
+.settle-due { background: #168A45; color: #fff; border-radius: 16px; padding: 16px; margin: 8px 0 14px; }
+.settle-due .amt { color: #FF9800; font-size: 32px; font-weight: 900; line-height: 1.1; text-shadow: 0 1px 0 #000, 0 0 2px #000; }
+.settle-qr { width: 180px; max-width: 70%; border-radius: 12px; background: #fff; display: block; margin: 10px auto; }
+.settle-lines { font-size: 13px; font-weight: 700; }
+.settle-lines div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.settle-chat-log { max-height: 36vh; overflow: auto; background: var(--surface-2); border-radius: 12px; padding: 10px; margin: 8px 0; }
+.settle-chat-log .line { margin: 6px 0; font-size: 13px; font-weight: 700; }
 .sheet {
   background: var(--surface); width: 88%; max-width: 420px;
   height: 100%; overflow-y: auto;
   animation: slideInRight .35s cubic-bezier(.32,.72,0,1);
   padding: 24px 20px;
   -webkit-overflow-scrolling: touch;
+}
+#rider-settle-sheet.sheet-overlay { justify-content: center; align-items: flex-end; }
+#rider-settle-sheet .sheet {
+  width: 100%; max-width: 480px; height: auto; max-height: 92vh;
+  border-radius: 20px 20px 0 0;
+  animation: slideUp .3s cubic-bezier(.32,.72,0,1);
 }
 .sheet-title {
   font-size: 18px; font-weight: 900;

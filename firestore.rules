@@ -1720,6 +1720,96 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Published ChauatGo payment instructions. Not the rest of admin config.
+    match /config/payout {
+      allow read: if isAdmin() || isMerchant() || isVerifiedRider();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'accountName', 'accountNumber', 'bankName', 'promptPay', 'qrUrl', 'qrPath', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    match /settlement_queue/{entryId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.partyId == myUid());
+      allow write: if false;
+    }
+
+    match /settlement_chats/{chatId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.partyId == myUid());
+      allow create: if isAuth()
+        && request.resource.data.kind in ['shop', 'rider']
+        && request.resource.data.keys().hasOnly([
+          'kind', 'partyId', 'partyName', 'lastMessage', 'lastSenderId', 'lastMessageAt', 'createdAt'
+        ])
+        && isValidString(request.resource.data.get('partyName', ''), 0, 120)
+        && request.resource.data.partyId is string
+        && request.resource.data.partyId.size() > 0
+        && request.resource.data.partyId.size() <= 128
+        && (
+          isAdmin()
+          || (
+            request.resource.data.partyId == myUid()
+            && (request.resource.data.kind == 'shop' ? isMerchant() : isVerifiedRider())
+          )
+        );
+      allow update: if isAdmin() || (
+        isAuth()
+        && resource.data.partyId == myUid()
+        && request.resource.data.partyId == myUid()
+        && request.resource.data.kind == resource.data.kind
+        && onlyChanged(['lastMessage', 'lastSenderId', 'lastMessageAt', 'partyName'])
+      );
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || (
+          isAuth() && get(/databases/$(database)/documents/settlement_chats/$(chatId)).data.partyId == myUid()
+        );
+        allow create: if request.resource.data.keys().hasOnly([
+            'senderId', 'senderRole', 'text', 'createdAt'
+          ])
+          && request.resource.data.senderId == myUid()
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && (
+            (isAdmin() && request.resource.data.senderRole == 'admin')
+            || (
+              isAuth()
+              && get(/databases/$(database)/documents/settlement_chats/$(chatId)).data.partyId == myUid()
+              && request.resource.data.senderRole == get(/databases/$(database)/documents/settlement_chats/$(chatId)).data.kind
+            )
+          );
+        allow update, delete: if false;
+      }
+    }
+
+    match /rider_remittances/{remittanceId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.riderId == myUid());
+      allow create: if isVerifiedRider()
+        && request.resource.data.riderId == myUid()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'riderId', 'riderName', 'amount', 'dateKey', 'status', 'slipUrl', 'slipPath', 'note', 'createdAt'
+        ])
+        && isValidString(request.resource.data.get('riderName', ''), 0, 120)
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.amount <= 100000
+        && request.resource.data.dateKey is string
+        && request.resource.data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.slipPath is string
+        && request.resource.data.slipPath.matches('^settlement_slips/riders/' + myUid() + '/[A-Za-z0-9_.-]+$')
+        && request.resource.data.get('slipUrl', '') is string
+        && request.resource.data.get('slipUrl', '').size() <= 2000
+        && request.resource.data.get('note', '') is string
+        && request.resource.data.get('note', '').size() <= 300
+        && request.resource.data.createdAt is timestamp;
+      allow update, delete: if false;
+    }
+
     // Collection-group listener: riders/{query riderId == me}. Direct field
     // equality is what the query checker can prove. .get() is not.
     match /{path=**}/dispatchOffers/{offerId} {
