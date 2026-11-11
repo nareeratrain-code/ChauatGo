@@ -70,7 +70,12 @@ test('Customer Order Card: แสดงเฉพาะสถานะและ�
   const card = app.slice(cardStart, cardEnd);
   assert.match(card, /progressDots/);
   assert.match(card, /payBtnHtml = ''/);
-  assert.match(card, /แชท • ยอดเงิน\/สลิป/);
+  assert.match(card, /แชทกับร้าน/);
+  assert.match(card, /แชทกับไรเดอร์/);
+  assert.match(card, /openChatPage\(\\'\'\+esc\(o\.id\)\+'\\',\\'rider\\'\)/);
+  assert.match(card, /var canChat = !!o\.riderId/);
+  assert.match(card, /order-track-shop/);
+  assert.doesNotMatch(card, /ยอดเงิน\/สลิป/);
 });
 
 test('Customer Order List: ดึง Order ที่เพิ่งสร้างจาก server และตรวจ UID ก่อนแสดง', () => {
@@ -170,6 +175,8 @@ test('Order List แสดงสถานะเท่านั้นและเ
   assert.match(card, /payBtnHtml = ''/);
   assert.doesNotMatch(card, /อาหารของคุณ/);
   assert.match(card, /openChatPage/);
-  assert.match(card, /แชท • ยอดเงิน\/สลิป/);
+  assert.match(card, /แชทกับร้าน/);
+  assert.match(card, /แชทกับไรเดอร์/);
+  assert.doesNotMatch(card, /ยอดเงิน\/สลิป/);
   assert.doesNotMatch(card, /showOrderBill\(/);
 });
