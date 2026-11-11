@@ -873,6 +873,15 @@ main { padding: 0 14px 30px; }
   padding: 0;
 }
 #app .app-header .cg-brand-name { font-size: 22px; }
+.settle-amt {
+  color: #FF9800;
+  font-weight: 900;
+  background: #168A45;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+}
 nav {
   margin: 0;
   padding: 8px 10px 4px;

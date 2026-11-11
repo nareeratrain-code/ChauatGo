@@ -12,7 +12,7 @@ const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
 
 test('financial callable endpoints require auth, mandatory App Check, and admin role', () => {
-  for (const fn of ['createRiderPayout', 'reviewGpTransfer']) {
+  for (const fn of ['createRiderPayout', 'reviewGpTransfer', 'reviewRiderRemittance']) {
     const start = index.indexOf(`exports.${fn}`);
     const end = index.indexOf('\n});', start);
     const body = index.slice(start, end);

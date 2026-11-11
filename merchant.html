@@ -324,6 +324,13 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
 .gp-hero .label { font-size: 12px; font-weight: 800; opacity: .95; position: relative; z-index: 1; }
 .gp-hero .value { font-size: 38px; font-weight: 900; margin-top: 8px; line-height: 1; position: relative; z-index: 1; text-shadow: 0 2px 8px rgba(0,0,0,.15); }
 .gp-hero .sub { font-size: 12px; opacity: .95; font-weight: 700; margin-top: 8px; position: relative; z-index: 1; }
+.settle-due { background: #168A45; color: #fff; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+.settle-due .amt { color: #FF9800; font-size: 32px; font-weight: 900; line-height: 1.1; text-shadow: 0 1px 0 #000, 0 0 2px #000; }
+.settle-qr { width: 180px; max-width: 70%; border-radius: 12px; background: #fff; display: block; margin: 10px auto; }
+.settle-lines { font-size: 13px; font-weight: 700; }
+.settle-lines div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.settle-chat-log { max-height: 42vh; overflow: auto; background: var(--surface-2); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+.settle-chat-log .line { margin: 6px 0; font-size: 13px; font-weight: 700; }
 .gp-countdown { background: linear-gradient(135deg, #E8F5E9, #C8E6C9); border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 14px; border-left: 4px solid var(--brand); }
 [data-theme="dark"] .gp-countdown { background: linear-gradient(135deg, #1F3F1F, #2F4F2F); }
 .gp-countdown .days { font-size: 36px; font-weight: 900; color: var(--brand); line-height: 1; min-width: 80px; text-align: center; }
@@ -926,6 +933,7 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
         <div class="value" id="gp-pending">0฿</div>
         <div class="sub" id="gp-pending-sub">จากยอดขาย 0฿</div>
       </div>
+      <div id="gp-settlement"></div>
       <div class="gp-countdown" id="gp-countdown">
         <div class="days" id="gp-days-left">—</div>
         <div class="txt">
@@ -1213,12 +1221,7 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
       <div style="font-size:32px;font-weight:900;color:var(--green)" id="gp-transfer-amount">0฿</div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:6px">รอบ: <span id="gp-transfer-round">—</span></div>
     </div>
-    <div style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px;font-size:12px;font-weight:700">
-      <div style="font-weight:900;margin-bottom:8px">📋 ข้อมูลบัญชี chauatgo</div>
-      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>ธนาคาร</span><b>กสิกรไทย</b></div>
-      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>เลขบัญชี</span><b>xxx-x-xxxxx-x</b></div>
-      <div style="display:flex;justify-content:space-between;padding:4px 0"><span>ชื่อบัญชี</span><b>บริษัท Chauat Go จำกัด</b></div>
-    </div>
+    <div id="gp-payout-box" style="background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:14px;font-size:12px;font-weight:700">กำลังโหลดบัญชี ChauatGo</div>
     <div class="slip-upload-box" style="cursor:default">
       <div class="ico">📸</div>
       <div class="lbl">แนบสลิปโอน</div>
@@ -1234,7 +1237,19 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
     <div class="slip-progress" id="gp-slip-progress" style="display:none"><div class="slip-progress-bar" id="gp-slip-progress-bar"></div></div>
     <div class="form-field"><label>📝 หมายเหตุ (ไม่บังคับ)</label><textarea id="gp-note" rows="2" maxlength="200" style="resize:none"></textarea></div>
     <button class="btn-primary ripple" onclick="submitGpTransfer()" id="btn-submit-gp">✅ ยืนยันโอนแล้ว</button>
+    <button class="btn-secondary ripple" onclick="openShopSettlementChat()">💬 ถามแอดมินเรื่องยอดนี้</button>
     <button class="sheet-close ripple" onclick="closeSheet('gp-transfer-sheet')">ยกเลิก</button>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="settlement-chat-sheet" onclick="if(event.target===this)closeSettlementChat()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>💬 แชทชำระ GP กับแอดมิน</h2>
+    <div class="settle-chat-log" id="settlement-chat-log">ยังไม่มีข้อความ</div>
+    <div class="form-field"><textarea id="settlement-chat-input" rows="2" maxlength="2000" placeholder="พิมพ์คำถามเรื่องยอด GP"></textarea></div>
+    <button class="btn-primary ripple" onclick="sendShopSettlementChat()">ส่ง</button>
+    <button class="sheet-close ripple" onclick="closeSettlementChat()">ปิด</button>
   </div>
 </div>
 

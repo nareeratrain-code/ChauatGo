@@ -338,7 +338,7 @@
 
     <div class="sheet-item" onclick="closeSheet();showTransferApp()">
       <div class="ico">📤</div>
-      <div class="content"><div class="lbl">โอนให้ chauatgo (20% ของค่าส่ง)</div><div class="sub">ครบกำหนด 3 ทุ่ม</div></div>
+      <div class="content"><div class="lbl">โอนให้ chauatgo (20% ของค่าส่ง)</div><div class="sub">ต้องโอนก่อน 21:00</div></div>
       <div class="arrow">›</div>
     </div>
 
@@ -375,6 +375,10 @@
     <button class="close-sheet ripple" onclick="closeSheet()">ปิด</button>
     <div class="sheet-version">Chauat Go Rider v3.9.26 • © 2025</div>
   </div>
+</div>
+
+<div class="sheet-overlay" id="rider-settle-sheet" onclick="if(event.target===this)closeRiderSettlement()">
+  <div class="sheet" id="rider-settle-body"></div>
 </div>
 
 <!-- ═══ NEW JOB POPUP ═══ -->

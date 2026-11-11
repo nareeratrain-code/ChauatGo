@@ -8,6 +8,8 @@ rules_version = '2';
 //   chats/{orderId}/{file}                              admin/boss chat image
 //   slips/customers/{customerUid}/{orderId}/{file}      customer payment proof
 //   gp_slips/{merchantUid}/*                            shop GP slip
+//   payout/qr/*                                         ChauatGo payment QR
+//   settlement_slips/riders/{riderUid}/*                rider remittance slip
 //   menus/{merchantUid}/*  shops/{merchantUid}/*        menu photo and shop avatar
 // Customer payment proof is uploaded under slips/customers/{uid}/{orderId}/.
 // Several clients call put(blob) or put(file) with no metadata. The Storage
@@ -174,6 +176,18 @@ service firebase.storage {
       allow read: if isAdmin() || orderParty(chatId) || chatParty(chatId);
       allow create, update: if isAdmin() && isImage();
       allow delete: if isAdmin();
+    }
+
+    match /payout/qr/{fileName} {
+      allow read: if signedIn() && (isAdmin() || isMerchantAccount() || isRiderAccount());
+      allow create, update: if isAdmin() && isImage();
+      allow delete: if isAdmin();
+    }
+
+    match /settlement_slips/riders/{uid}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if isImage() && request.auth.uid == uid && isRiderAccount();
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
     match /gp_slips/{uid}/{fileName} {

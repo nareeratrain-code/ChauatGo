@@ -3945,7 +3945,220 @@ function showFinance() {
 }
 
 function showTransferShop() { showToast('💡 ระบบโอนร้านค้า — เร็ว ๆ นี้', 'info'); }
-function showTransferApp() { showToast('💡 ระบบโอน chauatgo — เร็ว ๆ นี้', 'info'); }
+let riderSettle = null;
+let riderSettleUnsub = null;
+let riderRemitUnsub = null;
+let riderRemitPrimed = false;
+const seenRejectedRemit = new Set();
+
+function bangkokDateKey(ms) {
+  return new Date((Number(ms) || Date.now()) + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function localRiderDue() {
+  const today = allHistory.filter(j =>
+    (j.status === 'done' || j.status === 'delivered')
+    && isToday(j.deliveredAt || j.doneAt || j.createdAt)
+    && !j.riderPaid
+  );
+  const amount = Math.round(today.reduce((sum, job) => sum + Number(job.fare || 0) * PLATFORM_SHARE, 0) * 100) / 100;
+  const hour = new Date().getHours();
+  return { amount, dateKey: bangkokDateKey(Date.now()), cutoff: '21:00', overdue: hour >= 21 && amount > 0 };
+}
+
+function riderPayoutHtml(data) {
+  const p = data || {};
+  const qr = p.qrUrl
+    ? `<img class="settle-qr" alt="QR ชำระ ChauatGo" src="${esc(p.qrUrl)}">`
+    : '<div style="text-align:center;padding:8px 0">แอดมินยังไม่ได้ตั้ง QR</div>';
+  return `${qr}<div class="settle-lines">
+    <div><span>ธนาคาร</span><b>${esc(p.bankName || '—')}</b></div>
+    <div><span>เลขบัญชี / พร้อมเพย์</span><b>${esc(p.accountNumber || p.promptPay || '—')}</b></div>
+    <div><span>ชื่อบัญชี</span><b>${esc(p.accountName || '—')}</b></div>
+  </div>`;
+}
+
+function renderRiderSettlement() {
+  const body = $('rider-settle-body');
+  if (!body || !riderSettle) return;
+  const due = riderSettle;
+  body.innerHTML = `
+    <div class="sheet-handle"></div>
+    <h2>📤 โอนให้ ChauatGo</h2>
+    <div class="settle-due">
+      <div style="font-size:12px;font-weight:800">ต้องโอนก่อน ${esc(due.cutoff || '21:00')}</div>
+      <div class="amt">฿${fmt(due.amount || 0)}</div>
+      <div style="font-size:12px;font-weight:700;margin-top:4px">${due.overdue ? 'เลยเวลาแล้ว' : 'ยอดวันนี้ 20% ของค่าส่ง'} • ${esc(due.dateKey || '')}</div>
+    </div>
+    ${riderPayoutHtml(due.payout)}
+    <div class="photo-source-row" style="margin-top:12px">
+      <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('rider-settle-camera').click()">📷 ถ่ายสลิป</button>
+      <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('rider-settle-gallery').click()">🖼️ เลือกสลิป</button>
+    </div>
+    <input type="file" id="rider-settle-camera" accept="image/*" capture="environment" style="display:none" onchange="onRiderSettleFile(this)">
+    <input type="file" id="rider-settle-gallery" accept="image/*" style="display:none" onchange="onRiderSettleFile(this)">
+    <img id="rider-settle-preview" class="settle-qr" alt="" style="display:none">
+    <button class="btn-primary ripple" onclick="submitRiderRemittance()">ส่งสลิป</button>
+    <button class="btn-secondary ripple" onclick="openRiderSettlementChat()">💬 ถามแอดมิน</button>
+    <div class="settle-chat-log" id="rider-settle-log" style="display:none"></div>
+    <textarea id="rider-settle-input" rows="2" maxlength="2000" placeholder="พิมพ์คำถามเรื่องยอดโอน" style="display:none"></textarea>
+    <button class="btn-primary ripple" id="rider-settle-send" style="display:none" onclick="sendRiderSettlementChat()">ส่งข้อความ</button>
+    <button class="close-sheet ripple" onclick="closeRiderSettlement()">ปิด</button>
+  `;
+}
+
+function closeRiderSettlement() {
+  $('rider-settle-sheet')?.classList.remove('show');
+  if (riderSettleUnsub) { riderSettleUnsub(); riderSettleUnsub = null; }
+}
+
+async function showTransferApp() {
+  const local = localRiderDue();
+  riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null };
+  $('rider-settle-sheet')?.classList.add('show');
+  renderRiderSettlement();
+  subscribeRiderRemittances();
+  try {
+    const snap = await db.collection('config').doc('payout').get();
+    if (riderSettle) riderSettle.payout = snap.exists ? (snap.data() || {}) : {};
+  } catch (err) { /* published instructions stay empty until admin sets them */ }
+  if (window.ChauatFn) {
+    try {
+      const result = await ChauatFn.callFunction('syncMySettlement', {}, auth);
+      if (result && riderSettle) {
+        riderSettle.amount = Number(result.amount || 0);
+        riderSettle.dateKey = result.dateKey || riderSettle.dateKey;
+        riderSettle.cutoff = result.cutoff || '21:00';
+        riderSettle.overdue = !!result.overdue;
+        if (result.payout) riderSettle.payout = result.payout;
+      }
+    } catch (err) { /* the card still shows the same 20% figure */ }
+  }
+  if ($('rider-settle-sheet')?.classList.contains('show')) renderRiderSettlement();
+}
+
+function onRiderSettleFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file || !riderSettle) return;
+  if (file.size > 5 * 1024 * 1024) return showToast('รูปใหญ่เกิน 5MB', 'error');
+  riderSettle.file = file;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const preview = $('rider-settle-preview');
+    if (!preview) return;
+    preview.src = ev.target.result;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitRiderRemittance() {
+  if (!riderSettle || !riderSettle.file) return showToast('กรุณาแนบสลิปโอน', 'warning');
+  const amount = Math.round(Number(riderSettle.amount || 0) * 100) / 100;
+  if (!(amount > 0) || amount > 100000) return showToast('วันนี้ไม่มียอดที่ต้องโอน', 'info');
+  try {
+    const compressed = await compressImage(riderSettle.file, 1000, 0.8);
+    const path = `settlement_slips/riders/${currentUser.uid}/${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
+    const slipUrl = await ref.getDownloadURL();
+    await db.collection('rider_remittances').add({
+      riderId: currentUser.uid,
+      riderName: String((riderProfile && riderProfile.name) || ''),
+      amount,
+      dateKey: riderSettle.dateKey,
+      status: 'pending',
+      slipUrl,
+      slipPath: path,
+      note: '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    riderSettle.file = null;
+    showToast('ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
+  } catch (err) {
+    showToast('ส่งสลิปไม่สำเร็จ', 'error');
+  }
+}
+
+function subscribeRiderRemittances() {
+  if (riderRemitUnsub || !currentUser) return;
+  riderRemitUnsub = db.collection('rider_remittances').where('riderId', '==', currentUser.uid).limit(20)
+    .onSnapshot((snap) => {
+      snap.docs.forEach((doc) => {
+        if (doc.data().status === 'rejected' && !seenRejectedRemit.has(doc.id)) {
+          seenRejectedRemit.add(doc.id);
+          if (riderRemitPrimed) showToast('สลิปไม่ผ่าน แนบสลิปใหม่ได้', 'warning');
+        }
+      });
+      riderRemitPrimed = true;
+    }, () => {});
+}
+
+async function ensureRiderSettlementChat() {
+  const ref = db.collection('settlement_chats').doc('rider_' + currentUser.uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      kind: 'rider',
+      partyId: currentUser.uid,
+      partyName: String((riderProfile && riderProfile.name) || ''),
+      lastMessage: '',
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  return ref;
+}
+
+async function openRiderSettlementChat() {
+  const log = $('rider-settle-log');
+  const input = $('rider-settle-input');
+  const send = $('rider-settle-send');
+  if (log) log.style.display = 'block';
+  if (input) input.style.display = 'block';
+  if (send) send.style.display = 'block';
+  try {
+    const ref = await ensureRiderSettlementChat();
+    if (riderSettleUnsub) riderSettleUnsub();
+    riderSettleUnsub = ref.collection('messages').orderBy('createdAt', 'asc').limitToLast(80)
+      .onSnapshot((snap) => {
+        const box = $('rider-settle-log');
+        if (!box) return;
+        box.innerHTML = snap.size ? snap.docs.map((doc) => {
+          const m = doc.data();
+          const who = m.senderRole === 'admin' ? 'แอดมิน' : 'ไรเดอร์';
+          return `<div class="line"><b>${esc(who)}</b> ${esc(m.text || '')}</div>`;
+        }).join('') : 'ยังไม่มีข้อความ';
+      });
+  } catch (err) {
+    if (log) log.textContent = 'เปิดแชทไม่สำเร็จ';
+  }
+}
+
+async function sendRiderSettlementChat() {
+  const input = $('rider-settle-input');
+  const text = input ? input.value.trim() : '';
+  if (!text || !currentUser) return;
+  input.value = '';
+  try {
+    const ref = await ensureRiderSettlementChat();
+    await ref.collection('messages').add({
+      senderId: currentUser.uid,
+      senderRole: 'rider',
+      text,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await ref.update({
+      lastMessage: text.slice(0, 140),
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    showToast('ส่งข้อความไม่สำเร็จ', 'error');
+  }
+}
 function showGPIncome() { showToast('💎 GP 2% รอรับจาก chauatgo ทุก 15 วัน', 'info'); }
 
 function showTrustScore() {

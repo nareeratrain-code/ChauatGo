@@ -21,6 +21,13 @@ const { FINANCE_KEYS, mergedFinance, migrateMerchantDoc, privateProfileRef } = r
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 const { syncRiderHistory } = require('./rider-history');
 const { syncMerchantInbox } = require('./merchant-inbox');
+const {
+  shopGpDue,
+  riderDailyDue,
+  settlementChatId,
+  publicPayout,
+  riderReviewPlan
+} = require('./settlement');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
 // every new revision at once. On a small regional CPU quota that aborts some
@@ -165,7 +172,14 @@ exports.onGpTransferCreated = onDocumentCreated('gp_transfers/{transferId}', asy
   if (merchantSnap.exists) await migrateMerchantDoc(merchantRef, merchantSnap.data());
   await privateProfileRef(merchantRef).set({
     gpHistory: FieldValue.arrayUnion(entry),
-    lastGpTransferAt: FieldValue.serverTimestamp()
+    lastGpTransferAt: FieldValue.serverTimestamp(),
+    lastGpTransferStatus: 'pending'
+  }, { merge: true });
+  await db.collection('settlement_queue').doc('shop_' + transfer.merchantId).set({
+    kind: 'shop',
+    partyId: transfer.merchantId,
+    status: 'slip',
+    updatedAt: FieldValue.serverTimestamp()
   }, { merge: true });
 });
 
@@ -177,16 +191,70 @@ exports.onMerchantFinanceSplit = onDocumentWritten('merchants/{merchantId}', asy
   await migrateMerchantDoc(event.data.after.ref, event.data.after.data());
 });
 
+async function syncShopSettlement(merchantId, publicData, profile) {
+  const due = shopGpDue(profile, Date.now());
+  const name = String((publicData && publicData.name) || '');
+  await db.collection('settlement_queue').doc('shop_' + merchantId).set({
+    kind: 'shop',
+    partyId: merchantId,
+    partyName: name,
+    amount: due.amount,
+    dueAt: due.dueAt ? Timestamp.fromMillis(due.dueAt) : null,
+    status: due.due ? (profile.lastGpTransferStatus === 'pending' ? 'slip' : 'due') : 'clear',
+    updatedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  if (!due.due || profile.gpDueNotifiedAt) return false;
+  await privateProfileRef(db.collection('merchants').doc(merchantId)).set({
+    gpDueNotifiedAt: FieldValue.serverTimestamp(),
+    gpDueAt: Timestamp.fromMillis(due.dueAt)
+  }, { merge: true });
+  const chatRef = db.collection('settlement_chats').doc(settlementChatId('shop', merchantId));
+  await chatRef.set({
+    kind: 'shop',
+    partyId: merchantId,
+    partyName: name,
+    lastMessage: 'GP ครบกำหนดชำระ',
+    lastSenderId: 'system',
+    lastMessageAt: FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  await chatRef.collection('messages').add({
+    senderId: 'system',
+    senderRole: 'admin',
+    text: 'GP ครบกำหนดชำระ ฿' + due.amount + ' กรุณาโอนตาม QR ของ ChauatGo',
+    systemMessage: true,
+    createdAt: FieldValue.serverTimestamp()
+  });
+  return true;
+}
+
+exports.onMerchantGpDue = onDocumentWritten('merchants/{merchantId}/private/profile', async (event) => {
+  if (!event.data.after.exists) return;
+  const merchantRef = db.collection('merchants').doc(event.params.merchantId);
+  const merchantSnap = await merchantRef.get();
+  const notified = await syncShopSettlement(
+    event.params.merchantId,
+    merchantSnap.exists ? merchantSnap.data() : {},
+    event.data.after.data() || {}
+  );
+  if (notified) console.info(JSON.stringify({ event: 'shop_gp_due', merchantId: event.params.merchantId }));
+});
+
 exports.sweepMerchantFinance = onSchedule({
   schedule: 'every 60 minutes',
   timeoutSeconds: 120
 }, async () => {
   const snap = await db.collection('merchants').limit(500).get();
   let moved = 0;
+  let dueNotices = 0;
   for (const doc of snap.docs) {
     if (await migrateMerchantDoc(doc.ref, doc.data())) moved += 1;
+    const fresh = await doc.ref.get();
+    const priv = await privateProfileRef(doc.ref).get();
+    const profile = mergedFinance(fresh.data() || {}, priv.exists ? priv.data() : {});
+    if (await syncShopSettlement(doc.id, fresh.data() || {}, profile)) dueNotices += 1;
   }
-  if (moved) console.info(JSON.stringify({ event: 'merchant_finance_moved', moved }));
+  if (moved || dueNotices) console.info(JSON.stringify({ event: 'merchant_finance_moved', moved, dueNotices }));
 });
 
 // Ratings are accepted only for the customer's own completed order by Rules.
@@ -544,6 +612,7 @@ exports.reviewGpTransfer = onCall(CALL, async (req) => {
         financePatch.lastGpTransferStatus = 'verified';
         financePatch.gpPending = Math.round((pending - amount + Number.EPSILON) * 100) / 100;
         financePatch.gpPaid = Math.round((Number(merchant.gpPaid || 0) + amount + Number.EPSILON) * 100) / 100;
+        if (financePatch.gpPending === 0) financePatch.gpDueNotifiedAt = FieldValue.delete();
       }
       const publicDelete = {};
       FINANCE_KEYS.forEach((key) => {
@@ -574,6 +643,100 @@ exports.reviewGpTransfer = onCall(CALL, async (req) => {
     }
     console.error('reviewGpTransfer failed', err);
     throw new HttpsError('internal', 'ตรวจสอบสลิป GP ไม่สำเร็จ');
+  }
+});
+
+exports.syncMySettlement = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'syncMySettlement');
+  const uid = req.auth.uid;
+  const userSnap = await db.collection('users').doc(uid).get();
+  const role = userSnap.exists ? String(userSnap.data().role || '') : '';
+  const payoutSnap = await db.collection('config').doc('payout').get();
+  const payout = publicPayout(payoutSnap.exists ? payoutSnap.data() : {});
+  if (role === 'merchant') {
+    const merchantSnap = await db.collection('merchants').doc(uid).get();
+    const priv = await privateProfileRef(db.collection('merchants').doc(uid)).get();
+    const profile = mergedFinance(merchantSnap.data() || {}, priv.exists ? priv.data() : {});
+    const due = shopGpDue(profile, Date.now());
+    return { kind: 'shop', amount: due.amount, dueAt: due.dueAt, overdue: due.overdue, due: due.due, payout };
+  }
+  if (role === 'rider') {
+    const riderSnap = await db.collection('riders').doc(uid).get();
+    const orderSnap = await db.collection('orders').where('riderId', '==', uid).where('status', 'in', ['done', 'delivered']).limit(80).get();
+    const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+    const due = riderDailyDue(jobs, Date.now());
+    await db.collection('settlement_queue').doc('rider_' + uid).set({
+      kind: 'rider',
+      partyId: uid,
+      partyName: String((riderSnap.exists && riderSnap.data().name) || ''),
+      amount: due.amount,
+      dateKey: due.dateKey,
+      cutoff: due.cutoff,
+      status: due.amount > 0 ? 'due' : 'clear',
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    return { kind: 'rider', amount: due.amount, dateKey: due.dateKey, cutoff: due.cutoff, overdue: due.overdue, jobIds: due.jobIds, payout };
+  }
+  throw new HttpsError('permission-denied', 'เฉพาะร้านหรือไรเดอร์');
+});
+
+exports.reviewRiderRemittance = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'reviewRiderRemittance');
+  if (!(await D.callerIsAdmin(db, req.auth))) {
+    throw new HttpsError('permission-denied', 'เฉพาะแอดมินการเงิน');
+  }
+  const data = req.data || {};
+  let remittanceId;
+  try {
+    remittanceId = normalizeId(data.remittanceId, 'รหัสสลิป');
+  } catch (err) {
+    throw new HttpsError('invalid-argument', err.message);
+  }
+  const action = typeof data.action === 'string' ? data.action.trim() : '';
+  if (!['verify', 'reject'].includes(action)) {
+    throw new HttpsError('invalid-argument', 'ข้อมูลการตรวจสลิปไม่ครบ');
+  }
+  const ref = db.collection('rider_remittances').doc(remittanceId);
+  try {
+    const preview = await ref.get();
+    if (!preview.exists) throw new HttpsError('failed-precondition', 'ไม่พบรายการสลิป');
+    const riderIdPreview = String(preview.data().riderId || '');
+    const orderSnap = await db.collection('orders').where('riderId', '==', riderIdPreview).where('status', 'in', ['done', 'delivered']).limit(80).get();
+    const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+    const result = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('ไม่พบรายการสลิป');
+      const remittance = snap.data();
+      const riderId = String(remittance.riderId || '');
+      const plan = riderReviewPlan(remittance, jobs, action);
+      if (plan.already) return { ok: true, alreadyReviewed: true, status: plan.status, remittanceId };
+      const now = Timestamp.now();
+      if (plan.status === 'rejected') {
+        tx.update(ref, { status: 'rejected', rejectedAt: now, rejectedBy: req.auth.uid });
+      } else {
+        plan.jobIds.forEach((jobId) => {
+          tx.update(db.collection('orders').doc(jobId), { riderPaid: true, riderPaidAt: now });
+        });
+        tx.update(ref, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid, jobIds: plan.jobIds });
+      }
+      tx.set(db.collection('settlement_queue').doc('rider_' + riderId), {
+        kind: 'rider',
+        partyId: riderId,
+        status: plan.status === 'verified' ? 'clear' : 'rejected',
+        amount: plan.status === 'verified' ? 0 : Number(remittance.amount || 0),
+        updatedAt: now
+      }, { merge: true });
+      return { ok: true, alreadyReviewed: false, status: plan.status, remittanceId, riderId };
+    });
+    console.info(JSON.stringify({ event: 'rider_remittance_reviewed', remittanceId, status: result.status }));
+    return result;
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    if (err && err.code === 'failed-precondition') throw new HttpsError('failed-precondition', err.message);
+    console.error('reviewRiderRemittance failed', err);
+    throw new HttpsError('internal', 'ตรวจสอบสลิปไรเดอร์ไม่สำเร็จ');
   }
 });
 
