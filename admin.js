@@ -26,7 +26,7 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
    ═══════════════════════════════════════════════════════════════════ */
 const store = {
   merchants: [], orders: [], riders: [], users: [], places: [],
-  chats: [], gpTransfers: [], payouts: [],
+  chats: [], settlementChats: [], gpTransfers: [], payouts: [],
   settlement_queue: [], rider_remittances: [], payoutConfig: null,
   gpsRiders: [], dispatchConfig: null, dispatchOffers: null, dispatchOffersOrder: ''
 };
@@ -38,7 +38,10 @@ const filters = {
 let current = 'dashboard';
 let unsubs = [];
 let activeChatId = null;
+let activeChatSource = 'order';
 let activeChatUnsub = null;
+let chatPeopleRole = 'customer';
+let chatPersonKey = '';
 let activeSettleId = null;
 let settleUnsub = null;
 let payoutQrFile = null;
@@ -489,7 +492,7 @@ function attachMerchantFinance(items) {
 }
 
 function start() {
-  const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'gp_transfers', 'rider_payouts', 'settlement_queue', 'rider_remittances'];
+  const collections = ['merchants', 'orders', 'riders', 'users', 'chats', 'settlement_chats', 'gp_transfers', 'rider_payouts', 'settlement_queue', 'rider_remittances'];
 
   collections.forEach(k => {
     const unsub = db.collection(k)
@@ -499,6 +502,8 @@ function start() {
 
         if (k === 'gp_transfers') {
           store.gpTransfers = items;
+        } else if (k === 'settlement_chats') {
+          store.settlementChats = items;
         } else if (k === 'settlement_queue') {
           store.settlement_queue = items;
         } else if (k === 'rider_remittances') {
@@ -1600,56 +1605,67 @@ function viewPayoutDetail(payoutId) {
 /* ═══════════════════════════════════════════════════════════════════
    20. CHATS
    ═══════════════════════════════════════════════════════════════════ */
-function chats() {
-  const list = [...store.chats].sort((a, b) => ts(b) - ts(a));
-  if (!list.length) {
-    return '<div class="empty"><div class="icon">💬</div><div>ยังไม่มีการสนทนา</div></div>';
-  }
-
-  return list.map(c => {
-    // v3.4.8: chats structure มี userId/riderId/merchantId
-    const parties = [];
-    if (c.userName) parties.push('👤 ' + c.userName);
-    if (c.riderName) parties.push('🛵 ' + c.riderName);
-    if (c.merchantName) parties.push('🏪 ' + c.merchantName);
-    const title = parties.length ? parties.join(' ↔ ') : 'การสนทนา';
-
-    return `<div class="data-card" data-open-chat="${esc(c.id)}">
-      <div class="data-card-header">
-        <div class="data-card-icon" style="background:var(--green-light)">💬</div>
-        <div class="data-card-info">
-          <div class="data-card-name">${esc(title)}</div>
-          <div class="data-card-meta">${esc((c.lastMessage || '—').substring(0, 50))}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:10px;color:var(--text-muted);font-weight:700">${fmtTimeShort(c.lastMessageAt || c.createdAt)}</div>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+function inboxNames() {
+  const users = {};
+  const riders = {};
+  const merchants = {};
+  (store.users || []).forEach((user) => { if (user && user.name) users[user.id] = user.name; });
+  (store.riders || []).forEach((rider) => { if (rider && rider.name) riders[rider.id] = rider.name; });
+  (store.merchants || []).forEach((shop) => { if (shop && shop.name) merchants[shop.id] = shop.name; });
+  return { users, riders, merchants };
 }
 
-function openChat(chatId) {
+function chatInbox() {
+  if (!window.ChauatChatInbox) return null;
+  return ChauatChatInbox.groupInbox(store.chats, store.settlementChats, {
+    orders: store.orders,
+    names: inboxNames()
+  });
+}
+
+function chats() {
+  const grouped = chatInbox();
+  if (!grouped || !window.ChauatChatInbox) {
+    return '<div class="empty"><div class="icon">💬</div><div>ยังไม่มีการสนทนา</div></div>';
+  }
+  if (chatPersonKey) return ChauatChatInbox.renderPerson(grouped.byKey[chatPersonKey] || null);
+  return ChauatChatInbox.renderPeople(grouped, chatPeopleRole);
+}
+
+function openChat(chatId, source) {
+  activeChatSource = source === 'settlement' ? 'settlement' : 'order';
   activeChatId = chatId;
-  const c = store.chats.find(x => x.id === chatId);
+  const settlement = activeChatSource === 'settlement';
+  const c = (settlement ? (store.settlementChats || []) : store.chats).find(x => x.id === chatId);
   if (!c) return;
 
-  const parties = [];
-  if (c.userName) parties.push('👤 ' + c.userName);
-  if (c.riderName) parties.push('🛵 ' + c.riderName);
-  if (c.merchantName) parties.push('🏪 ' + c.merchantName);
-
+  const shopThread = c.thread === 'shop' || String(c.id || '').endsWith('__shop');
+  const orderId = c.orderId || String(chatId || '').replace(/__shop$/, '');
+  const order = (store.orders || []).find((item) => item.id === orderId);
+  const shortId = (order && order.code) || orderId;
   const titleEl = $('chat-name');
-  if (titleEl) titleEl.textContent = parties.join(' ↔ ') || 'แชท';
   const subEl = $('chat-sub');
-  if (subEl) subEl.textContent = 'ออเดอร์ #' + chatId.slice(-8);
+  if (settlement) {
+    const remit = c.kind === 'rider' || String(c.id || '').startsWith('rider_');
+    if (titleEl) titleEl.textContent = remit ? 'ชำระเงิน • ต้องโอน' : 'ชำระเงิน • GP';
+    if (subEl) subEl.textContent = c.partyName || '';
+  } else if (shopThread) {
+    if (titleEl) titleEl.textContent = [c.userName, c.merchantName].filter(Boolean).join(' ↔ ') || 'แชทร้าน';
+    if (subEl) subEl.textContent = shortId;
+  } else {
+    if (titleEl) titleEl.textContent = [c.userName, c.riderName].filter(Boolean).join(' ↔ ') || 'แชทไรเดอร์';
+    if (subEl) subEl.textContent = shortId;
+  }
+  const camera = $('chat-camera-btn');
+  if (camera) camera.style.display = settlement ? 'none' : '';
 
   $('chat-container').classList.add('show');
   const inputEl = $('chat-input');
   if (inputEl) inputEl.value = '';
 
   if (activeChatUnsub) activeChatUnsub();
-  activeChatUnsub = db.collection('chats').doc(chatId).collection('messages')
+  const parent = settlement ? 'settlement_chats' : 'chats';
+  activeChatUnsub = db.collection(parent).doc(chatId).collection('messages')
     .orderBy('createdAt', 'asc').limitToLast(100)
     .onSnapshot(s => renderChatMessages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
@@ -1658,6 +1674,9 @@ function closeChat() {
   $('chat-container')?.classList.remove('show');
   if (activeChatUnsub) { activeChatUnsub(); activeChatUnsub = null; }
   activeChatId = null;
+  activeChatSource = 'order';
+  const camera = $('chat-camera-btn');
+  if (camera) camera.style.display = '';
 }
 
 function renderChatMessages(msgs) {
@@ -1697,15 +1716,22 @@ async function sendChatText() {
   input.value = '';
   input.style.height = 'auto';
 
+  const settlement = activeChatSource === 'settlement';
+  const parent = settlement ? 'settlement_chats' : 'chats';
   try {
-    await db.collection('chats').doc(activeChatId).collection('messages').add({
+    const message = {
       text,
       senderRole: 'admin',
-      senderName: 'Admin',
       senderId: auth.currentUser.uid,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    await db.collection('chats').doc(activeChatId).update({
+    };
+    if (!settlement) message.senderName = 'Admin';
+    await db.collection(parent).doc(activeChatId).collection('messages').add(message);
+    await db.collection(parent).doc(activeChatId).update(settlement ? {
+      lastMessage: text.slice(0, 140),
+      lastSenderId: auth.currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    } : {
       lastMessage: `[Admin] ${text}`,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -1718,6 +1744,7 @@ function pickChatImage() { $('chat-image-input')?.click(); }
 
 async function sendChatImage(file) {
   if (!file || !activeChatId) return;
+  if (activeChatSource === 'settlement') return showToast('แชทชำระเงินส่งได้เฉพาะข้อความ', 'info');
   if (file.size > 5 * 1024 * 1024) return showToast('รูปใหญ่เกิน 5MB', 'error');
   showToast('⏳ กำลังอัปโหลด...', 'info');
 
@@ -2066,7 +2093,7 @@ function closeModal() {
    ═══════════════════════════════════════════════════════════════════ */
 document.addEventListener('click', async e => {
   const t = e.target.closest(
-    '[data-go],[data-order],[data-order-status],[data-open-chat],[data-verify-merchant],[data-edit-merchant],' +
+    '[data-go],[data-order],[data-order-status],[data-open-chat],[data-chat-role],[data-chat-person],[data-chat-back],[data-verify-merchant],[data-edit-merchant],' +
     '[data-verify-rider],[data-toggle-rider],[data-del],[data-merchant-status],' +
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],[data-save-payout],[data-settle-chat],[data-send-settle],[data-view-remit],[data-verify-remit],[data-reject-remit],' +
@@ -2127,8 +2154,29 @@ document.addEventListener('click', async e => {
     }
 
     // ─── Actions ───
+    if (t.dataset.chatRole) {
+      chatPeopleRole = t.dataset.chatRole;
+      chatPersonKey = '';
+      current = 'chats';
+      render();
+      return;
+    }
+    if (t.dataset.chatBack) {
+      chatPersonKey = '';
+      render();
+      return;
+    }
+    if (t.dataset.chatPerson) {
+      chatPersonKey = t.dataset.chatPerson;
+      const role = chatPersonKey.split(':')[0];
+      if (role === 'customer' || role === 'rider' || role === 'shop') chatPeopleRole = role;
+      current = 'chats';
+      render();
+      window.scrollTo(0, 0);
+      return;
+    }
     if (t.dataset.openChat) {
-      openChat(t.dataset.openChat);
+      openChat(t.dataset.openChat, t.dataset.chatSource);
       return;
     }
     if (t.dataset.order) {

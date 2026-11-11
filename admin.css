@@ -296,6 +296,22 @@ body {
   transition: transform .15s; flex-shrink: 0;
 }
 .menu-btn:active { filter: brightness(.92); }
+.app-header #theme-fab {
+  position: static;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  border: none;
+  box-shadow: none;
+  flex-shrink: 0;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* ═══ NAV ═══ */
 nav {
@@ -979,6 +995,70 @@ nav {
 [data-theme="dark"] .status-chip.delivered,
 [data-theme="dark"] .status-chip.on_the_way { background: #14301C; color: #8FD334; }
 .data-card, .stat-card, .action-card { border-radius: 16px; }
+.chat-role-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.chat-role-bar .status-filter {
+  width: 100%;
+  min-width: 0;
+  padding: 0 4px;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+.chat-role-bar .status-filter.on { background: #111 !important; color: #fff !important; }
+[data-theme="dark"] .chat-role-bar .status-filter.on { background: #FF9800 !important; color: #111 !important; }
+.chat-person, .chat-thread, .chat-back {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-radius: 16px;
+  padding: 12px;
+  margin: 0 0 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.chat-back { width: auto; min-height: 44px; font-weight: 900; }
+.chat-person-head, .chat-person-top, .chat-thread-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-person-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-person time, .chat-thread time {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.chat-person-preview {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-day h3 { margin: 12px 0 8px; font-size: 13px; font-weight: 900; color: var(--text-muted); }
+.chat-thread.settle b {
+  color: #FF9800;
+  background: #168A45;
+  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
 @media (max-width: 420px) {
   .admin-summary { grid-template-columns: 1fr; }
   .admin-summary-card strong { font-size: 28px; }
