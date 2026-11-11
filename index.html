@@ -652,8 +652,17 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .history-rate { min-height: 44px; border: 1px solid var(--border); border-radius: 12px; background: transparent; color: var(--text); font-weight: 800; font-family: inherit; }
 .order-track-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .order-track-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.order-track-copy { flex: 1; min-width: 0; }
+.order-track-title, .order-track-code, .order-track-rider {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .order-track-title { font-size: 14px; font-weight: 900; color: var(--text); }
+.order-track-shop {
+  display: block; margin: -4px 0 8px; font-size: 16px; font-weight: 900;
+  line-height: 1.35; color: var(--text);
+}
 .order-track-sub { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 2px; }
+.customer-chat-btn { white-space: nowrap; }
 .order-track-cta { background: linear-gradient(135deg, #4E9F2D, #34751E); color: #fff; border: none; padding: 10px 14px; border-radius: 10px; font-weight: 900; font-size: 12px; font-family: inherit; cursor: pointer; white-space: nowrap; }
 .order-track-progress { display: flex; align-items: center; gap: 3px; margin-top: 12px; }
 .order-track-progress .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
@@ -1533,7 +1542,8 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="track-actions">
         <button class="btn-full btn-blue press-scale" onclick="callRiderFromTracking()">📞 โทรหาไรเดอร์</button>
         <button class="btn-full btn-blue press-scale" id="track-call-shop" style="display:none" onclick="callShopFromTracking()">📞 โทรหาร้าน</button>
-        <button class="btn-full btn-green press-scale" onclick="chatRiderFromTracking()">💬 แชทกับไรเดอร์</button>
+        <button class="btn-full btn-green press-scale customer-chat-btn" id="track-chat-shop" style="display:none" onclick="chatShopFromTracking()">💬 แชทกับร้าน</button>
+        <button class="btn-full btn-blue press-scale customer-chat-btn" id="track-chat-rider" style="display:none" onclick="chatRiderFromTracking()">💬 แชทกับไรเดอร์</button>
       </div>
     </div>
   </div>
@@ -4560,7 +4570,16 @@ function renderOrderCard(o){
   if (o.discountTotal && o.discountTotal > 0) {
     discountHtml = '<div style="font-size:11px;color:var(--promo-red);font-weight:900;margin-bottom:8px">🔥 ส่วนลด ฿' + fmt(o.discountTotal) + '</div>';
   }
-  var codeHtml = '<div style="font-size:11px;font-weight:900;color:var(--brand);margin-top:4px">🧾 ' + esc(orderLabel(o)) + '</div>';
+  var codeHtml = '<div class="order-track-code" style="font-size:11px;font-weight:900;color:var(--brand);margin-top:4px">🧾 ' + esc(orderLabel(o)) + '</div>';
+  var shopName = String(o.merchantName || o.shopPlaceName || '').trim();
+  if (!shopName && o.type === 'food') {
+    var rawTitle = String(o.title || '');
+    var markerAt = rawTitle.indexOf('สั่งอาหาร:');
+    if (markerAt >= 0) shopName = rawTitle.slice(markerAt + 'สั่งอาหาร:'.length).trim();
+  }
+  var kindLabel = shopName
+    ? (o.type === 'shopping' ? 'สั่งของ' : 'สั่งอาหาร')
+    : (o.title || 'ออเดอร์');
 
   var progressStep = {
     'searching':0,'pending':0,'cooking':1,'ready':2,
@@ -4634,8 +4653,8 @@ function renderOrderCard(o){
   return '<div class="order-track-card" style="border-left-color:' + color + '">' +
     '<div class="order-track-header">' +
       '<div class="order-track-icon" style="background:' + (isCash?'#FFF3E0':'#EDF6DC') + ';color:' + (isCash?'#E65100':color) + '">' + (isCash?'💵':'🛵') + '</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div class="order-track-title">'+esc(o.title||'ออเดอร์')+'</div>' +
+      '<div class="order-track-copy">' +
+        '<div class="order-track-title">'+esc(kindLabel)+'</div>' +
         codeHtml +
         '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด' : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status)))))+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
@@ -4644,12 +4663,13 @@ function renderOrderCard(o){
       '</div>' +
       (canTrack?'<button class="order-track-cta" onclick="openTrackingPage(\''+esc(o.id)+'\')">📍 ติดตาม</button>':'') +
     '</div>' +
-    (o.riderName?'<div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:8px">🛵 ไรเดอร์: <b>'+esc(o.riderName)+'</b></div>':'') +
+    (shopName?'<div class="order-track-shop">'+esc(shopName)+'</div>':'') +
+    (o.riderName?'<div class="order-track-rider" style="font-size:11px;color:var(--text-muted);font-weight:700;margin-bottom:8px">🛵 ไรเดอร์: <b>'+esc(o.riderName)+'</b></div>':'') +
     (window.ChauatCall ? ChauatCall.buttons(o.id) : '') +
     '<div class="order-track-progress">' + progressDots + '</div>' +
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
-      (o.merchantId && ['done','delivered','cancelled','shop_closed'].indexOf(o.status) === -1 ? '<button class="rate-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'shop\')">💬 แชทร้าน</button>' : '') +
-      (canChat?'<button class="rate-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\')">💬 แชท • ยอดเงิน/สลิป</button>':'') +
+      (o.merchantId && ['done','delivered','cancelled','shop_closed'].indexOf(o.status) === -1 ? '<button class="rate-btn customer-chat-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'shop\')">💬 แชทกับร้าน</button>' : '') +
+      (canChat?'<button class="rate-btn customer-chat-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'rider\')">💬 แชทกับไรเดอร์</button>':'') +
       stockIssuePanel(o) +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
@@ -5014,6 +5034,11 @@ function watchTrackingRider(o){
 function renderTrackingInfo(o){
   var shopBtn = $('track-call-shop');
   if (shopBtn) shopBtn.style.display = (o && o.merchantId) ? '' : 'none';
+  var chatClosed = !o || ['done','delivered','cancelled','shop_closed'].indexOf(o.status) !== -1;
+  var shopChat = $('track-chat-shop');
+  if (shopChat) shopChat.style.display = (!chatClosed && o.merchantId) ? '' : 'none';
+  var riderChat = $('track-chat-rider');
+  if (riderChat) riderChat.style.display = (!chatClosed && o.riderId) ? '' : 'none';
   var statusMap = {
     searching:{icon:'⏳',title:'กำลังหาไรเดอร์',sub:'รอไรเดอร์รับงาน'},
     pending:{icon:'🔔',title:'รอร้านรับออเดอร์',sub:'ร้านกำลังยืนยัน'},
@@ -5174,11 +5199,17 @@ window.callFromCustomerChat = function(){
   ChauatCall.start(activeChatId, 'rider');
 };
 
+window.chatShopFromTracking = function(){
+  if (!currentTrackingOrder || !currentTrackingOrder.merchantId) return showToast('ไม่มีร้านในออเดอร์นี้','warning');
+  if (!trackingOrderId) return;
+  closeTrackingPage();
+  setTimeout(function(){ openChatPage(trackingOrderId, 'shop'); }, 300);
+};
 window.chatRiderFromTracking = function(){
-  if (trackingOrderId) {
-    closeTrackingPage();
-    setTimeout(function(){ openChatPage(trackingOrderId); }, 300);
-  }
+  if (!currentTrackingOrder || !currentTrackingOrder.riderId) return showToast('ยังไม่มีไรเดอร์','warning');
+  if (!trackingOrderId) return;
+  closeTrackingPage();
+  setTimeout(function(){ openChatPage(trackingOrderId, 'rider'); }, 300);
 };
 
 /* ═══ BILL MODAL — ⭐ v3.9.0 ═══ */
