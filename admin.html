@@ -71,7 +71,6 @@
 </div>
 
 <!-- ═══ THEME FAB ═══ -->
-<button class="theme-fab" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
 
 <!-- ═══ OFFLINE ═══ -->
 <div class="offline-banner" id="offline-banner">🔴 คุณออฟไลน์ — ตรวจสอบการเชื่อมต่อ</div>
@@ -158,6 +157,7 @@
       <div class="who" id="who">—</div>
       <div class="vbadge">v3.4.11</div>
     </div>
+    <button class="header-theme ripple" onclick="toggleTheme()" id="theme-fab" title="เปลี่ยนธีม">🌙</button>
     <button class="menu-btn ripple" onclick="toggleMenu()">☰</button>
   </header>
 
@@ -200,7 +200,7 @@
   </div>
   <div class="chat-messages" id="chat-messages"></div>
   <div class="chat-input-bar">
-    <button class="icon-btn ripple" onclick="pickChatImage()">📷</button>
+    <button class="icon-btn ripple" id="chat-camera-btn" onclick="pickChatImage()">📷</button>
     <input type="file" id="chat-image-input" accept="image/*" style="display:none" onchange="sendChatImage(this.files[0])">
     <textarea id="chat-input" placeholder="พิมพ์ข้อความ..." rows="1" oninput="autoResize(this)"></textarea>
     <button class="send-btn ripple" onclick="sendChatText()">➤</button>
@@ -229,6 +229,7 @@
 <script src="map-tiles.js"></script>
 <script src="dispatch-client.js"></script>
 <script src="admin-payout-utils.js"></script>
+<script src="admin-chat-inbox.js"></script>
 <script src="admin.js"></script>
 
 </body>
