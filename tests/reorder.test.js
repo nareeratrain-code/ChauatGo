@@ -32,6 +32,9 @@ test('reorder is offered for finished food, shopping, express, and ride', () => 
   assert.equal(context.canReorderCompleted({ status: 'done', type: 'shopping' }), true);
   assert.equal(context.canReorderCompleted({ status: 'cancelled', type: 'food' }), true);
   assert.equal(context.canReorderCompleted({ status: 'done', type: 'ride' }), true);
+  assert.equal(context.canReorderCompleted({ status: 'cancelled', type: 'ride' }), true);
+  assert.equal(context.canReorderCompleted({ status: 'cancelled', type: 'shopping' }), true);
+  assert.equal(context.canReorderCompleted({ status: 'cancelled', type: 'express' }), true);
   assert.equal(context.canReorderCompleted({ status: 'searching', type: 'express' }), false);
 });
 
@@ -117,4 +120,64 @@ test('shopping reorder keeps the store, list, and drop-off without another phone
   assert.deepEqual(JSON.parse(JSON.stringify(prefill.dropoff)), { lat: 8.03, lng: 100.01, address: 'บ้านบุญมี', note: 'รับทอน' });
   assert.equal(JSON.stringify(prefill).includes('0811111111'), false);
   assert.equal(JSON.stringify(prefill).includes('"fare"'), false);
+});
+
+test('ride reorder restores the vehicle, pins, and note, and leaves an unknown vehicle unselected', () => {
+  const ready = context.rideReorderState({
+    status: 'cancelled',
+    type: 'ride',
+    vehicle: 'motorcycle',
+    from: 'ร้านขายปลา',
+    fromLat: 7.96943,
+    fromLng: 100.00215,
+    to: 'ตลาดสดชะอวด',
+    lat: 7.966,
+    lng: 99.997,
+    note: 'รอหน้าตลาด',
+    userPhone: '0812345678',
+    fare: 35
+  });
+  assert.equal(ready.missingVehicle, false);
+  assert.equal(ready.vehicle.type, 'motorcycle');
+  assert.equal(ready.vehicle.price, 30);
+  assert.equal(ready.origin.address, 'ร้านขายปลา');
+  assert.equal(ready.origin.lat, 7.96943);
+  assert.equal(ready.destination.address, 'ตลาดสดชะอวด');
+  assert.equal(ready.destination.lng, 99.997);
+  assert.equal(ready.draft.note, 'รอหน้าตลาด');
+  assert.equal(ready.draft.phone, '0812345678');
+  assert.equal(JSON.stringify(ready).includes('"fare"'), false);
+  const missing = context.rideReorderState({ vehicle: 'helicopter', from: 'บ้าน', to: 'ตลาด' });
+  assert.equal(missing.vehicle, null);
+  assert.equal(missing.missingVehicle, true);
+  assert.equal(context.rideVehicleByType('car').price, 60);
+});
+
+test('express reorder asks for a new parcel type when the old one is unknown', () => {
+  const packed = context.expressReorderDraft({
+    parcelType: 'livestock',
+    weightKg: 1,
+    itemDescription: 'กล่อง',
+    from: 'บ้าน',
+    to: 'ตลาด'
+  });
+  assert.equal(packed.draft.parcelType, '');
+  assert.equal(packed.draft.parcelNeedsChoice, true);
+  assert.equal(packed.draft.weightKg, '1');
+  assert.equal(packed.draft.itemDescription, 'กล่อง');
+});
+
+test('the ride form keeps the restored vehicle selected so submit can proceed', () => {
+  const form = html.slice(html.indexOf('window.openRideOrderForm'), html.indexOf('function calculateFare'));
+  const submit = html.slice(html.indexOf('window.submitRideOrder'), html.indexOf('/* ═══ ORDER FORM'));
+  assert.match(form, /id="ride-vehicle-picker"/);
+  assert.match(form, /ride-vehicle-option' \+ \(on \? ' selected'/);
+  assert.match(form, /selectedVehicle = \{ type: chosen\.type, price: chosen\.price \}/);
+  assert.match(form, /data-ride-vehicle="/);
+  assert.match(html, /function reorderRide[\s\S]*rideReorderState\(order\)/);
+  assert.match(html, /selectedVehicle = state\.vehicle \? \{ type: state\.vehicle\.type, price: state\.vehicle\.price \} : null/);
+  assert.match(submit, /markRideVehicleMissing\('เลือกประเภทรถก่อนยืนยัน'\)/);
+  assert.equal(submit.includes("ไม่ได้เลือกรถ"), false);
+  assert.match(submit, /createServerOrder/);
+  assert.match(submit, /vehicle:selectedVehicle\.type/);
 });
