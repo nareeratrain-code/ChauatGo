@@ -890,13 +890,12 @@ main { padding: 0 14px 30px; }
 }
 #app .app-header .cg-brand-name { font-size: 22px; }
 .settle-amt {
-  color: #FF9800;
+  color: #fff;
   font-weight: 900;
   background: #168A45;
   display: inline-block;
   padding: 2px 8px;
   border-radius: 8px;
-  text-shadow: 0 1px 0 #000, 0 0 2px #000;
 }
 nav {
   margin: 0;
@@ -937,8 +936,7 @@ nav {
 .admin-summary-card.money span,
 .admin-summary-card.money small { color: #fff; }
 .admin-summary-card.money strong {
-  color: #FF9800;
-  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+  color: #fff;
 }
 .status-filters {
   display: flex;
@@ -1053,9 +1051,8 @@ nav {
 }
 .chat-day h3 { margin: 12px 0 8px; font-size: 13px; font-weight: 900; color: var(--text-muted); }
 .chat-thread.settle b {
-  color: #FF9800;
+  color: #fff;
   background: #168A45;
-  text-shadow: 0 1px 0 #000, 0 0 2px #000;
   padding: 2px 8px;
   border-radius: 8px;
 }
