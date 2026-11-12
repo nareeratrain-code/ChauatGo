@@ -9,7 +9,8 @@ const rules = fs.readFileSync('firestore.rules', 'utf8');
 test('merchant shell matches the phone admin layout', () => {
   assert.match(html, /\.app-header \{\s*border-radius: 0;/);
   assert.match(html, /shop-summary-card money/);
-  assert.match(html, /text-shadow: 0 1px 0 #000/);
+  assert.match(html, /\.shop-summary-card\.money strong \{\s*color: #fff;/);
+  assert.match(html, /\.settle-due \.amt \{ color: #fff;/);
   assert.match(html, /id="stat-done"/);
   assert.match(html, /id="hero-revenue"/);
   assert.match(html, /id="stat-gp"/);

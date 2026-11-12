@@ -641,7 +641,7 @@ body {
 }
 .sheet-overlay.show { display: flex; animation: fadeIn .2s; }
 .settle-due { background: #168A45; color: #fff; border-radius: 16px; padding: 16px; margin: 8px 0 14px; }
-.settle-due .amt { color: #FF9800; font-size: 32px; font-weight: 900; line-height: 1.1; text-shadow: 0 1px 0 #000, 0 0 2px #000; }
+.settle-due .amt { color: #fff; font-size: 32px; font-weight: 900; line-height: 1.1; }
 .settle-qr { width: 180px; max-width: 70%; border-radius: 12px; background: #fff; display: block; margin: 10px auto; }
 .settle-lines { font-size: 13px; font-weight: 700; }
 .settle-lines div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
@@ -1788,8 +1788,7 @@ body {
 #app .hero-sub,
 #app .hero-label .rd-ico { color: #fff; }
 #app .hero-amount {
-  color: #FF9800;
-  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+  color: #fff;
 }
 #app .hero-grid-cell {
   background: rgba(255,255,255,.16);
@@ -1812,8 +1811,7 @@ body {
 }
 #app .hero-grid-cell.warn .lbl,
 #app .hero-grid-cell.warn .val {
-  color: #FF9800;
-  text-shadow: 0 1px 0 #000, 0 0 2px #000;
+  color: #fff;
 }
 #job-filter-bar {
   display: grid !important;

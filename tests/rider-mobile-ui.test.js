@@ -25,7 +25,9 @@ test('an active job sits above earnings and the money label is not a single clip
   assert.match(html, /ต้องโอนก่อน/);
   assert.match(html, /21:00/);
   assert.equal(html.includes('ต้องโอน 3 ทุ่ม'), false);
-  assert.match(css, /color: #FF9800;\s*text-shadow: 0 1px 0 #000, 0 0 2px #000;/);
+  assert.match(css, /#app \.hero-amount \{\s*color: #fff;/);
+  assert.match(css, /#app \.hero-grid-cell\.warn \.lbl,\s*#app \.hero-grid-cell\.warn \.val \{\s*color: #fff;/);
+  assert.equal(css.includes('color: #FF9800;\n  text-shadow: 0 1px 0 #000'), false);
   assert.match(css, /#app\.has-active-job \.hero-grid/);
   assert.match(js, /has-active-job/);
 });

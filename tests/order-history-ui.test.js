@@ -27,7 +27,8 @@ test('admin summary and order chips stay on the phone layout', () => {
   assert.match(admin, /data-order-status/);
   assert.match(admin, /กำลังโหลดออเดอร์/);
   assert.match(css, /\.admin-summary-card\.money strong/);
-  assert.match(css, /text-shadow: 0 1px 0 #000/);
+  assert.match(css, /\.admin-summary-card\.money strong \{\s*color: #fff;/);
+  assert.match(css, /\.settle-amt \{\s*color: #fff;/);
   assert.match(css, /border-radius: 0/);
 });
 
