@@ -518,7 +518,7 @@ service cloud.firestore {
 
     function customerSlipUploadOk(orderId) {
       return customerMayAttachSlip()
-        && shoppingQuoteReady()
+        && (shoppingQuoteReady() || resource.data.get('shoppingStockoutFee', false) == true)
         && request.resource.data.status == resource.data.status
         && identityFrozen()
         && onlyChanged(['customerSlipUrl', 'customerSlipPath', 'customerSlipUploadedAt', 'foodDeliveryStage'])
@@ -791,6 +791,29 @@ service cloud.firestore {
       );
     }
 
+    function shoppingStockoutNeedsServer() {
+      return resource.data.get('type', '') == 'shopping'
+        && (
+          request.resource.data.cancelReason == 'ของหมด'
+          || request.resource.data.cancelReason == 'ซื้อไม่ได้'
+        )
+        && (
+          resource.data.get('shopArrivedAt', null) != null
+          || resource.data.status in ['picked_up', 'customer_paid', 'on_the_way']
+        );
+    }
+
+    function riderShoppingArrivalOk() {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.get('type', '') == 'shopping'
+        && resource.data.status == 'accepted'
+        && request.resource.data.status == 'accepted'
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['shopArrivedAt'])
+        && request.resource.data.shopArrivedAt is timestamp;
+    }
+
     function riderMayFullyCancel() {
       return (
         resource.data.status in ['picked_up', 'customer_paid', 'on_the_way']
@@ -1007,6 +1030,7 @@ service cloud.firestore {
 
     function riderCancelOk() {
       return cancelMoneyOk() && isAssignedRider()
+        && !shoppingStockoutNeedsServer()
         && riderMayFullyCancel()
         && request.resource.data.status == 'cancelled'
         && cancelFieldsOk('rider')
@@ -1200,6 +1224,8 @@ service cloud.firestore {
                 ? riderGoodsQuoteOk()
                 : changed.hasOnly(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                 ? riderShopSlipOk()
+                : changed.hasOnly(['shopArrivedAt'])
+                  ? riderShoppingArrivalOk()
                 : changed.hasOnly(['foodImage', 'foodImagePath'])
                   ? riderExpressPickupPhotoOk(orderId)
                 : changed.hasOnly(['expressDropoffConfirmedAt'])

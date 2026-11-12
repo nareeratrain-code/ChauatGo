@@ -1182,6 +1182,13 @@ body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7F
 .partner-banner-kicker { background: #F97316; }
 .partner-cta-btn, .local-place-pin { background: linear-gradient(135deg, #0F766E, #115E59); box-shadow: 0 7px 16px rgba(15,118,110,.2); }
 .merchant-view .section-title, .category-view .section-title { color: #FFD166; text-shadow: 0 2px 0 #0B3B3A; }
+.merchant-view-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.merchant-view-head-row { display: flex; align-items: flex-start; gap: 10px; }
+.merchant-view .merchant-view-head .section-title { flex: 1 1 auto; min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; color: #fff; text-shadow: none; }
+.merchant-view .merchant-view-head .section-more { flex: 0 0 auto; }
+.merchant-view .merchant-view-kicker { width: 100%; color: #fff; text-shadow: none; }
+.place-card-shop-btn { flex: 0 0 auto; }
+.place-card-shop-name { overflow-wrap: anywhere; }
 .merchant-view .section-more, .category-view .section-more { background: #F97316; box-shadow: 0 6px 14px rgba(249,115,22,.2); }
 .merchant-view .search-bar, .travel-search-bar, #map-page .dest-search { border: 2px solid #B8D9D2; box-shadow: 0 6px 16px rgba(9,62,58,.1); }
 .merchant-source-tab.active, .merchant-view .m-tab.active { background: #0F766E; color: #fff; box-shadow: 0 6px 14px rgba(15,118,110,.22); }
@@ -1767,9 +1774,12 @@ select:focus-visible, [role="button"]:focus-visible {
   </div>
 
   <div class="merchant-view" id="merchant-view">
-    <div class="section-header" style="padding-left:0">
-      <div><div class="section-title" id="merchant-view-title">สั่งครบ จบที่เดียว</div><div class="merchant-view-kicker" id="merchant-view-kicker">🍽️ สั่งอาหารจากร้านพาร์ทเนอร์</div></div>
-      <div class="section-more press-scale" onclick="closeMerchantView()">✕ ปิด</div>
+    <div class="merchant-view-head">
+      <div class="merchant-view-head-row">
+        <div class="section-title" id="merchant-view-title">สั่งครบ จบที่เดียว</div>
+        <div class="section-more press-scale" onclick="closeMerchantView()">✕ ปิด</div>
+      </div>
+      <div class="merchant-view-kicker" id="merchant-view-kicker">🍽️ สั่งอาหารจากร้านพาร์ทเนอร์</div>
     </div>
     <div class="partner-food-topbar" aria-label="ที่อยู่จัดส่งและตะกร้า">
       <button type="button" class="partner-food-address press-scale" onclick="openMapPicker('food')" aria-label="เลือกที่อยู่จัดส่ง">
@@ -4860,6 +4870,7 @@ function renderOrderCard(o){
       expressCustomerActions(o) +
       customerCancelButton(o) +
       stockIssuePanel(o) +
+      shoppingStockoutPanel(o) +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
       (o.rated?'<div class="rating-inline" style="margin-top:8px"><span class="star">★</span> รีวิวแล้ว</div>':'') +
@@ -4868,6 +4879,20 @@ function renderOrderCard(o){
 }
 
 /* Customer payment flow: order confirmation -> slip proof -> paid. */
+function shoppingStockoutPanel(o) {
+  if (!o || o.type !== 'shopping' || o.shoppingStockoutFee !== true) return '';
+  if (o.paymentMode !== 'cash' && !o.customerPaidAt && ['done','delivered','cancelled'].indexOf(o.status) === -1) {
+    var qr = o.riderQrCodeUrl
+      ? '<img src="' + esc(o.riderQrCodeUrl) + '" alt="QR ไรเดอร์" style="display:block;width:160px;height:160px;object-fit:contain;margin:8px auto;background:#fff;border-radius:12px">'
+      : '';
+    return '<div class="order-note" style="background:#FFF7ED;border-radius:12px;padding:12px;margin-top:8px">' +
+      '<b>ของหมดที่ร้าน</b><div>ค่าบริการเริ่มต้น <b>฿20</b> ให้ไรเดอร์ ของที่ไม่ได้ซื้อไม่คิดเงิน</div>' + qr +
+      '<button type="button" class="rate-btn" style="background:#F97316;color:#fff;margin-top:8px" onclick="pickCustomerSlip(\'' + esc(o.id) + '\')">แนบสลิป ฿20</button></div>';
+  }
+  if (Number(o.refundDue) > 0) return '<div class="order-note">คงค่าบริการเริ่มต้น ฿20 • ต้องคืนเงิน ฿' + fmt(o.refundDue) + '</div>';
+  if (o.paymentMode === 'cash') return '<div class="order-note">ของหมดที่ร้าน • จ่ายเงินสดค่าบริการเริ่มต้น ฿20 ให้ไรเดอร์</div>';
+  return '';
+}
 function customerGoodsTotal(order) {
   if (!order) return 0;
   var goods = Number(order.foodTotal != null ? order.foodTotal : order.itemsTotal) || 0;
@@ -5864,6 +5889,9 @@ function subscribeChatMessages(chatId) {
         }
         if (live && live.userId === currentUser.uid && live.customerSlipUrl && !live.customerPaidAt && live.paymentMode !== 'cash' && (m.automationKey === 'customer_slip_uploaded' || m.automationKey === 'food_payment' || m.automationKey === 'food_photo_confirmed' || m.automationKey === 'goods_ready')) {
           action = '<button type="button" class="customer-payment-btn green" onclick="confirmCustomerPaid(\'' + esc(orderId) + '\')">💳 ยืนยันว่าโอนแล้ว</button>';
+        }
+        if (m.automationKey === 'shopping_stockout' && String(chatId).slice(-6) !== '__shop' && live && live.shoppingStockoutFee === true && live.paymentMode !== 'cash' && !live.customerPaidAt) {
+          action = '<button type="button" class="customer-payment-btn" onclick="pickCustomerSlip(\'' + esc(orderId) + '\')">แนบสลิป ฿20</button>';
         }
         if (m.automationKey === 'stock_issue' && String(chatId).slice(-6) === '__shop' && live && live.stockIssue && live.stockIssue.status === 'pending') {
           action = '<button type="button" class="customer-payment-btn" onclick="swapStockItem(\'' + esc(orderId) + '\')">เลือกเมนูใหม่</button>' +
@@ -7421,6 +7449,7 @@ window.openShopOrderForm = function(placeId, keepPrefill){
       '<button type="button" id="shop-pay-transfer" class="pay-mode-btn ' + (selectedPaymentMode === 'transfer' ? 'active' : '') + '" onclick="setShoppingPaymentMode(\'transfer\')"><span class="emoji">💳</span><span>เงินโอน</span><span class="sub">โอนหลังเห็นยอดจริง</span></button>' +
       '<button type="button" id="shop-pay-cash" class="pay-mode-btn ' + (selectedPaymentMode === 'cash' ? 'active' : '') + '" onclick="setShoppingPaymentMode(\'cash\')"><span class="emoji">💵</span><span>เงินสด</span><span class="sub">จ่ายตอนรับของ</span></button>' +
     '</div><div id="shop-pay-hint" style="margin-top:8px;font-size:12px;font-weight:800;color:var(--text-muted)">' + (selectedPaymentMode === 'cash' ? 'เตรียมเงินสดตามยอดสินค้าจริงและค่าบริการเมื่อรับของ รวมค่าบริการเงินสด ฿5' : 'ไรเดอร์จะแจ้งยอดสินค้าจริงหลังซื้อ แล้วจึงโอน') + '</div></div>' +
+    '<div id="shopping-stockout-warning" style="background:#FFF7ED;border:2px solid #F97316;border-radius:14px;padding:14px;margin:0 0 14px;font-size:15px;font-weight:800;line-height:1.5;color:#9A3412">ถ้าไรเดอร์ถึงร้านแล้ว ของหมดหรือซื้อไม่ได้ ลูกค้าต้องจ่ายค่าบริการเริ่มต้น <b>20 บาท</b> ให้ไรเดอร์ สำหรับเวลาและค่าน้ำมัน ของที่ไม่ได้ซื้อไม่คิดเงิน</div>' +
     '<button class="btn-full btn-green press-scale" onclick="submitShopOrder(\'' + esc(p.id) + '\')">✅ เรียกรถไปซื้อ (฿' + shopQuote.total + ')</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();

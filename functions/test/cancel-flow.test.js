@@ -23,6 +23,35 @@ test('express, ride, and shopping use their own cancel cutoffs', () => {
   assert.equal(flow.beforeServiceCutoff({ type: 'food', partnerShop: false, status: 'accepted', shopBillUrl: 'https://bill' }), false);
 });
 
+test('buy-for-me stockout keeps 20 baht only after the rider arrives', () => {
+  const before = flow.shoppingStockoutPlan({ type: 'shopping', status: 'accepted', paymentMode: 'cash', total: 80 }, 'ของหมด');
+  assert.equal(before.apply, false);
+  assert.equal(before.beforeArrival, true);
+  const cash = flow.shoppingStockoutPlan({
+    type: 'shopping', status: 'accepted', shopArrivedAt: {}, paymentMode: 'cash', total: 80
+  }, 'ของหมด');
+  assert.equal(cash.apply, true);
+  assert.equal(cash.fare, 20);
+  assert.equal(cash.refundDue, 0);
+  assert.equal(cash.riderOwe, 4);
+  assert.equal(cash.riderIncome, 16);
+  assert.equal(cash.finishNow, true);
+  const paid = flow.shoppingStockoutPlan({
+    type: 'shopping', status: 'picked_up', paymentMode: 'transfer', customerPaidAt: {}, total: 100
+  }, 'ซื้อไม่ได้');
+  assert.equal(paid.refundDue, 80);
+  assert.equal(paid.fare, 20);
+  const waiting = flow.shoppingStockoutPlan({
+    type: 'shopping', status: 'picked_up', paymentMode: 'transfer', total: 90
+  }, 'ของหมด');
+  assert.equal(waiting.waitForSlip, true);
+  assert.equal(waiting.refundDue, 0);
+  const food = flow.shoppingStockoutPlan({
+    type: 'food', partnerShop: true, status: 'accepted', shopArrivedAt: {}, paymentMode: 'cash', total: 80
+  }, 'ของหมด');
+  assert.equal(food.apply, false);
+});
+
 test('a paid transfer records the order total and cash records nothing', () => {
   assert.equal(flow.cancelRefundDue({ paymentMode: 'transfer', customerPaidAt: {}, total: 100 }), 100);
   assert.equal(flow.cancelRefundDue({ paymentMode: 'cash', customerPaidAt: {}, total: 100 }), 0);
