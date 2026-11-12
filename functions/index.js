@@ -29,6 +29,7 @@ const {
   riderReviewPlan
 } = require('./settlement');
 const { remitLockPlan } = require('./remit-lock');
+const { redispatchFromRider } = require('./cancel-flow');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
 // every new revision at once. On a small regional CPU quota that aborts some
@@ -94,7 +95,8 @@ const REASONS = {
   busy: 'ยังมีงานค้างอยู่ — รับงานใหม่ไม่ได้',
   unverified: 'บัญชียังไม่ได้รับการอนุมัติ',
   auto: 'โหมดอัตโนมัติ — กดรับจากใบเสนอ',
-  shop: 'รอร้านรับออเดอร์ก่อน'
+  shop: 'รอร้านรับออเดอร์ก่อน',
+  released: 'คุณปล่อยงานนี้แล้ว'
 };
 
 function fail(err) {
@@ -441,6 +443,24 @@ exports.acceptDispatchOffer = onCall(CALL, async (req) => {
 });
 
 // Manual-mode list accept. Auto mode must use acceptDispatchOffer.
+exports.redispatchOrder = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'redispatchOrder');
+  const data = req.data || {};
+  if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
+  try {
+    return await redispatchFromRider(db, D, req.auth.uid, String(data.orderId), data.reason);
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    const code = err && err.code;
+    if (code === 'invalid-argument' || code === 'failed-precondition' || code === 'permission-denied' || code === 'not-found') {
+      throw new HttpsError(code, err.message || 'ทำรายการไม่สำเร็จ');
+    }
+    console.error('redispatchOrder failed', err);
+    throw new HttpsError('internal', 'หาไรเดอร์ใหม่ไม่สำเร็จ');
+  }
+});
+
 exports.claimOpenJob = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
   guardAppCheck(req, 'claimOpenJob');

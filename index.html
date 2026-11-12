@@ -1468,6 +1468,19 @@ select:focus-visible, [role="button"]:focus-visible {
   </div>
 </div>
 
+<div class="modal-overlay" id="cancel-reason-modal" onclick="if(event.target===this)closeCustomerCancel()">
+  <div class="modal-content" style="max-width:440px">
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">ยกเลิกออเดอร์</h2>
+    <p style="color:var(--text-muted);font-size:13px;font-weight:700;margin-bottom:10px">เลือกเหตุผล ระบบแจ้งร้านหรือไรเดอร์ในแชททันที</p>
+    <div id="customer-cancel-reasons"></div>
+    <label id="customer-cancel-other-wrap" style="display:none;margin-top:10px;font-weight:800">เหตุผลอื่น
+      <input id="customer-cancel-other" maxlength="300" style="width:100%;box-sizing:border-box;margin-top:6px;min-height:44px;border-radius:12px;border:1px solid var(--border);padding:10px;font:inherit">
+    </label>
+    <button type="button" class="btn-full press-scale" style="margin-top:14px;background:#B42318;color:#fff;min-height:48px" onclick="submitCustomerCancel()">ยืนยันยกเลิก</button>
+    <button type="button" class="btn-full btn-gray press-scale" onclick="closeCustomerCancel()">ปิด</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="rating-modal" onclick="if(event.target===this)closeRatingModal()">
   <div class="modal-content" style="max-width:440px">
     <div style="text-align:center;margin-bottom:16px">
@@ -1548,6 +1561,7 @@ select:focus-visible, [role="button"]:focus-visible {
         <button class="btn-full btn-blue press-scale" id="track-call-shop" style="display:none" onclick="callShopFromTracking()">📞 โทรหาร้าน</button>
         <button class="btn-full btn-green press-scale customer-chat-btn" id="track-chat-shop" style="display:none" onclick="chatShopFromTracking()">💬 แชทกับร้าน</button>
         <button class="btn-full btn-blue press-scale customer-chat-btn" id="track-chat-rider" style="display:none" onclick="chatRiderFromTracking()">💬 แชทกับไรเดอร์</button>
+        <div id="track-cancel"></div>
       </div>
     </div>
   </div>
@@ -4593,6 +4607,93 @@ function renderHistoryCard(o) {
       (canReorderCompleted(o) ? '<button type="button" class="history-reorder" onclick="reorderCompletedOrder(\'' + esc(o.id) + '\')">สั่งอีกครั้ง</button>' : '') +
     '</div></article>';
 }
+function customerMayCancel(o) {
+  if (!o || ['done','delivered','cancelled','shop_closed','on_the_way','customer_paid'].indexOf(o.status) !== -1) return false;
+  if (o.type === 'express') {
+    return o.customerOrderConfirmed !== true && ['searching','pending','accepted','picked_up'].indexOf(o.status) !== -1;
+  }
+  if (o.type === 'ride' || (o.type === 'food' && o.partnerShop === true)) {
+    return ['searching','pending','cooking','ready','accepted'].indexOf(o.status) !== -1;
+  }
+  if (o.type === 'shopping' || o.type === 'food') {
+    var bought = !!(String(o.foodImage || '').trim() || o.shopBillUrl || o.riderSlipToShop || o.riderSlipUrl);
+    return !bought && ['searching','pending','cooking','ready','accepted','picked_up'].indexOf(o.status) !== -1;
+  }
+  return false;
+}
+function customerCancelButton(o) {
+  if (!customerMayCancel(o)) return '';
+  return '<button type="button" class="rate-btn" style="background:#B42318;color:#fff;margin:0;min-height:44px" onclick="openCustomerCancel(\'' + esc(o.id) + '\')">ยกเลิกออเดอร์</button>';
+}
+function customerRefundDue(order) {
+  if (!order || !order.customerPaidAt || order.paymentMode === 'cash') return 0;
+  var total = Number(order.total);
+  return isFinite(total) && total > 0 ? total : 0;
+}
+var CUSTOMER_CANCEL_REASONS = ['เปลี่ยนใจ', 'สั่งผิด', 'รอนาน', 'ที่อยู่ผิด'];
+var customerCancelOrderId = '';
+var customerCancelChoice = '';
+function openCustomerCancel(orderId) {
+  var order = cachedOrder(orderId) || (currentTrackingOrder && currentTrackingOrder.id === orderId ? currentTrackingOrder : null);
+  if (!order || !customerMayCancel(order)) return showToast('ยกเลิกเองไม่ได้แล้ว ใช้แชทได้', 'info');
+  customerCancelOrderId = orderId;
+  customerCancelChoice = '';
+  var box = $('customer-cancel-reasons');
+  if (box) {
+    box.innerHTML = CUSTOMER_CANCEL_REASONS.concat(['อื่น']).map(function(reason) {
+      return '<button type="button" class="btn-full btn-gray press-scale" style="margin-top:8px;min-height:48px" onclick="chooseCustomerCancelReason(\'' + reason + '\')">' + reason + '</button>';
+    }).join('');
+  }
+  if ($('customer-cancel-other')) $('customer-cancel-other').value = '';
+  if ($('customer-cancel-other-wrap')) $('customer-cancel-other-wrap').style.display = 'none';
+  if ($('cancel-reason-modal')) $('cancel-reason-modal').classList.add('show');
+}
+function chooseCustomerCancelReason(reason) {
+  customerCancelChoice = reason;
+  if ($('customer-cancel-other-wrap')) $('customer-cancel-other-wrap').style.display = reason === 'อื่น' ? 'block' : 'none';
+}
+function closeCustomerCancel() {
+  if ($('cancel-reason-modal')) $('cancel-reason-modal').classList.remove('show');
+  customerCancelOrderId = '';
+  customerCancelChoice = '';
+}
+async function postCustomerCancelChat(order, reason) {
+  var text = '❌ ลูกค้ายกเลิกออเดอร์\n📝 เหตุผล: ' + reason;
+  async function post(thread) {
+    var chatId = thread === 'shop' ? order.id + '__shop' : order.id;
+    await ensureOrderChat(order.id, order, thread);
+    await db.collection('chats').doc(chatId).collection('messages').add({
+      text: text,
+      senderId: currentUser.uid,
+      senderRole: 'user',
+      senderName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
+      systemMessage: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  if (order.merchantId) { try { await post('shop'); } catch (e) {} }
+  if (order.riderId) { try { await post('rider'); } catch (e) {} }
+}
+async function submitCustomerCancel() {
+  var order = cachedOrder(customerCancelOrderId);
+  if (!order) return closeCustomerCancel();
+  var reason = customerCancelChoice === 'อื่น'
+    ? String(($('customer-cancel-other') && $('customer-cancel-other').value) || '').trim()
+    : customerCancelChoice;
+  if (!reason || reason.length > 300) return showToast('เลือกหรือพิมพ์เหตุผล', 'warning');
+  try {
+    await postCustomerCancelChat(order, reason);
+    await db.collection('orders').doc(order.id).update({
+      status: 'cancelled',
+      cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+      cancelledBy: 'customer',
+      cancelReason: reason,
+      refundDue: customerRefundDue(order)
+    });
+    closeCustomerCancel();
+    showToast('ยกเลิกออเดอร์แล้ว');
+  } catch (err) { showToast(customerFirebaseErrorText(err, 'ยกเลิกไม่สำเร็จ'), 'error'); }
+}
 function stockIssuePanel(o) {
   if (!o) return '';
   var issue = o.stockIssue || null;
@@ -4746,6 +4847,7 @@ function renderOrderCard(o){
       (o.merchantId && ['done','delivered','cancelled','shop_closed'].indexOf(o.status) === -1 ? '<button class="rate-btn customer-chat-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'shop\')">💬 แชทกับร้าน</button>' : '') +
       (canChat?'<button class="rate-btn customer-chat-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'rider\')">💬 แชทกับไรเดอร์</button>':'') +
       expressCustomerActions(o) +
+      customerCancelButton(o) +
       stockIssuePanel(o) +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
@@ -5164,6 +5266,10 @@ function renderTrackingInfo(o){
   var $title = $('track-status-title'); if ($title) $title.textContent = s.title;
   var $sub = $('track-status-sub');
   if ($sub) $sub.textContent = orderLabel(o) + ' • ' + s.sub + (o.riderName ? ' • '+o.riderName : '');
+  var trackCancel = $('track-cancel');
+  if (trackCancel) trackCancel.innerHTML = customerMayCancel(o)
+    ? '<button type="button" class="btn-full press-scale" style="background:#B42318;color:#fff;min-height:48px" onclick="openCustomerCancel(\'' + esc(o.id) + '\')">ยกเลิกออเดอร์</button>'
+    : '';
 
   if (o.lat && o.lng && lastTrackedPositions.rider) {
     var dist = haversine(lastTrackedPositions.rider.lat, lastTrackedPositions.rider.lng, o.lat, o.lng);
@@ -5562,6 +5668,7 @@ window.cancelStockOrder = async function(orderId) {
       cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
       cancelledBy: 'customer',
       cancelReason: 'วัตถุดิบหมด',
+      refundDue: customerRefundDue(order),
       stockIssue: {
         status: 'cancelled',
         items: order.stockIssue.items || [],

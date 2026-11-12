@@ -964,6 +964,21 @@ a.btn-blue, a.btn-ready { display: flex; align-items: center; justify-content: c
   </div>
 </div>
 
+<div class="new-order-popup" id="cancel-reason-modal">
+  <div class="new-order-card" style="text-align:left">
+    <h2>ยกเลิกออเดอร์</h2>
+    <div class="sub">เลือกเหตุผล ระบบแจ้งลูกค้าในแชททันที ไม่ต้องรอแอดมิน</div>
+    <div id="shop-cancel-reasons"></div>
+    <label class="form-field" id="shop-cancel-other-wrap" style="display:none;margin-top:10px">เหตุผลอื่น
+      <input id="shop-cancel-other" maxlength="300" placeholder="พิมพ์เหตุผลสั้น ๆ">
+    </label>
+    <div class="new-order-actions">
+      <button type="button" class="order-btn btn-reject ripple" id="shop-cancel-confirm" onclick="submitShopCancel()">ยืนยันยกเลิก</button>
+      <button type="button" class="order-btn btn-gray ripple" onclick="closeShopCancel()">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <div class="new-order-popup" id="stock-modal">
   <div class="new-order-card" style="text-align:left">
     <h2>วัตถุดิบหมด</h2>
