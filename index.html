@@ -176,8 +176,9 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .partner-food-banner .merchant-source-tab small { grid-column: 1; margin: 0; color: rgba(255,255,255,.95); font-size: 15px; line-height: 1.25; font-weight: 900; }
 .partner-source-cta { grid-column: 2; grid-row: 1 / span 2; min-height: 46px; padding: 0 16px; border: 1px solid rgba(255,255,255,.7); border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; color: #fff; font-size: 14px; font-weight: 900; white-space: nowrap; }
 .partner-food-banner .merchant-source-note { margin: 0; padding: 10px 14px; border: 0; border-radius: 0; background: #FFF1E6; color: #8A3412; font-size: 11px; line-height: 1.4; }
-.merchant-view .merchant-search { position: relative; z-index: 2; margin: -26px 4px 12px; padding: 0; }
-.merchant-view .merchant-search .search-bar { min-height: 54px !important; padding: 0 12px; border: 3px solid #FED7AA; border-radius: 17px; box-shadow: 0 10px 20px rgba(9,62,58,.16); }
+.merchant-view .merchant-search { position: relative; z-index: 2; margin: 0 0 12px; padding: 0; background: transparent; box-shadow: none; min-width: 0; max-width: 100%; }
+.merchant-view[data-entry="shopping"] .partner-food-banner { display: none; }
+.merchant-view .merchant-search .search-bar { min-height: 54px !important; padding: 0 12px; background: var(--surface); border: 2px solid var(--border); border-radius: 17px; box-shadow: 0 10px 20px rgba(9,62,58,.16); }
 .merchant-view .merchant-search .search-bar input { font-size: 14px; font-weight: 800; }
 .merchant-search-clear { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); font: 900 18px/1 inherit; cursor: pointer; }
 .merchant-view .merchant-tabs { gap: 7px; margin: 0 -14px 12px; padding: 0 14px 10px; border-bottom: 0; overflow-x: auto; scrollbar-width: none; }
@@ -1032,6 +1033,10 @@ button.chat-list-item:active { filter: brightness(.97); }
   .nearby-shop-name { font-size: 12px; }
   .nearby-blank { min-height: 140px; padding: 16px; }
   .travel-map-btn span { display: inline; }
+  .merchant-view { overflow-x: clip; }
+  .merchant-view .merchant-search { gap: 6px; }
+  .merchant-map-btn { min-width: 88px; padding: 0 10px; }
+  .merchant-filter-bar { max-width: 100%; padding-left: 0; padding-right: 0; }
   .travel-vehicle-name { font-size: 14px; }
   .travel-vehicle-price { font-size: 15px; }
   .nearby-title { padding: 14px 12px; }
