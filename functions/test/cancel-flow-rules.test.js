@@ -82,7 +82,7 @@ test('each role can cancel only up to its service cutoff', {
     await assertSucceeds(rider.collection('orders').doc('ride-in').update(cancel('rider', 'ลูกค้าไม่ขึ้นรถ')));
     await assertSucceeds(customer.collection('orders').doc('shop-open').update(cancel('customer', 'สั่งผิด')));
     await assertFails(customer.collection('orders').doc('shop-bought').update(cancel('customer', 'เปลี่ยนใจ')));
-    await assertSucceeds(rider.collection('orders').doc('shop-bought').update(cancel('rider', 'ของหมด', { refundDue: 80 })));
+    await assertFails(rider.collection('orders').doc('shop-bought').update(cancel('rider', 'ของหมด', { refundDue: 80 })));
   } finally {
     await rulesEnv.cleanup();
   }

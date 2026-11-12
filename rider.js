@@ -2387,9 +2387,12 @@ function openRiderEndJob(jobId) {
       : (localGoods
         ? (riderBeforeCutoff(job) ? ['ของหมด', 'ซื้อไม่ได้'] : ['ของหมด', 'ซื้อไม่ได้', 'รถเสีย', 'อุบัติเหตุ'])
         : ['ติดต่อลูกค้าไม่ได้', 'ลูกค้าไม่รับของ']));
-  const extra = job.type === 'express' && job.customerOrderConfirmed === true
+  const stockoutAfterArrival = job.type === 'shopping' && (job.shopArrivedAt || ['picked_up', 'customer_paid', 'on_the_way'].includes(job.status));
+  const extra = (job.type === 'express' && job.customerOrderConfirmed === true
     ? '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-weight:800"><input type="checkbox" id="express-returned"> ยืนยันว่านำของคืนผู้ส่งแล้ว</label>'
-    : '';
+    : '') + (stockoutAfterArrival
+    ? '<p style="margin-top:12px;font-weight:800;line-height:1.45">ถ้าเลือกของหมดหรือซื้อไม่ได้ ลูกค้าจ่ายค่าบริการเริ่มต้น 20 บาท</p>'
+    : '');
   riderReasonSheet('จบงาน', 'งานนี้จะถูกยกเลิก และแจ้งลูกค้าในแชท', presets, extra);
   const btn = $('rider-reason-confirm');
   if (btn) btn.onclick = () => submitRiderEndJob(jobId);
@@ -2401,6 +2404,24 @@ async function submitRiderEndJob(jobId) {
   if (!job || !reason || reason.length > 300) return showToast('เลือกหรือพิมพ์เหตุผล', 'warning');
   if (job.type === 'express' && job.customerOrderConfirmed === true && !$('express-returned')?.checked) {
     return showToast('ยืนยันว่านำของคืนผู้ส่งแล้ว', 'warning');
+  }
+  const stockoutAfterArrival = job.type === 'shopping'
+    && (reason === 'ของหมด' || reason === 'ซื้อไม่ได้')
+    && (job.shopArrivedAt || ['picked_up', 'customer_paid', 'on_the_way'].includes(job.status));
+  if (stockoutAfterArrival) {
+    const feeBtn = $('rider-reason-confirm');
+    if (feeBtn) feeBtn.disabled = true;
+    try {
+      await callDispatch('reportShoppingStockout', { orderId: jobId, reason: reason });
+      closeModal();
+      showToast('แจ้งลูกค้าแล้ว • ค่าบริการเริ่มต้น ฿20');
+      renderJobs();
+    } catch (err) {
+      const retry = $('rider-reason-confirm');
+      if (retry) retry.disabled = false;
+      showToast(riderFirebaseErrorText(err, 'ปิดงานของหมดไม่สำเร็จ'), 'error');
+    }
+    return;
   }
   const btn = $('rider-reason-confirm');
   if (btn) btn.disabled = true;
@@ -2580,6 +2601,16 @@ async function recordShopArrival(jobId, job) {
     }
     pickupGuideOrderIds.add(jobId);
     job.pickupArrived = true;
+    if (job.type === 'shopping') {
+      try {
+        await db.collection('orders').doc(jobId).update({
+          shopArrivedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        job.shopArrivedAt = new Date();
+      } catch (err) {
+        showToast(riderFirebaseErrorText(err, 'บันทึกว่าถึงร้านไม่สำเร็จ'), 'error');
+      }
+    }
     // Food and Shopping send the payment message after the photo/price quote.
     openPayGuide(jobId, 'food');
     return;

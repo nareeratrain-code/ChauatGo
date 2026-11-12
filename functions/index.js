@@ -29,7 +29,7 @@ const {
   riderReviewPlan
 } = require('./settlement');
 const { remitLockPlan } = require('./remit-lock');
-const { redispatchFromRider } = require('./cancel-flow');
+const { redispatchFromRider, reportShoppingStockout, finalizeShoppingStockout } = require('./cancel-flow');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
 // every new revision at once. On a small regional CPU quota that aborts some
@@ -118,6 +118,7 @@ exports.onOrderDispatch = onDocumentWritten('orders/{orderId}', async (event) =>
   const before = event.data.before.exists ? event.data.before.data() : null;
   const after = event.data.after.exists ? event.data.after.data() : null;
   await D.onOrderWritten(db, before, after, event.params.orderId);
+  await finalizeShoppingStockout(db, before, after, event.params.orderId);
 });
 
 // Notify the assigned rider once the customer confirms payment, or the rider
@@ -391,6 +392,24 @@ exports.confirmPaymentReceived = onCall(CALL, async (req) => {
     return await Orders.confirmPaymentReceived(db, req.auth.uid, data.orderId);
   } catch (err) {
     orderFail(err);
+  }
+});
+
+exports.reportShoppingStockout = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardAppCheck(req, 'reportShoppingStockout');
+  const data = req.data || {};
+  if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
+  try {
+    return await reportShoppingStockout(db, req.auth.uid, data.orderId, data.reason);
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    const code = err && err.code;
+    if (code === 'invalid-argument' || code === 'failed-precondition' || code === 'permission-denied' || code === 'not-found') {
+      throw new HttpsError(code, err.message || 'ทำรายการไม่สำเร็จ');
+    }
+    console.error('reportShoppingStockout failed', err);
+    throw new HttpsError('internal', 'ปิดงานของหมดไม่สำเร็จ');
   }
 });
 

@@ -55,6 +55,53 @@ function cancelRefundDue(order) {
   return Number.isFinite(total) && total > 0 ? total : 0;
 }
 
+const SHOPPING_STOCKOUT_FEE = 20;
+
+function round2(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function shoppingRiderArrived(order) {
+  if (!order) return false;
+  if (order.shopArrivedAt || order.pickedUpAt) return true;
+  return ['picked_up', 'customer_paid', 'on_the_way'].indexOf(order.status) !== -1;
+}
+
+function shoppingStockoutPlan(order, reason) {
+  const text = cleanReason(reason);
+  if (!order || order.type !== 'shopping' || (text !== 'ของหมด' && text !== 'ซื้อไม่ได้')) {
+    return { apply: false, beforeArrival: false };
+  }
+  if (!shoppingRiderArrived(order)) return { apply: false, beforeArrival: true };
+  const paidTransfer = !!(order.customerPaidAt && order.paymentMode !== 'cash');
+  const already = round2(order.total);
+  return {
+    apply: true,
+    beforeArrival: false,
+    fare: SHOPPING_STOCKOUT_FEE,
+    total: SHOPPING_STOCKOUT_FEE,
+    foodTotal: 0,
+    itemsTotal: 0,
+    cashTip: 0,
+    refundDue: paidTransfer ? Math.max(0, round2(already - SHOPPING_STOCKOUT_FEE)) : 0,
+    riderIncome: 16,
+    riderOwe: 4,
+    finishNow: order.paymentMode === 'cash' || paidTransfer,
+    waitForSlip: order.paymentMode !== 'cash' && !order.customerPaidAt
+  };
+}
+
+function shoppingStockoutText(plan) {
+  if (!plan || !plan.apply) return '';
+  if (plan.waitForSlip) {
+    return 'ของหมดหรือซื้อไม่ได้หลังไรเดอร์ถึงร้าน\nค่าบริการเริ่มต้น ฿20 ให้ไรเดอร์ สำหรับเวลาและค่าน้ำมัน\nของที่ไม่ได้ซื้อไม่คิดเงิน\nกรุณาโอน ฿20 แล้วแนบสลิปในแชทนี้';
+  }
+  if (plan.refundDue > 0) {
+    return 'ของหมดหรือซื้อไม่ได้หลังไรเดอร์ถึงร้าน\nคงค่าบริการเริ่มต้น ฿20\nต้องคืนเงิน ฿' + plan.refundDue;
+  }
+  return 'ของหมดหรือซื้อไม่ได้หลังไรเดอร์ถึงร้าน\nเก็บเงินสดค่าบริการเริ่มต้น ฿20 ให้ไรเดอร์\nของที่ไม่ได้ซื้อไม่คิดเงิน';
+}
+
 async function postPlainChat(db, chatId, order, text, sender) {
   const ref = db.collection('chats').doc(chatId);
   const snap = await ref.get();
@@ -82,14 +129,19 @@ async function postPlainChat(db, chatId, order, text, sender) {
       lastMessageAt: FieldValue.serverTimestamp()
     }, { merge: true });
   }
-  await ref.collection('messages').add({
+  const body = {
     text: text,
     senderId: sender.id || '',
     senderRole: sender.role || 'rider',
     senderName: sender.name || '',
     systemMessage: true,
     createdAt: FieldValue.serverTimestamp()
-  });
+  };
+  if (sender.automationKey) {
+    body.automated = true;
+    body.automationKey = sender.automationKey;
+  }
+  await ref.collection('messages').add(body);
 }
 
 async function redispatchFromRider(db, dispatch, riderId, orderId, reason) {
@@ -149,13 +201,117 @@ async function redispatchFromRider(db, dispatch, riderId, orderId, reason) {
   return { ok: true, status: nextStatus };
 }
 
+async function reportShoppingStockout(db, riderId, orderId, reason) {
+  const text = cleanReason(reason);
+  if (text !== 'ของหมด' && text !== 'ซื้อไม่ได้') {
+    const err = new Error('ใช้ได้เมื่อของหมดหรือซื้อไม่ได้');
+    err.code = 'invalid-argument';
+    throw err;
+  }
+  const orderRef = db.collection('orders').doc(String(orderId || ''));
+  const riderRef = db.collection('riders').doc(riderId);
+  const snap = await orderRef.get();
+  if (!snap.exists) {
+    const err = new Error('ไม่พบออเดอร์');
+    err.code = 'not-found';
+    throw err;
+  }
+  const order = snap.data() || {};
+  const decided = shoppingStockoutPlan(order, text);
+  if (order.riderId !== riderId || order.type !== 'shopping') {
+    const err = new Error('งานนี้ไม่ใช่งานฝากซื้อของคุณ');
+    err.code = 'permission-denied';
+    throw err;
+  }
+  if (!decided.apply) {
+    const err = new Error('ยังไม่ถึงร้าน จึงยังไม่คิดค่าบริการ 20 บาท');
+    err.code = 'failed-precondition';
+    throw err;
+  }
+  const riderSnap = await riderRef.get();
+  const rider = riderSnap.exists ? (riderSnap.data() || {}) : {};
+  const patch = {
+    fare: decided.fare,
+    total: decided.total,
+    foodTotal: 0,
+    itemsTotal: 0,
+    cashTip: 0,
+    chargedTotal: decided.total,
+    refundDue: decided.refundDue,
+    shoppingStockoutFee: true,
+    shoppingStockoutAt: FieldValue.serverTimestamp(),
+    cancelReason: text,
+    cancelledBy: 'rider',
+    riderOwe: decided.riderOwe,
+    riderIncome: decided.finishNow ? decided.riderIncome : 0,
+    riderPaid: false,
+    customerNotice: shoppingStockoutText(decided)
+  };
+  if (decided.finishNow) {
+    patch.status = 'done';
+    patch.doneAt = FieldValue.serverTimestamp();
+    patch.shoppingStockoutSettled = true;
+  } else {
+    patch.status = order.status === 'on_the_way' || order.status === 'customer_paid' ? order.status : 'picked_up';
+    patch.shoppingStockoutSettled = false;
+    if (rider.qrCodeUrl) {
+      patch.riderQrCodeUrl = rider.qrCodeUrl;
+      patch.riderQrCodePath = rider.qrCodePath || '';
+    }
+  }
+  await orderRef.update(patch);
+  if (decided.finishNow) {
+    await riderRef.set({
+      totalJobs: FieldValue.increment(1),
+      totalIncome: FieldValue.increment(decided.riderIncome)
+    }, { merge: true });
+  }
+  await postPlainChat(db, String(orderId), Object.assign({ id: orderId }, order), shoppingStockoutText(decided), {
+    id: riderId,
+    role: 'rider',
+    name: rider.name || order.riderName || 'ไรเดอร์',
+    automationKey: 'shopping_stockout'
+  });
+  return { ok: true, fare: decided.fare, refundDue: decided.refundDue, finishNow: decided.finishNow };
+}
+
+async function finalizeShoppingStockout(db, before, after, orderId) {
+  if (!after || after.shoppingStockoutFee !== true || after.shoppingStockoutSettled === true) return false;
+  if (after.paymentMode === 'cash' || !after.customerPaidAt) return false;
+  if (before && before.customerPaidAt && before.shoppingStockoutSettled === true) return false;
+  const orderRef = db.collection('orders').doc(orderId);
+  await orderRef.set({
+    status: 'done',
+    doneAt: FieldValue.serverTimestamp(),
+    fare: SHOPPING_STOCKOUT_FEE,
+    total: SHOPPING_STOCKOUT_FEE,
+    riderIncome: 16,
+    riderOwe: 4,
+    riderPaid: false,
+    shoppingStockoutSettled: true
+  }, { merge: true });
+  if (after.riderId) {
+    await db.collection('riders').doc(after.riderId).set({
+      totalJobs: FieldValue.increment(1),
+      totalIncome: FieldValue.increment(16)
+    }, { merge: true });
+  }
+  return true;
+}
+
 module.exports = {
   END_JOB_REASONS,
+  SHOPPING_STOCKOUT_FEE,
   goodsBought,
   beforeServiceCutoff,
   redispatchStatus,
   cleanReason,
   isEndJobReason,
   cancelRefundDue,
-  redispatchFromRider
+  shoppingRiderArrived,
+  shoppingStockoutPlan,
+  shoppingStockoutText,
+  redispatchFromRider,
+  reportShoppingStockout,
+  finalizeShoppingStockout
 };
