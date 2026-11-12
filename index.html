@@ -289,6 +289,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .hotel-action { min-height: 40px; border: 0; border-radius: 11px; padding: 0 8px; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
 .hotel-action.call { background: var(--brand-light); color: var(--green); border: 1px solid rgba(78,159,45,.25); }
 .hotel-action.destination { background: #E8F5E9; color: #2E7D32; border: 1px solid rgba(46,125,50,.2); }
+.hotel-action.destination:disabled, .hotel-action.destination.disabled { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); cursor: not-allowed; opacity: .72; box-shadow: none; }
 .hotel-action.book { background: linear-gradient(135deg,#F28C28,#D96B12); color: #fff; box-shadow: 0 5px 12px rgba(217,107,18,.2); }
 .hotel-action:active { transform: scale(.97); }
 .hotel-detail-hero { width: 100%; height: 190px; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg,#FFF3E0,#FFE0B2); display: flex; align-items: center; justify-content: center; font-size: 58px; margin-bottom: 14px; }
@@ -298,6 +299,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .hotel-detail-actions a, .hotel-detail-actions button { min-height: 48px; display: flex; align-items: center; justify-content: center; text-decoration: none; border-radius: 13px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
 .hotel-detail-call { color: var(--green); background: var(--brand-light); border: 1px solid rgba(78,159,45,.25); }
 .hotel-detail-book { color: #fff; background: linear-gradient(135deg,#F28C28,#D96B12); border: 0; }
+.hotel-destination-missing { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: #FFF4E5; color: #9A5A00; border: 1px solid #F4C27A; font-size: 12px; line-height: 1.45; font-weight: 800; }
 .hotel-detail-disclaimer { margin-top: 10px; padding: 10px 12px; border-radius: 11px; background: var(--surface-2); color: var(--text-muted); font-size: 11px; line-height: 1.5; }
 .place-directory-note { margin: -2px 14px 12px; padding: 10px 12px; border-radius: 12px; background: var(--brand-light); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 700; }
 .food-service-warning { margin: 0 0 14px; padding: 12px 14px; border-left: 4px solid var(--orange); border-radius: 10px; background: #FFF3E0; color: #8A4B08; font-size: 12px; line-height: 1.55; font-weight: 700; }
@@ -2605,6 +2607,14 @@ function hotelBookingUrl(p){
   return 'https://www.agoda.com/search?text=' + encodeURIComponent(p.name || 'โรงแรม ชะอวด');
 }
 function hotelPhone(p){ return String(p.phone || '').trim(); }
+function hotelCoordinateIsValid(value, min, max){
+  if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return false;
+  var number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max;
+}
+function hotelHasCoordinates(p){
+  return !!p && hotelCoordinateIsValid(p.lat, -90, 90) && hotelCoordinateIsValid(p.lng, -180, 180);
+}
 function findHotelById(id){
   var p = PLACES.find(function(x){ return x.id === id; });
   return p || catalogPlaceById[id] || null;
@@ -2626,17 +2636,20 @@ function openHotelBooking(id){
 }
 function renderHotelCardHTML(p){
   var hasImg = hasRealImage(p.image);
+  var canSetDestination = hotelHasCoordinates(p);
   var cat = CATS[p.category] || {name:'ที่พัก', icon:'🏨'};
-  var distance = userLocation ? ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
-  var image = hasImg ? '<img src="'+esc(p.image)+'" loading="lazy" onerror="this.parentElement.innerHTML=\'<span>🏨</span>\'">' : '<span>🏨</span>';
+  var distance = userLocation && hotelHasCoordinates(p) ? ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
+  var image = hasImg ? '<img src="'+esc(p.image)+'" alt="'+esc(p.name)+'" loading="lazy" onerror="this.parentElement.innerHTML=\'<span>🏨</span>\'">' : '<span>🏨</span>';
   return '<article class="hotel-card" data-place-id="'+esc(p.id)+'">' +
     '<div class="hotel-card-img">'+image+'</div>' +
     '<div class="hotel-card-body"><div class="hotel-card-name">'+esc(p.name)+'</div>' +
     '<div class="hotel-card-meta">'+cat.icon+' '+esc(cat.name)+(p.tambon?' • ตำบล'+esc(p.tambon):'')+(p.district?' • อำเภอ'+esc(p.district):'')+(p.approx?' • ตำแหน่งโดยประมาณ':'')+(p.rating?' • ⭐ '+p.rating:'')+distance+'</div>' +
     (p.price?'<div class="hotel-card-price">เริ่มต้นประมาณ '+esc(p.price)+'</div>':'') +
     '<div class="hotel-card-actions"><button type="button" class="hotel-action call" onclick="event.stopPropagation();callHotelById(\''+esc(p.id)+'\')">📞 โทร</button>' +
-    '<button type="button" class="hotel-action destination" onclick="event.stopPropagation();setDestFromPlace(\''+esc(p.id)+'\')">🎯 ปลายทาง</button>' +
-    '<button type="button" class="hotel-action book" onclick="event.stopPropagation();openHotelBooking(\''+esc(p.id)+'\')">ค้นหา Agoda</button></div></div></article>';
+    (canSetDestination ? '<button type="button" class="hotel-action destination" onclick="event.stopPropagation();setDestFromPlace(\''+esc(p.id)+'\')">🎯 ปลายทาง</button>' : '<button type="button" class="hotel-action destination disabled" disabled aria-disabled="true" aria-describedby="hotel-missing-coordinate-'+esc(p.id)+'" title="ที่พักนี้ยังไม่มีพิกัด">⚠️ ไม่มีพิกัด</button>') +
+    '<button type="button" class="hotel-action book" onclick="event.stopPropagation();openHotelBooking(\''+esc(p.id)+'\')">ค้นหา Agoda</button></div>' +
+    (canSetDestination ? '' : '<div id="hotel-missing-coordinate-'+esc(p.id)+'" class="hotel-destination-missing" role="status" aria-live="polite">⚠️ ที่พักนี้ยังไม่มีพิกัด จึงยังตั้งเป็นปลายทางไม่ได้</div>') +
+    '</div></article>';
 }
 function provinceDistrictNames() {
   var rows = (provincePlaces && provincePlaces.districts) || [];
@@ -8614,9 +8627,10 @@ window.openMapPicker = function(mode){
 /* ═══ PLACE DETAIL ═══ */
 function openHotelDetail(p){
   var hasImg = hasRealImage(p.image);
+  var canSetDestination = hotelHasCoordinates(p);
   var image = hasImg ? '<img src="'+esc(p.image)+'" alt="'+esc(p.name)+'">' : '<span>🏨</span>';
   var phone = hotelPhone(p);
-  var distance = userLocation ? ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
+  var distance = userLocation && hotelHasCoordinates(p) ? ' • 📍 ' + fmtDistance(haversine(userLocation.lat, userLocation.lng, p.lat, p.lng)) : '';
   $('modal-body').innerHTML =
     '<div class="hotel-detail-hero">'+image+'</div>' +
     '<h2 style="font-size:21px;line-height:1.3;font-weight:900;color:var(--text);margin:0">'+esc(p.name)+'</h2>' +
@@ -8628,7 +8642,7 @@ function openHotelDetail(p){
     (p.price ? '<div style="margin-top:8px;color:var(--green);font-weight:900">เริ่มต้นประมาณ '+esc(p.price)+'</div>' : '') +
     '<div class="hotel-detail-actions"><button class="hotel-detail-call" type="button" onclick="callHotelById(\''+esc(p.id)+'\')">📞 '+(phone?'โทรหาโรงแรม':'ดูเบอร์ใน Maps')+'</button>' +
     '<button class="hotel-detail-book" type="button" onclick="window.open(hotelMapsUrl(findHotelById(\''+esc(p.id)+'\')),\'_blank\',\'noopener\')">🗺️ ดูข้อมูล Maps</button></div>' +
-    '<button class="btn-full btn-green press-scale" type="button" onclick="setDestFromPlace(\''+esc(p.id)+'\')">🎯 เพิ่มที่พักเป็นปลายทางให้ไรเดอร์</button>' +
+    (canSetDestination ? '<button class="btn-full btn-green press-scale" type="button" onclick="setDestFromPlace(\''+esc(p.id)+'\')">🎯 เพิ่มที่พักเป็นปลายทางให้ไรเดอร์</button>' : '<button class="btn-full btn-green press-scale" type="button" disabled aria-disabled="true" aria-describedby="hotel-detail-missing-coordinate" title="ที่พักนี้ยังไม่มีพิกัด">⚠️ ยังตั้งเป็นปลายทางไม่ได้</button><div id="hotel-detail-missing-coordinate" class="hotel-destination-missing" role="alert" aria-live="assertive">⚠️ ที่พักนี้ยังไม่มีพิกัด จึงยังตั้งเป็นปลายทางไม่ได้ กรุณาเลือกสถานที่อื่นที่มีหมุดบนแผนที่</div>') +
     '<button class="btn-full btn-gray press-scale" type="button" onclick="openHotelBooking(\''+esc(p.id)+'\')" style="margin-top:8px">ค้นหาที่พักต่อบน Agoda</button>' +
     '<div class="hotel-detail-disclaimer">ข้อมูลรูปภาพและเบอร์โทรอาจมาจากแคตตาล็อกสถานที่หรือแหล่งข้อมูลสาธารณะ ควรตรวจสอบกับโรงแรมก่อนใช้บริการ ส่วน Agoda เป็นลิงก์ภายนอก ยังไม่ได้เชื่อมระบบจองของ ChauatGo</div>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()" style="margin-top:10px">ปิด</button>';
@@ -8668,6 +8682,10 @@ window.showPlaceDetail = function(placeId){
 window.setDestFromPlace = function(placeId){
   var p = findHotelById(placeId);
   if (!p) return;
+  if (!hotelHasCoordinates(p)) {
+    showToast('ที่พักนี้ยังไม่มีพิกัดสำหรับตั้งเป็นปลายทาง','warning');
+    return;
+  }
   selectedDestination = { lat: p.lat, lng: p.lng, address: p.name, placeId: p.id || placeId };
   if ($('hotel-tools')) $('hotel-tools').classList.add('hotel-place-selected');
   mapPickerMode = 'ride-dest';
