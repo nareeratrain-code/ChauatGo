@@ -467,6 +467,14 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .vehicle-name { font-size: 15px; font-weight: 900; }
 .vehicle-desc { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
 .vehicle-price-num { font-size: 18px; font-weight: 900; color: var(--green); line-height: 1; }
+.ride-vehicle-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; min-width: 0; }
+.ride-vehicle-option { min-height: 48px; min-width: 0; padding: 8px 10px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
+.ride-vehicle-option.selected { border-color: var(--green); background: #E8F5E9; color: var(--green); box-shadow: 0 0 0 3px rgba(22,138,69,.18); }
+.ride-vehicle-picker.missing { padding: 8px; border-radius: 16px; outline: 3px solid #E53935; background: #FFF5F5; }
+.ride-vehicle-alert, .express-parcel-alert, .shop-reorder-alert { grid-column: 1 / -1; margin-bottom: 8px; font-size: 13px; font-weight: 900; color: #B71C1C; }
+.express-parcel-scroll.missing { padding: 8px; border-radius: 16px; outline: 3px solid #E53935; background: #FFF5F5; }
+[data-theme="dark"] .ride-vehicle-option.selected { background: #143024; color: #8FE7A2; }
+[data-theme="dark"] .ride-vehicle-picker.missing, [data-theme="dark"] .express-parcel-scroll.missing { background: #3A1F1F; }
 
 #map-page { display: none; position: fixed; inset: 0; left: 0; width: 100vw; max-width: none; transform: none; background: var(--bg); z-index: 9300 !important; overflow: hidden; --dest-sheet-h: 236px; }
 #map-page.show { display: flex !important; flex-direction: column; }
@@ -1037,6 +1045,7 @@ button.chat-list-item:active { filter: brightness(.97); }
   .merchant-view .merchant-search { gap: 6px; }
   .merchant-map-btn { min-width: 88px; padding: 0 10px; }
   .merchant-filter-bar { max-width: 100%; padding-left: 0; padding-right: 0; }
+  .ride-vehicle-picker { grid-template-columns: 1fr; }
   .travel-vehicle-name { font-size: 14px; }
   .travel-vehicle-price { font-size: 15px; }
   .nearby-title { padding: 14px 12px; }
@@ -4339,7 +4348,8 @@ function expressReorderDraft(order) {
       arrivalBy: '',
       weightKg: order.weightKg != null && order.weightKg !== '' ? String(order.weightKg) : '',
       itemDescription: order.itemDescription || '',
-      parcelType: order.parcelType || 'document',
+      parcelType: expressParcelKnown(order.parcelType) ? order.parcelType : '',
+      parcelNeedsChoice: order.parcelType ? !expressParcelKnown(order.parcelType) : false,
       reorder: true
     }
   };
@@ -4369,6 +4379,42 @@ function resolveShoppingPlace(order, places) {
   var pin = reorderPoint(order.shopPlaceLat, order.shopPlaceLng, order.shopPlaceName);
   if (!pin || !isFinite(pin.lat)) return null;
   return { id: order.shopPlaceId || 'reorder-shop', name: order.shopPlaceName || 'ร้านเดิม', lat: pin.lat, lng: pin.lng, category: 's' };
+}
+
+var RIDE_VEHICLE_CATALOG = [
+  { type: 'motorcycle', price: 30, name: 'มอเตอร์ไซค์', icon: '🏍️' },
+  { type: 'car', price: 60, name: 'รถเก๋ง', icon: '🚗' },
+  { type: 'pickup', price: 90, name: 'รถกระบะ', icon: '🛻' },
+  { type: 'van', price: 120, name: 'รถตู้', icon: '🚐' }
+];
+
+function rideVehicleByType(type) {
+  var key = String(type || '');
+  for (var i = 0; i < RIDE_VEHICLE_CATALOG.length; i++) {
+    if (RIDE_VEHICLE_CATALOG[i].type === key) return RIDE_VEHICLE_CATALOG[i];
+  }
+  return null;
+}
+
+function rideReorderState(order) {
+  order = order || {};
+  var vehicle = rideVehicleByType(order.vehicle);
+  return {
+    vehicle: vehicle ? { type: vehicle.type, price: vehicle.price, name: vehicle.name, icon: vehicle.icon } : null,
+    missingVehicle: !vehicle,
+    origin: reorderPoint(order.fromLat, order.fromLng, order.from),
+    destination: reorderPoint(order.lat, order.lng, order.to || order.address),
+    draft: {
+      from: order.from || '',
+      to: order.to || order.address || '',
+      note: order.note || '',
+      phone: order.userPhone || ''
+    }
+  };
+}
+
+function expressParcelKnown(id) {
+  return ['document', 'fruit', 'food', 'clothes', 'electronics', 'fragile', 'medicine', 'other'].indexOf(String(id || '')) !== -1;
 }
 
 function shoppingReorderPrefill(order, places) {
@@ -4463,19 +4509,14 @@ async function reorderFood(order) {
 }
 
 function reorderRide(order) {
-  var origin = reorderPoint(order.fromLat, order.fromLng, order.from);
-  var dest = reorderPoint(order.lat, order.lng, order.to || order.address);
-  rideOrigin = origin && isFinite(origin.lat) ? origin : null;
-  selectedDestination = dest && isFinite(dest.lat) ? dest : null;
-  rideDraft = {
-    from: order.from || (origin && origin.address) || '',
-    to: order.to || order.address || '',
-    note: order.note || '',
-    phone: order.userPhone || ''
-  };
-  var known = { motorcycle: 1, car: 1, pickup: 1, van: 1 };
-  openRideOrderForm({ type: known[order.vehicle] ? order.vehicle : 'motorcycle' });
-  showToast('ตรวจสอบจุดรับและปลายทางก่อนยืนยัน', 'info');
+  var state = rideReorderState(order);
+  rideOrigin = state.origin && isFinite(state.origin.lat) ? state.origin : null;
+  selectedDestination = state.destination && isFinite(state.destination.lat) ? state.destination : null;
+  rideDraft = state.draft;
+  selectedVehicle = state.vehicle ? { type: state.vehicle.type, price: state.vehicle.price } : null;
+  openRideOrderForm(state.vehicle || { missing: true });
+  if (state.missingVehicle) markRideVehicleMissing('รถจากออเดอร์เดิมใช้ไม่ได้แล้ว เลือกประเภทรถก่อนยืนยัน');
+  else showToast('ตรวจสอบจุดรับและปลายทางก่อนยืนยัน', 'info');
 }
 
 function reorderExpress(order) {
@@ -4491,7 +4532,11 @@ function reorderExpress(order) {
 function reorderShopping(order) {
   var open = function() {
     var prefill = shoppingReorderPrefill(order, PLACES);
-    if (!prefill.place) return showToast('ไม่พบร้านเดิม', 'error');
+    if (!prefill.place) {
+    showToast('ไม่พบร้านเดิม เลือกร้านใหม่จากรายการ', 'warning');
+    if (typeof openMerchantView === 'function') openMerchantView('shopping');
+    return;
+  }
     shoppingPrefill = prefill;
     openShopOrderForm(prefill.place.id, true);
   };
@@ -6361,28 +6406,62 @@ function locationStatusHtml(point) {
   return '<div class="loc-known">✓ ' + Number(point.lat).toFixed(5) + ', ' + Number(point.lng).toFixed(5) + (acc ? ' • ' + esc(acc) : '') + '</div>';
 }
 
+function markRideVehicleMissing(message) {
+  var box = $('ride-vehicle-picker');
+  if (!box) return;
+  box.classList.add('missing');
+  var note = $('ride-vehicle-alert');
+  if (!note) {
+    note = document.createElement('div');
+    note.id = 'ride-vehicle-alert';
+    note.className = 'ride-vehicle-alert';
+    box.insertBefore(note, box.firstChild);
+  }
+  note.textContent = message || 'เลือกประเภทรถก่อนยืนยัน';
+  if (box.scrollIntoView) box.scrollIntoView({ block: 'center' });
+}
+
+window.chooseRideVehicle = function(el) {
+  var found = rideVehicleByType(el && el.getAttribute('data-ride-vehicle'));
+  if (!found) return;
+  captureRideDraft();
+  selectedVehicle = { type: found.type, price: found.price };
+  openRideOrderForm(found);
+};
+
 window.openRideOrderForm = function(vehicle){
-  if (!vehicle) return;
-  var vehicleNames = {motorcycle:'🏍️ มอเตอร์ไซค์',car:'🚗 รถเก๋ง',pickup:'🛻 รถกระบะ',van:'🚐 รถตู้'};
-  var vehicleName = vehicleNames[vehicle.type]||'รถ';
+  if (!vehicle && !selectedVehicle) return;
+  var chosen = rideVehicleByType(vehicle && vehicle.type) || rideVehicleByType(selectedVehicle && selectedVehicle.type);
+  if (chosen) selectedVehicle = { type: chosen.type, price: chosen.price };
+  else if (!vehicle || vehicle.missing || (vehicle && vehicle.type && !rideVehicleByType(vehicle.type))) selectedVehicle = null;
+  var vehicleName = chosen ? (chosen.icon + ' ' + chosen.name) : 'เลือกรถ';
   if (!(rideOrigin && isFinite(rideOrigin.lat)) && userLocation && isFinite(userLocation.lat)) {
     rideOrigin = { lat: userLocation.lat, lng: userLocation.lng, accuracy: userLocation.accuracy, address: (userProfile && userProfile.address) || 'ตำแหน่งปัจจุบัน' };
   }
   var pickup = ridePickupPoint();
   var destLat = selectedDestination ? selectedDestination.lat : null;
   var destLng = selectedDestination ? selectedDestination.lng : null;
-  var fareInfo = calculateFare(vehicle, destLat, destLng);
+  var fareInfo = chosen ? calculateFare(selectedVehicle, destLat, destLng) : null;
   var fromVal = (rideDraft && rideDraft.from != null && rideDraft.from !== '') ? rideDraft.from : ((pickup && pickup.address) || (userProfile && userProfile.address) || 'ตำแหน่งปัจจุบัน');
   var toVal = (rideDraft && rideDraft.to != null) ? rideDraft.to : (selectedDestination ? (selectedDestination.address || '') : '');
   var noteVal = (rideDraft && rideDraft.note != null) ? rideDraft.note : ((selectedDestination && selectedDestination.note) || '');
   var phoneVal = (rideDraft && rideDraft.phone != null && rideDraft.phone !== '') ? rideDraft.phone : ((userProfile && userProfile.phone) || '');
   selectedPaymentMode = 'transfer';
+  var picker = '<div id="ride-vehicle-picker" class="ride-vehicle-picker' + (chosen ? '' : ' missing') + '" aria-label="เลือกประเภทรถ">' +
+    (chosen ? '' : '<div id="ride-vehicle-alert" class="ride-vehicle-alert">เลือกประเภทรถก่อนยืนยัน</div>') +
+    RIDE_VEHICLE_CATALOG.map(function(item) {
+      var on = chosen && chosen.type === item.type;
+      return '<button type="button" class="ride-vehicle-option' + (on ? ' selected' : '') + '" data-ride-vehicle="' + item.type + '" data-price="' + item.price + '" aria-pressed="' + on + '" onclick="chooseRideVehicle(this)">' + item.icon + ' ' + item.name + '</button>';
+    }).join('') + '</div>';
   $('modal-body').innerHTML =
-    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">'+vehicleName.split(' ')[0]+'</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+vehicleName+'</h2></div>' +
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:44px;margin-bottom:8px">'+(chosen ? chosen.icon : '🚗')+'</div><h2 style="font-size:20px;font-weight:900;color:var(--text)">'+vehicleName+'</h2></div>' +
+    picker +
     '<div style="background:var(--surface-2);border-radius:14px;padding:14px;margin-bottom:12px;text-align:left">' +
-      '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ค่าเริ่มต้น</span><span>฿'+fareInfo.base+'</span></div>' +
-      (fareInfo.distance > 0 ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ระยะทาง '+fareInfo.distance.toFixed(2)+' กม. × ฿'+fareInfo.perKm+'</span><span>฿'+Math.round(fareInfo.distance * fareInfo.perKm)+'</span></div>' : '') +
-      '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>' +
+      (fareInfo
+        ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ค่าเริ่มต้น</span><span>฿'+fareInfo.base+'</span></div>' +
+          (fareInfo.distance > 0 ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;padding:4px 0"><span>ระยะทาง '+fareInfo.distance.toFixed(2)+' กม. × ฿'+fareInfo.perKm+'</span><span>฿'+Math.round(fareInfo.distance * fareInfo.perKm)+'</span></div>' : '') +
+          '<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding:8px 0;border-top:2px solid var(--green);margin-top:8px;color:var(--green)"><span>รวม</span><span>฿'+fareInfo.total+'</span></div>'
+        : '<div style="font-size:13px;font-weight:800">เลือกประเภทรถเพื่อคำนวณค่าบริการ</div>') +
     '</div>' +
     '<div class="form-group"><label>📍 ตำแหน่งต้นทาง / สถานที่รับลูกค้า</label><input id="order-from" value="'+esc(fromVal)+'">' +
       locationStatusHtml(pickup) +
@@ -6392,9 +6471,10 @@ window.openRideOrderForm = function(vehicle){
       '<div class="loc-actions"><button type="button" class="loc-action-btn" data-pick-map="ride-dest">🗺️ เลือกจากแผนที่</button></div></div>' +
     '<div class="form-group"><label>📝 รายละเอียด</label><textarea id="order-note" rows="2">'+esc(noteVal)+'</textarea></div>' +
     '<div class="form-group"><label>📞 เบอร์ติดต่อ</label><input type="tel" id="order-phone" value="'+esc(phoneVal)+'"></div>' +
-    '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ (฿'+fareInfo.total+')</button>' +
+    '<button class="btn-full btn-green press-scale" onclick="submitRideOrder()">✅ ยืนยันเรียกรถ'+(fareInfo ? ' (฿'+fareInfo.total+')' : '')+'</button>' +
     '<button class="btn-full btn-gray press-scale" onclick="closeModal()">ยกเลิก</button>';
   openModal();
+  if (!chosen) setTimeout(function() { markRideVehicleMissing('เลือกประเภทรถก่อนยืนยัน'); }, 30);
 };
 
 function calculateFare(vehicle, destLat, destLng) {
@@ -6404,7 +6484,7 @@ function calculateFare(vehicle, destLat, destLng) {
 
 window.submitRideOrder = async function(){
   if(!currentUser){closeModal();showLoginModal();return showToast('กรุณาเข้าสู่ระบบ','warning');}
-  if(!selectedVehicle) return showToast('ไม่ได้เลือกรถ','error');
+  if(!selectedVehicle || !rideVehicleByType(selectedVehicle.type)) return markRideVehicleMissing('เลือกประเภทรถก่อนยืนยัน');
   var active = document.activeElement;
   if (active && active.blur && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) active.blur();
   var from = $('order-from').value.trim();
@@ -6509,6 +6589,7 @@ function captureExpressDraft() {
     weightKg: $('express-weight-kg') ? $('express-weight-kg').value : (previous.weightKg || ''),
     itemDescription: $('express-item-description') ? $('express-item-description').value : (previous.itemDescription || ''),
     parcelType: $('express-parcel-type') ? $('express-parcel-type').value : (previous.parcelType || 'document'),
+    parcelNeedsChoice: !!previous.parcelNeedsChoice,
     contactName: previous.contactName || '',
     reorder: !!previous.reorder
   };
@@ -6780,10 +6861,11 @@ function renderExpressForm() {
   var arrivalByVal = (expressDraft && expressDraft.arrivalBy) || '';
   var weightVal = (expressDraft && expressDraft.weightKg) || '';
   var itemDescriptionVal = (expressDraft && expressDraft.itemDescription) || '';
-  var parcelTypeVal = (expressDraft && expressDraft.parcelType) || 'document';
-  var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeVal; })[0] || EXPRESS_PARCEL_TYPES[0];
+  var parcelNeedsChoice = !!(expressDraft && expressDraft.reorder && expressDraft.parcelNeedsChoice && !expressParcelKnown(expressDraft.parcelType));
+  var parcelTypeVal = (expressDraft && expressDraft.parcelType) || (parcelNeedsChoice ? '' : 'document');
+  var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeVal; })[0] || (parcelNeedsChoice ? null : EXPRESS_PARCEL_TYPES[0]);
   var parcelTypesHtml = EXPRESS_PARCEL_TYPES.map(function(item) {
-    var active = item.id === parcelType.id;
+    var active = !!(parcelType && item.id === parcelType.id);
     return '<button type="button" class="express-parcel-chip' + (active ? ' active' : '') + '" onclick="selectExpressParcelType(\'' + item.id + '\')" aria-pressed="' + active + '">' + item.icon + ' ' + item.label + '</button>';
   }).join('');
   var expressQuote = expressQuotedFare(expOrigin, expDestination);
@@ -6807,7 +6889,7 @@ function renderExpressForm() {
       '<button type="button" class="express-location-swap press-scale" onclick="swapExpressLocations()" aria-label="สลับต้นทางและปลายทาง" title="สลับต้นทางและปลายทาง">' + expressLocationIconSvg('swap') + '</button>' +
       '<div class="express-location-row"><span class="express-location-dot destination" aria-hidden="true"></span><div class="express-location-input-wrap"><label class="sr-only" for="order-to">ที่อยู่ปลายทาง</label><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><button type="button" class="express-location-icon gps' + (destinationKnown ? '' : ' is-unset') + '" data-refresh-gps="express-destination" aria-label="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง" title="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง">' + expressLocationIconSvg('gps') + '</button><button type="button" class="express-location-icon" data-exp-map="exp-destination" aria-label="เลือกปลายทางจากแผนที่" title="เลือกปลายทางจากแผนที่">' + expressLocationIconSvg('map') + '</button></div>' +
       destinationStatus + '</div><div class="express-location-suggestions"><div class="sug-chips">' + sugChipsHtml + '</div></div></div>' +
-    '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType.id) + '"><div class="express-parcel-scroll" aria-label="เลือกประเภทพัสดุ">' + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + parcelType.icon + ' ' + esc(parcelType.note) + '</div></div>' +
+    '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType ? parcelType.id : '') + '"><div id="express-parcel-picker" class="express-parcel-scroll' + (parcelType ? '' : ' missing') + '" aria-label="เลือกประเภทพัสดุ">' + (parcelType ? '' : '<div id="express-parcel-alert" class="express-parcel-alert">ประเภทพัสดุเดิมใช้ไม่ได้แล้ว เลือกประเภทใหม่ก่อนยืนยัน</div>') + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + (parcelType ? (parcelType.icon + ' ' + esc(parcelType.note)) : 'ยังไม่ได้เลือกประเภทพัสดุ') + '</div></div>' +
     '<div class="express-two-col"><div class="form-group"><label>⚖️ น้ำหนักโดยประมาณ (กก.)</label><input type="number" id="express-weight-kg" min="0" max="1000" step="0.1" value="' + esc(weightVal) + '" placeholder="เช่น 2.5"></div><div class="form-group"><label>⏰ ต้องการให้ถึง</label><input type="datetime-local" id="express-arrival-by" value="' + esc(arrivalByVal) + '"></div></div>' +
     '<div class="form-group"><label>🧾 ลักษณะสิ่งของ</label><textarea id="express-item-description" rows="2" placeholder="เช่น กล่องเอกสาร 1 กล่อง, ผลไม้ 3 กก., ต้องระวังแตก">' + esc(itemDescriptionVal) + '</textarea></div>' +
     '<div class="form-group"><label>📷 รูปถ่ายสิ่งของ <span style="font-size:11px;color:var(--text-muted);font-weight:700">(ไม่บังคับ)</span></label><div style="display:flex;gap:8px"><label class="express-photo-box" style="flex:1"><span style="font-size:22px">📷</span><span>ถ่ายรูป</span><input type="file" id="express-parcel-photo-camera" accept="image/*" capture="environment" onchange="previewExpressParcelPhoto(this)"></label><label class="express-photo-box" style="flex:1"><span style="font-size:22px">🖼️</span><span>คลังภาพ</span><input type="file" id="express-parcel-photo-gallery" accept="image/*" onchange="previewExpressParcelPhoto(this)"></label></div><div id="express-photo-name" class="express-photo-name">' + (expressParcelPhotoFile ? ('📷 ' + esc(expressParcelPhotoFile.name)) : 'ยังไม่ได้เลือกรูป (ไม่บังคับ)') + '</div></div>' +
@@ -7006,8 +7088,16 @@ window.submitExpressOrder = async function(){
   var toText = (expDestination && expDestination.address) || toAddr || '';
   if (!fromText) return showToast('กรอกต้นทาง','error');
   if (!toText) return showToast('กรอกปลายทาง','error');
-  var parcelTypeId = ($('express-parcel-type') && $('express-parcel-type').value) || (expressDraft && expressDraft.parcelType) || 'document';
-  var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeId; })[0] || EXPRESS_PARCEL_TYPES[0];
+  var parcelTypeId = ($('express-parcel-type') && $('express-parcel-type').value) || (expressDraft && expressDraft.parcelType) || '';
+  var parcelType = EXPRESS_PARCEL_TYPES.filter(function(item){ return item.id === parcelTypeId; })[0];
+  if (!parcelType) {
+    var picker = $('express-parcel-picker');
+    if (picker) {
+      picker.classList.add('missing');
+      if (picker.scrollIntoView) picker.scrollIntoView({ block: 'center' });
+    }
+    return;
+  }
   var arrivalBy = ($('express-arrival-by') && $('express-arrival-by').value) || '';
   var weightKg = ($('express-weight-kg') && $('express-weight-kg').value) || '';
   var itemDescription = ($('express-item-description') && $('express-item-description').value.trim()) || '';
@@ -7435,7 +7525,8 @@ window.openShopOrderForm = function(placeId, keepPrefill){
       '<div style="font-size:44px;margin-bottom:8px">' + cat.icon + '</div>' +
       '<h2 style="font-size:18px;font-weight:900;color:var(--text)">' + esc(p.name) + '</h2>' +
     '</div>' +
-    '<div class="form-group"><label>🛒 รายการที่ให้ซื้อ</label>' +
+    '<div class="form-group" id="shop-items-field"><label>🛒 รายการที่ให้ซื้อ</label>' +
+      (keepPrefill && !String(pre.items || '').trim() ? '<div class="shop-reorder-alert">รายการเดิมว่าง ใส่รายการที่ให้ซื้อก่อนยืนยัน</div>' : '') +
       '<textarea id="shop-items" class="shop-items-input" placeholder="เช่น&#10;- โซดา 2 ขวด&#10;- น้ำแข็ง 1 ถุง">' + esc(pre.items || '') + '</textarea>' +
       '<div class="shop-quick-chips">' + quickItems.map(function(item){
         return '<button type="button" class="shop-quick-chip" onclick="addQuickItem(\'' + esc(item) + '\')">+ ' + esc(item) + '</button>';
@@ -7486,7 +7577,12 @@ window.submitShopOrder = async function(placeId){
     : PLACES.find(function(x){return x.id===placeId;});
   if (!p) return showToast('ไม่พบสถานที่','error');
   var items = ($('shop-items') && $('shop-items').value.trim()) || '';
-  if (!items) return showToast('กรุณาพิมพ์รายการ','warning');
+  if (!items) {
+    var itemsField = $('shop-items-field');
+    if (itemsField && itemsField.scrollIntoView) itemsField.scrollIntoView({ block: 'center' });
+    if ($('shop-items')) $('shop-items').focus();
+    return showToast('กรุณาพิมพ์รายการ','warning');
+  }
   var phone = ($('shop-phone') && $('shop-phone').value.trim()) || '';
   if (!phone) return showToast('กรุณากรอกเบอร์ติดต่อ','warning');
   var dropText = ($('shop-dropoff') && $('shop-dropoff').value.trim()) || '';
