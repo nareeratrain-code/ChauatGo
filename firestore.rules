@@ -819,7 +819,6 @@ service cloud.firestore {
         resource.data.status in ['picked_up', 'customer_paid', 'on_the_way']
         && (
           (resource.data.get('type', '') == 'food' && resource.data.get('partnerShop', false) == true)
-          || resource.data.get('type', '') == 'ride'
           || (
             resource.data.get('type', '') == 'express'
             && resource.data.get('customerOrderConfirmed', false) == true
@@ -847,6 +846,10 @@ service cloud.firestore {
           request.resource.data.cancelReason == 'ของหมด'
           || request.resource.data.cancelReason == 'ซื้อไม่ได้'
         )
+      ) || (
+        resource.data.get('type', '') == 'ride'
+        && resource.data.status == 'picked_up'
+        && request.resource.data.get('cancelReason', '') == 'ลูกค้าไม่ขึ้นรถ'
       );
     }
 

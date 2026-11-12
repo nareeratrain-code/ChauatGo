@@ -44,6 +44,9 @@ test('each role can cancel only up to its service cutoff', {
       await root.collection('orders').doc('ride-in').set({
         type: 'ride', status: 'picked_up', userId: 'cust1', riderId: 'rider1', merchantId: '', paymentMode: 'cash', total: 40
       });
+      await root.collection('orders').doc('ride-going').set({
+        type: 'ride', status: 'on_the_way', userId: 'cust1', riderId: 'rider1', merchantId: '', paymentMode: 'cash', total: 40, fare: 40
+      });
       await root.collection('orders').doc('shop-open').set({
         type: 'shopping', status: 'accepted', userId: 'cust1', riderId: 'rider1', merchantId: '', paymentMode: 'cash', total: 40
       });
@@ -80,6 +83,8 @@ test('each role can cancel only up to its service cutoff', {
     await assertFails(customer.collection('orders').doc('ride-in').update(cancel('customer', 'เปลี่ยนใจ')));
     await assertFails(rider.collection('orders').doc('ride-open').update(cancel('rider', 'รถเสีย')));
     await assertSucceeds(rider.collection('orders').doc('ride-in').update(cancel('rider', 'ลูกค้าไม่ขึ้นรถ')));
+    await assertFails(rider.collection('orders').doc('ride-going').update(cancel('rider', 'ลูกค้าไม่ขึ้นรถ')));
+    await assertFails(rider.collection('orders').doc('ride-going').update(cancel('rider', 'รถเสีย')));
     await assertSucceeds(customer.collection('orders').doc('shop-open').update(cancel('customer', 'สั่งผิด')));
     await assertFails(customer.collection('orders').doc('shop-bought').update(cancel('customer', 'เปลี่ยนใจ')));
     await assertFails(rider.collection('orders').doc('shop-bought').update(cancel('rider', 'ของหมด', { refundDue: 80 })));
