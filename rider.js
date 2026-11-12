@@ -351,6 +351,7 @@ function dispatchMode() {
 
 function riderMayClaim(j) {
   if (riderIsRemitLocked()) return false;
+  if (j && j.lastReleasedRiderId && currentUser && j.lastReleasedRiderId === currentUser.uid) return false;
   if (dispatchMode() === 'auto') return false;
   if (!j || j.riderId) return false;
   if (orderNeedsKitchen(j)) return RIDER_CLAIM_STATUSES.includes(j.status);
@@ -2021,6 +2022,7 @@ function renderJobCard(j, type) {
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
   }
+  primaryAction += riderExitButtons(j);
   return `
     <div class="jc-card ${isNew ? 'jc-new' : ''}" data-card-id="${esc(j.id)}">
       <div class="jc-header">
@@ -2274,6 +2276,162 @@ async function rejectCustomerSlip(jobId) {
     renderJobs();
   } catch (err) {
     showToast(riderFirebaseErrorText(err, 'ปฏิเสธสลิปไม่สำเร็จ'), 'error');
+  }
+}
+
+function riderGoodsBought(job) {
+  return !!(job && (String(job.foodImage || '').trim() || job.shopBillUrl || job.riderSlipToShop || job.riderSlipUrl));
+}
+
+function riderBeforeCutoff(job) {
+  if (!job || ['done', 'delivered', 'cancelled', 'shop_closed', 'on_the_way', 'customer_paid'].includes(job.status)) return false;
+  if (job.type === 'express') return job.customerOrderConfirmed !== true;
+  if (job.type === 'ride' || (job.type === 'food' && job.partnerShop === true)) return job.status !== 'picked_up';
+  if (job.type === 'shopping' || job.type === 'food') return !riderGoodsBought(job);
+  return job.status !== 'picked_up';
+}
+
+function riderRefundDue(job) {
+  if (!job || !job.customerPaidAt || job.paymentMode === 'cash') return 0;
+  const total = Number(job.total);
+  return Number.isFinite(total) && total > 0 ? total : 0;
+}
+
+function riderExitButtons(j) {
+  if (!j || !currentUser || j.riderId !== currentUser.uid) return '';
+  if (['done', 'delivered', 'cancelled', 'shop_closed'].includes(j.status)) return '';
+  let html = '';
+  if (riderBeforeCutoff(j)) {
+    html += `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="openRiderRelease('${esc(j.id)}')">ขอไรเดอร์คนใหม่</button>`;
+  }
+  const localGoods = j.type === 'shopping' || (j.type === 'food' && j.partnerShop !== true);
+  if (localGoods) {
+    html += `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="openRiderEndJob('${esc(j.id)}')">ของหมด / ซื้อไม่ได้</button>`;
+  } else if (!riderBeforeCutoff(j)) {
+    html += `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="openRiderEndJob('${esc(j.id)}')">จบงาน</button>`;
+  }
+  return html;
+}
+
+function riderReasonSheet(title, note, presets, extra) {
+  const chips = presets.map(reason =>
+    `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="chooseRiderReason('${reason}')">${reason}</button>`
+  ).join('');
+  const mc = $('modalContent');
+  if (!mc) return;
+  window._riderReason = '';
+  mc.innerHTML = `<div style="text-align:left">
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">${title}</h2>
+    <p style="color:var(--text-muted);font-size:13px;font-weight:700">${note}</p>
+    <div id="rider-reason-list">${chips}<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="chooseRiderReason('อื่น')">อื่น</button></div>
+    <label id="rider-reason-other-wrap" style="display:none;margin-top:10px;font-weight:800">เหตุผลอื่น
+      <input id="rider-reason-other" maxlength="300" style="width:100%;box-sizing:border-box;margin-top:6px;min-height:44px;border-radius:12px;border:1px solid var(--border);padding:10px;font:inherit">
+    </label>
+    ${extra || ''}
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button type="button" class="jc-secondary-btn" style="flex:1;min-height:48px" onclick="closeModal()">ปิด</button>
+      <button type="button" class="jc-primary-btn jc-green" style="flex:1;min-height:48px" id="rider-reason-confirm">ยืนยัน</button>
+    </div>
+  </div>`;
+  $('modalOverlay')?.classList.add('show');
+}
+
+function chooseRiderReason(reason) {
+  window._riderReason = reason;
+  document.querySelectorAll('#rider-reason-list button').forEach(btn => {
+    btn.style.outline = btn.textContent === reason ? '3px solid #168A45' : '';
+  });
+  const wrap = $('rider-reason-other-wrap');
+  if (wrap) wrap.style.display = reason === 'อื่น' ? 'block' : 'none';
+}
+
+function selectedRiderReason() {
+  const choice = window._riderReason || '';
+  if (choice === 'อื่น') return String($('rider-reason-other')?.value || '').trim();
+  return choice;
+}
+
+function openRiderRelease(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job || !riderBeforeCutoff(job)) return showToast('เลยจุดที่หาไรเดอร์ใหม่ได้แล้ว', 'info');
+  riderReasonSheet('ขอไรเดอร์คนใหม่', 'งานของลูกค้าไม่ถูกยกเลิก ระบบจะหาไรเดอร์คนอื่น', ['รถเสีย', 'ไปจุดรับไม่ได้', 'อุบัติเหตุ']);
+  const btn = $('rider-reason-confirm');
+  if (btn) btn.onclick = () => submitRiderRelease(jobId);
+}
+
+async function submitRiderRelease(jobId) {
+  const reason = selectedRiderReason();
+  if (!reason || reason.length > 300) return showToast('เลือกหรือพิมพ์เหตุผล', 'warning');
+  const btn = $('rider-reason-confirm');
+  if (btn) btn.disabled = true;
+  try {
+    await callDispatch('redispatchOrder', { orderId: jobId, reason: reason });
+    closeModal();
+    showToast('ส่งต่องานแล้ว กำลังหาไรเดอร์คนใหม่');
+    renderJobs();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    showToast(riderFirebaseErrorText(err, 'หาไรเดอร์ใหม่ไม่สำเร็จ'), 'error');
+  }
+}
+
+function openRiderEndJob(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job || job.riderId !== currentUser?.uid) return;
+  const localGoods = job.type === 'shopping' || (job.type === 'food' && job.partnerShop !== true);
+  const presets = job.type === 'ride'
+    ? ['ลูกค้าไม่ขึ้นรถ']
+    : (job.type === 'express'
+      ? ['ลูกค้าไม่รับของ', 'ติดต่อลูกค้าไม่ได้']
+      : (localGoods
+        ? (riderBeforeCutoff(job) ? ['ของหมด', 'ซื้อไม่ได้'] : ['ของหมด', 'ซื้อไม่ได้', 'รถเสีย', 'อุบัติเหตุ'])
+        : ['ติดต่อลูกค้าไม่ได้', 'ลูกค้าไม่รับของ']));
+  const extra = job.type === 'express' && job.customerOrderConfirmed === true
+    ? '<label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-weight:800"><input type="checkbox" id="express-returned"> ยืนยันว่านำของคืนผู้ส่งแล้ว</label>'
+    : '';
+  riderReasonSheet('จบงาน', 'งานนี้จะถูกยกเลิก และแจ้งลูกค้าในแชท', presets, extra);
+  const btn = $('rider-reason-confirm');
+  if (btn) btn.onclick = () => submitRiderEndJob(jobId);
+}
+
+async function submitRiderEndJob(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  const reason = selectedRiderReason();
+  if (!job || !reason || reason.length > 300) return showToast('เลือกหรือพิมพ์เหตุผล', 'warning');
+  if (job.type === 'express' && job.customerOrderConfirmed === true && !$('express-returned')?.checked) {
+    return showToast('ยืนยันว่านำของคืนผู้ส่งแล้ว', 'warning');
+  }
+  const btn = $('rider-reason-confirm');
+  if (btn) btn.disabled = true;
+  const patch = {
+    status: 'cancelled',
+    cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+    cancelledBy: 'rider',
+    cancelReason: reason,
+    refundDue: riderRefundDue(job)
+  };
+  if (job.type === 'express' && job.customerOrderConfirmed === true) {
+    patch.expressReturnedAt = firebase.firestore.FieldValue.serverTimestamp();
+  }
+  try {
+    try {
+      const chatRef = db.collection('chats').doc(jobId);
+      await chatRef.collection('messages').add({
+        text: '❌ ไรเดอร์จบงาน\n📝 เหตุผล: ' + reason,
+        senderId: currentUser.uid,
+        senderRole: 'rider',
+        senderName: (riderProfile && riderProfile.name) || 'ไรเดอร์',
+        systemMessage: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (chatErr) {}
+    await db.collection('orders').doc(jobId).update(patch);
+    closeModal();
+    showToast('จบงานแล้ว');
+    renderJobs();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    showToast(riderFirebaseErrorText(err, 'จบงานไม่สำเร็จ'), 'error');
   }
 }
 
@@ -3249,7 +3407,8 @@ async function cancelJobAfterTimeout(jobId) {
       status: 'cancelled',
       cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
       cancelledBy: 'rider',
-      cancelReason: 'ลูกค้าไม่โอนเงินภายใน 15 นาที'
+      cancelReason: 'ลูกค้าไม่โอนเงินภายใน 15 นาที',
+      refundDue: riderRefundDue(allJobs.find(j => j.id === jobId) || {})
     });
 
     try {
@@ -4574,6 +4733,8 @@ function renderChatGuide(job) {
       actions.push(`<button type="button" class="chat-guide-btn" data-deliver="${esc(job.id)}">✅ ส่งถึงปลายทาง / จบงาน</button>`);
     }
   }
+  const exit = riderExitButtons(job);
+  if (exit) actions.push(exit);
   box.innerHTML = actions.length
     ? `<div class="chat-guide-title">การดำเนินการออเดอร์อยู่ในแชท</div>${actions.join('')}`
     : '<div class="chat-guide-title">💬 ข้อมูลยอดเงินและหลักฐานอยู่ในข้อความแชท</div>';

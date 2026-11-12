@@ -1006,8 +1006,9 @@ function renderOrderCard(o) {
       <button type="button" class="order-btn btn-reject ripple" onclick="openStockIssue('${esc(o.id)}')">วัตถุดิบหมด</button>
     </div>`;
   } else if (waiting) {
-    actions = `<div class="order-actions">
-      <button class="order-btn btn-gray ripple" onclick="viewOrderDetail('${esc(o.id)}')">📋 รอดำเนินการ</button>
+    actions = `<div class="order-actions two">
+      <button type="button" class="order-btn btn-reject ripple" onclick="openStockIssue('${esc(o.id)}')">วัตถุดิบหมด</button>
+      <button type="button" class="order-btn btn-reject ripple" onclick="openShopCancel('${esc(o.id)}')">ยกเลิกออเดอร์</button>
     </div>`;
   } else if (!finished) {
     actions = `<div class="order-actions">
@@ -1149,7 +1150,9 @@ async function acceptOrder(orderId, prepMinutes) {
 
 function openStockIssue(orderId) {
   const order = allOrders.find(x => x.id === orderId);
-  if (!order || shopHistory(order) || shopWaitingPickup(order)) return showToast('แจ้งหมดได้ก่อนอาหารพร้อม', 'info');
+  if (!order || shopHistory(order) || ['picked_up', 'customer_paid', 'on_the_way'].includes(order.status)) {
+    return showToast('แจ้งหมดได้ก่อนไรเดอร์รับของ', 'info');
+  }
   stockOrderId = orderId;
   const box = $('stock-items');
   if (box) {
@@ -1204,68 +1207,108 @@ async function readyOrder(orderId) {
   } catch (err) { showToast('ไม่สำเร็จ', 'error'); }
 }
 
-async function cancelOrder(orderId) {
+const SHOP_CANCEL_REASONS = ['วัตถุดิบหมด', 'ร้านปิดฉุกเฉิน', 'ครัวเต็ม', 'ทำไม่ทัน'];
+let shopCancelOrderId = null;
+let shopCancelChoice = '';
+
+function shopRefundDue(order) {
+  if (!order || !order.customerPaidAt || order.paymentMode === 'cash') return 0;
+  const total = Number(order.total);
+  return Number.isFinite(total) && total > 0 ? total : 0;
+}
+
+function openShopCancel(orderId) {
   const order = allOrders.find(x => x.id === orderId);
-  if (!order) return showToast('ไม่พบออเดอร์', 'error');
+  if (!order || shopHistory(order)) return showToast('ยกเลิกได้ก่อนไรเดอร์รับของ', 'info');
+  shopCancelOrderId = orderId;
+  shopCancelChoice = '';
+  const box = $('shop-cancel-reasons');
+  if (box) {
+    box.innerHTML = SHOP_CANCEL_REASONS.concat(['อื่น']).map(reason =>
+      `<button type="button" class="order-btn btn-gray ripple" style="width:100%;margin-top:8px;min-height:48px" onclick="chooseShopCancelReason('${reason}')">${reason}</button>`
+    ).join('');
+  }
+  if ($('shop-cancel-other')) $('shop-cancel-other').value = '';
+  if ($('shop-cancel-other-wrap')) $('shop-cancel-other-wrap').style.display = 'none';
+  $('cancel-reason-modal')?.classList.add('show');
+}
 
-  const reason = prompt('เหตุผลที่ยกเลิก:\n(เช่น วัตถุดิบหมด, ปิดร้าน, ครัวเต็ม)');
-  if (reason === null) return;
+function chooseShopCancelReason(reason) {
+  shopCancelChoice = reason;
+  document.querySelectorAll('#shop-cancel-reasons button').forEach(btn => {
+    btn.style.outline = btn.textContent === reason ? '3px solid #168A45' : '';
+  });
+  if ($('shop-cancel-other-wrap')) $('shop-cancel-other-wrap').style.display = reason === 'อื่น' ? 'block' : 'none';
+}
 
+function closeShopCancel() {
+  $('cancel-reason-modal')?.classList.remove('show');
+  shopCancelOrderId = null;
+  shopCancelChoice = '';
+}
+
+function cancelOrder(orderId) {
+  openShopCancel(orderId);
+}
+
+async function submitShopCancel() {
+  const orderId = shopCancelOrderId;
+  const order = allOrders.find(x => x.id === orderId);
+  if (!order) return closeShopCancel();
+  let reason = shopCancelChoice === 'อื่น'
+    ? String($('shop-cancel-other')?.value || '').trim()
+    : shopCancelChoice;
+  if (!reason || reason.length > 300) return showToast('เลือกหรือพิมพ์เหตุผล', 'warning');
+  const btn = $('shop-cancel-confirm');
+  if (btn) btn.disabled = true;
+  const cancelMessage = `❌ ร้านค้ายกเลิกออเดอร์\n📝 เหตุผล: ${reason}\n\nขออภัยในความไม่สะดวก 🙏`;
   try {
+    const chatRef = db.collection('chats').doc(shopChatId(orderId));
+    const chatSnap = await chatRef.get();
+    if (!chatSnap.exists) {
+      await chatRef.set({
+        orderId: orderId,
+        userId: order.userId || '',
+        userName: customerLabel(order),
+        thread: 'shop',
+        riderId: '',
+        riderName: '',
+        merchantId: currentUser.uid,
+        merchantName: merchantProfile.name,
+        lastMessage: '',
+        lastSenderId: '',
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    await chatRef.collection('messages').add({
+      text: cancelMessage,
+      senderId: currentUser.uid,
+      senderRole: 'merchant',
+      senderName: merchantProfile.name,
+      systemMessage: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await chatRef.update({
+      lastMessage: '❌ ยกเลิก: ' + reason,
+      lastSenderId: currentUser.uid,
+      lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     await db.collection('orders').doc(orderId).update({
       status: 'cancelled',
       cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
       cancelledBy: 'merchant',
-      cancelReason: reason || 'ร้านค้ายกเลิก'
+      cancelReason: reason,
+      refundDue: shopRefundDue(order)
     });
-
-    /* แจ้งลูกค้าใน chat */
-    try {
-      const chatRef = db.collection('chats').doc(shopChatId(orderId));
-      const chatSnap = await chatRef.get();
-
-      if (!chatSnap.exists) {
-        await chatRef.set({
-          orderId: orderId,
-          userId: order.userId || '',
-          userName: customerLabel(order),
-          thread: 'shop',
-          riderId: '',
-          riderName: '',
-          merchantId: currentUser.uid,
-          merchantName: merchantProfile.name,
-          lastMessage: '',
-          lastSenderId: '',
-          lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      }
-
-      const cancelMessage = `❌ ร้านค้ายกเลิกออเดอร์\n📝 เหตุผล: ${reason || 'ร้านค้ายกเลิก'}\n\nขออภัยในความไม่สะดวก 🙏`;
-
-      await db.collection('chats').doc(shopChatId(orderId)).collection('messages').add({
-        text: cancelMessage,
-        senderId: currentUser.uid,
-        senderRole: 'merchant',
-        senderName: merchantProfile.name,
-        systemMessage: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      await db.collection('chats').doc(shopChatId(orderId)).update({
-        lastMessage: '❌ ยกเลิก: ' + (reason || 'ร้านค้ายกเลิก'),
-        lastSenderId: currentUser.uid,
-        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    } catch (chatErr) {
-      console.warn('Cancel message failed:', chatErr.message);
-    }
-
     stopOrderLoop();
+    closeShopCancel();
     showToast('❌ ยกเลิกออเดอร์ + แจ้งลูกค้าแล้ว');
   } catch (err) {
     console.error('cancelOrder error:', err);
     showToast(merchantFirebaseErrorText(err, 'ทำรายการไม่สำเร็จ'), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 

@@ -735,12 +735,106 @@ service cloud.firestore {
     // function still expands the whole state machine in the Rules evaluator;
     // transition-level functions prevent unrelated negative writes from
     // crossing the 1,000-expression limit.
+    function transferWasPaid() {
+      return resource.data.get('customerPaidAt', null) != null
+        && resource.data.get('paymentMode', '') != 'cash';
+    }
+
+    function cancelRefundOk() {
+      return request.resource.data.get('refundDue', 0) is number
+        && request.resource.data.get('refundDue', 0) == (
+          transferWasPaid() ? resource.data.get('total', 0) : 0
+        );
+    }
+
+    function cancelMoneyOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'fare', 'total', 'foodTotal', 'itemsTotal', 'subtotal', 'netTotal',
+        'discountTotal', 'cashTip', 'items', 'riderIncome', 'riderOwe',
+        'riderPaid', 'gpTotal', 'gpRider', 'gpPlatform', 'chargedTotal',
+        'riderPayoutPaid', 'riderPayoutPaidAt', 'riderPayoutId', 'riderPayoutBy',
+        'partnerShop', 'shopDisclaimerAccepted'
+      ]) && cancelRefundOk();
+    }
+
+    function goodsAlreadyBought() {
+      return (
+        resource.data.get('foodImage', '') is string
+        && resource.data.get('foodImage', '').size() > 0
+      ) || (
+        resource.data.get('shopBillUrl', '') is string
+        && resource.data.get('shopBillUrl', '').size() > 0
+      ) || (
+        resource.data.get('riderSlipToShop', '') is string
+        && resource.data.get('riderSlipToShop', '').size() > 0
+      );
+    }
+
+    function customerMayCancel() {
+      return (
+        resource.data.get('type', '') == 'express'
+        && resource.data.get('customerOrderConfirmed', false) != true
+        && resource.data.status in ['searching', 'pending', 'accepted', 'picked_up']
+      ) || (
+        resource.data.status in ['searching', 'pending', 'cooking', 'ready', 'accepted']
+        && (
+          (resource.data.get('type', '') == 'food' && resource.data.get('partnerShop', false) == true)
+          || resource.data.get('type', '') == 'ride'
+        )
+      ) || (
+        resource.data.status in ['searching', 'pending', 'cooking', 'ready', 'accepted', 'picked_up']
+        && (
+          resource.data.get('type', '') == 'shopping'
+          || (resource.data.get('type', '') == 'food' && resource.data.get('partnerShop', false) != true)
+        )
+        && !goodsAlreadyBought()
+      );
+    }
+
+    function riderMayFullyCancel() {
+      return (
+        resource.data.status in ['picked_up', 'customer_paid', 'on_the_way']
+        && (
+          (resource.data.get('type', '') == 'food' && resource.data.get('partnerShop', false) == true)
+          || resource.data.get('type', '') == 'ride'
+          || (
+            resource.data.get('type', '') == 'express'
+            && resource.data.get('customerOrderConfirmed', false) == true
+            && request.resource.data.expressReturnedAt is timestamp
+          )
+          || (
+            (
+              resource.data.get('type', '') == 'shopping'
+              || (resource.data.get('type', '') == 'food' && resource.data.get('partnerShop', false) != true)
+            )
+            && (
+              goodsAlreadyBought()
+              || request.resource.data.cancelReason == 'ของหมด'
+              || request.resource.data.cancelReason == 'ซื้อไม่ได้'
+            )
+          )
+        )
+      ) || (
+        resource.data.status in ['searching', 'pending', 'cooking', 'ready', 'accepted']
+        && (
+          resource.data.get('type', '') == 'shopping'
+          || (resource.data.get('type', '') == 'food' && resource.data.get('partnerShop', false) != true)
+        )
+        && (
+          request.resource.data.cancelReason == 'ของหมด'
+          || request.resource.data.cancelReason == 'ซื้อไม่ได้'
+        )
+      );
+    }
+
     function customerCancelOk() {
-      return moneyFrozen() && isOrderCustomer()
-        && resource.data.status in ['searching', 'pending']
+      return cancelMoneyOk() && isOrderCustomer()
+        && customerMayCancel()
         && request.resource.data.status == 'cancelled'
         && cancelFieldsOk('customer')
-        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'refundDue']);
     }
 
     function customerConfirmOk() {
@@ -912,13 +1006,13 @@ service cloud.firestore {
     }
 
     function riderCancelOk() {
-      return moneyFrozen() && isAssignedRider()
-        && resource.data.status in ['accepted', 'picked_up', 'customer_paid', 'on_the_way']
+      return cancelMoneyOk() && isAssignedRider()
+        && riderMayFullyCancel()
         && request.resource.data.status == 'cancelled'
         && cancelFieldsOk('rider')
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'refundDue', 'expressReturnedAt']);
     }
 
     function riderNearCustomerOk() {
@@ -986,13 +1080,15 @@ service cloud.firestore {
     }
 
     function merchantCancelOk() {
-      return moneyFrozen() && isOrderMerchant()
-        && resource.data.status in ['searching', 'pending', 'cooking']
+      return cancelMoneyOk() && isOrderMerchant()
+        && resource.data.get('type', '') == 'food'
+        && resource.data.get('partnerShop', false) == true
+        && resource.data.status in ['searching', 'pending', 'cooking', 'ready', 'accepted']
         && request.resource.data.status == 'cancelled'
         && cancelFieldsOk('merchant')
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason']);
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'refundDue']);
     }
 
     function merchantStockIssueOk() {
@@ -1054,9 +1150,10 @@ service cloud.firestore {
         && resource.data.stockIssue.status == 'pending'
         && request.resource.data.stockIssue.status == 'cancelled'
         && cancelFieldsOk('customer')
+        && cancelRefundOk()
         && identityFrozen()
         && unchanged('riderId')
-        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'stockIssue']);
+        && onlyChanged(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'stockIssue', 'refundDue']);
     }
 
     function merchantReadyOk() {
@@ -1085,7 +1182,7 @@ service cloud.firestore {
     function orderUpdateAllowed(orderId) {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return (moneyFrozen() && isAdmin() && identityFrozen())
-        || (changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason'])
+        || (changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'refundDue', 'expressReturnedAt'])
           ? (customerCancelOk() || riderCancelOk() || merchantCancelOk())
           : changed.hasOnly(['customerOrderConfirmed', 'customerOrderConfirmedAt', 'foodDeliveryStage'])
             ? customerConfirmOk()
@@ -1131,7 +1228,7 @@ service cloud.firestore {
                                     ? merchantStockIssueOk()
                                     : changed.hasOnly(['items', 'itemsText', 'foodTotal', 'itemsTotal', 'total', 'refundDue', 'stockIssue'])
                                       ? customerStockChoiceOk()
-                                      : changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'stockIssue'])
+                                      : changed.hasOnly(['status', 'cancelledAt', 'cancelledBy', 'cancelReason', 'stockIssue', 'refundDue'])
                                         ? customerStockCancelOk()
                                         : false);
     }

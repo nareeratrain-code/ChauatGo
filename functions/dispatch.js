@@ -639,7 +639,9 @@ async function broadcastOrder(db, orderId, cfg) {
       held[id] = data.status || 'pending';
     }
   });
+  const releasedRiderId = String(preData.lastReleasedRiderId || '');
   const fresh = riders.filter((r) => {
+    if (releasedRiderId && r.riderId === releasedRiderId) return false;
     const status = held[r.riderId];
     return status !== 'pending' && status !== 'skipped' && status !== 'accepted';
   });
@@ -870,6 +872,7 @@ async function claimOpenJob(db, uid, orderId) {
       const rider = riderSnap.data() || {};
       if (rider.verified !== true) throw new Error('unverified');
       if (order.riderId) throw new Error('taken');
+      if (order.lastReleasedRiderId && order.lastReleasedRiderId === uid) throw new Error('released');
       if (TERMINAL.indexOf(order.status) !== -1) throw new Error('closed');
       if (needsKitchen(order)) {
         if (!shopAccepted(order)) throw new Error('shop');
@@ -1210,6 +1213,22 @@ function holdsJobSlot(order) {
 async function onOrderWritten(db, before, after, orderId) {
   if (after && after.status === 'cancelled' && (!before || before.status !== 'cancelled')) {
     await closePendingOffers(db, db.collection('orders').doc(orderId), 'cancelled');
+    const reason = String(after.cancelReason || '').slice(0, 140);
+    const label = (after.code || orderId) + (reason ? ' • ' + reason : '');
+    if (before && before.riderId && after.cancelledBy !== 'rider') {
+      await notifyRider(db, before.riderId, {
+        title: 'ออเดอร์ถูกยกเลิก',
+        body: label,
+        data: { type: 'cancelled', orderId: orderId }
+      });
+    }
+    if (before && before.userId && after.cancelledBy !== 'customer') {
+      await notifyCustomer(db, before.userId, {
+        title: 'ออเดอร์ถูกยกเลิก',
+        body: label,
+        data: { type: 'cancelled', orderId: orderId }
+      });
+    }
   }
   const beforeHolds = holdsJobSlot(before);
   const afterSameRider = after && before && after.riderId === before.riderId && holdsJobSlot(after);
@@ -1511,6 +1530,7 @@ module.exports = {
   claimOpenJob,
   manualAssign,
   releaseRiderJob,
+  closePendingOffers,
   reconcileRiderJobs,
   reconcileBusyRiders,
   ensureAssigned,
