@@ -1184,6 +1184,45 @@ async function submitStockIssue() {
     await db.collection('orders').doc(order.id).update({
       stockIssue: { status: 'pending', items: items, note: note }
     });
+    const names = items.map(item => item.name).filter(Boolean).join(', ');
+    const stockText = 'วัตถุดิบหมด: ' + names + (note ? '\n' + note : '') + '\nเลือกเมนูใหม่ เอาออก หรือยกเลิกออเดอร์ได้จากปุ่มด้านล่าง';
+    try {
+      const chatRef = db.collection('chats').doc(shopChatId(order.id));
+      const chatSnap = await chatRef.get();
+      if (!chatSnap.exists) {
+        await chatRef.set({
+          orderId: order.id,
+          thread: 'shop',
+          userId: order.userId || '',
+          userName: customerLabel(order),
+          riderId: '',
+          riderName: '',
+          merchantId: currentUser.uid,
+          merchantName: (merchantProfile && merchantProfile.name) || '',
+          lastMessage: stockText.slice(0, 140),
+          lastSenderId: currentUser.uid,
+          lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      await chatRef.collection('messages').add({
+        text: stockText,
+        senderId: currentUser.uid,
+        senderRole: 'merchant',
+        senderName: (merchantProfile && merchantProfile.name) || 'ร้าน',
+        systemMessage: true,
+        automated: true,
+        automationKey: 'stock_issue',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await chatRef.update({
+        lastMessage: stockText.slice(0, 140),
+        lastSenderId: currentUser.uid,
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (chatErr) {
+      console.warn('stock chat', chatErr && chatErr.message);
+    }
     showToast('แจ้งลูกค้าแล้ว');
     closeStockIssue();
   } catch (err) {

@@ -2022,7 +2022,7 @@ function renderJobCard(j, type) {
   } else {
     primaryAction = `<button class="jc-primary-btn jc-gray" disabled>⏳ รอสถานะ</button>`;
   }
-  primaryAction += riderExitButtons(j);
+  const exitActions = riderExitButtons(j);
   return `
     <div class="jc-card ${isNew ? 'jc-new' : ''}" data-card-id="${esc(j.id)}">
       <div class="jc-header">
@@ -2051,6 +2051,7 @@ function renderJobCard(j, type) {
       <div class="jc-actions">
         ${primaryAction}
       </div>
+      ${exitActions ? `<div class="jc-exit-row">${exitActions}</div>` : ''}
     </div>`;
 }
 
@@ -2302,13 +2303,13 @@ function riderExitButtons(j) {
   if (['done', 'delivered', 'cancelled', 'shop_closed'].includes(j.status)) return '';
   let html = '';
   if (riderBeforeCutoff(j)) {
-    html += `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="openRiderRelease('${esc(j.id)}')">ขอไรเดอร์คนใหม่</button>`;
+    html += `<button type="button" class="jc-exit-btn" onclick="openRiderRelease('${esc(j.id)}')">ขอไรเดอร์คนใหม่</button>`;
   }
   const localGoods = j.type === 'shopping' || (j.type === 'food' && j.partnerShop !== true);
   if (localGoods) {
-    html += `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="openRiderEndJob('${esc(j.id)}')">ของหมด / ซื้อไม่ได้</button>`;
+    html += `<button type="button" class="jc-exit-btn" onclick="openRiderEndJob('${esc(j.id)}')">ของหมด / ซื้อไม่ได้</button>`;
   } else if (!riderBeforeCutoff(j)) {
-    html += `<button type="button" class="jc-secondary-btn" style="width:100%;margin-top:8px;min-height:48px" onclick="openRiderEndJob('${esc(j.id)}')">จบงาน</button>`;
+    html += `<button type="button" class="jc-exit-btn" onclick="openRiderEndJob('${esc(j.id)}')">จบงาน</button>`;
   }
   return html;
 }

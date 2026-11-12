@@ -601,6 +601,8 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 #chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 9600; display: none; flex-direction: column; }
 #chat-express-actions { display: flex; gap: 8px; padding: 8px 12px 0; background: var(--surface, #fff); }
 #chat-express-actions[hidden] { display: none; }
+.swap-menu-btn { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 64px; margin-top: 8px; padding: 8px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 800; font-family: inherit; text-align: left; }
+.swap-menu-btn img { width: 52px; height: 52px; object-fit: cover; border-radius: 10px; flex: 0 0 auto; background: var(--surface-2); }
 .chat-express-btn { flex: 1; min-height: 42px; border: 0; border-radius: 12px; background: linear-gradient(135deg,#00A651,#008C45); color: #fff; font-weight: 900; font-family: inherit; }
 #chat-page.show { display: flex !important; }
 .chat-header { background: var(--header-grad); color: #fff; padding: 14px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); flex-shrink: 0; }
@@ -1465,6 +1467,15 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="vehicle-option" data-vehicle="van" data-price="120" onclick="selectVehicle(this)"><div class="vehicle-icon">🚐</div><div class="vehicle-info"><div class="vehicle-name">รถตู้</div><div class="vehicle-desc">฿120 + ฿15/กม.</div></div><div><div class="vehicle-price-num">฿120</div></div></div>
     </div>
     <button class="btn-full btn-gray press-scale" onclick="closeVehicleModal()" style="margin-top:16px">ยกเลิก</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="swap-menu-modal" onclick="if(event.target===this)closeSwapMenu()">
+  <div class="modal-content" style="max-width:440px;text-align:left">
+    <h2 style="font-size:20px;font-weight:900;margin-bottom:6px">เลือกเมนูใหม่</h2>
+    <p style="color:var(--text-muted);font-size:13px;font-weight:700;margin-bottom:10px">แตะเมนูที่จะใช้แทนของที่หมด ในออเดอร์เดิม</p>
+    <div id="swap-menu-list"></div>
+    <button type="button" class="btn-full btn-gray press-scale" style="margin-top:12px" onclick="closeSwapMenu()">ปิด</button>
   </div>
 </div>
 
@@ -5634,22 +5645,50 @@ async function writeStockChoice(order, status, replacement) {
   });
   showToast(money.refundDue > 0 ? 'ปรับรายการแล้ว • ต้องคืนเงิน ฿' + fmt(money.refundDue) : 'ปรับรายการแล้ว');
 }
+var swapMenuOrderId = '';
+var swapMenuChoices = [];
+function closeSwapMenu() {
+  if ($('swap-menu-modal')) $('swap-menu-modal').classList.remove('show');
+  swapMenuOrderId = '';
+  swapMenuChoices = [];
+}
+function menuAvailableForSwap(menu, missingNames) {
+  if (!menu || !menu.name) return false;
+  if ((menu.status || 'available') !== 'available') return false;
+  return missingNames.indexOf(String(menu.name)) === -1;
+}
 window.swapStockItem = async function(orderId) {
   var order = cachedOrder(orderId);
   if (!order || !order.stockIssue || order.stockIssue.status !== 'pending') return showToast('ไม่มีรายการที่หมด', 'info');
+  var missing = (order.stockIssue.items || []).map(function(item){ return String(item.name || ''); });
   var snap = await db.collection('menus').where('merchantId', '==', order.merchantId).get();
   var menus = [];
   snap.forEach(function(doc){
     var menu = doc.data() || {};
-    if ((menu.status || 'available') === 'available' && menu.name) menus.push(menu);
+    if (menuAvailableForSwap(menu, missing)) menus.push(menu);
   });
   if (!menus.length) return showToast('ร้านไม่มีเมนูให้เปลี่ยน', 'warning');
-  var typed = prompt('พิมพ์ชื่อเมนูที่จะเปลี่ยน\n' + menus.map(function(menu){ return menu.name + ' ฿' + menu.price; }).join('\n'));
-  if (!typed) return;
-  var pick = menus.filter(function(menu){ return menu.name === typed.trim(); })[0];
-  if (!pick) return showToast('ไม่พบเมนูนี้', 'error');
-  try { await writeStockChoice(order, 'swapped', pick); }
-  catch (err) { showToast('เปลี่ยนเมนูไม่สำเร็จ', 'error'); }
+  swapMenuOrderId = orderId;
+  swapMenuChoices = menus;
+  var box = $('swap-menu-list');
+  if (box) {
+    box.innerHTML = menus.map(function(menu, index){
+      var photo = menu.image || menu.imageUrl || '';
+      var img = photo ? '<img src="' + esc(photo) + '" alt="">' : '<span style="width:52px;height:52px;border-radius:10px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto">🍽️</span>';
+      return '<button type="button" class="swap-menu-btn" onclick="chooseSwapMenu(' + index + ')">' + img +
+        '<span><b>' + esc(menu.name) + '</b><br><span style="color:var(--text-muted)">฿' + fmt(menu.price) + '</span></span></button>';
+    }).join('');
+  }
+  if ($('swap-menu-modal')) $('swap-menu-modal').classList.add('show');
+};
+window.chooseSwapMenu = async function(index) {
+  var order = cachedOrder(swapMenuOrderId);
+  var menu = swapMenuChoices[index];
+  if (!order || !menu) return closeSwapMenu();
+  try {
+    await writeStockChoice(order, 'swapped', { name: menu.name, price: Number(menu.price) || 0 });
+    closeSwapMenu();
+  } catch (err) { showToast('เปลี่ยนเมนูไม่สำเร็จ', 'error'); }
 };
 window.removeStockItems = async function(orderId) {
   var order = cachedOrder(orderId);
@@ -5825,6 +5864,11 @@ function subscribeChatMessages(chatId) {
         }
         if (live && live.userId === currentUser.uid && live.customerSlipUrl && !live.customerPaidAt && live.paymentMode !== 'cash' && (m.automationKey === 'customer_slip_uploaded' || m.automationKey === 'food_payment' || m.automationKey === 'food_photo_confirmed' || m.automationKey === 'goods_ready')) {
           action = '<button type="button" class="customer-payment-btn green" onclick="confirmCustomerPaid(\'' + esc(orderId) + '\')">💳 ยืนยันว่าโอนแล้ว</button>';
+        }
+        if (m.automationKey === 'stock_issue' && String(chatId).slice(-6) === '__shop' && live && live.stockIssue && live.stockIssue.status === 'pending') {
+          action = '<button type="button" class="customer-payment-btn" onclick="swapStockItem(\'' + esc(orderId) + '\')">เลือกเมนูใหม่</button>' +
+            '<button type="button" class="customer-payment-btn" onclick="removeStockItems(\'' + esc(orderId) + '\')">เอาออก</button>' +
+            '<button type="button" class="customer-payment-btn" onclick="cancelStockOrder(\'' + esc(orderId) + '\')">ยกเลิกออเดอร์</button>';
         }
         html += '<div class="chat-bubble ' + (mine ? 'mine' : 'theirs') + '" style="' + sysStyle + '">' +
           img + (displayText ? '<div style="white-space:pre-wrap">' + esc(displayText) + '</div>' : '') +
