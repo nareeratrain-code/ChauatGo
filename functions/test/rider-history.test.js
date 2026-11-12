@@ -37,7 +37,8 @@ test('rider history summary has no customer name, phone, address, or coordinates
     riderIncome: 29,
     riderOwe: 6,
     distanceKm: 2.4,
-    customerSlipUrl: 'https://example.com/slip.jpg'
+    customerSlipUrl: 'https://example.com/slip.jpg',
+    doneAt: new Date('2026-01-02T03:04:05.000Z')
   });
   const text = JSON.stringify(summary);
   assert.equal(text.includes('0812345678'), false);

@@ -405,6 +405,14 @@ async function completeOrder(db, uid, orderId) {
       err.code = 'failed-precondition';
       throw err;
     }
+    if (order.type === 'express') {
+      const gate = require('./express-gates').expressMayFinish(order);
+      if (!gate.ok) {
+        const err = new Error(gate.reason || 'งานส่งด่วนยังไม่ครบ');
+        err.code = 'failed-precondition';
+        throw err;
+      }
+    }
     let merchant = null;
     if (order.type === 'food' && order.merchantId) {
       const merchantRef = db.collection('merchants').doc(order.merchantId);

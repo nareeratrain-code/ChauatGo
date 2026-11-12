@@ -1810,8 +1810,32 @@ body {
   border: 0;
 }
 #app .hero-grid-cell.warn .lbl,
-#app .hero-grid-cell.warn .val {
+#app .hero-grid-cell.warn .val,
+#remit-countdown {
   color: #fff;
+  text-shadow: none;
+}
+#remit-countdown { font-size: 11px; font-weight: 800; line-height: 1.3; margin-top: 2px; }
+[data-theme="dark"] .remit-lock { background: #3A2424; color: #FFD6D6; }
+.remit-dash-btn {
+  width: 100%;
+  margin-top: 8px;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.7);
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  font-weight: 900;
+  font-family: inherit;
+}
+.remit-lock {
+  margin-top: 8px;
+  background: #fff;
+  color: #8A2B2B;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
 }
 #job-filter-bar {
   display: grid !important;

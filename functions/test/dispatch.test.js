@@ -1109,7 +1109,21 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
         merchantId: 'shop1', merchantName: 'ร้านทดสอบ', status: 'pending', amount: 20,
         slipPath: 'gp_slips/shop1/extra.jpg', slipUrl: 'https://example.com/slip.jpg',
         note: '', roundLabel: 'ตุลาคม 2026', createdAt: new Date(), verified: true
-      }))]
+      }))],
+      ['locked rider cannot go online or clear the lock', async () => {
+        await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+          await ctx.firestore().collection('riders').doc('rider1').update({
+            onlineLockedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            onlineLockReason: 'remit'
+          });
+        });
+        await assertFails(rdb.collection('riders').doc('rider1').update({ status: 'active' }));
+        await assertFails(rdb.collection('riders').doc('rider1').update({
+          onlineLockedUntil: null,
+          onlineLockReason: ''
+        }));
+        await assertSucceeds(rdb.collection('riders').doc('rider1').update({ status: 'inactive' }));
+      }]
     ];
     for (const [name, run] of checks) {
       try {
@@ -1201,7 +1215,12 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       });
       await root.collection('orders').doc('express-hand').set({
         type: 'express', status: 'picked_up', userId: 'cust1', merchantId: '', riderId: 'rider1',
-        paymentMode: 'cash', code: 'OD-EXP'
+        paymentMode: 'cash', code: 'OD-EXP', foodImage: 'https://example.com/parcel.jpg',
+        customerOrderConfirmed: true
+      });
+      await root.collection('orders').doc('express-wait').set({
+        type: 'express', status: 'picked_up', userId: 'cust1', merchantId: '', riderId: 'rider1',
+        paymentMode: 'transfer', code: 'OD-WAITX'
       });
       await root.collection('chats').doc('chat-listed').set({
         orderId: 'chat-listed', userId: 'cust1', riderId: 'rider1', merchantId: 'shop1'
@@ -1319,9 +1338,38 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
           status: 'on_the_way',
           onTheWayAt: serverTimestamp()
         }));
+        await assertFails(rdb.collection('orders').doc('express-wait').update({
+          status: 'on_the_way',
+          onTheWayAt: serverTimestamp()
+        }));
+        await assertFails(cdb.collection('orders').doc('express-wait').update({
+          customerOrderConfirmed: true,
+          customerOrderConfirmedAt: serverTimestamp(),
+          foodDeliveryStage: 'customer_confirmed'
+        }));
+        await assertSucceeds(rdb.collection('orders').doc('express-wait').update({
+          foodImage: 'https://example.com/parcel.jpg',
+          foodImagePath: 'orders/express-wait/riders/rider1/pickup_1.jpg'
+        }));
+        await assertSucceeds(cdb.collection('orders').doc('express-wait').update({
+          customerOrderConfirmed: true,
+          customerOrderConfirmedAt: serverTimestamp(),
+          foodDeliveryStage: 'customer_confirmed'
+        }));
         await assertSucceeds(rdb.collection('orders').doc('express-hand').update({
           status: 'on_the_way',
           onTheWayAt: serverTimestamp()
+        }));
+        await assertFails(cdb.collection('orders').doc('express-hand').update({
+          expressDropoffConfirmedAt: serverTimestamp()
+        }));
+        await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+          await ctx.firestore().collection('orders').doc('express-hand').update({
+            deliveryProofUrl: 'https://example.com/drop.jpg'
+          });
+        });
+        await assertSucceeds(cdb.collection('orders').doc('express-hand').update({
+          expressDropoffConfirmedAt: serverTimestamp()
         }));
       }],
       ['rider automated status note', () => assertSucceeds(rdb.collection('chats').doc('chat1').collection('messages').add(Object.assign(msg('rider1', 'rider', 'ใกล้ถึงแล้ว'), {

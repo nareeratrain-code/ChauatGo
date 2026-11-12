@@ -227,11 +227,17 @@
           <div class="lbl"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3l1.6 4.7H18.5l-3.9 2.9 1.5 4.7L12 12.6 7.9 15.3l1.5-4.7L5.5 7.7h4.9L12 3z"/></svg>ทิปเงินสด</div>
           <div class="val" id="hero-tip">฿0</div>
         </div>
-        <div class="hero-grid-cell warn">
+        <div class="hero-grid-cell warn" id="hero-owe-cell" onclick="showTransferApp()" role="button">
           <div class="lbl"><span>ต้องโอนก่อน</span><span>21:00</span></div>
           <div class="val" id="hero-owe">฿0.00</div>
+          <div id="remit-countdown"></div>
         </div>
       </div>
+      <div id="remit-panel">
+        <button type="button" class="remit-dash-btn" id="remit-dash-btn" hidden onclick="showTransferApp()">โอนให้ ChauatGo</button>
+        <button type="button" class="remit-dash-btn" onclick="openRiderSettlementChat()">💬 แชทแอดมิน</button>
+      </div>
+      <div id="remit-lock" class="remit-lock" hidden></div>
     </div>
 
     <div class="stats-mini">
@@ -327,12 +333,6 @@
     <div class="sheet-item" onclick="closeSheet();showFinance()">
       <div class="ico">💰</div>
       <div class="content"><div class="lbl">รายได้ & GP</div><div class="sub">สรุปยอดโอนร้าน + chauatgo</div></div>
-      <div class="arrow">›</div>
-    </div>
-
-    <div class="sheet-item" onclick="closeSheet();showTransferShop()">
-      <div class="ico">🏪</div>
-      <div class="content"><div class="lbl">โอนให้ร้านค้า</div><div class="sub">ดูยอดค้างโอน</div></div>
       <div class="arrow">›</div>
     </div>
 

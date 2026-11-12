@@ -599,6 +599,9 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .rate-btn { margin-top: 8px; padding: 8px 14px; border: none; border-radius: 10px; font-weight: 900; font-size: 12px; background: linear-gradient(135deg, #FFC107, #FFA000); color: #fff; cursor: pointer; font-family: inherit; }
 
 #chat-page { position: fixed; inset: 0; background: var(--bg); z-index: 9600; display: none; flex-direction: column; }
+#chat-express-actions { display: flex; gap: 8px; padding: 8px 12px 0; background: var(--surface, #fff); }
+#chat-express-actions[hidden] { display: none; }
+.chat-express-btn { flex: 1; min-height: 42px; border: 0; border-radius: 12px; background: linear-gradient(135deg,#00A651,#008C45); color: #fff; font-weight: 900; font-family: inherit; }
 #chat-page.show { display: flex !important; }
 .chat-header { background: var(--header-grad); color: #fff; padding: 14px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); flex-shrink: 0; }
 .chat-back-btn { background: rgba(255,255,255,.25); color: #fff; border: none; padding: 8px 12px; border-radius: 10px; font-weight: 900; font-family: inherit; font-size: 13px; cursor: pointer; min-height: 40px; }
@@ -1512,6 +1515,7 @@ select:focus-visible, [role="button"]:focus-visible {
   <div class="chat-messages" id="chat-messages">
     <div class="chat-empty">ยังไม่มีข้อความ</div>
   </div>
+  <div id="chat-express-actions" hidden></div>
   <div class="chat-input-bar">
     <button class="chat-img-btn press-scale" id="chat-img-btn" onclick="triggerChatImagePick()">📎</button>
     <input id="chat-input" type="text" placeholder="พิมพ์ข้อความ..." maxlength="1000"
@@ -4469,7 +4473,78 @@ window.reorderCompletedOrder = async function(orderId) {
 
 
 function expressTransferOwed(o) {
-  return !!(o && o.type === 'express' && o.paymentMode !== 'cash' && o.status === 'on_the_way' && !o.customerPaidAt);
+  return !!(o && o.type === 'express' && o.paymentMode !== 'cash' && o.status === 'on_the_way' && o.expressDropoffConfirmedAt && !o.customerPaidAt);
+}
+async function postExpressConfirmNote(orderId, text, imageUrl) {
+  try {
+    await ensureOrderChat(orderId, window._chatOrder || { id: orderId }, 'rider');
+    var body = {
+      text: text,
+      senderId: currentUser.uid,
+      senderRole: 'user',
+      senderName: (userProfile && userProfile.name) || currentUser.displayName || 'ลูกค้า',
+      systemMessage: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (imageUrl) { body.imageUrl = imageUrl; body.imagePath = ''; }
+    await db.collection('chats').doc(orderId).collection('messages').add(body);
+  } catch (e) {}
+}
+window.confirmExpressPickup = async function(orderId) {
+  if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
+  try {
+    await db.collection('orders').doc(orderId).update({
+      customerOrderConfirmed: true,
+      customerOrderConfirmedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      foodDeliveryStage: 'customer_confirmed'
+    });
+    await postExpressConfirmNote(orderId, '✅ ลูกค้ายืนยันรูปพัสดุแล้ว ไรเดอร์เริ่มนำส่งได้');
+    showToast('ยืนยันรูปพัสดุแล้ว');
+  } catch (e) { showToast('ยืนยันไม่สำเร็จ', 'error'); }
+};
+window.confirmExpressDropoff = async function(orderId) {
+  if (!currentUser) return showToast('กรุณาเข้าสู่ระบบ', 'warning');
+  try {
+    await db.collection('orders').doc(orderId).update({
+      expressDropoffConfirmedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    var snap = await db.collection('orders').doc(orderId).get();
+    var o = snap.exists ? Object.assign({ id: orderId }, snap.data()) : { id: orderId, paymentMode: 'transfer' };
+    var amount = Number(o.total || o.fare || 0);
+    var cash = o.paymentMode === 'cash';
+    await postExpressConfirmNote(orderId, cash
+      ? '✅ ลูกค้ายืนยันรับของแล้ว\nเตรียมเงินสด ฿' + fmt(amount) + ' ให้ไรเดอร์'
+      : '✅ ลูกค้ายืนยันรับของแล้ว\nยอดที่ต้องโอน ฿' + fmt(amount), cash ? '' : (o.riderQrCodeUrl || ''));
+    showToast(cash ? 'ยืนยันรับของแล้ว — จ่ายเงินสดกับไรเดอร์' : 'ยืนยันรับของแล้ว — โอนตาม QR แล้วแนบสลิป');
+    if (!cash) showOrderBill(orderId);
+  } catch (e) { showToast('ยืนยันไม่สำเร็จ', 'error'); }
+};
+function renderChatExpressBar(order, thread) {
+  var bar = $('chat-express-actions');
+  if (!bar) return;
+  var html = '';
+  if (order && thread === 'rider' && order.type === 'express') {
+    if (order.status === 'picked_up' && order.foodImage && !order.customerOrderConfirmed) {
+      html = '<button type="button" class="chat-express-btn" onclick="confirmExpressPickup(\'' + esc(order.id) + '\')">✅ ยืนยันรูปพัสดุ</button>';
+    } else if (order.status === 'on_the_way' && order.deliveryProofUrl && !order.expressDropoffConfirmedAt) {
+      html = '<button type="button" class="chat-express-btn" onclick="confirmExpressDropoff(\'' + esc(order.id) + '\')">✅ ยืนยันรับของ</button>';
+    } else if (expressTransferOwed(order)) {
+      html = '<button type="button" class="chat-express-btn" onclick="showOrderBill(\'' + esc(order.id) + '\')">💳 ดู QR ฿' + fmt(order.total || order.fare || 0) + '</button>' +
+        '<button type="button" class="chat-express-btn" onclick="' + expressTransferClick(order) + '">แนบสลิป</button>';
+    }
+  }
+  bar.hidden = !html;
+  bar.innerHTML = html;
+}
+function expressCustomerActions(o) {
+  if (!o || o.type !== 'express') return '';
+  if (o.status === 'picked_up' && o.foodImage && !o.customerOrderConfirmed) {
+    return '<button class="rate-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="confirmExpressPickup(\''+esc(o.id)+'\')">✅ ยืนยันรูปพัสดุ</button>';
+  }
+  if (o.status === 'on_the_way' && o.deliveryProofUrl && !o.expressDropoffConfirmedAt) {
+    return '<button class="rate-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="confirmExpressDropoff(\''+esc(o.id)+'\')">✅ ยืนยันรับของ</button>';
+  }
+  return '';
 }
 function expressTransferClick(o) {
   var ready = !!(o.customerSlipUrl && o.customerSlipStatus !== 'rejected');
@@ -4656,7 +4731,7 @@ function renderOrderCard(o){
       '<div class="order-track-copy">' +
         '<div class="order-track-title">'+esc(kindLabel)+'</div>' +
         codeHtml +
-        '<div class="order-track-sub">'+((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด' : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status)))))+'</div>' +
+        '<div class="order-track-sub">'+((o.riderId && (o.status==='searching' || o.status==='pending')) ? '🛵 ไรเดอร์รับงานแล้ว' : ((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด' : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status))))))+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
         (o.status === 'shop_closed' && o.customerNotice ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px;white-space:pre-wrap">'+esc(o.customerNotice)+'</div>' : '') +
         orderPrepNote(o) +
@@ -4670,6 +4745,7 @@ function renderOrderCard(o){
     '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">' +
       (o.merchantId && ['done','delivered','cancelled','shop_closed'].indexOf(o.status) === -1 ? '<button class="rate-btn customer-chat-btn" style="background:linear-gradient(135deg,#00A651,#008C45);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'shop\')">💬 แชทกับร้าน</button>' : '') +
       (canChat?'<button class="rate-btn customer-chat-btn" style="background:linear-gradient(135deg,#2196F3,#1976D2);margin:0" onclick="openChatPage(\''+esc(o.id)+'\',\'rider\')">💬 แชทกับไรเดอร์</button>':'') +
+      expressCustomerActions(o) +
       stockIssuePanel(o) +
       (canRate?'<button class="rate-btn" style="margin:0" onclick="openRatingModal(\''+esc(o.id)+'\')">⭐ ให้คะแนน</button>':'') +
       (canReorder?'<button class="rate-btn" style="background:linear-gradient(135deg,#FF6B35,#E65100);margin:0" onclick="reorderCompletedOrder(\''+esc(o.id)+'\')">🔁 สั่งซ้ำ</button>':'') +
@@ -5054,13 +5130,25 @@ function renderTrackingInfo(o){
     shop_closed:{icon:'🚫',title:'ร้านปิด',sub:'ชำระค่าบริการให้ไรเดอร์'}
   };
   var s = statusMap[o.status] || {icon:'📍',title:o.status,sub:''};
-  if (o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) {
+  if (o.riderId && (o.status === 'searching' || o.status === 'pending')) {
+    s = { icon: '🛵', title: 'ไรเดอร์รับงานแล้ว', sub: o.type === 'express' ? 'กำลังไปจุดรับพัสดุ' : 'กำลังเดินทางไปรับ' };
+  } else if (o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) {
     s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
   }
-  if (o.type === 'express' && o.status === 'on_the_way' && o.riderArrivedCustomerChatAt) {
+  if (o.type === 'express' && o.status === 'on_the_way' && o.expressDropoffConfirmedAt && o.paymentMode !== 'cash' && !o.customerPaidAt) {
+    s = { icon: '💳', title: 'ยืนยันรับของแล้ว', sub: 'โอนตาม QR แล้วแนบสลิป' };
+  } else if (o.type === 'express' && o.status === 'on_the_way' && o.deliveryProofUrl && !o.expressDropoffConfirmedAt) {
+    s = { icon: '📦', title: 'รอลูกค้ายืนยันรับของ', sub: 'ดูรูปในแชทกับไรเดอร์' };
+  } else if (o.type === 'express' && o.status === 'on_the_way' && o.riderArrivedCustomerChatAt) {
     s = { icon: '📍', title: 'ไรเดอร์ถึงปลายทางแล้ว', sub: 'กรุณาออกมารับพัสดุ — รอรูปยืนยันการส่ง' };
+  } else if (o.type === 'express' && o.status === 'picked_up' && !o.foodImage) {
+    s = { icon: '📦', title: 'ไรเดอร์ถึงจุดรับแล้ว', sub: 'รอรูปพัสดุในแชท' };
+  } else if (o.type === 'express' && o.status === 'picked_up' && !o.customerOrderConfirmed) {
+    s = { icon: '📦', title: 'รอลูกค้ายืนยัน', sub: 'กดยืนยันรูปพัสดุในแชท' };
   } else if (o.type === 'express' && o.status === 'picked_up') {
-    s = { icon: '📦', title: 'รับพัสดุแล้ว', sub: 'ไรเดอร์กำลังไปส่ง' };
+    s = { icon: '📦', title: 'ยืนยันรูปพัสดุแล้ว', sub: 'รอไรเดอร์เริ่มนำส่ง' };
+  } else if (o.type === 'express' && o.status === 'on_the_way') {
+    s = { icon: '🚀', title: 'กำลังนำส่ง', sub: 'ไรเดอร์กำลังไปส่ง' };
   } else if (o.type === 'ride' && o.status === 'picked_up') {
     s = { icon: '🚗', title: 'รับผู้โดยสารแล้ว', sub: 'กำลังไปปลายทาง' };
   } else if (o.paymentMode === 'cash' && o.status === 'picked_up') {
@@ -5267,7 +5355,8 @@ window.showOrderBill = async function(orderId) {
     var confirmHtml = '';
     var feeAtEnd = o.type === 'express' || o.type === 'ride';
     var expressCompleted = o.type === 'express' && (o.status === 'done' || o.status === 'delivered');
-    var riderQrHtml = (!isCash && feeAtEnd && o.riderQrCodeUrl && (o.type !== 'express' || expressCompleted))
+    var expressPayReady = o.type === 'express' && !!o.expressDropoffConfirmedAt && o.status === 'on_the_way';
+    var riderQrHtml = (!isCash && feeAtEnd && o.riderQrCodeUrl && (o.type !== 'express' || expressPayReady || expressCompleted))
       ? '<div style="background:#E8F5E9;border:2px solid #168A45;border-radius:14px;padding:14px;margin:14px 0;text-align:center">' +
         '<div style="font-size:14px;font-weight:900;color:#168A45">📱 สแกน QR เพื่อชำระค่าบริการให้ไรเดอร์</div>' +
         '<img src="' + esc(o.riderQrCodeUrl) + '" alt="QR รับชำระค่าบริการไรเดอร์" style="display:block;width:min(250px,100%);aspect-ratio:1;object-fit:contain;margin:10px auto;background:#fff;border-radius:12px;padding:8px" onclick="openLightbox(\'' + esc(o.riderQrCodeUrl) + '\')">' +
@@ -5549,6 +5638,13 @@ window.openChatPage = async function(orderId, thread) {
     activeChatRole = ensured.role;
     var otherName = !isUser ? (o.userName || 'ลูกค้า') : (thread === 'shop' ? (o.merchantName || 'ร้าน') : (o.riderName || 'ไรเดอร์'));
     window._chatOrder = o;
+    renderChatExpressBar(o, thread);
+    if (window._chatOrderUnsub) { window._chatOrderUnsub(); window._chatOrderUnsub = null; }
+    window._chatOrderUnsub = db.collection('orders').doc(orderId).onSnapshot(function(orderSnap) {
+      if (!orderSnap.exists) return;
+      window._chatOrder = Object.assign({ id: orderSnap.id }, orderSnap.data());
+      renderChatExpressBar(window._chatOrder, thread);
+    });
     if ($('chat-title')) $('chat-title').textContent = otherName;
     if ($('chat-subtitle')) $('chat-subtitle').textContent = orderLabel(o) + ' • ' + (o.title || 'ออเดอร์');
     if (page) page.classList.add('show');
@@ -5565,6 +5661,8 @@ window.closeChatPage = function() {
   var page = $('chat-page');
   if (page) page.classList.remove('show');
   if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+  if (window._chatOrderUnsub) { window._chatOrderUnsub(); window._chatOrderUnsub = null; }
+  renderChatExpressBar(null, '');
   activeChatId = null;
 };
 
