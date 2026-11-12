@@ -1619,10 +1619,6 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="map-center-pin-head"></div>
       <i class="map-center-pin-tip" id="map-center-pin-tip"></i>
     </div>
-    <div class="map-float-controls">
-      <button class="map-fab press-scale" onclick="centerToUser()" aria-label="ตำแหน่งของฉัน">🎯</button>
-      <button class="map-fab press-scale" onclick="clearMap()" aria-label="ล้างการค้นหา">🗑️</button>
-    </div>
     <div class="dest-sheet" id="dest-sheet">
       <button type="button" class="dest-sheet-handle" id="dest-sheet-handle" aria-expanded="false" aria-label="ขยายหรือย่อรายละเอียด"></button>
       <div class="dest-sheet-body">
@@ -2081,6 +2077,7 @@ var EXPRESS_PARCEL_TYPES = [
 ];
 var expressCompose = { from: '', to: '' };
 var expressSuggestRows = { from: [], to: [] };
+var EXPRESS_DRAFT_STORAGE_KEY = 'chauatgo_express_draft_v1';
 var activeChatRole = 'user';
 var foodDropoff = null;
 var mapPickerMode = null;
@@ -6230,6 +6227,50 @@ function captureExpressDraft() {
     contactName: previous.contactName || '',
     reorder: !!previous.reorder
   };
+  persistExpressDraft();
+}
+
+function expressDraftPoint(point) {
+  if (!point || !isFinite(Number(point.lat)) || !isFinite(Number(point.lng))) return null;
+  return {
+    lat: Number(point.lat),
+    lng: Number(point.lng),
+    address: String(point.address || '').trim(),
+    placeId: String(point.placeId || '').trim(),
+    accuracy: point.accuracy != null && point.accuracy !== '' && isFinite(Number(point.accuracy)) ? Number(point.accuracy) : null
+  };
+}
+
+function persistExpressDraft() {
+  if (!expressDraft) return;
+  try {
+    localStorage.setItem(EXPRESS_DRAFT_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      savedAt: Date.now(),
+      draft: expressDraft,
+      origin: expressDraftPoint(expOrigin),
+      destination: expressDraftPoint(expDestination)
+    }));
+  } catch (e) {}
+}
+
+function readExpressDraft() {
+  try {
+    var raw = localStorage.getItem(EXPRESS_DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    var saved = JSON.parse(raw);
+    if (!saved || saved.version !== 1 || !saved.draft || (saved.savedAt && Date.now() - saved.savedAt > 7 * 24 * 60 * 60 * 1000)) {
+      localStorage.removeItem(EXPRESS_DRAFT_STORAGE_KEY);
+      return null;
+    }
+    return saved;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearExpressDraft() {
+  try { localStorage.removeItem(EXPRESS_DRAFT_STORAGE_KEY); } catch (e) {}
 }
 
 window.previewExpressParcelPhoto = function(input) {
@@ -6245,6 +6286,7 @@ window.selectExpressParcelType = function(type) {
   captureExpressDraft();
   if (!expressDraft) expressDraft = {};
   expressDraft.parcelType = found.id;
+  persistExpressDraft();
   renderExpressForm();
 };
 
@@ -6260,6 +6302,7 @@ window.swapExpressLocations = function() {
   var oldCompose = expressCompose.from || '';
   expressCompose.from = expressCompose.to || '';
   expressCompose.to = oldCompose;
+  persistExpressDraft();
   renderExpressForm();
   showToast('⇅ สลับต้นทางและปลายทางแล้ว', 'success');
 };
@@ -6470,6 +6513,7 @@ function applyExpressCatalog(which, row) {
     expressDraft.to = row.label;
     expressCompose.to = '';
   }
+  persistExpressDraft();
   renderExpressForm();
   showToast('📍 ' + row.label);
 }
@@ -6539,9 +6583,16 @@ function renderExpressForm() {
 }
 
 function openExpressForm(dest){
-  expOrigin = userLocation ? {lat:userLocation.lat, lng:userLocation.lng, accuracy:userLocation.accuracy, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'} : null;
-  expDestination = (dest && isFinite(dest.lat) && isFinite(dest.lng)) ? {lat:dest.lat, lng:dest.lng, address: dest.address || dest.name || ''} : null;
-  expressDraft = null;
+  var saved = readExpressDraft();
+  if (saved) {
+    expOrigin = expressDraftPoint(saved.origin);
+    expDestination = expressDraftPoint(saved.destination);
+    expressDraft = saved.draft;
+  } else {
+    expOrigin = userLocation ? {lat:userLocation.lat, lng:userLocation.lng, accuracy:userLocation.accuracy, address:(userProfile&&userProfile.address)||'ตำแหน่งปัจจุบัน'} : null;
+    expDestination = (dest && isFinite(dest.lat) && isFinite(dest.lng)) ? {lat:dest.lat, lng:dest.lng, address: dest.address || dest.name || ''} : null;
+    expressDraft = null;
+  }
   expressParcelPhotoFile = null;
   renderExpressForm();
 }
@@ -6769,6 +6820,7 @@ window.submitExpressOrder = async function(){
     });
     showToast('✅ ส่งออเดอร์แล้ว ฿' + (createdExpress.total != null ? createdExpress.total : total));
     closeModal();
+    clearExpressDraft();
     expOrigin = null; expDestination = null;
     expressParcelPhotoFile = null;
     switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'));
@@ -8555,6 +8607,7 @@ window.confirmMapLocation = function(){
       if (!expressDraft) expressDraft = {};
       expressDraft.to = picked.address;
     }
+    persistExpressDraft();
     selectedDestination = keptDestination;
     renderExpressForm();
     showToast(mode === 'exp-origin' ? 'ตั้งจุดรับแล้ว' : 'ตั้งจุดส่งแล้ว');
