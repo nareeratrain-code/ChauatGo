@@ -12,9 +12,9 @@ const gateEnd = rider.indexOf('function dispatchMode');
 const gate = {};
 vm.runInNewContext(rider.slice(gateStart, gateEnd), gate);
 
-test('express leaves pickup without a customer transfer', () => {
-  assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'transfer' }), true);
-  assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'cash' }), true);
+test('express leaves pickup only after the customer confirms the pickup photo', () => {
+  assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'transfer' }), false);
+  assert.equal(gate.canLeaveShop({ type: 'express', paymentMode: 'cash', foodImage: 'https://p', customerOrderConfirmed: true }), true);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'picked_up' }), false);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'accepted' }), false);
   assert.equal(gate.riderMayConfirmPay({ type: 'express', riderId: 'r', paymentMode: 'transfer', status: 'on_the_way' }), false);

@@ -246,6 +246,13 @@ service cloud.firestore {
         && unchanged('idleSince')
         && unchanged('totalIncome')
         && unchanged('totalJobs')
+        && unchanged('onlineLockedUntil')
+        && unchanged('onlineLockReason')
+        && (
+          request.resource.data.get('status', '') != 'active'
+          || resource.data.get('onlineLockedUntil', null) == null
+          || resource.data.onlineLockedUntil < request.time
+        )
         && riderProfileUpdateOk();
     }
 
@@ -458,6 +465,8 @@ service cloud.firestore {
         || (
           resource.data.status == 'picked_up'
           && resource.data.get('type', '') == 'express'
+          && resource.data.get('foodImage', '') is string
+          && resource.data.get('foodImage', '').size() > 0
         )
         || (
           resource.data.status == 'picked_up'
@@ -852,7 +861,44 @@ service cloud.firestore {
         && unchanged('riderId')
         && onlyChanged(['status', 'onTheWayAt', 'foodDeliveryStage'])
         && foodDeliveryStageChangedOk()
-        && (!buysGoods() || shopSlipAttached());
+        && (!buysGoods() || shopSlipAttached())
+        && (
+          resource.data.get('type', '') != 'express'
+          || (
+            resource.data.get('foodImage', '') is string
+            && resource.data.get('foodImage', '').size() > 0
+            && resource.data.get('customerOrderConfirmed', false) == true
+          )
+        );
+    }
+
+    function riderExpressPickupPhotoOk(orderId) {
+      return moneyFrozen() && isAssignedRider()
+        && resource.data.get('type', '') == 'express'
+        && resource.data.status == 'picked_up'
+        && request.resource.data.status == 'picked_up'
+        && resource.data.get('foodImage', '') == ''
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['foodImage', 'foodImagePath'])
+        && request.resource.data.foodImage is string
+        && request.resource.data.foodImage.size() > 0
+        && request.resource.data.foodImage.size() <= 2000
+        && request.resource.data.foodImagePath is string
+        && request.resource.data.foodImagePath.matches('^orders/' + orderId + '/riders/' + myUid() + '/pickup_[0-9]+\\.jpg$');
+    }
+
+    function expressDropoffConfirmOk() {
+      return moneyFrozen() && isOrderCustomer()
+        && resource.data.get('type', '') == 'express'
+        && resource.data.status == 'on_the_way'
+        && resource.data.get('deliveryProofUrl', '') is string
+        && resource.data.get('deliveryProofUrl', '').size() > 0
+        && request.resource.data.status == resource.data.status
+        && identityFrozen()
+        && unchanged('riderId')
+        && onlyChanged(['expressDropoffConfirmedAt'])
+        && request.resource.data.expressDropoffConfirmedAt is timestamp;
     }
 
     function riderCustomerPaidOk() {
@@ -1057,9 +1103,13 @@ service cloud.firestore {
                 ? riderGoodsQuoteOk()
                 : changed.hasOnly(['riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                 ? riderShopSlipOk()
+                : changed.hasOnly(['foodImage', 'foodImagePath'])
+                  ? riderExpressPickupPhotoOk(orderId)
+                : changed.hasOnly(['expressDropoffConfirmedAt'])
+                  ? expressDropoffConfirmOk()
                 : changed.hasOnly(['status', 'pickedUpAt', 'foodImage', 'foodImagePath', 'riderQrCodeUrl', 'riderSlipToShop', 'riderSlipToShopPath', 'riderPaidShopAt', 'riderSlipUrl', 'riderSlipPath', 'foodDeliveryStage'])
                     ? riderPickupOk()
-                    : changed.hasOnly(['status', 'onTheWayAt', 'foodDeliveryStage'])
+                : changed.hasOnly(['status', 'onTheWayAt', 'foodDeliveryStage'])
                         ? riderOnTheWayOk()
                       // hasOnly() is a subset check, so the two-field Express
                       // payment route must come before the three-field route.

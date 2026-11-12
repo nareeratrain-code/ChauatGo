@@ -88,6 +88,7 @@ let nearNotifiedOrderIds = new Set();
 let arrivedShopNotifiedOrderIds = new Set();
 let arrivedCustomerNotifiedOrderIds = new Set();
 let expressProofBlob = null;
+let expressPickupBlob = null;
 let expressProofUrl = '';
 // Local UI state: rider reached pickup point and must see photo/price actions.
 let pickupGuideOrderIds = new Set();
@@ -137,7 +138,10 @@ function canLeaveShop(order) {
   // pickup point immediately after picking up the passenger; fare is settled
   // at the destination.
   // Ride and express settle the fee at the destination, not before leaving pickup.
-  if (order.type === 'ride' || order.type === 'express') return true;
+  if (order.type === 'ride') return true;
+  if (order.type === 'express') {
+    return !!(String(order.foodImage || '').trim() && order.customerOrderConfirmed === true);
+  }
   if (orderBuysGoods(order)) {
     if (order.type === 'food' && order.partnerShop === true && order.paymentMode === 'cash') {
       return !!(order.customerOrderConfirmed && orderHasShopSlip(order));
@@ -204,9 +208,14 @@ async function markExpressArrived(jobId) {
   if (!job || job.type !== 'express' || job.status !== 'on_the_way') return showToast('งานส่งด่วนยังไม่อยู่ระหว่างเดินทาง', 'warning');
   if (job.deliveryProofUrl) return showToast('บันทึกรูปส่งถึงปลายทางแล้ว', 'info');
   try {
-    await db.collection('orders').doc(jobId).update({
+    const arrivalUpdate = {
       riderArrivedCustomerChatAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    if (!orderIsCash(job) && riderProfile && riderProfile.qrCodeUrl) {
+      arrivalUpdate.riderQrCodeUrl = riderProfile.qrCodeUrl;
+      arrivalUpdate.riderQrCodePath = riderProfile.qrCodePath || '';
+    }
+    await db.collection('orders').doc(jobId).update(arrivalUpdate);
     job.riderArrivedCustomerChatAt = new Date();
     renderJobs();
     openExpressProofModal(jobId);
@@ -224,7 +233,7 @@ function openExpressProofModal(jobId) {
     <div style="border:2px dashed var(--border);border-radius:12px;min-height:170px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--surface-2)"><img id="express-proof-preview" alt="รูปยืนยันส่งถึงปลายทาง" style="display:none;width:100%;max-height:240px;object-fit:cover"><div id="express-proof-placeholder" style="font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกรูป</div></div>
     <div class="photo-source-row" style="margin-top:10px"><button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('express-proof-camera').click()">📷 ถ่ายรูป</button><button type="button" class="photo-source-btn ripple" onclick="document.getElementById('express-proof-gallery').click()">🖼️ คลังภาพ</button></div>
     <input id="express-proof-camera" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleExpressProof(event)"><input id="express-proof-gallery" type="file" accept="image/*" style="display:none" onchange="handleExpressProof(event)">
-    <div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="action-btn-big btn-gray-big" style="flex:1" onclick="closeModal()">ยกเลิก</button><button type="button" id="express-proof-submit" class="action-btn-big btn-green-big" style="flex:1" disabled onclick="submitExpressProof('${esc(jobId)}')">✅ ยืนยันรูปและจบงาน</button></div>`;
+    <div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="action-btn-big btn-gray-big" style="flex:1" onclick="closeModal()">ยกเลิก</button><button type="button" id="express-proof-submit" class="action-btn-big btn-green-big" style="flex:1" disabled onclick="submitExpressProof('${esc(jobId)}')">📤 ส่งรูปให้ลูกค้า</button></div>`;
   $('modalOverlay')?.classList.add('show');
 }
 
@@ -257,10 +266,78 @@ async function submitExpressProof(jobId) {
     if (job) { job.deliveryProofUrl = expressProofUrl; job.deliveryProofPath = path; }
     closeModal();
     renderJobs();
-    await confirmDeliver(jobId);
+    try {
+      const chatRef = db.collection('chats').doc(jobId);
+      await chatRef.collection('messages').add({
+        text: '📸 รูปของถึงปลายทางแล้ว กรุณากดยืนยันรับของ',
+        imageUrl: expressProofUrl,
+        senderId: currentUser.uid,
+        senderRole: 'rider',
+        senderName: (riderProfile && riderProfile.name) || 'ไรเดอร์',
+        systemMessage: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (chatErr) {}
+    showToast('ส่งรูปให้ลูกค้าแล้ว — รอลูกค้ายืนยันรับของ');
   } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันรูปและจบงาน'; }
+    if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งรูปให้ลูกค้า'; }
     showToast(riderFirebaseErrorText(err, 'บันทึกรูปยืนยันไม่สำเร็จ'), 'error');
+  }
+}
+
+function openExpressPickupModal(jobId) {
+  expressPickupBlob = null;
+  const mc = $('modalContent');
+  if (!mc) return;
+  mc.innerHTML = `<div style="text-align:center;margin-bottom:14px"><div style="font-size:48px">📸</div><h2 style="font-size:20px;font-weight:900">ถ่ายรูปพัสดุที่จุดรับ</h2><p style="color:var(--text-muted);font-size:13px;font-weight:700">ส่งรูปให้ลูกค้ายืนยัน ก่อนกดเริ่มนำส่ง</p></div>
+    <div class="photo-source-row"><button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('express-pickup-camera').click()">📷 ถ่ายรูป</button><button type="button" class="photo-source-btn ripple" onclick="document.getElementById('express-pickup-gallery').click()">🖼️ คลังภาพ</button></div>
+    <input id="express-pickup-camera" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleExpressPickup(event)">
+    <input id="express-pickup-gallery" type="file" accept="image/*" style="display:none" onchange="handleExpressPickup(event)">
+    <img id="express-pickup-preview" alt="" style="display:none;width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:10px">
+    <button type="button" id="express-pickup-submit" class="action-btn-big btn-green-big" style="margin-top:12px" disabled onclick="submitExpressPickup('${esc(jobId)}')">📤 ส่งรูปให้ลูกค้า</button>`;
+  $('modalOverlay')?.classList.add('show');
+}
+
+async function handleExpressPickup(event) {
+  const file = event.target.files && event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    expressPickupBlob = await compressImage(file, 1000, 0.8);
+    const preview = $('express-pickup-preview');
+    if (preview) { preview.src = URL.createObjectURL(expressPickupBlob); preview.style.display = 'block'; }
+    const submit = $('express-pickup-submit');
+    if (submit) submit.disabled = false;
+  } catch (err) { showToast('ประมวลผลรูปไม่สำเร็จ', 'error'); }
+}
+
+async function submitExpressPickup(jobId) {
+  if (!expressPickupBlob) return showToast('กรุณาถ่ายรูปพัสดุ', 'warning');
+  const btn = $('express-pickup-submit');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...'; }
+  try {
+    const path = `orders/${jobId}/riders/${currentUser.uid}/pickup_${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(expressPickupBlob, { contentType: 'image/jpeg' });
+    const url = await ref.getDownloadURL();
+    await db.collection('orders').doc(jobId).update({ foodImage: url, foodImagePath: path });
+    const job = allJobs.find(j => j.id === jobId);
+    if (job) { job.foodImage = url; job.foodImagePath = path; }
+    await db.collection('chats').doc(jobId).collection('messages').add({
+      text: '📸 รูปพัสดุที่จุดรับ กรุณากดยืนยันรูป',
+      imageUrl: url,
+      senderId: currentUser.uid,
+      senderRole: 'rider',
+      senderName: (riderProfile && riderProfile.name) || 'ไรเดอร์',
+      systemMessage: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal();
+    renderJobs();
+    showToast('ส่งรูปแล้ว — รอลูกค้ายืนยัน');
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 ส่งรูปให้ลูกค้า'; }
+    showToast(riderFirebaseErrorText(err, 'ส่งรูปไม่สำเร็จ'), 'error');
   }
 }
 
@@ -273,6 +350,7 @@ function dispatchMode() {
 }
 
 function riderMayClaim(j) {
+  if (riderIsRemitLocked()) return false;
   if (dispatchMode() === 'auto') return false;
   if (!j || j.riderId) return false;
   if (orderNeedsKitchen(j)) return RIDER_CLAIM_STATUSES.includes(j.status);
@@ -1427,6 +1505,62 @@ function riderJobLimit() {
   return Math.min(5, Math.max(1, Math.round(raw)));
 }
 
+function riderLockUntilMs() {
+  const until = riderProfile && riderProfile.onlineLockedUntil;
+  if (!until) return 0;
+  if (typeof until.toMillis === 'function') return until.toMillis();
+  if (until.seconds) return until.seconds * 1000;
+  const ms = new Date(until).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+function riderIsRemitLocked() {
+  return riderLockUntilMs() > Date.now();
+}
+
+function bangkokNowParts(now) {
+  const shifted = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return { hour: shifted.getUTCHours(), minute: shifted.getUTCMinutes() };
+}
+
+function renderRemitDashboard(amount) {
+  const panel = $('remit-panel');
+  const lock = $('remit-lock');
+  const count = $('remit-countdown');
+  const pay = $('remit-dash-btn');
+  const due = Number(amount) > 0;
+  if (pay) pay.hidden = !due;
+  if (panel) panel.hidden = false;
+  const clock = bangkokNowParts(new Date());
+  const mins = (21 * 60) - (clock.hour * 60 + clock.minute);
+  if (count) {
+    if (!due) count.textContent = '';
+    else if (mins > 0) count.textContent = 'เหลือ ' + mins + ' นาที ก่อน 21:00';
+    else if (clock.hour < 22) count.textContent = 'เลย 21:00 แล้ว โอนได้ถึง 22:00';
+    else count.textContent = 'เลย 22:00 แล้ว';
+  }
+  if (lock) {
+    if (riderIsRemitLocked()) {
+      lock.hidden = false;
+      lock.textContent = 'พักรับงาน 1 วัน เพราะยังไม่โอนยอดก่อน 22:00 โอนได้จากปุ่มด้านบน แล้วรอแอดมินยืนยันสลิป';
+    } else lock.hidden = true;
+  }
+  if (due && clock.hour === 20 && !sessionStorage.getItem('remit-notice')) {
+    sessionStorage.setItem('remit-notice', '1');
+    showToast('อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง', 'warning', 6000);
+  }
+  queueRiderRemitSync(amount);
+}
+
+function queueRiderRemitSync(amount) {
+  if (!(Number(amount) > 0) || window._remitQueueSynced) return;
+  if (!window.ChauatFn || !currentUser) return;
+  window._remitQueueSynced = true;
+  ChauatFn.callFunction('syncMySettlement', {}, auth).catch(function () {
+    window._remitQueueSynced = false;
+  });
+}
+
 function updateHeroStats() {
   const today = allHistory.filter(j =>
     (j.status === 'done' || j.status === 'delivered')
@@ -1460,6 +1594,7 @@ function updateHeroStats() {
   if (tipEl) tipEl.textContent = '฿' + fmt(tipTotal);
   const oweEl = $('hero-owe');
   if (oweEl) oweEl.textContent = '฿' + fmt(todayOwe);
+  renderRemitDashboard(todayOwe);
 
   const doneEl = $('stat-done');
   if (doneEl) doneEl.textContent = today.length;
@@ -1816,7 +1951,13 @@ function renderJobCard(j, type) {
       ${(j.type === 'food' && !orderNeedsKitchen(j)) ? `<button type="button" class="jc-secondary-btn" data-shop-closed="${esc(j.id)}">ร้านปิด</button>` : `<button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`}`;
     }
   } else if (j.status === 'picked_up' || j.status === 'customer_paid') {
-    if (j.type === 'ride') {
+    if (j.type === 'express' && !j.foodImage) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-express-pickup="${esc(j.id)}">📸 ถ่ายรูปพัสดุส่งให้ลูกค้า</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (j.type === 'express' && !j.customerOrderConfirmed) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้ายืนยัน</button>
+        <button type="button" class="jc-secondary-btn" onclick="openRiderSettlementChat()">💬 แชทแอดมิน</button>`;
+    } else if (j.type === 'ride') {
       primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚗 เริ่มไปปลายทางลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (j.type === 'express') {
@@ -1860,7 +2001,13 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-arrive-customer="${esc(j.id)}">📍 ถึงปลายทางแล้ว</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (j.type === 'express' && !j.deliveryProofUrl) {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-express-proof="${esc(j.id)}">📸 ถ่ายรูปยืนยันส่งถึงปลายทาง</button>
+      primaryAction = `<button type="button" class="jc-primary-btn jc-orange" data-express-proof="${esc(j.id)}">📸 ถ่ายรูปของส่งให้ลูกค้า</button>
+        <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
+    } else if (j.type === 'express' && !j.expressDropoffConfirmedAt) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้ายืนยัน</button>
+        <button type="button" class="jc-secondary-btn" onclick="openRiderSettlementChat()">💬 แชทแอดมิน</button>`;
+    } else if (j.type === 'express' && !orderIsCash(j) && !j.customerPaidAt) {
+      primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้าแนบสลิป</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (j.type === 'express') {
       primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-deliver="${esc(j.id)}">✅ ยืนยันส่งถึงปลายทาง</button>
@@ -3128,19 +3275,32 @@ async function cancelJobAfterTimeout(jobId) {
   }
 }
 
-/* เริ่มส่ง — อาหาร/ฝากซื้อโอนต้องมี customerPaidAt, ส่งด่วนและเรียกรถเริ่มได้หลังรับของ */
+/* เริ่มส่ง — อาหาร/ฝากซื้อโอนต้องมี customerPaidAt. ส่งด่วนเริ่มได้หลังลูกค้ายืนยันรูปจุดรับ */
 async function startDelivery(jobId) {
   try {
     const snap = await db.collection('orders').doc(jobId).get();
     if (!snap.exists) return showToast('ไม่พบงาน', 'error');
     const job = snap.data();
 
-    if (orderBuysGoods(job) && !orderHasShopSlip(job)) {
+    if (job.type === 'shopping' && orderIsCash(job)) {
+      const go = window.confirm('งานนี้เป็นเงินสด ซื้อของ\nเก็บเงินกับลูกค้าตอนส่งของ\nกดตกลงเพื่อออกเดินทางต่อ');
+      if (!go) return;
+    }
+    if (job.type === 'express' && !canLeaveShop(job)) {
+      return showToast(job.foodImage ? '⏳ รอลูกค้ายืนยันรูปพัสดุ' : '📸 ถ่ายรูปพัสดุส่งให้ลูกค้าก่อน', 'warning');
+    }
+
+    if (orderBuysGoods(job) && job.type === 'shopping' && orderIsCash(job)) {
+      // Cash buy-for-me does not need a transfer slip before leaving.
+    } else if (orderBuysGoods(job) && !orderHasShopSlip(job)) {
       return showToast(job.type === 'food' && job.partnerShop === true && orderIsCash(job)
         ? '⚠️ แนบสลิปที่ไรเดอร์สำรองจ่ายร้านก่อน'
         : (orderIsCash(job) ? '⚠️ แนบบิลร้านก่อนออกเดินทาง' : '⚠️ แนบสลิปที่โอนให้ร้านก่อนออกเดินทาง'), 'warning');
     }
     if (!canLeaveShop(job)) {
+      if (job.type === 'shopping' && orderIsCash(job)) {
+        return showToast('รอลูกค้ายืนยันรูปสินค้าและบิลร้านก่อนออกเดินทาง', 'warning');
+      }
       return showToast(job.type === 'food' && job.partnerShop === true && orderIsCash(job)
         ? '⏳ รอลูกค้ายืนยันว่าเห็นรูปอาหารและสลิปก่อนเริ่มส่ง'
         : '⚠️ ลูกค้ายังไม่โอนเงิน', 'warning');
@@ -3545,6 +3705,9 @@ async function toggleOnline() {
   unlockRiderAudio();
   if (!currentUser || riderProfile?.verified !== true) {
     return showToast('รอแอดมินอนุมัติก่อน', 'warning');
+  }
+  if (!isOnline && riderIsRemitLocked()) {
+    return showToast('พักรับงานเพราะยังไม่โอนยอด โอนแล้วรอแอดมินยืนยัน', 'warning');
   }
   const newState = !isOnline;
   const prevStatus = riderProfile.status;
@@ -4113,6 +4276,12 @@ async function ensureRiderSettlementChat() {
 }
 
 async function openRiderSettlementChat() {
+  if (!riderSettle) {
+    const local = localRiderDue();
+    riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null };
+  }
+  $('rider-settle-sheet')?.classList.add('show');
+  if (!$('rider-settle-log')) renderRiderSettlement();
   const log = $('rider-settle-log');
   const input = $('rider-settle-input');
   const send = $('rider-settle-send');
@@ -4378,7 +4547,12 @@ function renderChatGuide(job) {
   if (goods && job.customerSlipUrl && !paid && job.customerSlipStatus !== 'rejected') {
     actions.push(`<button type="button" class="chat-guide-btn chat-guide-btn-danger" data-reject-slip="${esc(job.id)}">↩️ ปฏิเสธสลิป / ขออัปโหลดใหม่</button>`);
   }
-  if (job.status === 'picked_up' && !goods && (job.type === 'ride' || job.type === 'express' || orderIsCash(job))) {
+  if (job.type === 'express' && job.status === 'picked_up' && !job.foodImage) {
+    actions.push(`<button type="button" class="chat-guide-btn" data-express-pickup="${esc(job.id)}">📸 ถ่ายรูปพัสดุส่งให้ลูกค้า</button>`);
+  } else if (job.type === 'express' && job.status === 'picked_up' && !job.customerOrderConfirmed) {
+    actions.push(`<button type="button" class="chat-guide-btn" disabled>⏳ รอลูกค้ายืนยัน</button>`);
+    actions.push(`<button type="button" class="chat-guide-btn" onclick="openRiderSettlementChat()">💬 แชทแอดมิน</button>`);
+  } else if (job.status === 'picked_up' && !goods && (job.type === 'ride' || job.type === 'express' || orderIsCash(job))) {
     actions.push(`<button type="button" class="chat-guide-btn" data-start-deliver="${esc(job.id)}">🚀 เริ่มนำส่ง</button>`);
   }
   if (job.status === 'on_the_way') {
@@ -4387,7 +4561,18 @@ function renderChatGuide(job) {
     } else if (job.type === 'ride' && !job.customerPaidAt && rideReachedDestination(job)) {
       actions.push(`<button type="button" class="chat-guide-btn" data-paid="${esc(job.id)}">💳 ลูกค้าโอนแล้ว / ตรวจสอบสลิป</button>`);
     }
-    actions.push(`<button type="button" class="chat-guide-btn" data-deliver="${esc(job.id)}">✅ ส่งถึงปลายทาง / จบงาน</button>`);
+    if (job.type === 'express' && !job.riderArrivedCustomerChatAt) {
+      actions.push(`<button type="button" class="chat-guide-btn" data-arrive-customer="${esc(job.id)}">📍 ถึงปลายทางแล้ว</button>`);
+    } else if (job.type === 'express' && !job.deliveryProofUrl) {
+      actions.push(`<button type="button" class="chat-guide-btn" data-express-proof="${esc(job.id)}">📸 ถ่ายรูปของส่งให้ลูกค้า</button>`);
+    } else if (job.type === 'express' && !job.expressDropoffConfirmedAt) {
+      actions.push(`<button type="button" class="chat-guide-btn" disabled>⏳ รอลูกค้ายืนยัน</button>`);
+      actions.push(`<button type="button" class="chat-guide-btn" onclick="openRiderSettlementChat()">💬 แชทแอดมิน</button>`);
+    } else if (job.type === 'express' && !orderIsCash(job) && !job.customerPaidAt) {
+      actions.push(`<button type="button" class="chat-guide-btn" disabled>⏳ รอลูกค้าแนบสลิป</button>`);
+    } else {
+      actions.push(`<button type="button" class="chat-guide-btn" data-deliver="${esc(job.id)}">✅ ส่งถึงปลายทาง / จบงาน</button>`);
+    }
   }
   box.innerHTML = actions.length
     ? `<div class="chat-guide-title">การดำเนินการออเดอร์อยู่ในแชท</div>${actions.join('')}`
@@ -4934,7 +5119,7 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('click', async (e) => {
-  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-reject-slip],[data-confirm-reject-slip],[data-close-modal],[data-shop-closed],[data-paid],[data-start-deliver],[data-arrive-customer],[data-express-proof],[data-deliver],[data-detail],[data-chat]');
+  const t = e.target.closest('[data-accept],[data-skip],[data-arrived],[data-food-photo],[data-slip],[data-reject-slip],[data-confirm-reject-slip],[data-close-modal],[data-shop-closed],[data-paid],[data-start-deliver],[data-arrive-customer],[data-express-pickup],[data-express-proof],[data-deliver],[data-detail],[data-chat]');
   if (!t) return;
 
   try {
@@ -4954,6 +5139,7 @@ document.addEventListener('click', async (e) => {
       if (job?.type === 'express') await markExpressArrived(t.dataset.arriveCustomer);
       else await markRideArrived(t.dataset.arriveCustomer);
     }
+    else if (t.dataset.expressPickup) openExpressPickupModal(t.dataset.expressPickup);
     else if (t.dataset.expressProof) openExpressProofModal(t.dataset.expressProof);
     else if (t.dataset.deliver) await deliverJob(t.dataset.deliver);
     else if (t.dataset.detail) showJobDetail(t.dataset.detail);

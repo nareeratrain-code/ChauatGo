@@ -28,6 +28,7 @@ const {
   publicPayout,
   riderReviewPlan
 } = require('./settlement');
+const { remitLockPlan } = require('./remit-lock');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
 // every new revision at once. On a small regional CPU quota that aborts some
@@ -288,6 +289,47 @@ exports.onDispatchOfferCreated = onDocumentCreated({
   await D.expireOffer(db, event.params.orderId, event.params.offerId, 'expired');
 });
 
+exports.sweepRiderRemit = onSchedule({
+  schedule: 'every 60 minutes',
+  timeoutSeconds: 120
+}, async () => {
+  const nowMs = Date.now();
+  const queue = await db.collection('settlement_queue').where('kind', '==', 'rider').limit(80).get();
+  for (const doc of queue.docs) {
+    const row = doc.data() || {};
+    const riderId = String(row.partyId || '');
+    if (!riderId) continue;
+    const slips = await db.collection('rider_remittances').where('riderId', '==', riderId).limit(20).get();
+    const pendingSlip = slips.docs.some((slip) => slip.data().status === 'pending');
+    const riderRef = db.collection('riders').doc(riderId);
+    const riderSnap = await riderRef.get();
+    const rider = riderSnap.exists ? riderSnap.data() : {};
+    const until = rider.onlineLockedUntil && rider.onlineLockedUntil.toMillis ? rider.onlineLockedUntil.toMillis() : 0;
+    const plan = remitLockPlan({
+      nowMs: nowMs,
+      amount: Number(row.amount) || 0,
+      pendingSlip: pendingSlip,
+      lockedUntilMs: until
+    });
+    if (plan.action === 'clear' && until) {
+      await riderRef.set({ onlineLockedUntil: FieldValue.delete(), onlineLockReason: FieldValue.delete() }, { merge: true });
+    } else if (plan.action === 'lock') {
+      await riderRef.set({
+        onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
+        onlineLockReason: 'remit'
+      }, { merge: true });
+    }
+    if (plan.notify && rider.remitNoticeDate !== plan.key) {
+      await D.notifyRider(db, riderId, {
+        title: 'โอนยอดให้ ChauatGo',
+        body: 'อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง',
+        data: { kind: 'remit' }
+      });
+      await riderRef.set({ remitNoticeDate: plan.key }, { merge: true });
+    }
+  }
+});
+
 exports.sweepDispatchOffers = onSchedule({
   schedule: 'every 1 minutes',
   timeoutSeconds: 120
@@ -374,12 +416,24 @@ exports.completeOrder = onCall(CALL, async (req) => {
   }
 });
 
+async function assertRiderCanWork(uid) {
+  const snap = await db.collection('riders').doc(uid).get();
+  const until = snap.exists ? snap.data().onlineLockedUntil : null;
+  const ms = until && typeof until.toMillis === 'function' ? until.toMillis() : 0;
+  if (ms > Date.now()) {
+    const err = new Error('บัญชีถูกพักรับงานเพราะยังไม่โอนยอดก่อน 22:00');
+    err.code = 'failed-precondition';
+    throw err;
+  }
+}
+
 exports.acceptDispatchOffer = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
   guardAppCheck(req, 'acceptDispatchOffer');
   const data = req.data || {};
   if (!data.orderId || !data.offerId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
   try {
+    await assertRiderCanWork(req.auth.uid);
     return await D.acceptOffer(db, req.auth.uid, data.orderId, data.offerId);
   } catch (err) {
     fail(err);
@@ -393,6 +447,7 @@ exports.claimOpenJob = onCall(CALL, async (req) => {
   const data = req.data || {};
   if (!data.orderId) throw new HttpsError('invalid-argument', 'ข้อมูลไม่ครบ');
   try {
+    await assertRiderCanWork(req.auth.uid);
     return await D.claimOpenJob(db, req.auth.uid, data.orderId);
   } catch (err) {
     fail(err);
@@ -710,6 +765,8 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
       if (!snap.exists) throw new Error('ไม่พบรายการสลิป');
       const remittance = snap.data();
       const riderId = String(remittance.riderId || '');
+      const riderRef = db.collection('riders').doc(riderId);
+      const riderSnap = await tx.get(riderRef);
       const plan = riderReviewPlan(remittance, jobs, action);
       if (plan.already) return { ok: true, alreadyReviewed: true, status: plan.status, remittanceId };
       const now = Timestamp.now();
@@ -720,6 +777,12 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
           tx.update(db.collection('orders').doc(jobId), { riderPaid: true, riderPaidAt: now });
         });
         tx.update(ref, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid, jobIds: plan.jobIds });
+        if (riderSnap.exists) {
+          tx.update(riderRef, {
+            onlineLockedUntil: FieldValue.delete(),
+            onlineLockReason: FieldValue.delete()
+          });
+        }
       }
       tx.set(db.collection('settlement_queue').doc('rider_' + riderId), {
         kind: 'rider',
