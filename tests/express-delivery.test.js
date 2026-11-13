@@ -41,7 +41,7 @@ test('express picked_up card starts delivery instead of waiting for a transfer',
   assert.match(express, /🚀 เริ่มส่ง/);
   assert.equal(express.includes('ลูกค้าโอนแล้ว'), false);
   assert.equal(express.includes('รอลูกค้าโอนเงิน'), false);
-  assert.match(card, /🚗 เริ่มไปปลายทางลูกค้า/);
+  assert.match(card, /🚗 เริ่มเดินทางไปส่งลูกค้า/);
   assert.match(card, /payReceivedButton\(j\.id\)/);
   assert.match(rider, /📦 รับพัสดุแล้ว • กำลังไปส่ง/);
   assert.match(rider, /📦 รับพัสดุแล้ว — กดเริ่มส่ง/);
