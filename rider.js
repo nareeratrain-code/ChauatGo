@@ -1959,7 +1959,7 @@ function renderJobCard(j, type) {
       primaryAction = `<button type="button" class="jc-primary-btn jc-gray" disabled>⏳ รอลูกค้ายืนยัน</button>
         <button type="button" class="jc-secondary-btn" onclick="openRiderSettlementChat()">💬 แชทแอดมิน</button>`;
     } else if (j.type === 'ride') {
-      primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚗 เริ่มไปปลายทางลูกค้า</button>
+      primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚗 เริ่มเดินทางไปส่งลูกค้า</button>
         <button type="button" class="jc-secondary-btn" data-detail="${esc(j.id)}">📋</button>`;
     } else if (j.type === 'express') {
       primaryAction = `<button type="button" class="jc-primary-btn jc-green" data-start-deliver="${esc(j.id)}">🚀 เริ่มส่ง</button>
@@ -3579,7 +3579,7 @@ async function startDelivery(jobId) {
       ...(orderBuysGoods(job) ? { foodDeliveryStage: 'out_for_delivery' } : {})
     });
     showToast(job.type === 'ride'
-      ? '🚗 เริ่มเดินทางไปปลายทาง'
+      ? '🚗 เริ่มเดินทางไปส่งลูกค้า'
       : (job.type === 'shopping' && orderIsCash(job)
         ? '🚀 กำลังเริ่มออกเดินทางจากร้านไปบ้านลูกค้า'
         : '🚀 กำลังออกไปส่งสินค้า'));

@@ -48,6 +48,7 @@ test('home tiles stay compact and the partner banner is a soft card', () => {
   assert.match(css, /\.partner-cta-btn \{[^}]*border-radius: 999px[^}]*min-height: 48px/);
   assert.match(css, /\.brand-hero \{[^}]*background: #fff/);
   assert.match(css, /\.brand-hero \.t \{[^}]*font-size: 28px[^}]*color: #E85C00/);
+  assert.match(html, /body:not\(\[data-theme="dark"\]\) \.brand-hero \.t \{ color: #F97316 !important/);
   assert.match(css, /\.partner-banner-kicker \{[^}]*background: #E53935/);
   assert.match(css, /\.nearby-title \{[^}]*background: #fff/);
   assert.match(css, /\.home-section \{[^}]*background: #fff/);
