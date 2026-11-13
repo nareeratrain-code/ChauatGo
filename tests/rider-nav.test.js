@@ -136,7 +136,7 @@ test('every order form keeps the chosen pickup and drop-off coordinates', () => 
   assert.match(food, /shopPlaceLat: shopPoint \? shopPoint\.lat : null/);
   const generic = slice(html, 'window.submitOrder', '/* ═══ EXPRESS');
   assert.match(generic, /lat: destPoint \? destPoint\.lat : null/);
-  assert.match(html, /setDestination\(p\.lat, p\.lng, true, p\.name, p\.id \|\| placeId\)/);
+  assert.match(html, /selectedDestination = \{ lat: Number\(p\.lat\), lng: Number\(p\.lng\), address: p\.name, placeId: p\.id \|\| placeId \}/);
 });
 
 test('rider navigation uses the stored pin for the current stage', () => {

@@ -29,13 +29,24 @@ test('hotel place labels stay exact instead of becoming nearby labels on the map
   assert.match(html, /address: seed\.address \|\| '', note: seed\.note \|\| '', placeId: seed\.placeId \|\| ''/);
 });
 
-test('choosing a hotel opens the ride destination picker and keeps the hotel pin', () => {
+test('choosing a hotel destination opens ride booking with that place, not the hotel GPS panel', () => {
   const start = html.indexOf('window.setDestFromPlace = function(placeId)');
   const end = html.indexOf('\n};', start) + 3;
   const block = html.slice(start, end);
-  assert.match(block, /mapPickerMode = 'ride-dest'/);
-  assert.match(block, /openMapPage\(true\)/);
-  assert.match(block, /setDestination\(p\.lat, p\.lng, true, p\.name, p\.id \|\| placeId\)/);
+  assert.match(block, /selectedDestination = \{ lat: Number\(p\.lat\), lng: Number\(p\.lng\), address: p\.name, placeId: p\.id \|\| placeId \}/);
+  assert.match(block, /to: p\.name \|\| ''/);
+  assert.match(block, /selectedVehicle = null/);
+  assert.match(block, /openRideOrderForm\(\{ missing: true \}\)/);
+  assert.match(block, /classList\.remove\('hotel-place-selected'\)/);
+  assert.equal(block.includes('openMapPage'), false);
+  assert.equal(block.includes("classList.add('hotel-place-selected')"), false);
+  const cardStart = html.indexOf('function renderHotelCardHTML');
+  const card = html.slice(cardStart, html.indexOf('function provinceDistrictNames', cardStart));
+  assert.match(card, /class="hotel-action destination"/);
+  assert.match(card, /ค้นหา Agoda/);
+  assert.equal(card.includes('callHotelById'), false);
+  assert.equal(card.includes('>📞 โทร<'), false);
+  assert.match(html, /\.hotel-card-actions \{[^}]*grid-template-columns: 1fr 1\.15fr/);
 });
 
 test('reverse geocoding preserves the exact name of a directly selected hotel', () => {
@@ -62,13 +73,12 @@ test('hotel search input is large and touch-friendly', () => {
   assert.match(html, /\.hotel-search-icon \{[^}]*font-size: 24px/);
 });
 
-test('hotel search is first and location controls stay hidden until a hotel is selected', () => {
+test('hotel search is first and the GPS panel stays off the hotel screen', () => {
   const toolsStart = html.indexOf('<div id="hotel-tools"');
   const toolsEnd = html.indexOf('</div>\n    <div id="tourist-tools"', toolsStart);
   const tools = html.slice(toolsStart, toolsEnd);
   assert.ok(tools.indexOf('id="hotel-search-input"') < tools.indexOf('class="reference-loc-bar hotel-location-tools"'));
   assert.match(html, /#hotel-tools \.hotel-location-tools \{ display: none; \}/);
-  assert.match(html, /#hotel-tools\.hotel-place-selected \.hotel-location-tools \{ display: block; \}/);
   assert.match(html, /classList\.remove\('hotel-place-selected'\)/);
-  assert.match(html, /classList\.add\('hotel-place-selected'\)/);
+  assert.equal(html.includes("classList.add('hotel-place-selected')"), false);
 });
