@@ -384,7 +384,7 @@ body { width: 100%; max-width: 600px; margin: 0 auto; min-height: 100vh !importa
 .cart-summary-row.discount { color: var(--promo-red); font-weight: 900; }
 .cart-summary-row.total { padding: 12px 0 0; margin-top: 8px; border-top: 2px solid var(--green); font-size: 18px; font-weight: 900; color: var(--green); }
 
-.toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; max-width: 90%; text-align: center; }
+.toast { position: fixed; top: 80px; left: 50%; width: max-content; max-width: min(90vw, 360px); max-height: 72px; box-sizing: border-box; overflow: hidden; transform: translateX(-50%) translateY(-20px); background: rgba(26,26,26,.95); color: #fff; padding: 14px 22px; border-radius: 20px; font-size: 13px; line-height: 1.35; font-weight: 800; z-index: 99999; opacity: 0; pointer-events: none; transition: .3s; text-align: center; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; cursor: pointer; }
 .toast.success { background: linear-gradient(135deg, #168A45, #0D6D35); }
 .toast.error { background: linear-gradient(135deg, #E53935, #C62828); }
@@ -4855,8 +4855,8 @@ function stockIssuePanel(o) {
 }
 function renderOrderCard(o){
   var statusMap = {
-    searching:'⏳ หาไรเดอร์', pending:'🔔 รอร้านรับ',
-    cooking:'🍳 ร้านกำลังทำ', ready:'✅ พร้อมส่ง',
+    searching:'⏳ หาไรเดอร์', pending:'⏳ รอไรเดอร์รับงาน',
+    cooking:'📦 กำลังเตรียมสินค้า', ready:'✅ พร้อมรับ',
     accepted:'🛵 ไรเดอร์รับ', picked_up:'📸 ไรเดอร์รับของ',
     customer_paid:'💳 โอนแล้ว',
     on_the_way:'🚀 กำลังส่ง', delivered:'✅ ส่งถึง',
@@ -4873,6 +4873,18 @@ function renderOrderCard(o){
   // Express, Shopping and local-food jobs are acknowledged by the rider.
   var isPartnerFood = o.type === 'food' && o.partnerShop === true;
   var isPartnerCashFood = isPartnerFood && isCash;
+  var statusText = statusMap[o.status] || o.status;
+  if (isPartnerFood && ['searching','pending'].indexOf(o.status) !== -1) {
+    statusText = '🔔 รอร้านรับออเดอร์';
+  } else if (o.riderId && ['searching','pending'].indexOf(o.status) !== -1) {
+    statusText = '🛵 ไรเดอร์รับงานแล้ว';
+  } else if (o.status === 'shop_closed') {
+    statusText = 'ร้านปิด';
+  } else if (o.type === 'express' && o.status === 'picked_up') {
+    statusText = '📦 รับพัสดุแล้ว';
+  } else if (o.type === 'ride' && o.status === 'picked_up') {
+    statusText = '🚗 รับผู้โดยสารแล้ว';
+  }
   var buysGoods = o.type === 'food' || o.type === 'shopping';
   var shoppingQuoteReady = o.type !== 'shopping' || (
     Number(o.foodTotal || o.itemsTotal) > 0 &&
@@ -4973,7 +4985,7 @@ function renderOrderCard(o){
       '<div class="order-track-copy">' +
         '<div class="order-track-title">'+esc(kindLabel)+'</div>' +
         codeHtml +
-        '<div class="order-track-sub">'+((o.riderId && (o.status==='searching' || o.status==='pending')) ? '🛵 ไรเดอร์รับงานแล้ว' : ((o.type==='food' && o.partnerShop === true && (o.status==='searching' || o.status==='pending')) ? '🔔 รอร้านรับออเดอร์' : (o.status==='shop_closed' ? 'ร้านปิด' : (o.type==='express' && o.status==='picked_up' ? '📦 รับพัสดุแล้ว' : (o.type==='ride' && o.status==='picked_up' ? '🚗 รับผู้โดยสารแล้ว' : (statusMap[o.status]||o.status))))))+'</div>' +
+        '<div class="order-track-sub">'+esc(statusText)+'</div>' +
         (o.status === 'cancelled' && o.cancelReason ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px">'+esc(o.cancelReason)+'</div>' : '') +
         (o.status === 'shop_closed' && o.customerNotice ? '<div style="font-size:12px;font-weight:800;color:#C62828;margin-top:4px;white-space:pre-wrap">'+esc(o.customerNotice)+'</div>' : '') +
         orderPrepNote(o) +
@@ -5373,11 +5385,12 @@ function renderTrackingInfo(o){
   if (shopChat) shopChat.style.display = (!chatClosed && o.merchantId) ? '' : 'none';
   var riderChat = $('track-chat-rider');
   if (riderChat) riderChat.style.display = (!chatClosed && o.riderId) ? '' : 'none';
+  var isPartnerFood = o && o.type === 'food' && o.partnerShop === true;
   var statusMap = {
     searching:{icon:'⏳',title:'กำลังหาไรเดอร์',sub:'รอไรเดอร์รับงาน'},
-    pending:{icon:'🔔',title:'รอร้านรับออเดอร์',sub:'ร้านกำลังยืนยัน'},
-    cooking:{icon:'🍳',title:'ร้านกำลังทำ',sub:'รออาหารพร้อม'},
-    ready:{icon:'✅',title:'พร้อมส่ง',sub:'รอไรเดอร์มารับ'},
+    pending:{icon:'⏳',title:'กำลังหาไรเดอร์',sub:'รอไรเดอร์รับงาน'},
+    cooking:{icon:'📦',title:'กำลังเตรียมสินค้า',sub:'รอสินค้า/พัสดุพร้อม'},
+    ready:{icon:'✅',title:'พร้อมรับ',sub:'รอไรเดอร์มารับ'},
     accepted:{icon:'🛵',title:'ไรเดอร์รับงานแล้ว',sub:'กำลังเดินทางไปร้าน'},
     picked_up:{icon:'📸',title:'ไรเดอร์รับของแล้ว',sub:'รอลูกค้าโอนเงิน'},
     customer_paid:{icon:'💳',title:'ลูกค้าโอนแล้ว',sub:'ไรเดอร์กำลังเริ่มส่ง'},
@@ -5388,12 +5401,22 @@ function renderTrackingInfo(o){
     shop_closed:{icon:'🚫',title:'ร้านปิด',sub:'ชำระค่าบริการให้ไรเดอร์'}
   };
   var s = statusMap[o.status] || {icon:'📍',title:o.status,sub:''};
-  if (o.riderId && (o.status === 'searching' || o.status === 'pending')) {
+  if (isPartnerFood && o.status === 'pending') {
+    s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
+  } else if (o.riderId && (o.status === 'searching' || o.status === 'pending')) {
     s = { icon: '🛵', title: 'ไรเดอร์รับงานแล้ว', sub: o.type === 'express' ? 'กำลังไปจุดรับพัสดุ' : 'กำลังเดินทางไปรับ' };
-  } else if (o.type === 'food' && o.partnerShop === true && (o.status === 'searching' || o.status === 'pending')) {
+  } else if (isPartnerFood && o.status === 'searching') {
     s = { icon: '🔔', title: 'รอร้านรับออเดอร์', sub: 'ร้านกำลังยืนยัน' };
   }
-  if (o.type === 'express' && o.status === 'on_the_way' && o.expressDropoffConfirmedAt && o.paymentMode !== 'cash' && !o.customerPaidAt) {
+  if (o.type === 'ride' && o.status === 'accepted') {
+    s = { icon: '🛵', title: 'ไรเดอร์รับงานแล้ว', sub: 'กำลังไปจุดรับผู้โดยสาร' };
+  } else if (o.type === 'express' && o.status === 'accepted') {
+    s = { icon: '🛵', title: 'ไรเดอร์รับงานแล้ว', sub: 'กำลังไปจุดรับพัสดุ' };
+  } else if (o.type === 'shopping' && o.status === 'accepted') {
+    s = { icon: '🛵', title: 'ไรเดอร์รับงานแล้ว', sub: 'กำลังไปร้านเพื่อซื้อสินค้า' };
+  } else if (o.type === 'food' && !isPartnerFood && o.status === 'accepted') {
+    s = { icon: '🛵', title: 'ไรเดอร์รับงานแล้ว', sub: 'กำลังไปรับอาหาร' };
+  } else if (o.type === 'express' && o.status === 'on_the_way' && o.expressDropoffConfirmedAt && o.paymentMode !== 'cash' && !o.customerPaidAt) {
     s = { icon: '💳', title: 'ยืนยันรับของแล้ว', sub: 'โอนตาม QR แล้วแนบสลิป' };
   } else if (o.type === 'express' && o.status === 'on_the_way' && o.deliveryProofUrl && !o.expressDropoffConfirmedAt) {
     s = { icon: '📦', title: 'รอลูกค้ายืนยันรับของ', sub: 'ดูรูปในแชทกับไรเดอร์' };
@@ -5413,9 +5436,9 @@ function renderTrackingInfo(o){
     s = { icon: '💵', title: 'ไรเดอร์รับของแล้ว', sub: 'ชำระเงินสดกับไรเดอร์' };
   } else if (o.paymentMode === 'cash' && o.status === 'on_the_way') {
     s = { icon: '🚀', title: 'กำลังส่ง', sub: 'ชำระเงินสดกับไรเดอร์' };
-  } else if ((o.foodReady || o.readyAt) && o.status === 'accepted') {
+  } else if (isPartnerFood && (o.foodReady || o.readyAt) && o.status === 'accepted') {
     s = { icon: '✅', title: 'อาหารพร้อมแล้ว', sub: 'ไรเดอร์กำลังไปรับที่ร้าน' };
-  } else if (o.prepMinutes && !o.foodReady && !o.readyAt && (o.status === 'cooking' || o.status === 'accepted')) {
+  } else if (isPartnerFood && o.prepMinutes && !o.foodReady && !o.readyAt && (o.status === 'cooking' || o.status === 'accepted')) {
     s = { icon: s.icon, title: s.title, sub: 'ร้านใช้เวลาทำประมาณ ' + Number(o.prepMinutes) + ' นาที' };
   }
   var $icon = $('track-status-icon'); if ($icon) $icon.textContent = s.icon;
@@ -5433,18 +5456,45 @@ function renderTrackingInfo(o){
     if ($('track-eta')) $('track-eta').textContent = dist < 0.1 ? '🎉 ถึงแล้ว' : '~' + eta + ' นาที';
   }
 
-  var timeline = [
-    {label:'สร้างออเดอร์',time:o.createdAt},
-    {label:'ร้านรับออเดอร์',time:o.cookingAt},
-    {label:'อาหารพร้อม',time:o.readyAt},
-    {label:'ไรเดอร์รับงาน',time:o.acceptedAt},
-    {label:'รับของจากร้าน',time:o.pickedUpAt},
-    {label:'ลูกค้าโอนเงิน',time:o.customerPaidAt, transferOnly:true},
-    {label:'ออกเดินทาง',time:o.onTheWayAt},
-    {label:'ส่งถึงลูกค้า',time:o.deliveredAt || o.doneAt}
-  ];
-  if (o.type === 'express') {
-    timeline.splice(7, 0, {label:'ไรเดอร์ถึงปลายทาง', time:o.riderArrivedCustomerChatAt});
+  var timeline;
+  if (isPartnerFood) {
+    timeline = [
+      {label:'สร้างออเดอร์',time:o.createdAt},
+      {label:'ร้านรับออเดอร์',time:o.cookingAt},
+      {label:'อาหารพร้อม',time:o.readyAt},
+      {label:'ไรเดอร์รับงาน',time:o.acceptedAt},
+      {label:'รับอาหารจากร้าน',time:o.pickedUpAt},
+      {label:'ลูกค้าโอนเงิน',time:o.customerPaidAt, transferOnly:true},
+      {label:'ออกเดินทาง',time:o.onTheWayAt},
+      {label:'ส่งถึงลูกค้า',time:o.deliveredAt || o.doneAt}
+    ];
+  } else if (o.type === 'express') {
+    timeline = [
+      {label:'สร้างงานส่งด่วน',time:o.createdAt},
+      {label:'ไรเดอร์รับงาน',time:o.acceptedAt},
+      {label:'ถึงจุดรับพัสดุ',time:o.pickedUpAt ? (o.arrivedPickupAt || o.pickedUpAt) : o.arrivedPickupAt},
+      {label:'รับพัสดุแล้ว',time:o.pickedUpAt},
+      {label:'ออกเดินทางไปปลายทาง',time:o.onTheWayAt},
+      {label:'ถึงปลายทาง',time:o.riderArrivedCustomerChatAt},
+      {label:'ส่งพัสดุสำเร็จ',time:o.deliveredAt || o.doneAt}
+    ];
+  } else if (o.type === 'ride') {
+    timeline = [
+      {label:'สร้างงานเรียกรถ',time:o.createdAt},
+      {label:'ไรเดอร์รับงาน',time:o.acceptedAt},
+      {label:'รับผู้โดยสารแล้ว',time:o.pickedUpAt},
+      {label:'กำลังเดินทางไปปลายทาง',time:o.onTheWayAt},
+      {label:'ถึงปลายทาง',time:o.deliveredAt || o.doneAt}
+    ];
+  } else {
+    timeline = [
+      {label:'สร้างออเดอร์',time:o.createdAt},
+      {label:'ไรเดอร์รับงาน',time:o.acceptedAt},
+      {label:'ถึงจุดรับสินค้า',time:o.pickedUpAt},
+      {label:'รับสินค้าแล้ว',time:o.pickedUpAt},
+      {label:'ออกเดินทาง',time:o.onTheWayAt},
+      {label:'ส่งถึงลูกค้า',time:o.deliveredAt || o.doneAt}
+    ];
   }
   var html = '';
   if (o.paymentMode === 'cash') timeline = timeline.filter(function(t){ return !t.transferOnly; });
