@@ -1290,7 +1290,34 @@ body { background: radial-gradient(circle at 0 0, #E4F8F3 0, var(--bg) 34%, #F7F
 [data-theme="dark"] .travel-view { background: linear-gradient(180deg, #0B3B3A, #071A18 70%); }
 [data-theme="dark"] .bottom-nav { background: #0B211F !important; border-color: #28524C; }
 @media (max-width: 480px) { .loc-action-btn, .express-swap-btn { min-height: 52px; } .map-confirm-btn { min-height: 54px; font-size: 16px; } }
-
+/* Customer UX hardening: keep fixed navigation and mobile forms clear. */
+#tab-home, #tab-orders, #tab-messages { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+.bottom-nav { min-height: 64px; padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 1200; }
+.modal-content { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }
+.toast { bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important; z-index: 3000; }
+#login-modal .modal-content { padding-top: 30px; }
+body:not([data-theme="dark"]) .brand-hero .t,
+body:not([data-theme="dark"]) .header .cg-brand-tag,
+body:not([data-theme="dark"]) .merchant-view .merchant-view-head .section-title { color: #fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.22); }
+body:not([data-theme="dark"]) .section-hotel .section-title { color: #0F766E !important; }
+body:has(#merchant-view.show) .header-top .profile-avatar { opacity: 0; pointer-events: none; }
+.express-parcel-scroll { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding: 4px 2px 9px; scrollbar-width: thin; }
+.express-parcel-chip { flex: 0 0 auto; min-width: max-content; white-space: nowrap; }
+#modal-body:has(#express-parcel-type) .loc-missing { margin: 6px 0 10px; font-size: 13px; line-height: 1.35; }
+#modal-body:has(#express-parcel-type) .express-location-suggestions { margin-bottom: 10px; }
+#modal-body:has(#express-parcel-type) .form-group { scroll-margin-bottom: 96px; }
+.dest-osm-credit { font-size: 11px; line-height: 1.55; color: var(--text-muted); padding: 8px 4px; }
+.restaurant-search-clear, #merchant-search-clear { min-width: 42px; min-height: 42px; font-size: 22px; }
+.customer-cancel-reason.is-selected { border-color: var(--brand) !important; background: var(--brand-light) !important; color: var(--green) !important; box-shadow: 0 0 0 3px rgba(47,125,50,.16); }
+.chat-empty { display: grid; justify-items: center; gap: 8px; padding: 54px 20px 110px; text-align: center; }
+.chat-empty .empty-action, #chat-list-empty .empty-action { min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--brand); color: #fff; font: 900 14px/1 inherit; }
+@media (max-width: 480px) {
+  .home-section .section-title { font-size: 20px; }
+  .dest-chip, .sug-chip, .express-parcel-chip { min-height: 44px; }
+  .merchant-view .merchant-view-head { padding-top: 8px; }
+}
+[data-theme="dark"] .partner-cta-title { color: #F5F5F5; }
+[data-theme="dark"] .dest-osm-credit { color: #C5D4C0; }
 /* ═══ INTERACTION MOTION — immediate, tactile, accessible feedback ═══ */
 @keyframes cgPressGlow { 0% { box-shadow: 0 0 0 0 rgba(249,115,22,.42); } 100% { box-shadow: 0 0 0 12px rgba(249,115,22,0); } }
 @keyframes cgCardReveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -1926,6 +1953,7 @@ select:focus-visible, [role="button"]:focus-visible {
       <div class="icon">💬</div>
       <div>ยังไม่มีแชท</div>
       <div style="font-size:12px;margin-top:6px">แชทจะปรากฏเมื่อไรเดอร์รับงาน</div>
+      <button type="button" class="empty-action" onclick="switchTab('orders', document.querySelector('.bottom-nav .nav-item:nth-child(2)'))">ดูรายการของฉัน</button>
     </div>
   </div>
 </div>
@@ -4139,6 +4167,7 @@ window.switchTab = function(tab, el){
   if($('tab-home')) $('tab-home').style.display = tab==='home'?'block':'none';
   if($('tab-orders')) $('tab-orders').style.display = tab==='orders'?'block':'none';
   if($('tab-messages')) $('tab-messages').style.display = tab==='messages'?'block':'none';
+  if($('main-header')) $('main-header').style.display = tab==='home' ? '' : 'none';
   if(tab==='orders' && currentUser) subscribeUserOrders();
   if(tab==='messages' && currentUser) subscribeChatList();
   window.scrollTo(0,0);
@@ -4711,7 +4740,7 @@ function openCustomerCancel(orderId) {
   var box = $('customer-cancel-reasons');
   if (box) {
     box.innerHTML = CUSTOMER_CANCEL_REASONS.concat(['อื่น']).map(function(reason) {
-      return '<button type="button" class="btn-full btn-gray press-scale" style="margin-top:8px;min-height:48px" onclick="chooseCustomerCancelReason(\'' + reason + '\')">' + reason + '</button>';
+      return '<button type="button" class="btn-full btn-gray press-scale customer-cancel-reason" aria-pressed="false" style="margin-top:8px;min-height:48px" onclick="chooseCustomerCancelReason(\'' + reason + '\')">' + reason + '</button>';
     }).join('');
   }
   if ($('customer-cancel-other')) $('customer-cancel-other').value = '';
@@ -4720,6 +4749,11 @@ function openCustomerCancel(orderId) {
 }
 function chooseCustomerCancelReason(reason) {
   customerCancelChoice = reason;
+  document.querySelectorAll('.customer-cancel-reason').forEach(function(btn) {
+    var selected = btn.textContent.trim() === reason;
+    btn.classList.toggle('is-selected', selected);
+    btn.setAttribute('aria-pressed', selected ? 'true' : 'false');
+  });
   if ($('customer-cancel-other-wrap')) $('customer-cancel-other-wrap').style.display = reason === 'อื่น' ? 'block' : 'none';
 }
 function closeCustomerCancel() {
@@ -6889,7 +6923,7 @@ function renderExpressForm() {
       '<div class="express-location-row"><span class="express-location-dot destination" aria-hidden="true"></span><div class="express-location-input-wrap"><label class="sr-only" for="order-to">ที่อยู่ปลายทาง</label><input id="order-to" value="' + esc(toVal) + '" placeholder="พิมพ์ที่อยู่ปลายทาง เช่น บ้าน" autocomplete="off"><div class="exp-suggest" id="exp-to-suggest"></div></div><button type="button" class="express-location-icon gps' + (destinationKnown ? '' : ' is-unset') + '" data-refresh-gps="express-destination" aria-label="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง" title="ใช้ตำแหน่งปัจจุบันเป็นปลายทาง">' + expressLocationIconSvg('gps') + '</button><button type="button" class="express-location-icon" data-exp-map="exp-destination" aria-label="เลือกปลายทางจากแผนที่" title="เลือกปลายทางจากแผนที่">' + expressLocationIconSvg('map') + '</button></div>' +
       destinationStatus + '</div><div class="express-location-suggestions"><div class="sug-chips">' + sugChipsHtml + '</div></div></div>' +
     '<div class="form-group"><label>📦 ประเภทพัสดุ</label><input type="hidden" id="express-parcel-type" value="' + esc(parcelType ? parcelType.id : '') + '"><div id="express-parcel-picker" class="express-parcel-scroll' + (parcelType ? '' : ' missing') + '" aria-label="เลือกประเภทพัสดุ">' + (parcelType ? '' : '<div id="express-parcel-alert" class="express-parcel-alert">ประเภทพัสดุเดิมใช้ไม่ได้แล้ว เลือกประเภทใหม่ก่อนยืนยัน</div>') + parcelTypesHtml + '</div><div style="font-size:11px;color:var(--text-muted);font-weight:700;margin-top:6px">' + (parcelType ? (parcelType.icon + ' ' + esc(parcelType.note)) : 'ยังไม่ได้เลือกประเภทพัสดุ') + '</div></div>' +
-    '<div class="express-two-col"><div class="form-group"><label>⚖️ น้ำหนักโดยประมาณ (กก.)</label><input type="number" id="express-weight-kg" min="0" max="1000" step="0.1" value="' + esc(weightVal) + '" placeholder="เช่น 2.5"></div><div class="form-group"><label>⏰ ต้องการให้ถึง</label><input type="datetime-local" id="express-arrival-by" value="' + esc(arrivalByVal) + '"></div></div>' +
+    '<div class="express-two-col"><div class="form-group"><label>⚖️ น้ำหนักโดยประมาณ (กก.)</label><input type="number" id="express-weight-kg" min="0" max="1000" step="0.1" value="' + esc(weightVal) + '" placeholder="เช่น 2.5"></div><div class="form-group"><label>⏰ ต้องการให้ถึง</label><input type="datetime-local" id="express-arrival-by" lang="th-TH" value="' + esc(arrivalByVal) + '"></div></div>' +
     '<div class="form-group"><label>🧾 ลักษณะสิ่งของ</label><textarea id="express-item-description" rows="2" placeholder="เช่น กล่องเอกสาร 1 กล่อง, ผลไม้ 3 กก., ต้องระวังแตก">' + esc(itemDescriptionVal) + '</textarea></div>' +
     '<div class="form-group"><label>📷 รูปถ่ายสิ่งของ <span style="font-size:11px;color:var(--text-muted);font-weight:700">(ไม่บังคับ)</span></label><div style="display:flex;gap:8px"><label class="express-photo-box" style="flex:1"><span style="font-size:22px">📷</span><span>ถ่ายรูป</span><input type="file" id="express-parcel-photo-camera" accept="image/*" capture="environment" onchange="previewExpressParcelPhoto(this)"></label><label class="express-photo-box" style="flex:1"><span style="font-size:22px">🖼️</span><span>คลังภาพ</span><input type="file" id="express-parcel-photo-gallery" accept="image/*" onchange="previewExpressParcelPhoto(this)"></label></div><div id="express-photo-name" class="express-photo-name">' + (expressParcelPhotoFile ? ('📷 ' + esc(expressParcelPhotoFile.name)) : 'ยังไม่ได้เลือกรูป (ไม่บังคับ)') + '</div></div>' +
     '<div class="form-group"><label>📝 หมายเหตุถึงไรเดอร์</label><textarea id="order-note" rows="2" placeholder="เช่น ให้โทรก่อนถึง หรือวางไว้หน้าบ้าน">' + esc(noteVal) + '</textarea></div>' +
@@ -7352,7 +7386,7 @@ function renderMerchantList(merchants){
       '<div class="merchant-card-icon" style="background:#E8F5E9;overflow:hidden">' + iconHtml + '</div>' +
       '<div class="merchant-card-info">' +
         '<div class="merchant-card-name">'+esc(m.name||'ไม่ระบุ')+'</div>' +
-        '<div class="merchant-card-meta">'+(isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(m.category||'')+'</div>' +
+        '<div class="merchant-card-meta">'+(isOpen?'🟢 เปิด':'⚫ ปิด')+' • '+esc(merchantCategoryTheme(m.category).label)+'</div>' +
         '<div class="merchant-card-detail-row"><span class="merchant-card-detail">เวลาส่ง ' + esc(deliveryText) + '</span><span class="merchant-card-detail promo">โปรโมชั่น ' + esc(promoText) + '</span></div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px">' + ratingHtml + distHtml + '</div>' +
       '</div>' +
