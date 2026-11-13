@@ -40,6 +40,8 @@ test('rider remittance keeps the 21:00 card and does not join an order thread', 
   assert.match(rider, /PLATFORM_SHARE/);
   assert.match(rider, /rider_remittances/);
   assert.match(rider, /settlement_slips\/riders/);
+  assert.match(rider, /รอแอดมินตรวจสอบ/);
+  assert.match(rider, /รอปลดล็อก/);
   assert.match(rider, /senderRole: 'rider'/);
   assert.match(rules, /match \/rider_remittances\/\{remittanceId\}/);
   assert.match(storage, /match \/settlement_slips\/riders\/\{uid\}\/\{fileName\}/);

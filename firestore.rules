@@ -248,6 +248,7 @@ service cloud.firestore {
         && unchanged('totalJobs')
         && unchanged('onlineLockedUntil')
         && unchanged('onlineLockReason')
+        && unchanged('remittanceVerificationUntil')
         && (
           request.resource.data.get('status', '') != 'active'
           || resource.data.get('onlineLockedUntil', null) == null

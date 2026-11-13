@@ -308,14 +308,21 @@ exports.sweepRiderRemit = onSchedule({
     const riderSnap = await riderRef.get();
     const rider = riderSnap.exists ? riderSnap.data() : {};
     const until = rider.onlineLockedUntil && rider.onlineLockedUntil.toMillis ? rider.onlineLockedUntil.toMillis() : 0;
+    const cooldownUntil = rider.remittanceVerificationUntil && rider.remittanceVerificationUntil.toMillis
+      ? rider.remittanceVerificationUntil.toMillis() : 0;
     const plan = remitLockPlan({
       nowMs: nowMs,
       amount: Number(row.amount) || 0,
       pendingSlip: pendingSlip,
-      lockedUntilMs: until
+      lockedUntilMs: until,
+      cooldownUntilMs: cooldownUntil
     });
     if (plan.action === 'clear' && until) {
-      await riderRef.set({ onlineLockedUntil: FieldValue.delete(), onlineLockReason: FieldValue.delete() }, { merge: true });
+      await riderRef.set({
+        onlineLockedUntil: FieldValue.delete(),
+        onlineLockReason: FieldValue.delete(),
+        remittanceVerificationUntil: FieldValue.delete()
+      }, { merge: true });
     } else if (plan.action === 'lock') {
       await riderRef.set({
         onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
@@ -325,7 +332,9 @@ exports.sweepRiderRemit = onSchedule({
     if (plan.notify && rider.remitNoticeDate !== plan.key) {
       await D.notifyRider(db, riderId, {
         title: 'โอนยอดให้ ChauatGo',
-        body: 'อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง',
+        body: plan.phase === 'verification_cooldown'
+          ? 'แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
+          : 'อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง',
         data: { kind: 'remit' }
       });
       await riderRef.set({ remitNoticeDate: plan.key }, { merge: true });
@@ -442,7 +451,10 @@ async function assertRiderCanWork(uid) {
   const until = snap.exists ? snap.data().onlineLockedUntil : null;
   const ms = until && typeof until.toMillis === 'function' ? until.toMillis() : 0;
   if (ms > Date.now()) {
-    const err = new Error('บัญชีถูกพักรับงานเพราะยังไม่โอนยอดก่อน 22:00');
+    const reason = snap.data().onlineLockReason === 'remit_verified_cooldown'
+      ? 'บัญชีอยู่ระหว่างตรวจสอบการโอน ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
+      : 'บัญชีถูกพักรับงานเพราะยังไม่โอนยอดก่อน 21:00';
+    const err = new Error(reason);
     err.code = 'failed-precondition';
     throw err;
   }
@@ -760,6 +772,20 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
     const orderSnap = await db.collection('orders').where('riderId', '==', uid).where('status', 'in', ['done', 'delivered']).limit(80).get();
     const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
     const due = riderDailyDue(jobs, Date.now());
+    const remittanceSnap = await db.collection('rider_remittances').where('riderId', '==', uid).limit(20).get();
+    const remittances = remittanceSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+    remittances.sort((a, b) => {
+      const at = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+      const bt = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    const latest = remittances[0] || null;
+    const riderData = riderSnap.exists ? riderSnap.data() : {};
+    const lockedUntilMs = riderData.onlineLockedUntil && riderData.onlineLockedUntil.toMillis
+      ? riderData.onlineLockedUntil.toMillis() : 0;
+    const displayAmount = due.amount > 0
+      ? due.amount
+      : (latest && latest.status !== 'rejected' ? Number(latest.amount || 0) : 0);
     await db.collection('settlement_queue').doc('rider_' + uid).set({
       kind: 'rider',
       partyId: uid,
@@ -767,10 +793,24 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
       amount: due.amount,
       dateKey: due.dateKey,
       cutoff: due.cutoff,
-      status: due.amount > 0 ? 'due' : 'clear',
+      status: due.amount > 0 ? 'due' : (latest && latest.status === 'pending' ? 'pending' : 'clear'),
+      displayAmount,
+      latestRemittanceId: latest && latest.id || '',
+      latestRemittanceStatus: latest && latest.status || '',
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
-    return { kind: 'rider', amount: due.amount, dateKey: due.dateKey, cutoff: due.cutoff, overdue: due.overdue, jobIds: due.jobIds, payout };
+    return {
+      kind: 'rider', amount: displayAmount, dateKey: due.dateKey, cutoff: due.cutoff,
+      overdue: due.overdue, jobIds: due.jobIds, payout,
+      remittance: latest ? {
+        id: latest.id,
+        amount: Number(latest.amount || 0),
+        dateKey: String(latest.dateKey || ''),
+        status: String(latest.status || 'pending')
+      } : null,
+      lockedUntilMs,
+      verificationCooldown: riderData.onlineLockReason === 'remit_verified_cooldown'
+    };
   }
   throw new HttpsError('permission-denied', 'เฉพาะร้านหรือไรเดอร์');
 });
@@ -817,9 +857,11 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         });
         tx.update(ref, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid, jobIds: plan.jobIds });
         if (riderSnap.exists) {
+          const unlockAt = Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
           tx.update(riderRef, {
-            onlineLockedUntil: FieldValue.delete(),
-            onlineLockReason: FieldValue.delete()
+            onlineLockedUntil: unlockAt,
+            onlineLockReason: 'remit_verified_cooldown',
+            remittanceVerificationUntil: unlockAt
           });
         }
       }
@@ -828,6 +870,9 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         partyId: riderId,
         status: plan.status === 'verified' ? 'clear' : 'rejected',
         amount: plan.status === 'verified' ? 0 : Number(remittance.amount || 0),
+        displayAmount: Number(remittance.amount || 0),
+        latestRemittanceId: remittanceId,
+        latestRemittanceStatus: plan.status,
         updatedAt: now
       }, { merge: true });
       return { ok: true, alreadyReviewed: false, status: plan.status, remittanceId, riderId };

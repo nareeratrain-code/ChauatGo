@@ -1543,7 +1543,9 @@ function renderRemitDashboard(amount) {
   if (lock) {
     if (riderIsRemitLocked()) {
       lock.hidden = false;
-      lock.textContent = 'พักรับงาน 1 วัน เพราะยังไม่โอนยอดก่อน 22:00 โอนได้จากปุ่มด้านบน แล้วรอแอดมินยืนยันสลิป';
+      lock.textContent = riderProfile?.onlineLockReason === 'remit_verified_cooldown'
+        ? 'พักรับงานชั่วคราว แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
+        : 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
     } else lock.hidden = true;
   }
   if (due && clock.hour === 20 && !sessionStorage.getItem('remit-notice')) {
@@ -1557,7 +1559,13 @@ function queueRiderRemitSync(amount) {
   if (!(Number(amount) > 0) || window._remitQueueSynced) return;
   if (!window.ChauatFn || !currentUser) return;
   window._remitQueueSynced = true;
-  ChauatFn.callFunction('syncMySettlement', {}, auth).catch(function () {
+  ChauatFn.callFunction('syncMySettlement', {}, auth).then(function (result) {
+    if (!result || result.kind !== 'rider') return;
+    const serverAmount = Number(result.amount || 0);
+    const oweEl = $('hero-owe');
+    if (oweEl) oweEl.textContent = '฿' + fmt(serverAmount);
+    renderRemitDashboard(serverAmount);
+  }).catch(function () {
     window._remitQueueSynced = false;
   });
 }
@@ -4412,23 +4420,36 @@ function renderRiderSettlement() {
   const body = $('rider-settle-body');
   if (!body || !riderSettle) return;
   const due = riderSettle;
+  const status = String(due.remittanceStatus || '');
+  const lockedUntil = Number(due.lockedUntilMs || 0);
+  const cooldown = status === 'verified' && lockedUntil > Date.now();
+  const statusCopy = status === 'pending'
+    ? '📨 ส่งสลิปแล้ว • รอแอดมินตรวจสอบ'
+    : status === 'verified' && cooldown
+      ? `✅ แอดมินตรวจสลิปแล้ว • รอปลดล็อก ${new Date(lockedUntil).toLocaleString('th-TH')}`
+      : status === 'rejected'
+        ? '⚠️ สลิปไม่ผ่าน • กรุณาแนบสลิปใหม่'
+        : due.overdue
+          ? '⏰ เลยเวลาแล้ว ยังโอนย้อนหลังให้แอดมินได้'
+          : 'ยอดวันนี้ 20% ของค่าส่ง';
+  const canUpload = status !== 'pending' && !cooldown;
   body.innerHTML = `
     <div class="sheet-handle"></div>
     <h2>📤 โอนให้ ChauatGo</h2>
     <div class="settle-due">
       <div style="font-size:12px;font-weight:800">ต้องโอนก่อน ${esc(due.cutoff || '21:00')}</div>
       <div class="amt">฿${fmt(due.amount || 0)}</div>
-      <div style="font-size:12px;font-weight:700;margin-top:4px">${due.overdue ? 'เลยเวลาแล้ว' : 'ยอดวันนี้ 20% ของค่าส่ง'} • ${esc(due.dateKey || '')}</div>
+      <div style="font-size:12px;font-weight:700;margin-top:4px">${statusCopy} • ${esc(due.dateKey || '')}</div>
     </div>
     ${riderPayoutHtml(due.payout)}
-    <div class="photo-source-row" style="margin-top:12px">
+    ${canUpload ? `<div class="photo-source-row" style="margin-top:12px">
       <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('rider-settle-camera').click()">📷 ถ่ายสลิป</button>
       <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('rider-settle-gallery').click()">🖼️ เลือกสลิป</button>
     </div>
     <input type="file" id="rider-settle-camera" accept="image/*" capture="environment" style="display:none" onchange="onRiderSettleFile(this)">
     <input type="file" id="rider-settle-gallery" accept="image/*" style="display:none" onchange="onRiderSettleFile(this)">
     <img id="rider-settle-preview" class="settle-qr" alt="" style="display:none">
-    <button class="btn-primary ripple" onclick="submitRiderRemittance()">ส่งสลิป</button>
+    <button class="btn-primary ripple" onclick="submitRiderRemittance()">ส่งสลิปให้แอดมินตรวจ</button>` : `<div style="margin-top:12px;padding:12px;border-radius:10px;background:var(--surface-2);font-size:12px;font-weight:800;color:var(--text-muted)">${esc(statusCopy)}</div>`}
     <button class="btn-secondary ripple" onclick="openRiderSettlementChat()">💬 ถามแอดมิน</button>
     <div class="settle-chat-log" id="rider-settle-log" style="display:none"></div>
     <textarea id="rider-settle-input" rows="2" maxlength="2000" placeholder="พิมพ์คำถามเรื่องยอดโอน" style="display:none"></textarea>
@@ -4444,7 +4465,7 @@ function closeRiderSettlement() {
 
 async function showTransferApp() {
   const local = localRiderDue();
-  riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null };
+  riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
   $('rider-settle-sheet')?.classList.add('show');
   renderRiderSettlement();
   subscribeRiderRemittances();
@@ -4460,6 +4481,9 @@ async function showTransferApp() {
         riderSettle.dateKey = result.dateKey || riderSettle.dateKey;
         riderSettle.cutoff = result.cutoff || '21:00';
         riderSettle.overdue = !!result.overdue;
+        riderSettle.remittanceStatus = result.remittance?.status || '';
+        riderSettle.remittanceId = result.remittance?.id || '';
+        riderSettle.lockedUntilMs = Number(result.lockedUntilMs || 0);
         if (result.payout) riderSettle.payout = result.payout;
       }
     } catch (err) { /* the card still shows the same 20% figure */ }
@@ -4485,6 +4509,10 @@ function onRiderSettleFile(input) {
 
 async function submitRiderRemittance() {
   if (!riderSettle || !riderSettle.file) return showToast('กรุณาแนบสลิปโอน', 'warning');
+  if (riderSettle.remittanceStatus === 'pending') return showToast('ส่งสลิปแล้ว รอแอดมินตรวจสอบก่อน', 'info');
+  if (riderSettle.remittanceStatus === 'verified' && Number(riderSettle.lockedUntilMs || 0) > Date.now()) {
+    return showToast('แอดมินตรวจสลิปแล้ว รอครบ 24 ชั่วโมงเพื่อปลดล็อก', 'info');
+  }
   const amount = Math.round(Number(riderSettle.amount || 0) * 100) / 100;
   if (!(amount > 0) || amount > 100000) return showToast('วันนี้ไม่มียอดที่ต้องโอน', 'info');
   try {
@@ -4515,6 +4543,19 @@ function subscribeRiderRemittances() {
   if (riderRemitUnsub || !currentUser) return;
   riderRemitUnsub = db.collection('rider_remittances').where('riderId', '==', currentUser.uid).limit(20)
     .onSnapshot((snap) => {
+      const rows = snap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+      rows.sort((a, b) => {
+        const at = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+        const bt = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      const latest = rows[0];
+      if (latest && riderSettle) {
+        riderSettle.remittanceStatus = String(latest.status || '');
+        riderSettle.remittanceId = latest.id;
+        if (!(Number(riderSettle.amount) > 0)) riderSettle.amount = Number(latest.amount || 0);
+        if ($('rider-settle-sheet')?.classList.contains('show')) renderRiderSettlement();
+      }
       snap.docs.forEach((doc) => {
         if (doc.data().status === 'rejected' && !seenRejectedRemit.has(doc.id)) {
           seenRejectedRemit.add(doc.id);
@@ -4545,7 +4586,7 @@ async function ensureRiderSettlementChat() {
 async function openRiderSettlementChat() {
   if (!riderSettle) {
     const local = localRiderDue();
-    riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null };
+    riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
   }
   $('rider-settle-sheet')?.classList.add('show');
   if (!$('rider-settle-log')) renderRiderSettlement();
