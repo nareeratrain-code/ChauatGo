@@ -2360,7 +2360,12 @@ document.addEventListener('click', async e => {
       if (!window.ChauatFn) return showToast('ระบบตรวจสลิปยังไม่พร้อม', 'error');
       try {
         const result = await ChauatFn.callFunction('reviewRiderRemittance', { remittanceId, action }, auth);
-        showToast(result && result.alreadyReviewed ? 'ตรวจสลิปนี้ไว้แล้ว' : (action === 'verify' ? 'ยืนยันยอดไรเดอร์แล้ว' : 'ปฏิเสธสลิปแล้ว'));
+        const overpaid = result && Number(result.overpaidAmount || 0);
+        showToast(result && result.alreadyReviewed
+          ? 'ตรวจสลิปนี้ไว้แล้ว'
+          : (action === 'verify'
+            ? (overpaid > 0 ? `ยืนยันสลิปแล้ว • ยอดเกิน ฿${fmt(overpaid)}` : 'ยืนยันยอดไรเดอร์แล้ว')
+            : 'ปฏิเสธสลิปแล้ว'));
         closeModal();
       } catch (err) {
         showToast((err && err.message) || 'ตรวจสลิปไม่สำเร็จ', 'error');

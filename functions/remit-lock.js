@@ -20,19 +20,27 @@ function minutesUntil(ms, hour, minute) {
 }
 
 // amount is today's unpaid 20%. A slip already waiting for review does not lock.
-// After 22:00 with nothing pending, lock for 24 hours. Confirming a slip is a
-// separate step that clears the lock immediately.
+// After 22:00 with nothing pending, lock for 24 hours. After an admin verifies
+// a slip, keep the rider locked for a separate 24-hour verification cooldown.
 function remitLockPlan(input) {
   const nowMs = Number(input && input.nowMs) || 0;
   const amount = Number(input && input.amount) || 0;
   const pendingSlip = !!(input && input.pendingSlip);
   const lockedUntilMs = Number(input && input.lockedUntilMs) || 0;
+  const cooldownUntilMs = Number(input && input.cooldownUntilMs) || 0;
   const clock = bangkokClock(nowMs);
   const due = amount > 0;
   const notify = due && clock.hour === 20;
+  if (cooldownUntilMs > nowMs) {
+    return { action: 'keep', notify: false, key: clock.key, untilMs: cooldownUntilMs, phase: 'verification_cooldown' };
+  }
+  // A lock created after 22:00 must survive midnight. Do not clear it just
+  // because the new Bangkok date has no completed jobs yet.
+  if (lockedUntilMs > nowMs) {
+    return { action: 'keep', notify: false, key: clock.key, untilMs: lockedUntilMs, phase: 'remit_lock' };
+  }
   if (!due) return { action: 'clear', notify: false, key: clock.key, minutesToDeadline: 0 };
   if (pendingSlip) return { action: 'hold', notify: notify, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
-  if (lockedUntilMs > nowMs) return { action: 'keep', notify: notify, key: clock.key, untilMs: lockedUntilMs };
   if (clock.hour >= 22) {
     return { action: 'lock', notify: notify, key: clock.key, untilMs: nowMs + DAY_MS };
   }

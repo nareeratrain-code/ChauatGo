@@ -21,6 +21,16 @@ test('financial callable endpoints require auth, mandatory App Check, and admin 
     assert.match(body, /callerIsAdmin\(db, req\.auth\)/);
   }
 });
+test('rider remittance submission requires auth and mandatory App Check but not admin role', () => {
+  const start = index.indexOf('exports.submitRiderRemittance');
+  const end = index.indexOf('\n});', start);
+  const body = index.slice(start, end);
+  assert.match(body, /if \(!req\.auth\)/);
+  assert.match(body, /guardRequiredAppCheck\(req, 'submitRiderRemittance'\)/);
+  assert.match(body, /riderRemittanceId\(uid, due\.dateKey\)/);
+  assert.match(body, /db\.runTransaction\(async \(tx\)/);
+  assert.match(body, /tx\.create\(remittanceRef/);
+});
 
 test('Rider payout is atomic and cannot be created or edited by the browser', () => {
   assert.match(index, /db\.runTransaction\(async \(tx\)/);

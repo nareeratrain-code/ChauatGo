@@ -72,6 +72,10 @@ function settlementChatId(kind, uid) {
   return (kind === 'rider' ? 'rider_' : 'shop_') + String(uid || '');
 }
 
+function riderRemittanceId(riderId, dateKey) {
+  return 'rider_' + String(riderId || '') + '_' + String(dateKey || '');
+}
+
 function publicPayout(doc) {
   const data = doc || {};
   return {
@@ -83,7 +87,9 @@ function publicPayout(doc) {
   };
 }
 
-// Confirm only when the slip amount matches the day's remittance.
+// Confirm when the submitted remittance covers the day's amount. The slip
+// image is reviewed by Admin; the server must not reject a valid overpayment
+// merely because it is greater than the calculated 20% due.
 function riderReviewPlan(remittance, jobs, action) {
   const status = String(remittance && remittance.status || 'pending');
   if (status === 'verified') {
@@ -110,12 +116,19 @@ function riderReviewPlan(remittance, jobs, action) {
     if (!when || bangkokParts(when).key !== dateKey) return null;
     return job;
   }).filter(Boolean), Date.parse(dateKey + 'T12:00:00+07:00'));
-  if (round2(remittance.amount) !== due.amount || due.amount <= 0) {
-    const err = new Error('ยอดสลิปไม่ตรงกับยอดที่ต้องโอนวันนี้');
+  const submittedAmount = round2(remittance.amount);
+  if (due.amount <= 0 || submittedAmount < due.amount) {
+    const err = new Error('ยอดสลิปน้อยกว่ายอดที่ต้องโอนวันนี้');
     err.code = 'failed-precondition';
     throw err;
   }
-  return { already: false, status: 'verified', jobIds: due.jobIds };
+  return {
+    already: false,
+    status: 'verified',
+    jobIds: due.jobIds,
+    dueAmount: due.amount,
+    overpaidAmount: round2(submittedAmount - due.amount)
+  };
 }
 
 module.exports = {
@@ -126,6 +139,7 @@ module.exports = {
   shopGpDue,
   riderDailyDue,
   settlementChatId,
+  riderRemittanceId,
   publicPayout,
   riderReviewPlan
 };

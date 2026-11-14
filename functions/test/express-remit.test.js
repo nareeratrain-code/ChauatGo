@@ -20,10 +20,11 @@ test('express cannot leave pickup or finish until photos, confirms, and payment 
   assert.equal(expressMayFinish(Object.assign({}, confirmed, { paymentMode: 'cash', customerPaidAt: null })).ok, true);
 });
 
-test('remittance locks only after 22:00 when nothing is waiting for review', () => {
+test('remittance locks only after 22:00 and keeps a verified-slip cooldown', () => {
   const before = Date.parse('2026-11-11T20:00:00+07:00');
   const due = Date.parse('2026-11-11T21:10:00+07:00');
   const late = Date.parse('2026-11-11T22:05:00+07:00');
+  const nextDay = Date.parse('2026-11-12T00:05:00+07:00');
   assert.equal(minutesUntil(before, 21, 0), 60);
   assert.equal(remitLockPlan({ nowMs: before, amount: 8 }).action, 'wait');
   assert.equal(remitLockPlan({ nowMs: before, amount: 8 }).notify, true);
@@ -32,6 +33,10 @@ test('remittance locks only after 22:00 when nothing is waiting for review', () 
   assert.equal(locked.action, 'lock');
   assert.equal(locked.untilMs - late, 24 * 60 * 60 * 1000);
   assert.equal(remitLockPlan({ nowMs: late, amount: 8, pendingSlip: true }).action, 'hold');
-  assert.equal(remitLockPlan({ nowMs: late, amount: 0, lockedUntilMs: late + 1000 }).action, 'clear');
+  assert.equal(remitLockPlan({ nowMs: late, amount: 0, lockedUntilMs: late - 1000 }).action, 'clear');
   assert.equal(remitLockPlan({ nowMs: late, amount: 8, lockedUntilMs: late + 1000 }).action, 'keep');
+  assert.equal(remitLockPlan({ nowMs: nextDay, amount: 0, lockedUntilMs: late + 24 * 60 * 60 * 1000 }).action, 'keep');
+  const cooldown = remitLockPlan({ nowMs: late, amount: 0, cooldownUntilMs: late + 24 * 60 * 60 * 1000 });
+  assert.equal(cooldown.action, 'keep');
+  assert.equal(cooldown.phase, 'verification_cooldown');
 });

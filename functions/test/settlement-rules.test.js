@@ -64,16 +64,23 @@ test('settlement chats and slips stay with the payer and admin', {
       slipUrl: 'https://example.test/slip.jpg', slipPath: 'settlement_slips/riders/rider1/1.jpg',
       note: '', createdAt: now
     };
-    await assertSucceeds(rider.collection('rider_remittances').add(remit));
-    const written = await rider.collection('rider_remittances').where('riderId', '==', 'rider1').get();
-    assert.equal(written.size, 1);
-    const remitId = written.docs[0].id;
+    const remitId = 'rider_rider1_2026-11-11';
+    await assertFails(rider.collection('rider_remittances').doc(remitId).set(remit));
+    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().collection('rider_remittances').doc(remitId).set(remit);
+    });
     await assertFails(shop.collection('rider_remittances').doc(remitId).get());
     await assertFails(customer.collection('rider_remittances').doc(remitId).get());
     await assertSucceeds(admin.collection('rider_remittances').doc(remitId).get());
     await assertFails(admin.collection('rider_remittances').doc(remitId).update({ status: 'verified' }));
     await assertFails(rider.collection('rider_remittances').doc(remitId).update({ status: 'verified', riderPaid: true }));
     await assertFails(rider.collection('orders').doc('ord1').update({ riderPaid: true }));
+    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().collection('riders').doc('rider1').update({
+        remittanceVerificationUntil: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      });
+    });
+    await assertFails(rider.collection('riders').doc('rider1').update({ status: 'active' }));
 
     await assertSucceeds(shop.collection('config').doc('payout').get());
     await assertSucceeds(rider.collection('config').doc('payout').get());
