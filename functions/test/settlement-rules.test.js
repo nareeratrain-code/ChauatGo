@@ -75,6 +75,12 @@ test('settlement chats and slips stay with the payer and admin', {
     await assertFails(admin.collection('rider_remittances').doc(remitId).update({ status: 'verified' }));
     await assertFails(rider.collection('rider_remittances').doc(remitId).update({ status: 'verified', riderPaid: true }));
     await assertFails(rider.collection('orders').doc('ord1').update({ riderPaid: true }));
+    await rulesEnv.withSecurityRulesDisabled(async (ctx) => {
+      await ctx.firestore().collection('riders').doc('rider1').update({
+        remittanceVerificationUntil: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      });
+    });
+    await assertFails(rider.collection('riders').doc('rider1').update({ status: 'active' }));
 
     await assertSucceeds(shop.collection('config').doc('payout').get());
     await assertSucceeds(rider.collection('config').doc('payout').get());

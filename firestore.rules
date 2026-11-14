@@ -254,6 +254,11 @@ service cloud.firestore {
           || resource.data.get('onlineLockedUntil', null) == null
           || resource.data.onlineLockedUntil < request.time
         )
+        && (
+          request.resource.data.get('status', '') != 'active'
+          || resource.data.get('remittanceVerificationUntil', null) == null
+          || resource.data.remittanceVerificationUntil < request.time
+        )
         && riderProfileUpdateOk();
     }
 
