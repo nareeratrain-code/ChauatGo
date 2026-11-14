@@ -25,6 +25,7 @@ const {
   shopGpDue,
   riderDailyDue,
   settlementChatId,
+  riderRemittanceId,
   publicPayout,
   riderReviewPlan
 } = require('./settlement');
@@ -293,17 +294,21 @@ exports.onDispatchOfferCreated = onDocumentCreated({
 });
 
 exports.sweepRiderRemit = onSchedule({
-  schedule: 'every 60 minutes',
+  // The accept/claim guard below is the immediate enforcement path. This
+  // sweep keeps rider status synchronized even when the rider is idle.
+  schedule: 'every 5 minutes',
   timeoutSeconds: 120
 }, async () => {
   const nowMs = Date.now();
-  const queue = await db.collection('settlement_queue').where('kind', '==', 'rider').limit(80).get();
+  const queue = await db.collection('settlement_queue').where('kind', '==', 'rider').limit(500).get();
   for (const doc of queue.docs) {
     const row = doc.data() || {};
     const riderId = String(row.partyId || '');
     if (!riderId) continue;
-    const slips = await db.collection('rider_remittances').where('riderId', '==', riderId).limit(20).get();
-    const pendingSlip = slips.docs.some((slip) => slip.data().status === 'pending');
+    const riderSlips = await db.collection('rider_remittances')
+      .where('riderId', '==', riderId)
+      .get();
+    const pendingSlip = riderSlips.docs.some((slip) => slip.data().status === 'pending');
     const riderRef = db.collection('riders').doc(riderId);
     const riderSnap = await riderRef.get();
     const rider = riderSnap.exists ? riderSnap.data() : {};
@@ -446,12 +451,51 @@ exports.completeOrder = onCall(CALL, async (req) => {
   }
 });
 
+async function refreshRiderRemitLock(uid, nowMs = Date.now()) {
+  const riderRef = db.collection('riders').doc(uid);
+  const riderSnap = await riderRef.get();
+  if (!riderSnap.exists) return { blocked: false, untilMs: 0, reason: '' };
+  const rider = riderSnap.data() || {};
+  const [orderSnap, slipSnap] = await Promise.all([
+    db.collection('orders').where('riderId', '==', uid).where('status', 'in', ['done', 'delivered']).get(),
+    db.collection('rider_remittances').where('riderId', '==', uid).get()
+  ]);
+  const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+  const due = riderDailyDue(jobs, nowMs);
+  const pendingSlip = slipSnap.docs.some((doc) => (doc.data() || {}).status === 'pending');
+  const lockedUntilMs = rider.onlineLockedUntil && typeof rider.onlineLockedUntil.toMillis === 'function'
+    ? rider.onlineLockedUntil.toMillis() : 0;
+  const cooldownUntilMs = rider.remittanceVerificationUntil && typeof rider.remittanceVerificationUntil.toMillis === 'function'
+    ? rider.remittanceVerificationUntil.toMillis() : 0;
+  const plan = remitLockPlan({ nowMs, amount: due.amount, pendingSlip, lockedUntilMs, cooldownUntilMs });
+  let effectiveUntilMs = lockedUntilMs;
+  let effectiveReason = String(rider.onlineLockReason || '');
+
+  if (plan.action === 'lock' && plan.untilMs > lockedUntilMs) {
+    await riderRef.set({
+      onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
+      onlineLockReason: 'remit'
+    }, { merge: true });
+    effectiveUntilMs = plan.untilMs;
+    effectiveReason = 'remit';
+  } else if (plan.action === 'clear' && (lockedUntilMs || cooldownUntilMs)) {
+    await riderRef.set({
+      onlineLockedUntil: FieldValue.delete(),
+      onlineLockReason: FieldValue.delete(),
+      remittanceVerificationUntil: FieldValue.delete()
+    }, { merge: true });
+    effectiveUntilMs = 0;
+    effectiveReason = '';
+  }
+
+  const blocked = plan.action === 'keep' || effectiveUntilMs > nowMs;
+  return { blocked, untilMs: effectiveUntilMs, reason: effectiveReason, dueAmount: due.amount, plan };
+}
+
 async function assertRiderCanWork(uid) {
-  const snap = await db.collection('riders').doc(uid).get();
-  const until = snap.exists ? snap.data().onlineLockedUntil : null;
-  const ms = until && typeof until.toMillis === 'function' ? until.toMillis() : 0;
-  if (ms > Date.now()) {
-    const reason = snap.data().onlineLockReason === 'remit_verified_cooldown'
+  const state = await refreshRiderRemitLock(uid, Date.now());
+  if (state.blocked) {
+    const reason = state.reason === 'remit_verified_cooldown'
       ? 'บัญชีอยู่ระหว่างตรวจสอบการโอน ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
       : 'บัญชีถูกพักรับงานเพราะยังไม่โอนยอดก่อน 21:00';
     const err = new Error(reason);
@@ -769,7 +813,7 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
   }
   if (role === 'rider') {
     const riderSnap = await db.collection('riders').doc(uid).get();
-    const orderSnap = await db.collection('orders').where('riderId', '==', uid).where('status', 'in', ['done', 'delivered']).limit(80).get();
+    const orderSnap = await db.collection('orders').where('riderId', '==', uid).where('status', 'in', ['done', 'delivered']).get();
     const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
     const due = riderDailyDue(jobs, Date.now());
     const remittanceSnap = await db.collection('rider_remittances').where('riderId', '==', uid).limit(20).get();
@@ -815,6 +859,102 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
   throw new HttpsError('permission-denied', 'เฉพาะร้านหรือไรเดอร์');
 });
 
+// Remittance submission is server-owned. The deterministic document id makes
+// retries from two tabs/devices converge on one daily record instead of
+// creating multiple pending slips for the same rider and date.
+exports.submitRiderRemittance = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'submitRiderRemittance');
+  const uid = req.auth.uid;
+  const data = req.data || {};
+  const dateKey = typeof data.dateKey === 'string' ? data.dateKey.trim() : '';
+  const slipUrl = typeof data.slipUrl === 'string' ? data.slipUrl.trim() : '';
+  const slipPath = typeof data.slipPath === 'string' ? data.slipPath.trim() : '';
+  const note = typeof data.note === 'string' ? data.note.trim() : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    throw new HttpsError('invalid-argument', 'วันที่โอนไม่ถูกต้อง');
+  }
+  if (!slipUrl || slipUrl.length > 2000) {
+    throw new HttpsError('invalid-argument', 'ไม่พบลิงก์สลิป');
+  }
+  if (slipPath !== `settlement_slips/riders/${uid}/${dateKey}.jpg`) {
+    throw new HttpsError('invalid-argument', 'ตำแหน่งสลิปไม่ถูกต้อง');
+  }
+  if (note.length > 300) throw new HttpsError('invalid-argument', 'หมายเหตุยาวเกินกำหนด');
+
+  const riderRef = db.collection('riders').doc(uid);
+  const riderSnap = await riderRef.get();
+  if (!riderSnap.exists || riderSnap.data().verified !== true) {
+    throw new HttpsError('permission-denied', 'บัญชียังไม่ได้รับการอนุมัติ');
+  }
+  const orderSnap = await db.collection('orders')
+    .where('riderId', '==', uid)
+    .where('status', 'in', ['done', 'delivered'])
+    .get();
+  const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+  const due = riderDailyDue(jobs, Date.now());
+  if (due.dateKey !== dateKey) {
+    throw new HttpsError('failed-precondition', 'วันที่ยอดโอนเปลี่ยนแล้ว กรุณาเปิดหน้านี้ใหม่');
+  }
+  if (!(due.amount > 0) || due.amount > 100000) {
+    throw new HttpsError('failed-precondition', 'วันนี้ไม่มียอดที่ต้องโอน');
+  }
+
+  const remittanceId = riderRemittanceId(uid, due.dateKey);
+  const remittanceRef = db.collection('rider_remittances').doc(remittanceId);
+  const now = Timestamp.now();
+  const result = await db.runTransaction(async (tx) => {
+    const existingSnap = await tx.get(remittanceRef);
+    if (existingSnap.exists) {
+      const existing = existingSnap.data() || {};
+      if (existing.status === 'pending' || existing.status === 'verified') {
+        return { alreadySubmitted: true, status: existing.status, remittanceId };
+      }
+      if (existing.status !== 'rejected') {
+        throw new HttpsError('failed-precondition', 'สถานะสลิปไม่ถูกต้อง');
+      }
+      tx.update(remittanceRef, {
+        riderId: uid,
+        riderName: String(riderSnap.data().name || ''),
+        amount: due.amount,
+        dateKey: due.dateKey,
+        status: 'pending',
+        slipUrl,
+        slipPath,
+        note,
+        createdAt: now,
+        rejectedAt: FieldValue.delete(),
+        rejectedBy: FieldValue.delete()
+      });
+      return { alreadySubmitted: false, replaced: true, status: 'pending', remittanceId };
+    }
+    tx.create(remittanceRef, {
+      riderId: uid,
+      riderName: String(riderSnap.data().name || ''),
+      amount: due.amount,
+      dateKey: due.dateKey,
+      status: 'pending',
+      slipUrl,
+      slipPath,
+      note,
+      createdAt: now
+    });
+    return { alreadySubmitted: false, replaced: false, status: 'pending', remittanceId };
+  });
+  await db.collection('settlement_queue').doc('rider_' + uid).set({
+    kind: 'rider',
+    partyId: uid,
+    status: result.status === 'pending' ? 'pending' : result.status,
+    amount: due.amount,
+    displayAmount: due.amount,
+    dateKey: due.dateKey,
+    latestRemittanceId: remittanceId,
+    latestRemittanceStatus: result.status,
+    updatedAt: now
+  }, { merge: true });
+  return { ok: true, ...result, amount: due.amount, dateKey: due.dateKey };
+});
+
 exports.reviewRiderRemittance = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
   guardRequiredAppCheck(req, 'reviewRiderRemittance');
@@ -837,7 +977,7 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
     const preview = await ref.get();
     if (!preview.exists) throw new HttpsError('failed-precondition', 'ไม่พบรายการสลิป');
     const riderIdPreview = String(preview.data().riderId || '');
-    const orderSnap = await db.collection('orders').where('riderId', '==', riderIdPreview).where('status', 'in', ['done', 'delivered']).limit(80).get();
+    const orderSnap = await db.collection('orders').where('riderId', '==', riderIdPreview).where('status', 'in', ['done', 'delivered']).get();
     const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
@@ -875,7 +1015,15 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         latestRemittanceStatus: plan.status,
         updatedAt: now
       }, { merge: true });
-      return { ok: true, alreadyReviewed: false, status: plan.status, remittanceId, riderId };
+      return {
+        ok: true,
+        alreadyReviewed: false,
+        status: plan.status,
+        remittanceId,
+        riderId,
+        dueAmount: plan.dueAmount,
+        overpaidAmount: plan.overpaidAmount || 0
+      };
     });
     console.info(JSON.stringify({ event: 'rider_remittance_reviewed', remittanceId, status: result.status }));
     return result;

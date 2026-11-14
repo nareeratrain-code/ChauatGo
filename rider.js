@@ -4508,6 +4508,7 @@ function onRiderSettleFile(input) {
 }
 
 async function submitRiderRemittance() {
+  if (window.riderRemittanceSubmitInFlight) return showToast('กำลังส่งสลิป กรุณารอสักครู่', 'info');
   if (!riderSettle || !riderSettle.file) return showToast('กรุณาแนบสลิปโอน', 'warning');
   if (riderSettle.remittanceStatus === 'pending') return showToast('ส่งสลิปแล้ว รอแอดมินตรวจสอบก่อน', 'info');
   if (riderSettle.remittanceStatus === 'verified' && Number(riderSettle.lockedUntilMs || 0) > Date.now()) {
@@ -4515,27 +4516,30 @@ async function submitRiderRemittance() {
   }
   const amount = Math.round(Number(riderSettle.amount || 0) * 100) / 100;
   if (!(amount > 0) || amount > 100000) return showToast('วันนี้ไม่มียอดที่ต้องโอน', 'info');
+  const dateKey = String(riderSettle.dateKey || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return showToast('วันที่ยอดโอนไม่ถูกต้อง กรุณาเปิดหน้านี้ใหม่', 'error');
+  window.riderRemittanceSubmitInFlight = true;
   try {
     const compressed = await compressImage(riderSettle.file, 1000, 0.8);
-    const path = `settlement_slips/riders/${currentUser.uid}/${Date.now()}.jpg`;
+    const path = `settlement_slips/riders/${currentUser.uid}/${dateKey}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed, { contentType: 'image/jpeg' });
     const slipUrl = await ref.getDownloadURL();
-    await db.collection('rider_remittances').add({
-      riderId: currentUser.uid,
-      riderName: String((riderProfile && riderProfile.name) || ''),
-      amount,
-      dateKey: riderSettle.dateKey,
-      status: 'pending',
+    const result = await ChauatFn.callFunction('submitRiderRemittance', {
+      dateKey,
       slipUrl,
       slipPath: path,
-      note: '',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+      note: ''
+    }, auth);
+    if (result && result.status) riderSettle.remittanceStatus = result.status;
+    if (result && result.remittanceId) riderSettle.remittanceId = result.remittanceId;
     riderSettle.file = null;
-    showToast('ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
+    showToast(result && result.alreadySubmitted ? 'มีสลิปของวันนี้อยู่แล้ว รอแอดมินตรวจสอบ' : 'ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
+    if ($('rider-settle-sheet')?.classList.contains('show')) renderRiderSettlement();
   } catch (err) {
     showToast('ส่งสลิปไม่สำเร็จ', 'error');
+  } finally {
+    window.riderRemittanceSubmitInFlight = false;
   }
 }
 

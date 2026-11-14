@@ -48,6 +48,13 @@ test('rider remittance keeps the 21:00 card and does not join an order thread', 
   assert.equal(rider.includes('collection(\'chats\').doc(\'rider_'), false);
 });
 
+test('rider remittance submission is server-owned and uses one deterministic daily path', () => {
+  assert.match(rider, /submitRiderRemittance/);
+  assert.match(rider, /settlement_slips\/riders\/\$\{currentUser\.uid\}\/\$\{dateKey\}\.jpg/);
+  assert.equal(rider.includes("collection('rider_remittances').add"), false);
+  assert.match(rules, /allow create, update, delete: if false;/);
+});
+
 test('admin inbox confirms slips through the existing review callables', () => {
   assert.match(admin, /function settlement\(/);
   assert.match(admin, /reviewGpTransfer/);

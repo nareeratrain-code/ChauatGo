@@ -34,9 +34,13 @@ function remitLockPlan(input) {
   if (cooldownUntilMs > nowMs) {
     return { action: 'keep', notify: false, key: clock.key, untilMs: cooldownUntilMs, phase: 'verification_cooldown' };
   }
+  // A lock created after 22:00 must survive midnight. Do not clear it just
+  // because the new Bangkok date has no completed jobs yet.
+  if (lockedUntilMs > nowMs) {
+    return { action: 'keep', notify: false, key: clock.key, untilMs: lockedUntilMs, phase: 'remit_lock' };
+  }
   if (!due) return { action: 'clear', notify: false, key: clock.key, minutesToDeadline: 0 };
   if (pendingSlip) return { action: 'hold', notify: notify, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
-  if (lockedUntilMs > nowMs) return { action: 'keep', notify: notify, key: clock.key, untilMs: lockedUntilMs };
   if (clock.hour >= 22) {
     return { action: 'lock', notify: notify, key: clock.key, untilMs: nowMs + DAY_MS };
   }
