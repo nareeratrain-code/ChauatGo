@@ -300,6 +300,24 @@ exports.sweepRiderRemit = onSchedule({
   timeoutSeconds: 120
 }, async () => {
   const nowMs = Date.now();
+  const unlockLabel = (ms) => new Intl.DateTimeFormat('th-TH', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Bangkok'
+  }).format(new Date(ms));
+  const sendRemitPush = async (riderRef, rider, markerField, markerValue, message) => {
+    const result = await D.notifyRider(db, String(riderRef.id || ''), message);
+    const sent = result && result.deliveryStatus === 'sent';
+    const prefix = markerField.replace(/Date$|Until$/, '');
+    const patch = sent
+      ? { [markerField]: markerValue, [prefix + 'LastAttemptStatus']: 'sent' }
+      : {
+        [prefix + 'LastAttemptAt']: FieldValue.serverTimestamp(),
+        [prefix + 'LastAttemptStatus']: String((result && (result.deliveryStatus || result.reason)) || 'failed')
+      };
+    await riderRef.set(patch, { merge: true });
+    return sent;
+  };
   const queue = await db.collection('settlement_queue').where('kind', '==', 'rider').limit(500).get();
   for (const doc of queue.docs) {
     const row = doc.data() || {};
@@ -322,6 +340,14 @@ exports.sweepRiderRemit = onSchedule({
       lockedUntilMs: until,
       cooldownUntilMs: cooldownUntil
     });
+    if (plan.lockWarning && rider.remitLockWarningDate !== plan.key) {
+      await sendRemitPush(riderRef, rider, 'remitLockWarningDate', plan.key, {
+        title: 'ใกล้เวลาพักรับงาน',
+        body: 'อีก 1 ชั่วโมงจะถึง 22:00 กรุณาโอนยอดค้างเพื่อไม่ให้ระบบพักรับงานอัตโนมัติ',
+        data: { kind: 'remit', phase: 'lock_warning', dateKey: plan.key }
+      });
+    }
+    let createdLock = false;
     if (plan.action === 'clear' && until) {
       await riderRef.set({
         onlineLockedUntil: FieldValue.delete(),
@@ -333,16 +359,30 @@ exports.sweepRiderRemit = onSchedule({
         onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
         onlineLockReason: 'remit'
       }, { merge: true });
+      createdLock = true;
+    }
+    const lockNeedsPush = (createdLock || plan.phase === 'remit_lock')
+      && rider.remitLockNoticeUntil !== plan.untilMs;
+    if (lockNeedsPush) {
+      await sendRemitPush(riderRef, rider, 'remitLockNoticeUntil', plan.untilMs, {
+        title: 'บัญชีถูกพักรับงานอัตโนมัติ',
+        body: `ยังไม่ได้โอนยอดค้าง ระบบจะปลดล็อก ${unlockLabel(plan.untilMs)} น.`,
+        data: {
+          kind: 'remit',
+          phase: 'locked',
+          unlockAt: new Date(plan.untilMs).toISOString(),
+          dateKey: plan.key
+        }
+      });
     }
     if (plan.notify && rider.remitNoticeDate !== plan.key) {
-      await D.notifyRider(db, riderId, {
+      await sendRemitPush(riderRef, rider, 'remitNoticeDate', plan.key, {
         title: 'โอนยอดให้ ChauatGo',
         body: plan.phase === 'verification_cooldown'
           ? 'แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
           : 'อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง',
         data: { kind: 'remit' }
       });
-      await riderRef.set({ remitNoticeDate: plan.key }, { merge: true });
     }
   }
 });

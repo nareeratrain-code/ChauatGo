@@ -28,9 +28,13 @@ test('remittance locks only after 22:00 and keeps a verified-slip cooldown', () 
   assert.equal(minutesUntil(before, 21, 0), 60);
   assert.equal(remitLockPlan({ nowMs: before, amount: 8 }).action, 'wait');
   assert.equal(remitLockPlan({ nowMs: before, amount: 8 }).notify, true);
+  const warning = remitLockPlan({ nowMs: Date.parse('2026-11-11T21:05:00+07:00'), amount: 8 });
+  assert.equal(warning.action, 'wait');
+  assert.equal(warning.lockWarning, true);
   assert.equal(remitLockPlan({ nowMs: due, amount: 8, pendingSlip: true }).action, 'hold');
   const locked = remitLockPlan({ nowMs: late, amount: 8, pendingSlip: false });
   assert.equal(locked.action, 'lock');
+  assert.equal(locked.lockWarning, false);
   assert.equal(locked.untilMs - late, 24 * 60 * 60 * 1000);
   assert.equal(remitLockPlan({ nowMs: late, amount: 8, pendingSlip: true }).action, 'hold');
   assert.equal(remitLockPlan({ nowMs: late, amount: 0, lockedUntilMs: late - 1000 }).action, 'clear');

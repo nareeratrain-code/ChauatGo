@@ -65,6 +65,30 @@ function adminFirebaseErrorText(err, fallback) {
   return fallback || 'ทำรายการไม่สำเร็จ';
 }
 
+function riderLockUntil(rider) {
+  const values = [rider && rider.onlineLockedUntil, rider && rider.remittanceVerificationUntil]
+    .map(toDate)
+    .filter(Boolean)
+    .map(date => date.getTime())
+    .filter(ms => ms > Date.now());
+  return values.length ? new Date(Math.max(...values)) : null;
+}
+
+function riderLockMessage(rider) {
+  const until = riderLockUntil(rider);
+  if (!until) return '';
+  const cooldown = rider && rider.onlineLockReason === 'remit_verified_cooldown';
+  const reason = cooldown
+    ? 'อยู่ระหว่างรอปลดล็อกหลังแอดมินตรวจสลิป'
+    : 'ยังมียอดที่ต้องโอนให้ ChauatGo';
+  return `${reason} • ปลดล็อก ${fmtTime(until)} น.`;
+}
+
+function isPermissionDeniedError(err) {
+  const raw = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+  return /permission-denied|insufficient permission/i.test(raw);
+}
+
 const MASTER_ADMINS = [
   'adminchauatgo@gmail.com',
   'admin@chauatgo.com',
@@ -1109,6 +1133,7 @@ function riders() {
           <div class="data-card-meta">📞 ${esc(r.phone || '—')} • ${esc(r.vehicle || '')} ${esc(r.plate || '')}</div>
           <div class="data-card-meta" style="font-family:monospace;font-size:10px">🆔 ${esc((r.id || '').slice(0, 12))}...</div>
           <div class="data-card-meta">⭐ Trust: ${trust} • 📦 ${r.totalJobs || 0} งาน</div>
+          ${riderLockMessage(r) ? `<div class="data-card-meta" style="color:#b42318;font-weight:800">🔒 ${esc(riderLockMessage(r))}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
           <span class="tag ${v ? '' : 'w'}">${v ? '✅' : '⏳'}</span>
@@ -2235,10 +2260,23 @@ document.addEventListener('click', async e => {
       const r = store.riders.find(x => x.id === t.dataset.toggleRider);
       if (r) {
         const online = ['active', 'available', 'online'].includes(r.status);
-        await db.collection('riders').doc(r.id).update({
-          status: online ? 'inactive' : 'active'
-        });
-        showToast(online ? '⏸️ ปิดรับงาน' : '▶️ เปิดรับงาน');
+        const lockMessage = !online && riderLockMessage(r);
+        if (lockMessage) {
+          showToast(`🔒 เปิดรับงานไม่ได้ — ${lockMessage}`, 'warning');
+          return;
+        }
+        try {
+          await db.collection('riders').doc(r.id).update({
+            status: online ? 'inactive' : 'active'
+          });
+          showToast(online ? '⏸️ ปิดรับงาน' : '▶️ เปิดรับงาน');
+        } catch (err) {
+          if (isPermissionDeniedError(err) && !online) {
+            showToast(`🔒 เปิดรับงานไม่ได้ — ${riderLockMessage(r) || 'บัญชีไรเดอร์ยังถูกพักรับงาน'}`, 'warning');
+          } else {
+            showToast(adminFirebaseErrorText(err, 'เปลี่ยนสถานะไรเดอร์ไม่สำเร็จ'), 'error');
+          }
+        }
       }
       return;
     }

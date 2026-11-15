@@ -31,20 +31,21 @@ function remitLockPlan(input) {
   const clock = bangkokClock(nowMs);
   const due = amount > 0;
   const notify = due && clock.hour === 20;
+  const lockWarning = due && !pendingSlip && clock.hour === 21;
   if (cooldownUntilMs > nowMs) {
-    return { action: 'keep', notify: false, key: clock.key, untilMs: cooldownUntilMs, phase: 'verification_cooldown' };
+    return { action: 'keep', notify: false, lockWarning: false, key: clock.key, untilMs: cooldownUntilMs, phase: 'verification_cooldown' };
   }
   // A lock created after 22:00 must survive midnight. Do not clear it just
   // because the new Bangkok date has no completed jobs yet.
   if (lockedUntilMs > nowMs) {
-    return { action: 'keep', notify: false, key: clock.key, untilMs: lockedUntilMs, phase: 'remit_lock' };
+    return { action: 'keep', notify: false, lockWarning: false, key: clock.key, untilMs: lockedUntilMs, phase: 'remit_lock' };
   }
-  if (!due) return { action: 'clear', notify: false, key: clock.key, minutesToDeadline: 0 };
-  if (pendingSlip) return { action: 'hold', notify: notify, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
+  if (!due) return { action: 'clear', notify: false, lockWarning: false, key: clock.key, minutesToDeadline: 0 };
+  if (pendingSlip) return { action: 'hold', notify: notify, lockWarning: false, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
   if (clock.hour >= 22) {
-    return { action: 'lock', notify: notify, key: clock.key, untilMs: nowMs + DAY_MS };
+    return { action: 'lock', notify: notify, lockWarning: false, key: clock.key, untilMs: nowMs + DAY_MS };
   }
-  return { action: 'wait', notify: notify, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
+  return { action: 'wait', notify: notify, lockWarning: lockWarning, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
 }
 
 module.exports = { bangkokClock, minutesUntil, remitLockPlan, DAY_MS };
