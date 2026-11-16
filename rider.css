@@ -1930,3 +1930,16 @@ body {
   line-height: 1.5;
 }
 .rider-history-top { display: flex; justify-content: space-between; font-weight: 900; }
+
+/* Remittance window: late-night jobs are scheduled for the next Bangkok date. */
+#app .hero-grid-cell.warn.urgent { background: #FEE2E2; border: 2px solid #DC2626; }
+#app .hero-grid-cell.warn.urgent .lbl,
+#app .hero-grid-cell.warn.urgent .val,
+#app .hero-grid-cell.warn.urgent #remit-due-date,
+#app .hero-grid-cell.warn.urgent #remit-countdown { color: #B91C1C; text-shadow: none; }
+[data-theme="dark"] #app .hero-grid-cell.warn.urgent { background: #4A1F24; border-color: #F87171; }
+[data-theme="dark"] #app .hero-grid-cell.warn.urgent .lbl,
+[data-theme="dark"] #app .hero-grid-cell.warn.urgent .val,
+[data-theme="dark"] #app .hero-grid-cell.warn.urgent #remit-due-date,
+[data-theme="dark"] #app .hero-grid-cell.warn.urgent #remit-countdown { color: #FCA5A5; }
+#remit-due-date { font-size: 10px; font-weight: 800; line-height: 1.25; margin-top: 3px; }

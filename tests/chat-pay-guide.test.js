@@ -18,7 +18,7 @@ test('accept posts a chat summary and the customer confirms it in chat', () => {
 });
 
 test('partner food keeps Manus QR and slip fields, and adds the wait-for-photo note', () => {
-  assert.match(rider, /กรุณาโอนหลังจากเห็นรูปอาหาร\/สินค้าแล้วเท่านั้น/);
+  assert.doesNotMatch(rider, /กรุณาโอนหลังจากเห็นรูปอาหาร\/สินค้าแล้วเท่านั้น/);
   assert.match(rider, /อาหาร\/สินค้าพร้อมแล้ว กรุณาโอนยอด /);
   // Ride/Express now also posts the rider QR when reaching pickup; food still
   // waits for the photo/price step before asking the customer to transfer.

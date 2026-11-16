@@ -113,6 +113,19 @@ exports.onRiderJobHistory = onDocumentWritten('orders/{orderId}', async (event) 
   const after = event.data.after.exists ? event.data.after.data() : null;
   await syncRiderHistory(db, event.params.orderId, after);
   await syncMerchantInbox(db, event.params.orderId, before, after);
+  // Seed the server-owned settlement queue when a rider completes a job.
+  // This lets the 5-minute sweep discover riders even when their app is
+  // closed and prevents the first post-21:00 job from being invisible to the
+  // next Bangkok remittance window.
+  if (after && (after.status === 'done' || after.status === 'delivered') && after.riderId) {
+    await db.collection('settlement_queue').doc('rider_' + String(after.riderId)).set({
+      kind: 'rider',
+      partyId: String(after.riderId),
+      amount: 0,
+      status: 'clear',
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+  }
 });
 
 exports.onOrderDispatch = onDocumentWritten('orders/{orderId}', async (event) => {
@@ -323,6 +336,25 @@ exports.sweepRiderRemit = onSchedule({
     const row = doc.data() || {};
     const riderId = String(row.partyId || '');
     if (!riderId) continue;
+    // Recompute the current Bangkok remittance window instead of trusting a
+    // queue amount written before midnight. This keeps the lock decision and
+    // FCM date marker aligned when the calendar date changes while a rider is
+    // idle or keeps the app open overnight.
+    const orderSnap = await db.collection('orders')
+      .where('riderId', '==', riderId)
+      .where('status', 'in', ['done', 'delivered'])
+      .get();
+    const jobs = orderSnap.docs.map((order) => Object.assign({ id: order.id }, order.data()));
+    const due = riderDailyDue(jobs, nowMs);
+    const currentAmount = Number(due.amount) || 0;
+    await doc.ref.set({
+      amount: currentAmount,
+      dateKey: due.dateKey,
+      nextAmount: Number(due.nextAmount) || 0,
+      nextDateKey: due.nextDateKey,
+      cutoff: due.cutoff,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
     const riderSlips = await db.collection('rider_remittances')
       .where('riderId', '==', riderId)
       .get();
@@ -335,7 +367,7 @@ exports.sweepRiderRemit = onSchedule({
       ? rider.remittanceVerificationUntil.toMillis() : 0;
     const plan = remitLockPlan({
       nowMs: nowMs,
-      amount: Number(row.amount) || 0,
+      amount: currentAmount,
       pendingSlip: pendingSlip,
       lockedUntilMs: until,
       cooldownUntilMs: cooldownUntil
@@ -869,13 +901,15 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
       ? riderData.onlineLockedUntil.toMillis() : 0;
     const displayAmount = due.amount > 0
       ? due.amount
-      : (latest && latest.status !== 'rejected' ? Number(latest.amount || 0) : 0);
+      : (due.nextAmount > 0 ? due.nextAmount : (latest && latest.status !== 'rejected' ? Number(latest.amount || 0) : 0));
     await db.collection('settlement_queue').doc('rider_' + uid).set({
       kind: 'rider',
       partyId: uid,
       partyName: String((riderSnap.exists && riderSnap.data().name) || ''),
       amount: due.amount,
       dateKey: due.dateKey,
+      nextAmount: due.nextAmount,
+      nextDateKey: due.nextDateKey,
       cutoff: due.cutoff,
       status: due.amount > 0 ? 'due' : (latest && latest.status === 'pending' ? 'pending' : 'clear'),
       displayAmount,
@@ -884,8 +918,9 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
       updatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
     return {
-      kind: 'rider', amount: displayAmount, dateKey: due.dateKey, cutoff: due.cutoff,
-      overdue: due.overdue, jobIds: due.jobIds, payout,
+      kind: 'rider', amount: due.amount, displayAmount, dateKey: due.dateKey,
+      nextAmount: due.nextAmount, nextDateKey: due.nextDateKey, cutoff: due.cutoff,
+      overdue: due.overdue, jobIds: due.jobIds, nextJobIds: due.nextJobIds, payout,
       remittance: latest ? {
         id: latest.id,
         amount: Number(latest.amount || 0),
@@ -1029,6 +1064,10 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
       const plan = riderReviewPlan(remittance, jobs, action);
       if (plan.already) return { ok: true, alreadyReviewed: true, status: plan.status, remittanceId };
       const now = Timestamp.now();
+      const remainingJobs = plan.status === 'verified'
+        ? jobs.filter((job) => !plan.jobIds.includes(job.id))
+        : jobs;
+      const freshDue = riderDailyDue(remainingJobs, now.toMillis());
       if (plan.status === 'rejected') {
         tx.update(ref, { status: 'rejected', rejectedAt: now, rejectedBy: req.auth.uid });
       } else {
@@ -1049,7 +1088,11 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         kind: 'rider',
         partyId: riderId,
         status: plan.status === 'verified' ? 'clear' : 'rejected',
-        amount: plan.status === 'verified' ? 0 : Number(remittance.amount || 0),
+        amount: plan.status === 'verified' ? freshDue.amount : Number(remittance.amount || 0),
+        dateKey: freshDue.dateKey,
+        nextAmount: freshDue.nextAmount,
+        nextDateKey: freshDue.nextDateKey,
+        cutoff: freshDue.cutoff,
         displayAmount: Number(remittance.amount || 0),
         latestRemittanceId: remittanceId,
         latestRemittanceStatus: plan.status,

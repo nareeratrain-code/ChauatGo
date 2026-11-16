@@ -183,6 +183,38 @@ const fmtTimeShort = t => {
   return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
 };
 
+function bangkokDateParts(nowMs = Date.now()) {
+  const shifted = new Date(Number(nowMs) + 7 * 60 * 60 * 1000);
+  return { key: shifted.toISOString().slice(0, 10), hour: shifted.getUTCHours() };
+}
+
+function riderSettlementView(row, nowMs = Date.now()) {
+  const item = row || {};
+  const clock = bangkokDateParts(nowMs);
+  const currentDue = Number(item.amount || 0) > 0 && String(item.dateKey || '') === clock.key;
+  const nextDue = Number(item.nextAmount || 0) > 0;
+  const urgent = currentDue && clock.hour >= 20;
+  const overdue = currentDue && clock.hour >= 22;
+  const status = item.status === 'pending' ? 'รอตรวจสลิป'
+    : item.status === 'rejected' ? 'ปฏิเสธแล้ว'
+      : item.status === 'slip' ? 'มีสลิปรอตรวจ' : 'รอโอน';
+  if (currentDue) {
+    return {
+      amount: Number(item.amount || 0),
+      className: overdue || urgent ? 'remit-urgent' : '',
+      meta: `${status} • วันที่ครบกำหนด: ${esc(item.dateKey || clock.key)} • ต้องโอนก่อน ${esc(item.cutoff || '21:00')}${overdue ? ' • เลยเวลาแล้ว' : ''}`
+    };
+  }
+  if (nextDue) {
+    return {
+      amount: Number(item.nextAmount || 0),
+      className: '',
+      meta: `รอบถัดไป • วันที่ครบกำหนด: ${esc(item.nextDateKey || '')} • ยังไม่ถึงกำหนด`
+    };
+  }
+  return { amount: Number(item.amount || 0), className: '', meta: `${status} • ยังไม่มียอดถึงรอบโอน` };
+}
+
 const ts = o => o.createdAt?.seconds || 0;
 
 const isToday = t => {
@@ -1302,11 +1334,11 @@ function gpTransfers() {
 function settlement() {
   const payout = store.payoutConfig || {};
   const queue = (store.settlement_queue || []).filter(row =>
-    row && (row.status === 'due' || row.status === 'slip' || row.status === 'rejected' || Number(row.amount) > 0)
+    row && (row.status === 'due' || row.status === 'slip' || row.status === 'rejected' || Number(row.amount) > 0 || Number(row.nextAmount) > 0)
   );
   const slips = (store.rider_remittances || []).filter(row => row.status === 'pending' || row.status === 'rejected');
   const shopSlips = (store.gpTransfers || []).filter(row => row.status === 'pending' || row.status === 'rejected');
-  const card = (title, meta, amount, actions) => `<div class="data-card">
+  const card = (title, meta, amount, actions, className = '') => `<div class="data-card ${className}">
     <div class="data-card-header">
       <div class="data-card-icon" style="background:#168A45;color:#fff">🏦</div>
       <div class="data-card-info">
@@ -1323,12 +1355,16 @@ function settlement() {
     row.amount,
     `<button class="blue" data-settle-chat="shop" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ร้าน')}">💬 แชท</button>`
   )).join('');
-  const riders = queue.filter(row => row.kind === 'rider').map(row => card(
-    esc(row.partyName || 'ไรเดอร์'),
-    `ต้องโอนก่อน ${esc(row.cutoff || '21:00')} • ${esc(row.dateKey || '')}`,
-    row.amount,
-    `<button class="blue" data-settle-chat="rider" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ไรเดอร์')}">💬 แชท</button>`
-  )).join('');
+  const riders = queue.filter(row => row.kind === 'rider').map(row => {
+    const view = riderSettlementView(row);
+    return card(
+      esc(row.partyName || 'ไรเดอร์'),
+      view.meta,
+      view.amount,
+      `<button class="blue" data-settle-chat="rider" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ไรเดอร์')}">💬 แชท</button>`,
+      view.className
+    );
+  }).join('');
   const riderSlips = slips.map(row => card(
     esc(row.riderName || 'ไรเดอร์'),
     `${esc(row.status === 'rejected' ? 'ปฏิเสธแล้ว' : 'รอตรวจสลิป')} • ${esc(row.dateKey || '')}`,

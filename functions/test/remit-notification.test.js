@@ -25,3 +25,24 @@ test('remittance scheduler sends a deduplicated notification immediately after c
   assert.match(source, /phase: 'locked'/);
   assert.match(source, /sendRemitPush\(riderRef, rider, 'remitLockNoticeUntil', plan\.untilMs/);
 });
+
+test('remittance scheduler refreshes the Bangkok date window before deciding FCM lock state', () => {
+  assert.match(source, /const orderSnap = await db\.collection\('orders'\)/);
+  assert.match(source, /const due = riderDailyDue\(jobs, nowMs\)/);
+  assert.match(source, /amount: currentAmount/);
+  assert.match(source, /dateKey: due\.dateKey/);
+  assert.match(source, /nextDateKey: due\.nextDateKey/);
+});
+
+test('completed rider jobs seed a settlement queue even when the rider app is closed', () => {
+  assert.match(source, /after\.status === 'done' \|\| after\.status === 'delivered'/);
+  assert.match(source, /settlement_queue'\)\.doc\('rider_' \+ String\(after\.riderId\)\)/);
+  assert.match(source, /partyId: String\(after\.riderId\)/);
+});
+
+test('admin remittance review refreshes current and next-cycle queue metadata', () => {
+  assert.match(source, /const freshDue = riderDailyDue\(remainingJobs, now\.toMillis\(\)\)/);
+  assert.match(source, /amount: plan\.status === 'verified' \? freshDue\.amount/);
+  assert.match(source, /nextAmount: freshDue\.nextAmount/);
+  assert.match(source, /nextDateKey: freshDue\.nextDateKey/);
+});

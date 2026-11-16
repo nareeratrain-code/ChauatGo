@@ -1524,21 +1524,31 @@ function bangkokNowParts(now) {
   return { hour: shifted.getUTCHours(), minute: shifted.getUTCMinutes() };
 }
 
-function renderRemitDashboard(amount) {
+function renderRemitDashboard(amount, meta) {
   const panel = $('remit-panel');
   const lock = $('remit-lock');
   const count = $('remit-countdown');
+  const date = $('remit-due-date');
+  const oweCell = $('hero-owe-cell');
   const pay = $('remit-dash-btn');
   const due = Number(amount) > 0;
+  const info = meta || {};
+  const todayKey = bangkokDateKey(Date.now());
   if (pay) pay.hidden = !due;
   if (panel) panel.hidden = false;
   const clock = bangkokNowParts(new Date());
   const mins = (21 * 60) - (clock.hour * 60 + clock.minute);
+  if (oweCell) oweCell.classList.toggle('urgent', due && clock.hour >= 20);
+  if (date) {
+    date.textContent = due
+      ? 'วันที่ต้องโอน: ' + (info.dateKey || bangkokDateKey(Date.now()))
+      : (Number(info.nextAmount) > 0 ? 'รอบถัดไป ' + (info.nextDateKey || '') + ' • ฿' + fmt(info.nextAmount) : 'ยังไม่มียอดที่ถึงรอบโอน');
+  }
   if (count) {
     if (!due) count.textContent = '';
-    else if (mins > 0) count.textContent = 'เหลือ ' + mins + ' นาที ก่อน 21:00';
-    else if (clock.hour < 22) count.textContent = 'เลย 21:00 แล้ว โอนได้ถึง 22:00';
-    else count.textContent = 'เลย 22:00 แล้ว';
+    else if (mins > 0) count.textContent = 'ใกล้ถึงรอบโอน • เหลือ ' + mins + ' นาทีถึง 21:00';
+    else if (clock.hour < 22) count.textContent = 'อยู่ในรอบโอนวันนี้ • โอนได้ถึง 22:00';
+    else count.textContent = 'เลยรอบโอนแล้ว • ติดต่อแอดมิน';
   }
   if (lock) {
     if (riderIsRemitLocked()) {
@@ -1548,25 +1558,29 @@ function renderRemitDashboard(amount) {
         : 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
     } else lock.hidden = true;
   }
-  if (due && clock.hour === 20 && !sessionStorage.getItem('remit-notice')) {
-    sessionStorage.setItem('remit-notice', '1');
+  const noticeKey = 'remit-notice-' + todayKey;
+  if (due && clock.hour === 20 && !sessionStorage.getItem(noticeKey)) {
+    sessionStorage.setItem(noticeKey, '1');
     showToast('อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง', 'warning', 6000);
   }
-  queueRiderRemitSync(amount);
+  queueRiderRemitSync(amount, info);
 }
 
-function queueRiderRemitSync(amount) {
-  if (!(Number(amount) > 0) || window._remitQueueSynced) return;
+function queueRiderRemitSync(amount, meta) {
+  const syncDateKey = bangkokDateKey(Date.now());
+  const shouldSync = Number(amount) > 0 || Number(meta && meta.nextAmount) > 0;
+  if (!shouldSync || window._remitQueueSyncedDateKey === syncDateKey) return;
   if (!window.ChauatFn || !currentUser) return;
-  window._remitQueueSynced = true;
+  window._remitQueueSyncedDateKey = syncDateKey;
   ChauatFn.callFunction('syncMySettlement', {}, auth).then(function (result) {
     if (!result || result.kind !== 'rider') return;
     const serverAmount = Number(result.amount || 0);
+    const displayAmount = Number(result.displayAmount != null ? result.displayAmount : serverAmount);
     const oweEl = $('hero-owe');
-    if (oweEl) oweEl.textContent = '฿' + fmt(serverAmount);
-    renderRemitDashboard(serverAmount);
+    if (oweEl) oweEl.textContent = '฿' + fmt(displayAmount);
+    renderRemitDashboard(serverAmount, result);
   }).catch(function () {
-    window._remitQueueSynced = false;
+    if (window._remitQueueSyncedDateKey === syncDateKey) window._remitQueueSyncedDateKey = '';
   });
 }
 
@@ -1581,10 +1595,7 @@ function updateHeroStats() {
   }, 0);
   const tipTotal = today.reduce((s, j) => s + Number(j.cashTip || (j.paymentMode === 'cash' ? CASH_TIP : 0)), 0);
   const todayIncome = feeTotal + tipTotal;
-  const todayOwe = today.filter(j => !j.riderPaid).reduce((s, j) => {
-    const f = Number(j.fare || 0);
-    return s + f * PLATFORM_SHARE;
-  }, 0);
+  const remit = localRiderDue();
 
   const incomeEl = $('hero-income');
   if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
@@ -1602,8 +1613,8 @@ function updateHeroStats() {
   const tipEl = $('hero-tip');
   if (tipEl) tipEl.textContent = '฿' + fmt(tipTotal);
   const oweEl = $('hero-owe');
-  if (oweEl) oweEl.textContent = '฿' + fmt(todayOwe);
-  renderRemitDashboard(todayOwe);
+  if (oweEl) oweEl.textContent = '฿' + fmt(remit.displayAmount);
+  renderRemitDashboard(remit.amount, remit);
 
   const doneEl = $('stat-done');
   if (doneEl) doneEl.textContent = today.length;
@@ -2124,7 +2135,7 @@ function riderQrPaymentText(order, phase) {
   }
   if (!orderBuysGoods(order)) return '';
   if (phase === 'shop_arrived') {
-    return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
+    return '';
   }
   const due = Number(foodPayParts(order).total) || 0;
   const dueText = Math.abs(due % 1) < 1e-9 ? String(Math.round(due)) : due.toFixed(2);
@@ -2679,9 +2690,6 @@ async function recordShopArrival(jobId, job) {
   if (orderBuysGoods(job)) {
     if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
       return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
-    }
-    if (job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
-      showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
     }
     pickupGuideOrderIds.add(jobId);
     job.pickupArrived = true;
@@ -4394,14 +4402,26 @@ function bangkokDateKey(ms) {
 }
 
 function localRiderDue() {
-  const today = allHistory.filter(j =>
-    (j.status === 'done' || j.status === 'delivered')
-    && isToday(j.deliveredAt || j.doneAt || j.createdAt)
-    && !j.riderPaid
+  const now = Date.now();
+  const dateKey = bangkokDateKey(now);
+  const nextDateKey = bangkokDateKey(now + 24 * 60 * 60 * 1000);
+  const remitDate = (job) => {
+    const value = job && (job.deliveredAt || job.doneAt || job.createdAt);
+    const ms = value && typeof value.toMillis === 'function' ? value.toMillis() : new Date(value || 0).getTime();
+    if (!ms) return '';
+    const shifted = new Date(ms + 7 * 60 * 60 * 1000);
+    const key = shifted.toISOString().slice(0, 10);
+    return shifted.getUTCHours() >= 21 ? bangkokDateKey(ms + 24 * 60 * 60 * 1000) : key;
+  };
+  const finished = allHistory.filter(j =>
+    (j.status === 'done' || j.status === 'delivered') && !j.riderPaid
   );
-  const amount = Math.round(today.reduce((sum, job) => sum + Number(job.fare || 0) * PLATFORM_SHARE, 0) * 100) / 100;
-  const hour = new Date().getHours();
-  return { amount, dateKey: bangkokDateKey(Date.now()), cutoff: '21:00', overdue: hour >= 21 && amount > 0 };
+  const sumFor = (key) => Math.round(finished.filter(j => remitDate(j) === key)
+    .reduce((sum, job) => sum + Number(job.fare || 0) * PLATFORM_SHARE, 0) * 100) / 100;
+  const amount = sumFor(dateKey);
+  const nextAmount = sumFor(nextDateKey);
+  const clock = bangkokNowParts(new Date(now));
+  return { amount, displayAmount: amount || nextAmount, nextAmount, dateKey, nextDateKey, cutoff: '21:00', overdue: clock.hour >= 21 && amount > 0 };
 }
 
 function riderPayoutHtml(data) {
@@ -4432,21 +4452,19 @@ function renderRiderSettlement() {
         : due.overdue
           ? '⏰ เลยเวลาแล้ว ยังโอนย้อนหลังให้แอดมินได้'
           : 'ยอดวันนี้ 20% ของค่าส่ง';
-  const canUpload = status !== 'pending' && !cooldown;
+  const canUpload = Number(due.amount || 0) > 0 && status !== 'pending' && !cooldown;
   body.innerHTML = `
     <div class="sheet-handle"></div>
     <h2>📤 โอนให้ ChauatGo</h2>
     <div class="settle-due">
-      <div style="font-size:12px;font-weight:800">ต้องโอนก่อน ${esc(due.cutoff || '21:00')}</div>
+      <div style="font-size:12px;font-weight:800">รอบโอน ${esc(due.dateKey || '')} • 21:00–22:00</div>
       <div class="amt">฿${fmt(due.amount || 0)}</div>
-      <div style="font-size:12px;font-weight:700;margin-top:4px">${statusCopy} • ${esc(due.dateKey || '')}</div>
+      <div style="font-size:12px;font-weight:700;margin-top:4px">${Number(due.amount || 0) > 0 ? statusCopy : 'ยังไม่ถึงรอบโอน • ยอดนี้เข้ารอบวันถัดไป ' + esc(due.nextDateKey || '') + ' ฿' + fmt(due.nextAmount || 0)} </div>
     </div>
     ${riderPayoutHtml(due.payout)}
     ${canUpload ? `<div class="photo-source-row" style="margin-top:12px">
-      <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('rider-settle-camera').click()">📷 ถ่ายสลิป</button>
-      <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('rider-settle-gallery').click()">🖼️ เลือกสลิป</button>
+      <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('rider-settle-gallery').click()">📎 แนบสลิป</button>
     </div>
-    <input type="file" id="rider-settle-camera" accept="image/*" capture="environment" style="display:none" onchange="onRiderSettleFile(this)">
     <input type="file" id="rider-settle-gallery" accept="image/*" style="display:none" onchange="onRiderSettleFile(this)">
     <img id="rider-settle-preview" class="settle-qr" alt="" style="display:none">
     <button class="btn-primary ripple" onclick="submitRiderRemittance()">ส่งสลิปให้แอดมินตรวจ</button>` : `<div style="margin-top:12px;padding:12px;border-radius:10px;background:var(--surface-2);font-size:12px;font-weight:800;color:var(--text-muted)">${esc(statusCopy)}</div>`}
@@ -4465,7 +4483,7 @@ function closeRiderSettlement() {
 
 async function showTransferApp() {
   const local = localRiderDue();
-  riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
+  riderSettle = { amount: local.amount, displayAmount: local.displayAmount, nextAmount: local.nextAmount, nextDateKey: local.nextDateKey, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
   $('rider-settle-sheet')?.classList.add('show');
   renderRiderSettlement();
   subscribeRiderRemittances();
@@ -4478,6 +4496,9 @@ async function showTransferApp() {
       const result = await ChauatFn.callFunction('syncMySettlement', {}, auth);
       if (result && riderSettle) {
         riderSettle.amount = Number(result.amount || 0);
+        riderSettle.displayAmount = Number(result.displayAmount != null ? result.displayAmount : riderSettle.amount);
+        riderSettle.nextAmount = Number(result.nextAmount || 0);
+        riderSettle.nextDateKey = result.nextDateKey || riderSettle.nextDateKey;
         riderSettle.dateKey = result.dateKey || riderSettle.dateKey;
         riderSettle.cutoff = result.cutoff || '21:00';
         riderSettle.overdue = !!result.overdue;
@@ -4590,7 +4611,7 @@ async function ensureRiderSettlementChat() {
 async function openRiderSettlementChat() {
   if (!riderSettle) {
     const local = localRiderDue();
-    riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
+    riderSettle = { amount: local.amount, displayAmount: local.displayAmount, nextAmount: local.nextAmount, nextDateKey: local.nextDateKey, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
   }
   $('rider-settle-sheet')?.classList.add('show');
   if (!$('rider-settle-log')) renderRiderSettlement();

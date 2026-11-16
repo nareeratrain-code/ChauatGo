@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { shopGpDue, riderDailyDue, riderReviewPlan, publicPayout, settlementChatId, riderRemittanceId } = require('../settlement');
+const { shopGpDue, riderDailyDue, riderReviewPlan, publicPayout, settlementChatId, riderRemittanceId, riderRemittanceDateKey } = require('../settlement');
 
 const DAY = 86400000;
 
@@ -32,6 +32,40 @@ test('rider remittance matches today unpaid fare times 20 percent and 21:00', ()
   assert.equal(due.cutoff, '21:00');
   assert.equal(due.overdue, false);
   assert.equal(riderDailyDue(jobs, night).overdue, true);
+});
+
+test('jobs completed at or after 21:00 are due in the next Bangkok date window', () => {
+  const afterNine = Date.parse('2026-11-16T21:05:00+07:00');
+  const nextMorning = Date.parse('2026-11-17T10:00:00+07:00');
+  const job = { id: 'late-1', status: 'done', fare: 428, riderPaid: false, doneAt: afterNine };
+  assert.equal(riderRemittanceDateKey(job), '2026-11-17');
+  const tonight = riderDailyDue([job], afterNine);
+  assert.equal(tonight.amount, 0);
+  assert.equal(tonight.nextAmount, 85.6);
+  assert.equal(tonight.nextDateKey, '2026-11-17');
+  assert.equal(tonight.overdue, false);
+  const tomorrow = riderDailyDue([job], nextMorning);
+  assert.equal(tomorrow.amount, 85.6);
+  assert.deepEqual(tomorrow.jobIds, ['late-1']);
+});
+
+test('late-night remittance rolls over exactly at Bangkok midnight', () => {
+  const job = {
+    id: 'midnight-rollover',
+    status: 'delivered',
+    fare: 250,
+    riderPaid: false,
+    deliveredAt: Date.parse('2026-11-16T23:59:59+07:00')
+  };
+  const beforeMidnight = riderDailyDue([job], Date.parse('2026-11-16T23:59:59+07:00'));
+  assert.equal(beforeMidnight.dateKey, '2026-11-16');
+  assert.equal(beforeMidnight.amount, 0);
+  assert.equal(beforeMidnight.nextDateKey, '2026-11-17');
+  assert.equal(beforeMidnight.nextAmount, 50);
+  const afterMidnight = riderDailyDue([job], Date.parse('2026-11-17T00:00:00+07:00'));
+  assert.equal(afterMidnight.dateKey, '2026-11-17');
+  assert.equal(afterMidnight.amount, 50);
+  assert.deepEqual(afterMidnight.jobIds, ['midnight-rollover']);
 });
 
 test('admin confirm marks only a matching pending slip and reject does not', () => {
