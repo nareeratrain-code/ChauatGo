@@ -1531,31 +1531,38 @@ function renderRemitDashboard(amount, meta) {
   const date = $('remit-due-date');
   const oweCell = $('hero-owe-cell');
   const pay = $('remit-dash-btn');
-  const due = Number(amount) > 0;
   const info = meta || {};
+  const locked = riderIsRemitLocked();
+  const carryAmount = Number(info.displayAmount || info.nextAmount || (info.remittance && info.remittance.amount) || 0);
+  const due = Number(amount) > 0;
+  const visibleAmount = due ? Number(amount) : (locked ? carryAmount : 0);
+  const hasVisibleAmount = visibleAmount > 0;
   const todayKey = bangkokDateKey(Date.now());
-  if (pay) pay.hidden = !due;
+  if (pay) pay.hidden = !hasVisibleAmount;
   if (panel) panel.hidden = false;
   const clock = bangkokNowParts(new Date());
   const mins = (21 * 60) - (clock.hour * 60 + clock.minute);
-  if (oweCell) oweCell.classList.toggle('urgent', due && clock.hour >= 20);
+  if (oweCell) oweCell.classList.toggle('urgent', hasVisibleAmount && (locked || clock.hour >= 20));
   if (date) {
     date.textContent = due
       ? 'วันที่ต้องโอน: ' + (info.dateKey || bangkokDateKey(Date.now()))
+      : locked && hasVisibleAmount
+        ? 'ยอดค้างที่ต้องโอน: ฿' + fmt(visibleAmount) + ' • รอบ ' + (info.remittance?.dateKey || info.nextDateKey || info.dateKey || '')
       : (Number(info.nextAmount) > 0 ? 'รอบถัดไป ' + (info.nextDateKey || '') + ' • ฿' + fmt(info.nextAmount) : 'ยังไม่มียอดที่ถึงรอบโอน');
   }
   if (count) {
-    if (!due) count.textContent = '';
+    if (locked && hasVisibleAmount) count.textContent = 'เกินกำหนดแล้ว • ยอดค้าง ฿' + fmt(visibleAmount) + ' • แนบสลิปให้แอดมินตรวจ';
+    else if (!due) count.textContent = '';
     else if (mins > 0) count.textContent = 'ใกล้ถึงรอบโอน • เหลือ ' + mins + ' นาทีถึง 21:00';
     else if (clock.hour < 22) count.textContent = 'อยู่ในรอบโอนวันนี้ • โอนได้ถึง 22:00';
     else count.textContent = 'เลยรอบโอนแล้ว • ติดต่อแอดมิน';
   }
   if (lock) {
-    if (riderIsRemitLocked()) {
+    if (locked) {
       lock.hidden = false;
       lock.textContent = riderProfile?.onlineLockReason === 'remit_verified_cooldown'
-        ? 'พักรับงานชั่วคราว แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
-        : 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
+        ? 'พักรับงานชั่วคราว • ยอดค้าง ฿' + fmt(visibleAmount) + ' • แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
+        : 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 • ยอดค้าง ฿' + fmt(visibleAmount) + ' • โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
     } else lock.hidden = true;
   }
   const noticeKey = 'remit-notice-' + todayKey;
@@ -4436,6 +4443,9 @@ function renderRiderSettlement() {
   const due = riderSettle;
   const status = String(due.remittanceStatus || '');
   const lockedUntil = Number(due.lockedUntilMs || 0);
+  const visibleAmount = Number(due.amount || 0) > 0
+    ? Number(due.amount)
+    : Number(due.displayAmount || due.nextAmount || due.remittanceAmount || 0);
   const cooldown = status === 'verified' && lockedUntil > Date.now();
   const statusCopy = status === 'pending'
     ? '📨 ส่งสลิปแล้ว • รอแอดมินตรวจสอบ'
@@ -4451,9 +4461,9 @@ function renderRiderSettlement() {
     <div class="sheet-handle"></div>
     <h2>📤 โอนให้ ChauatGo</h2>
     <div class="settle-due">
-      <div style="font-size:12px;font-weight:800">รอบโอน ${esc(due.dateKey || '')} • 21:00–22:00</div>
-      <div class="amt">฿${fmt(due.amount || 0)}</div>
-      <div style="font-size:12px;font-weight:700;margin-top:4px">${Number(due.amount || 0) > 0 ? statusCopy : 'ยังไม่ถึงรอบโอน • ยอดนี้เข้ารอบวันถัดไป ' + esc(due.nextDateKey || '') + ' ฿' + fmt(due.nextAmount || 0)} </div>
+      <div style="font-size:12px;font-weight:800">รอบโอน ${esc(due.remittanceDateKey || due.dateKey || '')} • 21:00–22:00</div>
+      <div class="amt">฿${fmt(visibleAmount)}</div>
+      <div style="font-size:12px;font-weight:700;margin-top:4px">${Number(due.amount || 0) > 0 ? statusCopy : (visibleAmount > 0 ? 'ยอดค้างหลังเลยกำหนด • แนบสลิปให้แอดมินตรวจสอบ' : 'ยังไม่ถึงรอบโอน • ยอดนี้เข้ารอบวันถัดไป ' + esc(due.nextDateKey || '') + ' ฿' + fmt(due.nextAmount || 0))} </div>
     </div>
     ${riderPayoutHtml(due.payout)}
     ${canUpload ? `<div class="photo-source-row" style="margin-top:12px">
@@ -4498,6 +4508,8 @@ async function showTransferApp() {
         riderSettle.overdue = !!result.overdue;
         riderSettle.remittanceStatus = result.remittance?.status || '';
         riderSettle.remittanceId = result.remittance?.id || '';
+        riderSettle.remittanceAmount = Number(result.remittance?.amount || 0);
+        riderSettle.remittanceDateKey = result.remittance?.dateKey || '';
         riderSettle.lockedUntilMs = Number(result.lockedUntilMs || 0);
         if (result.payout) riderSettle.payout = result.payout;
       }
@@ -4572,6 +4584,8 @@ function subscribeRiderRemittances() {
       if (latest && riderSettle) {
         riderSettle.remittanceStatus = String(latest.status || '');
         riderSettle.remittanceId = latest.id;
+        riderSettle.remittanceAmount = Number(latest.amount || 0);
+        riderSettle.remittanceDateKey = String(latest.dateKey || '');
         if (!(Number(riderSettle.amount) > 0)) riderSettle.amount = Number(latest.amount || 0);
         if ($('rider-settle-sheet')?.classList.contains('show')) renderRiderSettlement();
       }

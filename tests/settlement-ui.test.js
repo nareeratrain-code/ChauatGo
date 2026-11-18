@@ -78,6 +78,20 @@ test('rider remittance UI refreshes sync and warning markers per Bangkok date', 
   assert.match(rider, /const shouldSync = Number\(amount\) > 0 \|\| Number\(meta && meta\.nextAmount\) > 0/);
 });
 
+test('locked rider dashboard keeps the overdue remittance amount visible', () => {
+  assert.match(rider, /const carryAmount = Number\(info\.displayAmount \|\| info\.nextAmount/);
+  assert.match(rider, /const visibleAmount = due \? Number\(amount\) : \(locked \? carryAmount : 0\)/);
+  assert.match(rider, /ยอดค้างที่ต้องโอน: ฿/);
+  assert.match(rider, /เกินกำหนดแล้ว • ยอดค้าง ฿/);
+  assert.match(rider, /ยอดค้าง ฿' \+ fmt\(visibleAmount\)/);
+  assert.match(rider, /riderSettle\.remittanceAmount = Number\(result\.remittance\?\.amount \|\| 0\)/);
+});
+
+test('settlement sheet labels a carried balance with remittanceDateKey first', () => {
+  assert.match(rider, /รอบโอน \$\{esc\(due\.remittanceDateKey \|\| due\.dateKey \|\| ''\)\}/);
+  assert.match(rider, /riderSettle\.remittanceDateKey = result\.remittance\?\.dateKey \|\| ''/);
+});
+
 test('admin inbox confirms slips through the existing review callables', () => {
   assert.match(admin, /function settlement\(/);
   assert.match(admin, /reviewGpTransfer/);
