@@ -34,16 +34,62 @@ test('shop GP settlement reuses gp transfers and a separate admin chat', () => {
 });
 
 test('rider remittance keeps the 21:00 card and does not join an order thread', () => {
-  assert.match(riderHtml, /ต้องโอนก่อน/);
+  assert.match(riderHtml, /ต้องโอนรอบนี้/);
   assert.match(riderHtml, /21:00/);
   assert.equal(riderHtml.includes('ต้องโอน 3 ทุ่ม'), false);
   assert.match(rider, /PLATFORM_SHARE/);
   assert.match(rider, /rider_remittances/);
   assert.match(rider, /settlement_slips\/riders/);
+  assert.match(rider, /รอแอดมินตรวจสอบ/);
+  assert.match(rider, /รอปลดล็อก/);
+  assert.match(rider, /📎 แนบสลิป/);
+  assert.equal(rider.includes('rider-settle-camera'), false);
+  assert.equal(rider.includes("openLiveCamera('slip')"), false);
+  assert.equal(rider.includes('id="pickup-slip-camera"'), false);
+  assert.equal(rider.includes("type === 'slip'"), false);
+  assert.equal(rider.includes('liveCameraType'), false);
+  assert.doesNotMatch(rider, /ถ่ายสลิป/);
   assert.match(rider, /senderRole: 'rider'/);
   assert.match(rules, /match \/rider_remittances\/\{remittanceId\}/);
   assert.match(storage, /match \/settlement_slips\/riders\/\{uid\}\/\{fileName\}/);
   assert.equal(rider.includes('collection(\'chats\').doc(\'rider_'), false);
+});
+
+test('rider remittance submission is server-owned and uses one deterministic daily path', () => {
+  assert.match(rider, /submitRiderRemittance/);
+  assert.match(rider, /settlement_slips\/riders\/\$\{currentUser\.uid\}\/\$\{dateKey\}\.jpg/);
+  assert.equal(rider.includes("collection('rider_remittances').add"), false);
+  assert.match(rules, /allow create, update, delete: if false;/);
+});
+
+test('rider remittance countdown is read-only and only the transfer button opens the payment sheet', () => {
+  const heroStart = riderHtml.indexOf('id="hero-owe-cell"');
+  const heroEnd = riderHtml.indexOf('</div>', heroStart);
+  const heroMarkup = riderHtml.slice(heroStart, heroEnd);
+  assert.doesNotMatch(heroMarkup, /onclick=.*showTransferApp/);
+  assert.doesNotMatch(heroMarkup, /role="button"/);
+  assert.match(riderHtml, /id="remit-dash-btn"[^>]*onclick="showTransferApp\(\)"/);
+  assert.match(riderHtml, /id="remit-countdown" aria-live="polite"/);
+});
+
+test('rider remittance UI refreshes sync and warning markers per Bangkok date', () => {
+  assert.match(rider, /const noticeKey = 'remit-notice-' \+ todayKey/);
+  assert.match(rider, /_remitQueueSyncedDateKey/);
+  assert.match(rider, /const shouldSync = Number\(amount\) > 0 \|\| Number\(meta && meta\.nextAmount\) > 0/);
+});
+
+test('locked rider dashboard keeps the overdue remittance amount visible', () => {
+  assert.match(rider, /const carryAmount = Number\(info\.displayAmount \|\| info\.nextAmount/);
+  assert.match(rider, /const visibleAmount = due \? Number\(amount\) : \(locked \? carryAmount : 0\)/);
+  assert.match(rider, /ยอดค้างที่ต้องโอน: ฿/);
+  assert.match(rider, /เกินกำหนดแล้ว • ยอดค้าง ฿/);
+  assert.match(rider, /ยอดค้าง ฿' \+ fmt\(visibleAmount\)/);
+  assert.match(rider, /riderSettle\.remittanceAmount = Number\(result\.remittance\?\.amount \|\| 0\)/);
+});
+
+test('settlement sheet labels a carried balance with remittanceDateKey first', () => {
+  assert.match(rider, /รอบโอน \$\{esc\(due\.remittanceDateKey \|\| due\.dateKey \|\| ''\)\}/);
+  assert.match(rider, /riderSettle\.remittanceDateKey = result\.remittance\?\.dateKey \|\| ''/);
 });
 
 test('admin inbox confirms slips through the existing review callables', () => {
@@ -52,4 +98,16 @@ test('admin inbox confirms slips through the existing review callables', () => {
   assert.match(admin, /reviewRiderRemittance/);
   assert.match(admin, /settlement_queue/);
   assert.match(admin, /text-shadow: 0 1px 0 #000, 0 0 2px #000|settle-amt/);
+});
+
+test('admin settlement shows due date, next-cycle date, and red urgency state', () => {
+  assert.match(admin, /function bangkokDateParts/);
+  assert.match(admin, /function riderSettlementView/);
+  assert.match(admin, /วันที่ครบกำหนด/);
+  assert.match(admin, /nextDateKey/);
+  assert.match(admin, /className: overdue \|\| urgent \? 'remit-urgent'/);
+  assert.match(admin, /Number\(row\.nextAmount\) > 0/);
+  const css = fs.readFileSync(path.join(root, 'admin.css'), 'utf8');
+  assert.match(css, /\.data-card\.remit-urgent/);
+  assert.match(css, /\.data-card\.remit-urgent \.settle-amt/);
 });

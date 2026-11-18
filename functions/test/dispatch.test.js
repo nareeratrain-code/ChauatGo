@@ -28,7 +28,10 @@ function fcmDb(riderDoc, updates) {
 function fcmDeps(logs, messaging) {
   return {
     messaging,
-    FieldValue: { arrayRemove: (...tokens) => ({ removedTokens: tokens }) },
+    FieldValue: {
+      arrayRemove: (...tokens) => ({ removedTokens: tokens }),
+      serverTimestamp: () => '__server_timestamp__'
+    },
     logger(level, event, fields) { logs.push({ level, event, fields }); }
   };
 }
@@ -50,6 +53,42 @@ test('notifyRider logs structured success without exposing full tokens', async (
   assert.equal(logs[0].fields.tokenFingerprints.length, 0);
   assert.doesNotMatch(JSON.stringify(logs), new RegExp(token));
   assert.equal(updates.length, 0);
+});
+
+test('notifyRider records successful remittance delivery on the rider document', async () => {
+  const logs = [];
+  const updates = [];
+  const result = await D.notifyRider(
+    fcmDb({ exists: true, data: () => ({ fcmTokens: ['remit-token'] }) }, updates),
+    'rider-remit-status-1',
+    { title: 'ใกล้เวลาพักรับงาน', body: 'กรุณาโอนยอด', data: { kind: 'remit', phase: 'lock_warning', dateKey: '2026-11-15' } },
+    fcmDeps(logs, { async sendEachForMulticast() { return { responses: [{ success: true }], successCount: 1, failureCount: 0 }; } })
+  );
+  assert.equal(result.deliveryStatus, 'sent');
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].fcmLastStatus, 'sent');
+  assert.equal(updates[0].fcmLastPhase, 'lock_warning');
+  assert.equal(updates[0].fcmLastSuccessCount, 1);
+  assert.equal(updates[0].fcmLastFailureCount, 0);
+  assert.equal(updates[0].fcmLastNotificationKey, '2026-11-15');
+  assert.equal(updates[0].fcmLastSuccessAt, '__server_timestamp__');
+});
+
+test('notifyRider records no-token remittance delivery without claiming success', async () => {
+  const logs = [];
+  const updates = [];
+  const result = await D.notifyRider(
+    fcmDb({ exists: true, data: () => ({ fcmTokens: [] }) }, updates),
+    'rider-remit-status-2',
+    { title: 'บัญชีถูกพักรับงานอัตโนมัติ', body: 'ตรวจสอบยอดค้าง', data: { kind: 'remit', phase: 'locked', unlockAt: '2026-11-16T00:00:00.000Z' } },
+    fcmDeps(logs, { async sendEachForMulticast() { throw new Error('must not send without tokens'); } })
+  );
+  assert.equal(result.deliveryStatus, 'no_tokens');
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].fcmLastStatus, 'no_tokens');
+  assert.equal(updates[0].fcmLastPhase, 'locked');
+  assert.equal(updates[0].fcmLastFailureReason, 'no_tokens');
+  assert.equal(updates[0].fcmLastSuccessAt, undefined);
 });
 
 test('notifyRider logs partial FCM failures and removes invalid tokens safely', async () => {

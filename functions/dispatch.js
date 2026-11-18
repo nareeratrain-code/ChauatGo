@@ -270,6 +270,41 @@ function structuredFcmLog(level, event, fields) {
   return console.log(line);
 }
 
+function isRemittanceMessage(msg) {
+  return !!(msg && msg.data && msg.data.kind === 'remit');
+}
+
+async function recordRemittanceFcmStatus(db, riderId, msg, status, details, options) {
+  if (!isRemittanceMessage(msg)) return;
+  const data = msg.data || {};
+  const patch = {
+    fcmLastStatus: status,
+    fcmLastPhase: String(data.phase || 'remit'),
+    fcmLastAttemptAt: (options && options.FieldValue || FieldValue).serverTimestamp(),
+    fcmLastTokenCount: Number(details.tokenCount || 0),
+    fcmLastSuccessCount: Number(details.successCount || 0),
+    fcmLastFailureCount: Number(details.failureCount || 0),
+    fcmLastFailureReason: String(details.reason || ''),
+    fcmLastNotificationKey: String(data.dateKey || data.unlockAt || data.phase || 'remit'),
+    fcmLastTitle: String(msg.title || '').slice(0, 120)
+  };
+  if (status === 'sent') patch.fcmLastSuccessAt = (options && options.FieldValue || FieldValue).serverTimestamp();
+  try {
+    await db.collection('riders').doc(riderId).update(patch);
+  } catch (err) {
+    const log = (options && options.logger) || structuredFcmLog;
+    log('error', 'status_persist_failed', {
+      riderId: String(riderId || ''),
+      errorCode: err && err.code ? String(err.code) : 'unknown',
+      errorMessage: err && err.message ? String(err.message).slice(0, 300) : 'unknown'
+    });
+  }
+}
+
+function remitResult(result, status) {
+  return Object.assign({}, result, { deliveryStatus: status });
+}
+
 async function notifyRider(db, riderId, msg, deps) {
   const options = deps || {};
   const orderId = msg && msg.data && msg.data.orderId ? String(msg.data.orderId) : null;
@@ -287,12 +322,16 @@ async function notifyRider(db, riderId, msg, deps) {
     const tokens = snap.data().fcmTokens;
     if (!Array.isArray(tokens) || !tokens.length) {
       log('warn', 'no_tokens', Object.assign({}, base, { tokenCount: 0 }));
-      return { ok: false, reason: 'no_tokens' };
+      const result = { ok: false, reason: 'no_tokens' };
+      await recordRemittanceFcmStatus(db, riderId, msg, 'no_tokens', { reason: 'no_tokens' }, options);
+      return isRemittanceMessage(msg) ? remitResult(result, 'no_tokens') : result;
     }
     const selectedTokens = tokens.filter(Boolean).slice(0, 20);
     if (!selectedTokens.length) {
       log('warn', 'no_tokens', Object.assign({}, base, { tokenCount: 0 }));
-      return { ok: false, reason: 'no_tokens' };
+      const result = { ok: false, reason: 'no_tokens' };
+      await recordRemittanceFcmStatus(db, riderId, msg, 'no_tokens', { reason: 'no_tokens' }, options);
+      return isRemittanceMessage(msg) ? remitResult(result, 'no_tokens') : result;
     }
     const res = await (options.messaging || getMessaging()).sendEachForMulticast({
       tokens: selectedTokens,
@@ -341,14 +380,26 @@ async function notifyRider(db, riderId, msg, deps) {
         }));
       }
     }
-    return { ok: failureCount === 0, successCount, failureCount, invalidTokenCount: bad.length };
+    const result = { ok: failureCount === 0, successCount, failureCount, invalidTokenCount: bad.length };
+    const deliveryStatus = failureCount === 0 ? 'sent' : 'partial_failure';
+    await recordRemittanceFcmStatus(db, riderId, msg, deliveryStatus, {
+      tokenCount: selectedTokens.length,
+      successCount,
+      failureCount,
+      reason: failureCount ? Object.keys(failureCodes).join(',') : ''
+    }, options);
+    return isRemittanceMessage(msg) ? remitResult(result, deliveryStatus) : result;
   } catch (err) {
     log('error', 'send_exception', Object.assign({}, base, {
       errorCode: err && err.code ? String(err.code) : 'unknown',
       errorMessage: err && err.message ? String(err.message).slice(0, 300) : 'unknown'
     }));
     /* Push is best-effort. Missing credentials or a closed app must not stop dispatch. */
-    return { ok: false, reason: 'send_exception' };
+    const result = { ok: false, reason: 'send_exception' };
+    await recordRemittanceFcmStatus(db, riderId, msg, 'failed', {
+      reason: err && err.code ? String(err.code) : 'send_exception'
+    }, options);
+    return isRemittanceMessage(msg) ? remitResult(result, 'failed') : result;
   }
 }
 

@@ -73,19 +73,13 @@ function loadQrFunctions() {
   return { context, capture };
 }
 
-test('ถึงร้านส่งข้อความเตรียมโอนพร้อม QR ให้ลูกค้า', async () => {
+test('งานซื้อสินค้าจะไม่ส่ง QR ตอนถึงร้านก่อนรูปและราคา', async () => {
   const { context, capture } = loadQrFunctions();
   await context.sendRiderQrPaymentChat('OD-QR-001', 'shop_arrived');
 
-  assert.equal(capture.messages.length, 1);
-  assert.match(capture.messages[0].text, /ไรเดอร์ถึงร้านแล้ว/);
-  assert.match(capture.messages[0].text, /QR/);
-  assert.equal(capture.messages[0].imageUrl, context.riderProfile.qrCodeUrl);
-  assert.equal(capture.messages[0].imagePath, context.riderProfile.qrCodePath);
-  assert.equal(capture.messages[0].automationKey, 'shop_arrived_qr');
-  assert.equal(capture.updates.length, 1);
-  assert.equal(await context.sendRiderQrPaymentChat('OD-QR-001', 'shop_arrived'), true);
-  assert.equal(capture.messages.length, 1);
+  assert.equal(capture.messages.length, 0);
+  assert.equal(capture.updates.length, 0);
+  assert.equal(await context.sendRiderQrPaymentChat('OD-QR-001', 'shop_arrived'), false);
 });
 
 test('ส่งรูปอาหารส่งยอดโอนจริงพร้อม QR ให้ลูกค้า', async () => {
@@ -146,10 +140,11 @@ test('Ride รับเงินแล้วต้องแสดงว่าจ
   assert.match(riderSource, /if \(j\.type !== 'ride' && j\.type !== 'express' && !orderIsCash\(j\)/);
 });
 
-test('เหตุการณ์ถึงต้นทางของ Ride/Express เรียก QR Chat และอาหารยังส่ง QR หลังส่งรูป', () => {
+test('เหตุการณ์ถึงต้นทางของ Ride/Express เรียก QR Chat และงานซื้อสินค้าส่ง QR หลังส่งรูป', () => {
   const arrivalBlock = riderSource.slice(riderSource.indexOf('async function arrivedAtShop'), riderSource.indexOf('function openShopSlip'));
   assert.equal((arrivalBlock.match(/sendRiderQrPaymentChat\(jobId, 'shop_arrived'\)/g) || []).length, 2);
   assert.match(arrivalBlock, /if \(!qrSent\) sendAutomatedChatLater\(jobId, 'shop_arrived'\)/);
+  assert.doesNotMatch(arrivalBlock, /ยังไม่ได้แนบ QR รับเงิน/);
   const photoStart = riderSource.indexOf('async function submitFoodPhoto');
   const slipStart = riderSource.indexOf('async function submitShopSlip');
   const photoBlock = riderSource.slice(photoStart, slipStart);

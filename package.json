@@ -4,6 +4,9 @@
   "scripts": {
     "build": "node scripts/build-client.js",
     "places": "node scripts/fetch-osm-places.js",
+    "test:unit": "node --test tests/*.test.js",
+    "test:admin": "node --test tests/admin-emulator-config.test.js tests/admin-payout-audit.test.js tests/admin-rider-lock-ui.test.js tests/settlement-ui.test.js",
+    "test:emu:all": "npx --yes firebase-tools emulators:exec --only auth,firestore,storage,functions --project chauat-go-b9841 \"npm test --prefix functions && npm run test:storage --prefix functions && npm run test:admin\"",
     "test:e2e:permissions": "playwright test tests/e2e/permissions.spec.js",
     "test:e2e:cross-role": "playwright test tests/e2e/customer-rider-payment-flow.spec.js --project=chromium --workers=1 --retries=0",
     "test:e2e:fcm-slip": "playwright test tests/e2e/customer-slip-fcm.spec.js --project=chromium --workers=1 --retries=0",

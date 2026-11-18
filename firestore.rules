@@ -248,10 +248,16 @@ service cloud.firestore {
         && unchanged('totalJobs')
         && unchanged('onlineLockedUntil')
         && unchanged('onlineLockReason')
+        && unchanged('remittanceVerificationUntil')
         && (
           request.resource.data.get('status', '') != 'active'
           || resource.data.get('onlineLockedUntil', null) == null
           || resource.data.onlineLockedUntil < request.time
+        )
+        && (
+          request.resource.data.get('status', '') != 'active'
+          || resource.data.get('remittanceVerificationUntil', null) == null
+          || resource.data.remittanceVerificationUntil < request.time
         )
         && riderProfileUpdateOk();
     }
@@ -1964,26 +1970,9 @@ service cloud.firestore {
 
     match /rider_remittances/{remittanceId} {
       allow read: if isAdmin() || (isAuth() && resource.data.riderId == myUid());
-      allow create: if isVerifiedRider()
-        && request.resource.data.riderId == myUid()
-        && request.resource.data.status == 'pending'
-        && request.resource.data.keys().hasOnly([
-          'riderId', 'riderName', 'amount', 'dateKey', 'status', 'slipUrl', 'slipPath', 'note', 'createdAt'
-        ])
-        && isValidString(request.resource.data.get('riderName', ''), 0, 120)
-        && request.resource.data.amount is number
-        && request.resource.data.amount > 0
-        && request.resource.data.amount <= 100000
-        && request.resource.data.dateKey is string
-        && request.resource.data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && request.resource.data.slipPath is string
-        && request.resource.data.slipPath.matches('^settlement_slips/riders/' + myUid() + '/[A-Za-z0-9_.-]+$')
-        && request.resource.data.get('slipUrl', '') is string
-        && request.resource.data.get('slipUrl', '').size() <= 2000
-        && request.resource.data.get('note', '') is string
-        && request.resource.data.get('note', '').size() <= 300
-        && request.resource.data.createdAt is timestamp;
-      allow update, delete: if false;
+      // The submit callable calculates amount/date and writes the deterministic
+      // rider_{uid}_{dateKey} document in a transaction.
+      allow create, update, delete: if false;
     }
 
     // Collection-group listener: riders/{query riderId == me}. Direct field

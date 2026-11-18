@@ -14,11 +14,45 @@ const firebaseConfig = {
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
+
+const adminQuery = new URLSearchParams(window.location.search);
+const adminHost = window.location.hostname || '';
+const adminLocalhost = adminHost === 'localhost' || adminHost === '127.0.0.1';
+const useAdminEmulators = adminQuery.get('emulator') === '1' && adminLocalhost;
+
+// Fail closed: an Admin page opened on localhost must explicitly opt into
+// emulators. This prevents payout/remittance writes from reaching Production.
+if (adminLocalhost && !useAdminEmulators) {
+  document.body.innerHTML = '<main style="font:600 18px system-ui;padding:32px;line-height:1.6">'
+    + '<h1>ต้องเปิดโหมด Emulator</h1>'
+    + '<p>เพื่อความปลอดภัย ให้เปิดหน้านี้ด้วย <code>?emulator=1</code> เมื่อทดสอบบน Localhost</p>'
+    + '</main>';
+  throw new Error('Admin Localhost is blocked unless ?emulator=1 is present');
+}
+
 const firebaseApp = firebase.apps.find(a => a.name === 'admin') || firebase.initializeApp(firebaseConfig, 'admin');
-if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
+if (window.ChauatAppCheck && !useAdminEmulators) ChauatAppCheck.start(firebaseApp);
 const auth = firebase.auth(firebaseApp);
 const db = firebase.firestore(firebaseApp);
 const storage = firebase.storage(firebaseApp);
+const functionsApi = firebaseApp.functions('asia-southeast1');
+
+if (useAdminEmulators) {
+  auth.useEmulator('http://127.0.0.1:9099');
+  db.useEmulator('127.0.0.1', 8080);
+  storage.useEmulator('127.0.0.1', 9199);
+  functionsApi.useEmulator('127.0.0.1', 5001);
+  console.warn('[ChauatGo DEV] Admin connected to Firebase Emulators');
+}
+
+window.adminFirebase = {
+  app: firebaseApp,
+  auth: auth,
+  db: db,
+  storage: storage,
+  functions: functionsApi,
+  usingEmulators: useAdminEmulators
+};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -63,6 +97,30 @@ function adminFirebaseErrorText(err, fallback) {
   if (text.includes('unavailable') || text.includes('network') || text.includes('failed to fetch')) return 'เชื่อมต่อระบบไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
   if (text.includes('failed-precondition')) return 'สถานะข้อมูลเปลี่ยนแล้ว — รีเฟรชหน้าก่อนลองใหม่';
   return fallback || 'ทำรายการไม่สำเร็จ';
+}
+
+function riderLockUntil(rider) {
+  const values = [rider && rider.onlineLockedUntil, rider && rider.remittanceVerificationUntil]
+    .map(toDate)
+    .filter(Boolean)
+    .map(date => date.getTime())
+    .filter(ms => ms > Date.now());
+  return values.length ? new Date(Math.max(...values)) : null;
+}
+
+function riderLockMessage(rider) {
+  const until = riderLockUntil(rider);
+  if (!until) return '';
+  const cooldown = rider && rider.onlineLockReason === 'remit_verified_cooldown';
+  const reason = cooldown
+    ? 'อยู่ระหว่างรอปลดล็อกหลังแอดมินตรวจสลิป'
+    : 'ยังมียอดที่ต้องโอนให้ ChauatGo';
+  return `${reason} • ปลดล็อก ${fmtTime(until)} น.`;
+}
+
+function isPermissionDeniedError(err) {
+  const raw = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+  return /permission-denied|insufficient permission/i.test(raw);
 }
 
 const MASTER_ADMINS = [
@@ -158,6 +216,38 @@ const fmtTimeShort = t => {
   const d = toDate(t);
   return d ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
 };
+
+function bangkokDateParts(nowMs = Date.now()) {
+  const shifted = new Date(Number(nowMs) + 7 * 60 * 60 * 1000);
+  return { key: shifted.toISOString().slice(0, 10), hour: shifted.getUTCHours() };
+}
+
+function riderSettlementView(row, nowMs = Date.now()) {
+  const item = row || {};
+  const clock = bangkokDateParts(nowMs);
+  const currentDue = Number(item.amount || 0) > 0 && String(item.dateKey || '') === clock.key;
+  const nextDue = Number(item.nextAmount || 0) > 0;
+  const urgent = currentDue && clock.hour >= 20;
+  const overdue = currentDue && clock.hour >= 22;
+  const status = item.status === 'pending' ? 'รอตรวจสลิป'
+    : item.status === 'rejected' ? 'ปฏิเสธแล้ว'
+      : item.status === 'slip' ? 'มีสลิปรอตรวจ' : 'รอโอน';
+  if (currentDue) {
+    return {
+      amount: Number(item.amount || 0),
+      className: overdue || urgent ? 'remit-urgent' : '',
+      meta: `${status} • วันที่ครบกำหนด: ${esc(item.dateKey || clock.key)} • ต้องโอนก่อน ${esc(item.cutoff || '21:00')}${overdue ? ' • เลยเวลาแล้ว' : ''}`
+    };
+  }
+  if (nextDue) {
+    return {
+      amount: Number(item.nextAmount || 0),
+      className: '',
+      meta: `รอบถัดไป • วันที่ครบกำหนด: ${esc(item.nextDateKey || '')} • ยังไม่ถึงกำหนด`
+    };
+  }
+  return { amount: Number(item.amount || 0), className: '', meta: `${status} • ยังไม่มียอดถึงรอบโอน` };
+}
 
 const ts = o => o.createdAt?.seconds || 0;
 
@@ -1109,6 +1199,7 @@ function riders() {
           <div class="data-card-meta">📞 ${esc(r.phone || '—')} • ${esc(r.vehicle || '')} ${esc(r.plate || '')}</div>
           <div class="data-card-meta" style="font-family:monospace;font-size:10px">🆔 ${esc((r.id || '').slice(0, 12))}...</div>
           <div class="data-card-meta">⭐ Trust: ${trust} • 📦 ${r.totalJobs || 0} งาน</div>
+          ${riderLockMessage(r) ? `<div class="data-card-meta" style="color:#b42318;font-weight:800">🔒 ${esc(riderLockMessage(r))}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
           <span class="tag ${v ? '' : 'w'}">${v ? '✅' : '⏳'}</span>
@@ -1277,11 +1368,11 @@ function gpTransfers() {
 function settlement() {
   const payout = store.payoutConfig || {};
   const queue = (store.settlement_queue || []).filter(row =>
-    row && (row.status === 'due' || row.status === 'slip' || row.status === 'rejected' || Number(row.amount) > 0)
+    row && (row.status === 'due' || row.status === 'slip' || row.status === 'rejected' || Number(row.amount) > 0 || Number(row.nextAmount) > 0)
   );
   const slips = (store.rider_remittances || []).filter(row => row.status === 'pending' || row.status === 'rejected');
   const shopSlips = (store.gpTransfers || []).filter(row => row.status === 'pending' || row.status === 'rejected');
-  const card = (title, meta, amount, actions) => `<div class="data-card">
+  const card = (title, meta, amount, actions, className = '') => `<div class="data-card ${className}">
     <div class="data-card-header">
       <div class="data-card-icon" style="background:#168A45;color:#fff">🏦</div>
       <div class="data-card-info">
@@ -1298,12 +1389,16 @@ function settlement() {
     row.amount,
     `<button class="blue" data-settle-chat="shop" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ร้าน')}">💬 แชท</button>`
   )).join('');
-  const riders = queue.filter(row => row.kind === 'rider').map(row => card(
-    esc(row.partyName || 'ไรเดอร์'),
-    `ต้องโอนก่อน ${esc(row.cutoff || '21:00')} • ${esc(row.dateKey || '')}`,
-    row.amount,
-    `<button class="blue" data-settle-chat="rider" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ไรเดอร์')}">💬 แชท</button>`
-  )).join('');
+  const riders = queue.filter(row => row.kind === 'rider').map(row => {
+    const view = riderSettlementView(row);
+    return card(
+      esc(row.partyName || 'ไรเดอร์'),
+      view.meta,
+      view.amount,
+      `<button class="blue" data-settle-chat="rider" data-party="${esc(row.partyId)}" data-party-name="${esc(row.partyName || 'ไรเดอร์')}">💬 แชท</button>`,
+      view.className
+    );
+  }).join('');
   const riderSlips = slips.map(row => card(
     esc(row.riderName || 'ไรเดอร์'),
     `${esc(row.status === 'rejected' ? 'ปฏิเสธแล้ว' : 'รอตรวจสลิป')} • ${esc(row.dateKey || '')}`,
@@ -2235,10 +2330,23 @@ document.addEventListener('click', async e => {
       const r = store.riders.find(x => x.id === t.dataset.toggleRider);
       if (r) {
         const online = ['active', 'available', 'online'].includes(r.status);
-        await db.collection('riders').doc(r.id).update({
-          status: online ? 'inactive' : 'active'
-        });
-        showToast(online ? '⏸️ ปิดรับงาน' : '▶️ เปิดรับงาน');
+        const lockMessage = !online && riderLockMessage(r);
+        if (lockMessage) {
+          showToast(`🔒 เปิดรับงานไม่ได้ — ${lockMessage}`, 'warning');
+          return;
+        }
+        try {
+          await db.collection('riders').doc(r.id).update({
+            status: online ? 'inactive' : 'active'
+          });
+          showToast(online ? '⏸️ ปิดรับงาน' : '▶️ เปิดรับงาน');
+        } catch (err) {
+          if (isPermissionDeniedError(err) && !online) {
+            showToast(`🔒 เปิดรับงานไม่ได้ — ${riderLockMessage(r) || 'บัญชีไรเดอร์ยังถูกพักรับงาน'}`, 'warning');
+          } else {
+            showToast(adminFirebaseErrorText(err, 'เปลี่ยนสถานะไรเดอร์ไม่สำเร็จ'), 'error');
+          }
+        }
       }
       return;
     }
@@ -2360,7 +2468,12 @@ document.addEventListener('click', async e => {
       if (!window.ChauatFn) return showToast('ระบบตรวจสลิปยังไม่พร้อม', 'error');
       try {
         const result = await ChauatFn.callFunction('reviewRiderRemittance', { remittanceId, action }, auth);
-        showToast(result && result.alreadyReviewed ? 'ตรวจสลิปนี้ไว้แล้ว' : (action === 'verify' ? 'ยืนยันยอดไรเดอร์แล้ว' : 'ปฏิเสธสลิปแล้ว'));
+        const overpaid = result && Number(result.overpaidAmount || 0);
+        showToast(result && result.alreadyReviewed
+          ? 'ตรวจสลิปนี้ไว้แล้ว'
+          : (action === 'verify'
+            ? (overpaid > 0 ? `ยืนยันสลิปแล้ว • ยอดเกิน ฿${fmt(overpaid)}` : 'ยืนยันยอดไรเดอร์แล้ว')
+            : 'ปฏิเสธสลิปแล้ว'));
         closeModal();
       } catch (err) {
         showToast((err && err.message) || 'ตรวจสลิปไม่สำเร็จ', 'error');

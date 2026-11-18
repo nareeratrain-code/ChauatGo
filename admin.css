@@ -897,6 +897,12 @@ main { padding: 0 14px 30px; }
   padding: 2px 8px;
   border-radius: 8px;
 }
+.data-card.remit-urgent {
+  border: 2px solid var(--red);
+  background: linear-gradient(135deg, var(--red-light), var(--surface));
+  box-shadow: 0 0 0 2px rgba(229,57,53,.12), var(--shadow-sm);
+}
+.data-card.remit-urgent .settle-amt { background: var(--red); }
 nav {
   margin: 0;
   padding: 8px 10px 4px;

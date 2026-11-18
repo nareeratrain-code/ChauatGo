@@ -1524,41 +1524,70 @@ function bangkokNowParts(now) {
   return { hour: shifted.getUTCHours(), minute: shifted.getUTCMinutes() };
 }
 
-function renderRemitDashboard(amount) {
+function renderRemitDashboard(amount, meta) {
   const panel = $('remit-panel');
   const lock = $('remit-lock');
   const count = $('remit-countdown');
+  const date = $('remit-due-date');
+  const oweCell = $('hero-owe-cell');
   const pay = $('remit-dash-btn');
+  const info = meta || {};
+  const locked = riderIsRemitLocked();
+  const carryAmount = Number(info.displayAmount || info.nextAmount || (info.remittance && info.remittance.amount) || 0);
   const due = Number(amount) > 0;
-  if (pay) pay.hidden = !due;
+  const visibleAmount = due ? Number(amount) : (locked ? carryAmount : 0);
+  const hasVisibleAmount = visibleAmount > 0;
+  const todayKey = bangkokDateKey(Date.now());
+  if (pay) pay.hidden = !hasVisibleAmount;
   if (panel) panel.hidden = false;
   const clock = bangkokNowParts(new Date());
   const mins = (21 * 60) - (clock.hour * 60 + clock.minute);
+  if (oweCell) oweCell.classList.toggle('urgent', hasVisibleAmount && (locked || clock.hour >= 20));
+  if (date) {
+    date.textContent = due
+      ? 'วันที่ต้องโอน: ' + (info.dateKey || bangkokDateKey(Date.now()))
+      : locked && hasVisibleAmount
+        ? 'ยอดค้างที่ต้องโอน: ฿' + fmt(visibleAmount) + ' • รอบ ' + (info.remittance?.dateKey || info.nextDateKey || info.dateKey || '')
+      : (Number(info.nextAmount) > 0 ? 'รอบถัดไป ' + (info.nextDateKey || '') + ' • ฿' + fmt(info.nextAmount) : 'ยังไม่มียอดที่ถึงรอบโอน');
+  }
   if (count) {
-    if (!due) count.textContent = '';
-    else if (mins > 0) count.textContent = 'เหลือ ' + mins + ' นาที ก่อน 21:00';
-    else if (clock.hour < 22) count.textContent = 'เลย 21:00 แล้ว โอนได้ถึง 22:00';
-    else count.textContent = 'เลย 22:00 แล้ว';
+    if (locked && hasVisibleAmount) count.textContent = 'เกินกำหนดแล้ว • ยอดค้าง ฿' + fmt(visibleAmount) + ' • แนบสลิปให้แอดมินตรวจ';
+    else if (!due) count.textContent = '';
+    else if (mins > 0) count.textContent = 'ใกล้ถึงรอบโอน • เหลือ ' + mins + ' นาทีถึง 21:00';
+    else if (clock.hour < 22) count.textContent = 'อยู่ในรอบโอนวันนี้ • โอนได้ถึง 22:00';
+    else count.textContent = 'เลยรอบโอนแล้ว • ติดต่อแอดมิน';
   }
   if (lock) {
-    if (riderIsRemitLocked()) {
+    if (locked) {
       lock.hidden = false;
-      lock.textContent = 'พักรับงาน 1 วัน เพราะยังไม่โอนยอดก่อน 22:00 โอนได้จากปุ่มด้านบน แล้วรอแอดมินยืนยันสลิป';
+      lock.textContent = riderProfile?.onlineLockReason === 'remit_verified_cooldown'
+        ? 'พักรับงานชั่วคราว • ยอดค้าง ฿' + fmt(visibleAmount) + ' • แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
+        : 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 • ยอดค้าง ฿' + fmt(visibleAmount) + ' • โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
     } else lock.hidden = true;
   }
-  if (due && clock.hour === 20 && !sessionStorage.getItem('remit-notice')) {
-    sessionStorage.setItem('remit-notice', '1');
+  const noticeKey = 'remit-notice-' + todayKey;
+  if (due && clock.hour === 20 && !sessionStorage.getItem(noticeKey)) {
+    sessionStorage.setItem(noticeKey, '1');
     showToast('อีก 1 ชั่วโมงจะถึง 21:00 กรุณาโอนยอดที่ค้าง', 'warning', 6000);
   }
-  queueRiderRemitSync(amount);
+  queueRiderRemitSync(amount, info);
 }
 
-function queueRiderRemitSync(amount) {
-  if (!(Number(amount) > 0) || window._remitQueueSynced) return;
+function queueRiderRemitSync(amount, meta) {
+  const syncDateKey = bangkokDateKey(Date.now());
+  const shouldSync = Number(amount) > 0 || Number(meta && meta.nextAmount) > 0;
+  if (!shouldSync || window._remitQueueSyncedDateKey === syncDateKey) return;
   if (!window.ChauatFn || !currentUser) return;
-  window._remitQueueSynced = true;
-  ChauatFn.callFunction('syncMySettlement', {}, auth).catch(function () {
-    window._remitQueueSynced = false;
+  window._remitQueueSyncedDateKey = syncDateKey;
+  ChauatFn.callFunction('syncMySettlement', {}, auth).then(function (result) {
+    if (!result || result.kind !== 'rider') return;
+    const serverAmount = Number(result.amount || 0);
+    const displayAmount = Number(result.displayAmount != null ? result.displayAmount : serverAmount);
+    const oweEl = $('hero-owe');
+    if (oweEl) oweEl.textContent = '฿' + fmt(displayAmount);
+    renderRemitDashboard(serverAmount, result);
+  }).catch(function () {
+    if (window._remitQueueSyncedDateKey === syncDateKey) window._remitQueueSyncedDateKey = '';
   });
 }
 
@@ -1573,10 +1602,7 @@ function updateHeroStats() {
   }, 0);
   const tipTotal = today.reduce((s, j) => s + Number(j.cashTip || (j.paymentMode === 'cash' ? CASH_TIP : 0)), 0);
   const todayIncome = feeTotal + tipTotal;
-  const todayOwe = today.filter(j => !j.riderPaid).reduce((s, j) => {
-    const f = Number(j.fare || 0);
-    return s + f * PLATFORM_SHARE;
-  }, 0);
+  const remit = localRiderDue();
 
   const incomeEl = $('hero-income');
   if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
@@ -1594,8 +1620,8 @@ function updateHeroStats() {
   const tipEl = $('hero-tip');
   if (tipEl) tipEl.textContent = '฿' + fmt(tipTotal);
   const oweEl = $('hero-owe');
-  if (oweEl) oweEl.textContent = '฿' + fmt(todayOwe);
-  renderRemitDashboard(todayOwe);
+  if (oweEl) oweEl.textContent = '฿' + fmt(remit.displayAmount);
+  renderRemitDashboard(remit.amount, remit);
 
   const doneEl = $('stat-done');
   if (doneEl) doneEl.textContent = today.length;
@@ -2116,7 +2142,7 @@ function riderQrPaymentText(order, phase) {
   }
   if (!orderBuysGoods(order)) return '';
   if (phase === 'shop_arrived') {
-    return '📍 ไรเดอร์ถึงร้านแล้วครับ/ค่ะ\nกรุณาโอนหลังจากเห็นรูปอาหาร/สินค้าแล้วเท่านั้น\nกำลังตรวจสอบและถ่ายรูปอาหารให้ลูกค้า\nหลังส่งรูปอาหารแล้ว ระบบจะแจ้งยอดโอนที่แน่นอนอีกครั้งครับ/ค่ะ\n\n📱 สามารถสแกน QR นี้เพื่อเตรียมโอนเงินให้ไรเดอร์ได้ครับ/ค่ะ';
+    return '';
   }
   const due = Number(foodPayParts(order).total) || 0;
   const dueText = Math.abs(due % 1) < 1e-9 ? String(Math.round(due)) : due.toFixed(2);
@@ -2672,9 +2698,6 @@ async function recordShopArrival(jobId, job) {
     if (orderNeedsKitchen(job) && !orderFoodReady(job)) {
       return showToast('รอร้านทำให้เสร็จก่อน', 'warning');
     }
-    if (job.paymentMode !== 'cash' && !riderProfile?.qrCodeUrl) {
-      showToast('⚠️ ยังไม่ได้แนบ QR รับเงิน — ลูกค้าจะไม่ได้รับ QR อัตโนมัติ', 'warning', 6000);
-    }
     pickupGuideOrderIds.add(jobId);
     job.pickupArrived = true;
     if (job.type === 'shopping') {
@@ -2826,10 +2849,8 @@ function openPayGuide(jobId, stage) {
         <img id="pickup-slip-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
         <div id="pickup-slip-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกสลิป</div>
         <div class="chat-guide-row">
-          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-camera').click()">📷 กล้อง</button>
-          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ คลังภาพ</button>
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-gallery').click()">📎 แนบสลิป</button>
         </div>
-        <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
         <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
         <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">🧾 ส่งสลิปให้ลูกค้า</button>`;
     } else if (orderBuysGoods(job) && job.foodImage && !paid) {
@@ -3006,10 +3027,8 @@ function openPickupModal(jobId, job) {
         <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div class="photo-source-row">
-        <button type="button" class="photo-source-btn camera ripple" onclick="openLiveCamera('slip')">📷 ถ่ายสลิปจากกล้อง</button>
-        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ เลือกสลิปจากคลังภาพ</button>
+        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">📎 แนบสลิป</button>
       </div>
-      <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
       <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
     </div>
 
@@ -3085,10 +3104,8 @@ async function processPickupImage(file, type) {
 }
 
 let liveCameraStream = null;
-let liveCameraType = 'food';
 
-async function openLiveCamera(type) {
-  liveCameraType = type === 'slip' ? 'slip' : 'food';
+async function openLiveCamera() {
   const panel = $('live-camera-panel');
   const video = $('live-camera-video');
   if (!panel || !video) return;
@@ -3127,7 +3144,7 @@ async function captureLivePhoto() {
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   closeLiveCamera();
-  if (blob) await processPickupImage(new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' }), liveCameraType);
+  if (blob) await processPickupImage(new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' }), 'food');
 }
 
 function updatePickupConfirmBtn() {
@@ -4386,14 +4403,26 @@ function bangkokDateKey(ms) {
 }
 
 function localRiderDue() {
-  const today = allHistory.filter(j =>
-    (j.status === 'done' || j.status === 'delivered')
-    && isToday(j.deliveredAt || j.doneAt || j.createdAt)
-    && !j.riderPaid
+  const now = Date.now();
+  const dateKey = bangkokDateKey(now);
+  const nextDateKey = bangkokDateKey(now + 24 * 60 * 60 * 1000);
+  const remitDate = (job) => {
+    const value = job && (job.deliveredAt || job.doneAt || job.createdAt);
+    const ms = value && typeof value.toMillis === 'function' ? value.toMillis() : new Date(value || 0).getTime();
+    if (!ms) return '';
+    const shifted = new Date(ms + 7 * 60 * 60 * 1000);
+    const key = shifted.toISOString().slice(0, 10);
+    return shifted.getUTCHours() >= 21 ? bangkokDateKey(ms + 24 * 60 * 60 * 1000) : key;
+  };
+  const finished = allHistory.filter(j =>
+    (j.status === 'done' || j.status === 'delivered') && !j.riderPaid
   );
-  const amount = Math.round(today.reduce((sum, job) => sum + Number(job.fare || 0) * PLATFORM_SHARE, 0) * 100) / 100;
-  const hour = new Date().getHours();
-  return { amount, dateKey: bangkokDateKey(Date.now()), cutoff: '21:00', overdue: hour >= 21 && amount > 0 };
+  const sumFor = (key) => Math.round(finished.filter(j => remitDate(j) === key)
+    .reduce((sum, job) => sum + Number(job.fare || 0) * PLATFORM_SHARE, 0) * 100) / 100;
+  const amount = sumFor(dateKey);
+  const nextAmount = sumFor(nextDateKey);
+  const clock = bangkokNowParts(new Date(now));
+  return { amount, displayAmount: amount || nextAmount, nextAmount, dateKey, nextDateKey, cutoff: '21:00', overdue: clock.hour >= 21 && amount > 0 };
 }
 
 function riderPayoutHtml(data) {
@@ -4412,23 +4441,37 @@ function renderRiderSettlement() {
   const body = $('rider-settle-body');
   if (!body || !riderSettle) return;
   const due = riderSettle;
+  const status = String(due.remittanceStatus || '');
+  const lockedUntil = Number(due.lockedUntilMs || 0);
+  const visibleAmount = Number(due.amount || 0) > 0
+    ? Number(due.amount)
+    : Number(due.displayAmount || due.nextAmount || due.remittanceAmount || 0);
+  const cooldown = status === 'verified' && lockedUntil > Date.now();
+  const statusCopy = status === 'pending'
+    ? '📨 ส่งสลิปแล้ว • รอแอดมินตรวจสอบ'
+    : status === 'verified' && cooldown
+      ? `✅ แอดมินตรวจสลิปแล้ว • รอปลดล็อก ${new Date(lockedUntil).toLocaleString('th-TH')}`
+      : status === 'rejected'
+        ? '⚠️ สลิปไม่ผ่าน • กรุณาแนบสลิปใหม่'
+        : due.overdue
+          ? '⏰ เลยเวลาแล้ว ยังโอนย้อนหลังให้แอดมินได้'
+          : 'ยอดวันนี้ 20% ของค่าส่ง';
+  const canUpload = Number(due.amount || 0) > 0 && status !== 'pending' && !cooldown;
   body.innerHTML = `
     <div class="sheet-handle"></div>
     <h2>📤 โอนให้ ChauatGo</h2>
     <div class="settle-due">
-      <div style="font-size:12px;font-weight:800">ต้องโอนก่อน ${esc(due.cutoff || '21:00')}</div>
-      <div class="amt">฿${fmt(due.amount || 0)}</div>
-      <div style="font-size:12px;font-weight:700;margin-top:4px">${due.overdue ? 'เลยเวลาแล้ว' : 'ยอดวันนี้ 20% ของค่าส่ง'} • ${esc(due.dateKey || '')}</div>
+      <div style="font-size:12px;font-weight:800">รอบโอน ${esc(due.remittanceDateKey || due.dateKey || '')} • 21:00–22:00</div>
+      <div class="amt">฿${fmt(visibleAmount)}</div>
+      <div style="font-size:12px;font-weight:700;margin-top:4px">${Number(due.amount || 0) > 0 ? statusCopy : (visibleAmount > 0 ? 'ยอดค้างหลังเลยกำหนด • แนบสลิปให้แอดมินตรวจสอบ' : 'ยังไม่ถึงรอบโอน • ยอดนี้เข้ารอบวันถัดไป ' + esc(due.nextDateKey || '') + ' ฿' + fmt(due.nextAmount || 0))} </div>
     </div>
     ${riderPayoutHtml(due.payout)}
-    <div class="photo-source-row" style="margin-top:12px">
-      <button type="button" class="photo-source-btn camera ripple" onclick="document.getElementById('rider-settle-camera').click()">📷 ถ่ายสลิป</button>
-      <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('rider-settle-gallery').click()">🖼️ เลือกสลิป</button>
+    ${canUpload ? `<div class="photo-source-row" style="margin-top:12px">
+      <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('rider-settle-gallery').click()">📎 แนบสลิป</button>
     </div>
-    <input type="file" id="rider-settle-camera" accept="image/*" capture="environment" style="display:none" onchange="onRiderSettleFile(this)">
     <input type="file" id="rider-settle-gallery" accept="image/*" style="display:none" onchange="onRiderSettleFile(this)">
     <img id="rider-settle-preview" class="settle-qr" alt="" style="display:none">
-    <button class="btn-primary ripple" onclick="submitRiderRemittance()">ส่งสลิป</button>
+    <button class="btn-primary ripple" onclick="submitRiderRemittance()">ส่งสลิปให้แอดมินตรวจ</button>` : `<div style="margin-top:12px;padding:12px;border-radius:10px;background:var(--surface-2);font-size:12px;font-weight:800;color:var(--text-muted)">${esc(statusCopy)}</div>`}
     <button class="btn-secondary ripple" onclick="openRiderSettlementChat()">💬 ถามแอดมิน</button>
     <div class="settle-chat-log" id="rider-settle-log" style="display:none"></div>
     <textarea id="rider-settle-input" rows="2" maxlength="2000" placeholder="พิมพ์คำถามเรื่องยอดโอน" style="display:none"></textarea>
@@ -4444,7 +4487,7 @@ function closeRiderSettlement() {
 
 async function showTransferApp() {
   const local = localRiderDue();
-  riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null };
+  riderSettle = { amount: local.amount, displayAmount: local.displayAmount, nextAmount: local.nextAmount, nextDateKey: local.nextDateKey, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
   $('rider-settle-sheet')?.classList.add('show');
   renderRiderSettlement();
   subscribeRiderRemittances();
@@ -4457,9 +4500,17 @@ async function showTransferApp() {
       const result = await ChauatFn.callFunction('syncMySettlement', {}, auth);
       if (result && riderSettle) {
         riderSettle.amount = Number(result.amount || 0);
+        riderSettle.displayAmount = Number(result.displayAmount != null ? result.displayAmount : riderSettle.amount);
+        riderSettle.nextAmount = Number(result.nextAmount || 0);
+        riderSettle.nextDateKey = result.nextDateKey || riderSettle.nextDateKey;
         riderSettle.dateKey = result.dateKey || riderSettle.dateKey;
         riderSettle.cutoff = result.cutoff || '21:00';
         riderSettle.overdue = !!result.overdue;
+        riderSettle.remittanceStatus = result.remittance?.status || '';
+        riderSettle.remittanceId = result.remittance?.id || '';
+        riderSettle.remittanceAmount = Number(result.remittance?.amount || 0);
+        riderSettle.remittanceDateKey = result.remittance?.dateKey || '';
+        riderSettle.lockedUntilMs = Number(result.lockedUntilMs || 0);
         if (result.payout) riderSettle.payout = result.payout;
       }
     } catch (err) { /* the card still shows the same 20% figure */ }
@@ -4484,30 +4535,38 @@ function onRiderSettleFile(input) {
 }
 
 async function submitRiderRemittance() {
+  if (window.riderRemittanceSubmitInFlight) return showToast('กำลังส่งสลิป กรุณารอสักครู่', 'info');
   if (!riderSettle || !riderSettle.file) return showToast('กรุณาแนบสลิปโอน', 'warning');
+  if (riderSettle.remittanceStatus === 'pending') return showToast('ส่งสลิปแล้ว รอแอดมินตรวจสอบก่อน', 'info');
+  if (riderSettle.remittanceStatus === 'verified' && Number(riderSettle.lockedUntilMs || 0) > Date.now()) {
+    return showToast('แอดมินตรวจสลิปแล้ว รอครบ 24 ชั่วโมงเพื่อปลดล็อก', 'info');
+  }
   const amount = Math.round(Number(riderSettle.amount || 0) * 100) / 100;
   if (!(amount > 0) || amount > 100000) return showToast('วันนี้ไม่มียอดที่ต้องโอน', 'info');
+  const dateKey = String(riderSettle.dateKey || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return showToast('วันที่ยอดโอนไม่ถูกต้อง กรุณาเปิดหน้านี้ใหม่', 'error');
+  window.riderRemittanceSubmitInFlight = true;
   try {
     const compressed = await compressImage(riderSettle.file, 1000, 0.8);
-    const path = `settlement_slips/riders/${currentUser.uid}/${Date.now()}.jpg`;
+    const path = `settlement_slips/riders/${currentUser.uid}/${dateKey}.jpg`;
     const ref = storage.ref(path);
     await ref.put(compressed, { contentType: 'image/jpeg' });
     const slipUrl = await ref.getDownloadURL();
-    await db.collection('rider_remittances').add({
-      riderId: currentUser.uid,
-      riderName: String((riderProfile && riderProfile.name) || ''),
-      amount,
-      dateKey: riderSettle.dateKey,
-      status: 'pending',
+    const result = await ChauatFn.callFunction('submitRiderRemittance', {
+      dateKey,
       slipUrl,
       slipPath: path,
-      note: '',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+      note: ''
+    }, auth);
+    if (result && result.status) riderSettle.remittanceStatus = result.status;
+    if (result && result.remittanceId) riderSettle.remittanceId = result.remittanceId;
     riderSettle.file = null;
-    showToast('ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
+    showToast(result && result.alreadySubmitted ? 'มีสลิปของวันนี้อยู่แล้ว รอแอดมินตรวจสอบ' : 'ส่งสลิปแล้ว รอแอดมินตรวจสอบ');
+    if ($('rider-settle-sheet')?.classList.contains('show')) renderRiderSettlement();
   } catch (err) {
     showToast('ส่งสลิปไม่สำเร็จ', 'error');
+  } finally {
+    window.riderRemittanceSubmitInFlight = false;
   }
 }
 
@@ -4515,6 +4574,21 @@ function subscribeRiderRemittances() {
   if (riderRemitUnsub || !currentUser) return;
   riderRemitUnsub = db.collection('rider_remittances').where('riderId', '==', currentUser.uid).limit(20)
     .onSnapshot((snap) => {
+      const rows = snap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+      rows.sort((a, b) => {
+        const at = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
+        const bt = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
+        return bt - at;
+      });
+      const latest = rows[0];
+      if (latest && riderSettle) {
+        riderSettle.remittanceStatus = String(latest.status || '');
+        riderSettle.remittanceId = latest.id;
+        riderSettle.remittanceAmount = Number(latest.amount || 0);
+        riderSettle.remittanceDateKey = String(latest.dateKey || '');
+        if (!(Number(riderSettle.amount) > 0)) riderSettle.amount = Number(latest.amount || 0);
+        if ($('rider-settle-sheet')?.classList.contains('show')) renderRiderSettlement();
+      }
       snap.docs.forEach((doc) => {
         if (doc.data().status === 'rejected' && !seenRejectedRemit.has(doc.id)) {
           seenRejectedRemit.add(doc.id);
@@ -4545,7 +4619,7 @@ async function ensureRiderSettlementChat() {
 async function openRiderSettlementChat() {
   if (!riderSettle) {
     const local = localRiderDue();
-    riderSettle = { amount: local.amount, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null };
+    riderSettle = { amount: local.amount, displayAmount: local.displayAmount, nextAmount: local.nextAmount, nextDateKey: local.nextDateKey, dateKey: local.dateKey, cutoff: '21:00', overdue: local.overdue, payout: {}, file: null, remittanceStatus: '', lockedUntilMs: 0 };
   }
   $('rider-settle-sheet')?.classList.add('show');
   if (!$('rider-settle-log')) renderRiderSettlement();
