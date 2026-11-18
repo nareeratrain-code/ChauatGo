@@ -227,11 +227,11 @@
           <div class="lbl"><svg class="rd-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3l1.6 4.7H18.5l-3.9 2.9 1.5 4.7L12 12.6 7.9 15.3l1.5-4.7L5.5 7.7h4.9L12 3z"/></svg>ทิปเงินสด</div>
           <div class="val" id="hero-tip">฿0</div>
         </div>
-        <div class="hero-grid-cell warn" id="hero-owe-cell" onclick="showTransferApp()" role="button">
+        <div class="hero-grid-cell warn" id="hero-owe-cell" aria-label="สถานะรอบโอน อ่านอย่างเดียว">
           <div class="lbl"><span>ต้องโอนรอบนี้</span><span>21:00–22:00</span></div>
           <div class="val" id="hero-owe">฿0.00</div>
           <div id="remit-due-date"></div>
-          <div id="remit-countdown"></div>
+          <div id="remit-countdown" aria-live="polite"></div>
         </div>
       </div>
       <div id="remit-panel">

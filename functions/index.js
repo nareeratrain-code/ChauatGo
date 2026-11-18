@@ -71,6 +71,18 @@ function guardAppCheck(req, name) {
   }
 }
 
+function isFirebaseStorageUrlForPath(value, storagePath) {
+  if (typeof value !== 'string' || !value || !storagePath) return false;
+  try {
+    const url = new URL(value);
+    if (!['firebasestorage.googleapis.com', 'storage.googleapis.com', 'firebasestorage.app'].includes(url.hostname)) return false;
+    const decodedPath = decodeURIComponent(url.pathname);
+    return decodedPath.includes('/o/' + storagePath) || decodedPath.endsWith('/' + storagePath);
+  } catch (_) {
+    return false;
+  }
+}
+
 // Financial write endpoints must not fall back to the soft App Check mode.
 // Authentication and role checks remain separate and are still required.
 function guardRequiredAppCheck(req, name) {
@@ -954,6 +966,9 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
   }
   if (slipPath !== `settlement_slips/riders/${uid}/${dateKey}.jpg`) {
     throw new HttpsError('invalid-argument', 'ตำแหน่งสลิปไม่ถูกต้อง');
+  }
+  if (!isFirebaseStorageUrlForPath(slipUrl, slipPath)) {
+    throw new HttpsError('invalid-argument', 'ลิงก์สลิปต้องเป็นไฟล์จาก Firebase Storage ของระบบ');
   }
   if (note.length > 300) throw new HttpsError('invalid-argument', 'หมายเหตุยาวเกินกำหนด');
 

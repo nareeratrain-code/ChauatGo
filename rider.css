@@ -1836,6 +1836,8 @@ body {
 #app .hero-grid-cell.warn {
   background: rgba(0,0,0,.12);
   border: 0;
+  cursor: default;
+  user-select: text;
 }
 #app .hero-grid-cell.warn .lbl,
 #app .hero-grid-cell.warn .val,

@@ -2842,10 +2842,8 @@ function openPayGuide(jobId, stage) {
         <img id="pickup-slip-preview" alt="" style="display:none;width:100%;max-height:160px;object-fit:cover;border-radius:12px">
         <div id="pickup-slip-placeholder" style="font-size:12px;font-weight:800;color:var(--text-muted)">ยังไม่ได้เลือกสลิป</div>
         <div class="chat-guide-row">
-          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-camera').click()">📷 กล้อง</button>
-          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ คลังภาพ</button>
+          <button type="button" class="chat-guide-btn" onclick="document.getElementById('pickup-slip-gallery').click()">📎 แนบสลิป</button>
         </div>
-        <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
         <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
         <button type="button" class="chat-guide-btn" id="pickup-confirm-btn" disabled onclick="confirmPickup()">🧾 ส่งสลิปให้ลูกค้า</button>`;
     } else if (orderBuysGoods(job) && job.foodImage && !paid) {
@@ -3022,10 +3020,8 @@ function openPickupModal(jobId, job) {
         <img id="pickup-slip-preview" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div class="photo-source-row">
-        <button type="button" class="photo-source-btn camera ripple" onclick="openLiveCamera('slip')">📷 ถ่ายสลิปจากกล้อง</button>
-        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">🖼️ เลือกสลิปจากคลังภาพ</button>
+        <button type="button" class="photo-source-btn ripple" onclick="document.getElementById('pickup-slip-gallery').click()">📎 แนบสลิป</button>
       </div>
-      <input type="file" id="pickup-slip-camera" accept="image/*" capture="environment" style="display:none" onchange="handlePickupImage(event, 'slip')">
       <input type="file" id="pickup-slip-gallery" accept="image/*" style="display:none" onchange="handlePickupImage(event, 'slip')">
     </div>
 

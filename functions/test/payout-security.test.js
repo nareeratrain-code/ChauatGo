@@ -30,6 +30,7 @@ test('rider remittance submission requires auth and mandatory App Check but not 
   assert.match(body, /riderRemittanceId\(uid, due\.dateKey\)/);
   assert.match(body, /db\.runTransaction\(async \(tx\)/);
   assert.match(body, /tx\.create\(remittanceRef/);
+  assert.match(body, /isFirebaseStorageUrlForPath\(slipUrl, slipPath\)/);
 });
 
 test('Rider payout is atomic and cannot be created or edited by the browser', () => {

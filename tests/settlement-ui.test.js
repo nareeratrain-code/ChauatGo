@@ -44,6 +44,8 @@ test('rider remittance keeps the 21:00 card and does not join an order thread', 
   assert.match(rider, /รอปลดล็อก/);
   assert.match(rider, /📎 แนบสลิป/);
   assert.equal(rider.includes('rider-settle-camera'), false);
+  assert.equal(rider.includes("openLiveCamera('slip')"), false);
+  assert.equal(rider.includes('id="pickup-slip-camera"'), false);
   assert.match(rider, /senderRole: 'rider'/);
   assert.match(rules, /match \/rider_remittances\/\{remittanceId\}/);
   assert.match(storage, /match \/settlement_slips\/riders\/\{uid\}\/\{fileName\}/);
@@ -55,6 +57,16 @@ test('rider remittance submission is server-owned and uses one deterministic dai
   assert.match(rider, /settlement_slips\/riders\/\$\{currentUser\.uid\}\/\$\{dateKey\}\.jpg/);
   assert.equal(rider.includes("collection('rider_remittances').add"), false);
   assert.match(rules, /allow create, update, delete: if false;/);
+});
+
+test('rider remittance countdown is read-only and only the transfer button opens the payment sheet', () => {
+  const heroStart = riderHtml.indexOf('id="hero-owe-cell"');
+  const heroEnd = riderHtml.indexOf('</div>', heroStart);
+  const heroMarkup = riderHtml.slice(heroStart, heroEnd);
+  assert.doesNotMatch(heroMarkup, /onclick=.*showTransferApp/);
+  assert.doesNotMatch(heroMarkup, /role="button"/);
+  assert.match(riderHtml, /id="remit-dash-btn"[^>]*onclick="showTransferApp\(\)"/);
+  assert.match(riderHtml, /id="remit-countdown" aria-live="polite"/);
 });
 
 test('rider remittance UI refreshes sync and warning markers per Bangkok date', () => {

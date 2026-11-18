@@ -14,11 +14,45 @@ const firebaseConfig = {
   messagingSenderId: "282197694521",
   appId: "1:282197694521:web:0528c22747a0c04bd815e8"
 };
+
+const adminQuery = new URLSearchParams(window.location.search);
+const adminHost = window.location.hostname || '';
+const adminLocalhost = adminHost === 'localhost' || adminHost === '127.0.0.1';
+const useAdminEmulators = adminQuery.get('emulator') === '1' && adminLocalhost;
+
+// Fail closed: an Admin page opened on localhost must explicitly opt into
+// emulators. This prevents payout/remittance writes from reaching Production.
+if (adminLocalhost && !useAdminEmulators) {
+  document.body.innerHTML = '<main style="font:600 18px system-ui;padding:32px;line-height:1.6">'
+    + '<h1>ต้องเปิดโหมด Emulator</h1>'
+    + '<p>เพื่อความปลอดภัย ให้เปิดหน้านี้ด้วย <code>?emulator=1</code> เมื่อทดสอบบน Localhost</p>'
+    + '</main>';
+  throw new Error('Admin Localhost is blocked unless ?emulator=1 is present');
+}
+
 const firebaseApp = firebase.apps.find(a => a.name === 'admin') || firebase.initializeApp(firebaseConfig, 'admin');
-if (window.ChauatAppCheck) ChauatAppCheck.start(firebaseApp);
+if (window.ChauatAppCheck && !useAdminEmulators) ChauatAppCheck.start(firebaseApp);
 const auth = firebase.auth(firebaseApp);
 const db = firebase.firestore(firebaseApp);
 const storage = firebase.storage(firebaseApp);
+const functionsApi = firebaseApp.functions('asia-southeast1');
+
+if (useAdminEmulators) {
+  auth.useEmulator('http://127.0.0.1:9099');
+  db.useEmulator('127.0.0.1', 8080);
+  storage.useEmulator('127.0.0.1', 9199);
+  functionsApi.useEmulator('127.0.0.1', 5001);
+  console.warn('[ChauatGo DEV] Admin connected to Firebase Emulators');
+}
+
+window.adminFirebase = {
+  app: firebaseApp,
+  auth: auth,
+  db: db,
+  storage: storage,
+  functions: functionsApi,
+  usingEmulators: useAdminEmulators
+};
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 /* ═══════════════════════════════════════════════════════════════════
