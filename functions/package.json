@@ -8,7 +8,7 @@
   "scripts": {
     "test": "node --test --test-concurrency=1 test/*.test.js",
     "test:storage": "node --test test/rules/storage-rules.test.js",
-    "test:emu": "cd .. && npx --yes firebase-tools emulators:exec --only firestore,storage --project chauat-go-b9841 \"npm test --prefix functions && npm run test:storage --prefix functions\""
+    "test:emu": "cd .. && npx --yes firebase-tools emulators:exec --only auth,firestore,storage,functions --project chauat-go-b9841 \"npm test --prefix functions && npm run test:storage --prefix functions && npm run test:admin\""
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

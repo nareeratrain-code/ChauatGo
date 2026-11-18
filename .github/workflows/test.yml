@@ -1,0 +1,48 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Root unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install root dependencies
+        run: npm install
+      - name: Run Admin-focused tests
+        run: npm run test:admin
+      - name: Run all root unit tests
+        run: npm run test:unit
+
+  emulator:
+    name: Firebase Emulator integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+      - name: Install root dependencies
+        run: npm install
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm ci
+      - name: Run Auth, Firestore, Storage, and Functions Emulator tests
+        run: npm run test:emu:all

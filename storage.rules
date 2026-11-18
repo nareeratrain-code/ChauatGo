@@ -216,13 +216,20 @@ service firebase.storage {
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
-    // Pickup photo under the rider's own uid. auth.uid is the check.
-    // firestore.get is not used, so a missing Storage service-agent grant
-    // cannot deny this write.
+    // This path is shared by rider pickup photos and customer payment proofs.
+    // Riders must be assigned to the order; customers may only use their own
+    // UID folder for their own order. The UID-only check is not sufficient.
     match /orders/{orderId}/riders/{uid}/{fileName} {
-      allow read: if signedIn() && request.auth.uid == uid && !orderFinished(orderId);
-      allow create, update: if isImage() && request.auth.uid == uid;
-      allow delete: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid && (
+        (isOrderRider(orderId) && !orderFinished(orderId))
+        || isOrderCustomer(orderId)
+      );
+      allow create, update: if isImage()
+        && request.auth.uid == uid
+        && (isOrderRider(orderId) || isOrderCustomer(orderId));
+      allow delete: if signedIn()
+        && request.auth.uid == uid
+        && (isOrderRider(orderId) || isOrderCustomer(orderId));
     }
 
     // Chat images and pickup photos share this match. A photo at
@@ -255,7 +262,9 @@ service firebase.storage {
 
     match /slips/riders/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if isImage() && request.auth.uid == uid;
+      // Shop-payment slips are financial evidence. Require a rider profile
+      // as well as the uid-scoped path to prevent arbitrary user uploads.
+      allow create, update: if isImage() && request.auth.uid == uid && isRiderAccount();
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
     }
 
