@@ -26,8 +26,8 @@ test('a cash customer cannot set the paid flag', () => {
   assert.match(paid, /customerSlipNotRejected\(\)/);
 });
 
-test('App Check enforcement stays off until the operator flips the flag', () => {
-  assert.match(env, /APP_CHECK_ENFORCE=false/);
+test('App Check enforcement is enabled for Production callable functions', () => {
+  assert.match(env, /APP_CHECK_ENFORCE=true/);
   assert.match(appCheck, /FIREBASE_APPCHECK_DEBUG_TOKEN = true/);
   assert.match(appCheck, /localhost/);
   assert.doesNotMatch(appCheck, /debug token secret/i);

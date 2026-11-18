@@ -54,14 +54,14 @@ test('clients use the order callables and drop the unused fee constants', () => 
   assert.equal(rider.includes("where('status', 'in', ['searching', 'pending', 'cooking', 'ready'])"), false);
 });
 
-test('storage rules are wired and App Check stays off', () => {
+test('storage rules are wired and App Check enforcement is enabled', () => {
   assert.equal(firebaseJson.storage.rules, 'storage.rules');
   assert.match(storage, /gp_slips/);
   assert.match(storage, /match \/chats\/\{chatId\}\/images\/\{fileName\}/);
   assert.match(rules, /สิชล/);
   assert.match(rules, /allow create: if false/);
   assert.match(rules, /unchanged\('totalIncome'\)/);
-  assert.match(env, /APP_CHECK_ENFORCE=false/);
+  assert.match(env, /APP_CHECK_ENFORCE=true/);
   assert.equal(env.includes('เหล่าเต๊ง'), false);
 });
 
