@@ -3097,10 +3097,8 @@ async function processPickupImage(file, type) {
 }
 
 let liveCameraStream = null;
-let liveCameraType = 'food';
 
-async function openLiveCamera(type) {
-  liveCameraType = type === 'slip' ? 'slip' : 'food';
+async function openLiveCamera() {
   const panel = $('live-camera-panel');
   const video = $('live-camera-video');
   if (!panel || !video) return;
@@ -3139,7 +3137,7 @@ async function captureLivePhoto() {
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   closeLiveCamera();
-  if (blob) await processPickupImage(new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' }), liveCameraType);
+  if (blob) await processPickupImage(new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' }), 'food');
 }
 
 function updatePickupConfirmBtn() {

@@ -46,6 +46,9 @@ test('rider remittance keeps the 21:00 card and does not join an order thread', 
   assert.equal(rider.includes('rider-settle-camera'), false);
   assert.equal(rider.includes("openLiveCamera('slip')"), false);
   assert.equal(rider.includes('id="pickup-slip-camera"'), false);
+  assert.equal(rider.includes("type === 'slip'"), false);
+  assert.equal(rider.includes('liveCameraType'), false);
+  assert.doesNotMatch(rider, /ถ่ายสลิป/);
   assert.match(rider, /senderRole: 'rider'/);
   assert.match(rules, /match \/rider_remittances\/\{remittanceId\}/);
   assert.match(storage, /match \/settlement_slips\/riders\/\{uid\}\/\{fileName\}/);
