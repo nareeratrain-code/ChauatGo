@@ -995,19 +995,37 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
   const now = Timestamp.now();
   const result = await db.runTransaction(async (tx) => {
     const existingSnap = await tx.get(remittanceRef);
+    const riderTxSnap = await tx.get(riderRef);
+    const orderTxSnap = await tx.get(db.collection('orders')
+      .where('riderId', '==', uid)
+      .where('status', 'in', ['done', 'delivered']));
+    if (!riderTxSnap.exists || riderTxSnap.data().verified !== true) {
+      throw new HttpsError('permission-denied', 'บัญชียังไม่ได้รับการอนุมัติ');
+    }
+    const txJobs = orderTxSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
+    const txDue = riderDailyDue(txJobs, now.toMillis());
     if (existingSnap.exists) {
       const existing = existingSnap.data() || {};
       if (existing.status === 'pending' || existing.status === 'verified') {
-        return { alreadySubmitted: true, status: existing.status, remittanceId };
+        return {
+          alreadySubmitted: true,
+          status: existing.status,
+          remittanceId,
+          amount: txDue.amount,
+          dateKey: txDue.dateKey
+        };
       }
       if (existing.status !== 'rejected') {
         throw new HttpsError('failed-precondition', 'สถานะสลิปไม่ถูกต้อง');
       }
+      if (txDue.dateKey !== dateKey || !(txDue.amount > 0) || txDue.amount > 100000) {
+        throw new HttpsError('failed-precondition', 'ยอดปัจจุบันเปลี่ยนแล้ว กรุณาเปิดหน้านี้ใหม่');
+      }
       tx.update(remittanceRef, {
         riderId: uid,
-        riderName: String(riderSnap.data().name || ''),
-        amount: due.amount,
-        dateKey: due.dateKey,
+        riderName: String(riderTxSnap.data().name || ''),
+        amount: txDue.amount,
+        dateKey: txDue.dateKey,
         status: 'pending',
         slipUrl,
         slipPath,
@@ -1016,33 +1034,50 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
         rejectedAt: FieldValue.delete(),
         rejectedBy: FieldValue.delete()
       });
-      return { alreadySubmitted: false, replaced: true, status: 'pending', remittanceId };
+      return {
+        alreadySubmitted: false,
+        replaced: true,
+        status: 'pending',
+        remittanceId,
+        amount: txDue.amount,
+        dateKey: txDue.dateKey
+      };
+    }
+    if (txDue.dateKey !== dateKey || !(txDue.amount > 0) || txDue.amount > 100000) {
+      throw new HttpsError('failed-precondition', 'ยอดปัจจุบันเปลี่ยนแล้ว กรุณาเปิดหน้านี้ใหม่');
     }
     tx.create(remittanceRef, {
       riderId: uid,
-      riderName: String(riderSnap.data().name || ''),
-      amount: due.amount,
-      dateKey: due.dateKey,
+      riderName: String(riderTxSnap.data().name || ''),
+      amount: txDue.amount,
+      dateKey: txDue.dateKey,
       status: 'pending',
       slipUrl,
       slipPath,
       note,
       createdAt: now
     });
-    return { alreadySubmitted: false, replaced: false, status: 'pending', remittanceId };
+    return {
+      alreadySubmitted: false,
+      replaced: false,
+      status: 'pending',
+      remittanceId,
+      amount: txDue.amount,
+      dateKey: txDue.dateKey
+    };
   });
   await db.collection('settlement_queue').doc('rider_' + uid).set({
     kind: 'rider',
     partyId: uid,
     status: result.status === 'pending' ? 'pending' : result.status,
-    amount: due.amount,
-    displayAmount: due.amount,
-    dateKey: due.dateKey,
+    amount: result.amount,
+    displayAmount: result.amount,
+    dateKey: result.dateKey,
     latestRemittanceId: remittanceId,
     latestRemittanceStatus: result.status,
     updatedAt: now
   }, { merge: true });
-  return { ok: true, ...result, amount: due.amount, dateKey: due.dateKey };
+  return { ok: true, ...result };
 });
 
 exports.reviewRiderRemittance = onCall(CALL, async (req) => {
@@ -1064,11 +1099,6 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
   }
   const ref = db.collection('rider_remittances').doc(remittanceId);
   try {
-    const preview = await ref.get();
-    if (!preview.exists) throw new HttpsError('failed-precondition', 'ไม่พบรายการสลิป');
-    const riderIdPreview = String(preview.data().riderId || '');
-    const orderSnap = await db.collection('orders').where('riderId', '==', riderIdPreview).where('status', 'in', ['done', 'delivered']).get();
-    const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
     const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new Error('ไม่พบรายการสลิป');
@@ -1076,6 +1106,10 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
       const riderId = String(remittance.riderId || '');
       const riderRef = db.collection('riders').doc(riderId);
       const riderSnap = await tx.get(riderRef);
+      const orderSnap = await tx.get(db.collection('orders')
+        .where('riderId', '==', riderId)
+        .where('status', 'in', ['done', 'delivered']));
+      const jobs = orderSnap.docs.map((doc) => Object.assign({ id: doc.id }, doc.data()));
       const plan = riderReviewPlan(remittance, jobs, action);
       if (plan.already) return { ok: true, alreadyReviewed: true, status: plan.status, remittanceId };
       const now = Timestamp.now();
