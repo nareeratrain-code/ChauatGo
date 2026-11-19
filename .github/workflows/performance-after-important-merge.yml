@@ -11,6 +11,46 @@ on:
         required: false
         default: main
         type: string
+      run_locust:
+        description: 'Run the Locust HTTP load test'
+        required: false
+        default: true
+        type: boolean
+      locust_users:
+        description: 'Concurrent Locust users'
+        required: false
+        default: '20'
+        type: string
+      locust_spawn_rate:
+        description: 'Locust users spawned per second'
+        required: false
+        default: '5'
+        type: string
+      locust_run_time:
+        description: 'Locust duration, for example 30s or 2m'
+        required: false
+        default: '30s'
+        type: string
+      locust_max_p95_ms:
+        description: 'Maximum allowed Locust p95 latency in milliseconds'
+        required: false
+        default: '2000'
+        type: string
+      locust_normal_weight:
+        description: 'Normal rider profile weight'
+        required: false
+        default: '6'
+        type: string
+      locust_filter_weight:
+        description: 'Filter-heavy rider profile weight'
+        required: false
+        default: '3'
+        type: string
+      locust_asset_weight:
+        description: 'Asset-heavy rider profile weight'
+        required: false
+        default: '1'
+        type: string
 
 permissions:
   contents: read
@@ -60,6 +100,45 @@ jobs:
 
       - name: Run 5,000-job stress suite
         run: npm run test:e2e:rider-filter:stress
+
+      - name: Install Locust
+        if: github.event_name != 'workflow_dispatch' || inputs.run_locust
+        run: python3 -m pip install --disable-pip-version-check locust
+
+      - name: Run configurable Locust HTTP load test
+        if: github.event_name != 'workflow_dispatch' || inputs.run_locust
+        env:
+          LOCUST_TARGET_URL: http://127.0.0.1:4173
+          LOCUST_TARGET_PATH: /rider.html?qa=job-filter
+          LOCUST_MAX_FAILURES: '0'
+          LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
+          LOCUST_NORMAL_WEIGHT: ${{ inputs.locust_normal_weight || '6' }}
+          LOCUST_FILTER_WEIGHT: ${{ inputs.locust_filter_weight || '3' }}
+          LOCUST_ASSET_WEIGHT: ${{ inputs.locust_asset_weight || '1' }}
+          LOCUST_USERS: ${{ inputs.locust_users || '20' }}
+          LOCUST_SPAWN_RATE: ${{ inputs.locust_spawn_rate || '5' }}
+          LOCUST_RUN_TIME: ${{ inputs.locust_run_time || '30s' }}
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 > /tmp/chauatgo-locust-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 1
+
+          case "$LOCUST_USERS" in ''|*[!0-9]*) echo 'locust_users must be a positive integer'; exit 1;; esac
+          case "$LOCUST_SPAWN_RATE" in ''|*[!0-9]*) echo 'locust_spawn_rate must be a positive integer'; exit 1;; esac
+          case "$LOCUST_MAX_P95_MS" in ''|*[!0-9]*) echo 'locust_max_p95_ms must be a positive integer'; exit 1;; esac
+          for weight in "$LOCUST_NORMAL_WEIGHT" "$LOCUST_FILTER_WEIGHT" "$LOCUST_ASSET_WEIGHT"; do
+            case "$weight" in ''|*[!0-9]*) echo 'Locust profile weights must be non-negative integers'; exit 1;; esac
+          done
+
+          python3 -m locust \
+            -f scripts/performance/locustfile.py \
+            --headless \
+            --users "$LOCUST_USERS" \
+            --spawn-rate "$LOCUST_SPAWN_RATE" \
+            --run-time "$LOCUST_RUN_TIME" \
+            --only-summary
 
       - name: Upload Playwright report
         if: always()
