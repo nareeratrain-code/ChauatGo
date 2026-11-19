@@ -120,6 +120,7 @@ jobs:
         env:
           LOCUST_TARGET_URL: http://127.0.0.1:4173
           LOCUST_TARGET_PATH: /rider.html?qa=job-filter
+          LOCUST_JSON_OUTPUT: locust-results.json
           LOCUST_MAX_FAILURES: '0'
           LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
           LOCUST_MAX_P99_MS: ${{ inputs.locust_max_p99_ms || '4000' }}
@@ -150,8 +151,6 @@ jobs:
             --users "$LOCUST_USERS" \
             --spawn-rate "$LOCUST_SPAWN_RATE" \
             --run-time "$LOCUST_RUN_TIME" \
-            --json \
-            --json-file locust-results.json \
             --only-summary
 
       - name: Enforce Locust quality gate

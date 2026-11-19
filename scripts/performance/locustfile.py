@@ -22,10 +22,13 @@ Environment variables:
     LOCUST_MAX_FAILURES    Maximum failed requests; default 0
     LOCUST_MAX_P95_MS      Maximum p95 latency in milliseconds; default 2000
     LOCUST_MAX_P99_MS      Maximum p99 latency in milliseconds; default 4000
+    LOCUST_JSON_OUTPUT     Optional normalized aggregate JSON output path
 """
 
+import json
 import os
 import random
+from pathlib import Path
 from typing import Any
 
 from locust import HttpUser, between, events, task
@@ -36,6 +39,7 @@ TARGET_URL = os.getenv("LOCUST_TARGET_URL", "http://127.0.0.1:4173")
 MAX_FAILURES = int(os.getenv("LOCUST_MAX_FAILURES", "0"))
 MAX_P95_MS = float(os.getenv("LOCUST_MAX_P95_MS", "2000"))
 MAX_P99_MS = float(os.getenv("LOCUST_MAX_P99_MS", "4000"))
+JSON_OUTPUT = os.getenv("LOCUST_JSON_OUTPUT", "")
 NORMAL_WEIGHT = int(os.getenv("LOCUST_NORMAL_WEIGHT", "6"))
 FILTER_WEIGHT = int(os.getenv("LOCUST_FILTER_WEIGHT", "3"))
 ASSET_WEIGHT = int(os.getenv("LOCUST_ASSET_WEIGHT", "1"))
@@ -144,6 +148,27 @@ def enforce_performance_budget(environment: Any, **kwargs: Any) -> None:
             MAX_P99_MS,
         )
     )
+
+    if JSON_OUTPUT:
+        output = Path(JSON_OUTPUT)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(
+                {
+                    "stats": [
+                        {
+                            "name": "Aggregated",
+                            "num_requests": stats.num_requests,
+                            "num_failures": failure_count,
+                            "response_time_percentile_0.95": p95_ms,
+                            "response_time_percentile_0.99": p99_ms,
+                        }
+                    ]
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     if (
         failure_count > MAX_FAILURES
