@@ -109,6 +109,7 @@ jobs:
         run: python3 -m pip install --disable-pip-version-check locust
 
       - name: Run configurable Locust HTTP load test
+        id: locust_load
         if: github.event_name != 'workflow_dispatch' || inputs.run_locust
         env:
           LOCUST_TARGET_URL: http://127.0.0.1:4173
@@ -141,7 +142,33 @@ jobs:
             --users "$LOCUST_USERS" \
             --spawn-rate "$LOCUST_SPAWN_RATE" \
             --run-time "$LOCUST_RUN_TIME" \
+            --json \
+            --json-file locust-results.json \
             --only-summary
+
+      - name: Enforce Locust quality gate
+        id: locust_quality_gate
+        if: always() && steps.locust_load.outcome == 'success'
+        env:
+          LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
+          LOCUST_MAX_FAILURES: '0'
+        run: |
+          python3 scripts/performance/check_locust_quality_gate.py \
+            --input locust-results.json \
+            --max-p95-ms "$LOCUST_MAX_P95_MS" \
+            --max-failures "$LOCUST_MAX_FAILURES" \
+            --min-requests 1
+
+      - name: Upload Locust result and quality gate output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-quality-gate-${{ github.run_id }}
+          path: |
+            locust-results.json
+            /tmp/chauatgo-locust-server.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload Playwright report
         if: always()
@@ -152,8 +179,52 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Notify Slack - Locust quality gate failed
+        if: failure() && steps.locust_quality_gate.outcome == 'failure'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured; skipping quality gate alert."
+            exit 0
+          fi
+
+          python3 - <<'PY' > /tmp/slack-quality-gate-payload.json
+          import json
+          import os
+
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ['PR_NUMBER'] else "manual run"
+          payload = {
+              "text": (
+                  f":x: Locust Quality Gate FAILED: {os.environ['REPOSITORY']} ({pr})\n"
+                  f"p95 latency: {os.environ['QUALITY_P95']} ms\n"
+                  f"failures: {os.environ['QUALITY_FAILURES']}\n"
+                  f"requests: {os.environ['QUALITY_REQUESTS']}\n"
+                  f"Workflow: {os.environ['WORKFLOW_NAME']}\n"
+                  f"Ref: {os.environ['REF_NAME']}\n"
+                  f"ผลการทำงาน: {os.environ['RUN_URL']}"
+              )
+          }
+          print(json.dumps(payload, ensure_ascii=False))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/slack-quality-gate-payload.json \
+            "$SLACK_WEBHOOK_URL"
+
       - name: Notify Slack
-        if: always()
+        if: always() && steps.locust_quality_gate.outcome != 'failure'
         continue-on-error: true
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
