@@ -1,9 +1,9 @@
-name: Performance after important merge
+name: Performance for important PRs and merges
 
 on:
   pull_request:
     branches: [main]
-    types: [closed]
+    types: [opened, synchronize, reopened, labeled, closed]
   workflow_dispatch:
     inputs:
       ref:
@@ -62,17 +62,20 @@ concurrency:
 jobs:
   rider-filter-performance:
     name: Rider filter Performance and Stress tests
-    # Automatic runs are intentionally limited to PRs marked with an important
-    # release label. Use one of: important, production, release, priority:high.
+    # Run on important PR activity and again after an important PR is merged.
+    # Use one of: important, production, release, priority:high.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
-        github.event.pull_request.merged == true &&
         (
           contains(github.event.pull_request.labels.*.name, 'important') ||
           contains(github.event.pull_request.labels.*.name, 'production') ||
           contains(github.event.pull_request.labels.*.name, 'release') ||
           contains(github.event.pull_request.labels.*.name, 'priority:high')
+        ) &&
+        (
+          github.event.action != 'closed' ||
+          github.event.pull_request.merged == true
         )
       )
     runs-on: ubuntu-latest
