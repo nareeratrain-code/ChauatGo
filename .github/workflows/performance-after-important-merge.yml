@@ -318,6 +318,14 @@ jobs:
           WORKFLOW_NAME: ${{ github.workflow }}
           REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
           PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'unknown' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then
             echo "SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
@@ -335,6 +343,14 @@ jobs:
               "text": (
                   f"{emoji} Performance Test {status}: "
                   f"{os.environ['REPOSITORY']} ({pr})\n"
+                  f"Quality Gate: {os.environ['QUALITY_GATE_STATUS'].upper()}\n"
+                  f"p95 latency: {os.environ['QUALITY_P95']} ms "
+                  f"(max {os.environ['QUALITY_MAX_P95']} ms)\n"
+                  f"p99 latency: {os.environ['QUALITY_P99']} ms "
+                  f"(max {os.environ['QUALITY_MAX_P99']} ms)\n"
+                  f"failures: {os.environ['QUALITY_FAILURES']} "
+                  f"(max {os.environ['QUALITY_MAX_FAILURES']})\n"
+                  f"requests: {os.environ['QUALITY_REQUESTS']}\n"
                   f"Workflow: {os.environ['WORKFLOW_NAME']}\n"
                   f"Ref: {os.environ['REF_NAME']}\n"
                   f"ผลการทำงาน: {os.environ['RUN_URL']}"
