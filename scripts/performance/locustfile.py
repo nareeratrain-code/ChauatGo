@@ -21,6 +21,7 @@ Environment variables:
     LOCUST_ASSET_WEIGHT    Weight for asset-only users; default 1
     LOCUST_MAX_FAILURES    Maximum failed requests; default 0
     LOCUST_MAX_P95_MS      Maximum p95 latency in milliseconds; default 2000
+    LOCUST_MAX_P99_MS      Maximum p99 latency in milliseconds; default 4000
 """
 
 import os
@@ -34,6 +35,7 @@ TARGET_PATH = os.getenv("LOCUST_TARGET_PATH", "/rider.html?qa=job-filter")
 TARGET_URL = os.getenv("LOCUST_TARGET_URL", "http://127.0.0.1:4173")
 MAX_FAILURES = int(os.getenv("LOCUST_MAX_FAILURES", "0"))
 MAX_P95_MS = float(os.getenv("LOCUST_MAX_P95_MS", "2000"))
+MAX_P99_MS = float(os.getenv("LOCUST_MAX_P99_MS", "4000"))
 NORMAL_WEIGHT = int(os.getenv("LOCUST_NORMAL_WEIGHT", "6"))
 FILTER_WEIGHT = int(os.getenv("LOCUST_FILTER_WEIGHT", "3"))
 ASSET_WEIGHT = int(os.getenv("LOCUST_ASSET_WEIGHT", "1"))
@@ -127,14 +129,27 @@ def enforce_performance_budget(environment: Any, **kwargs: Any) -> None:
 
     stats = environment.stats.total
     p95_ms = stats.get_response_time_percentile(0.95) or 0
+    p99_ms = stats.get_response_time_percentile(0.99) or 0
     failure_count = stats.num_failures
 
     print(
-        "[locust] requests=%s failures=%s p95_ms=%s max_p95_ms=%s"
-        % (stats.num_requests, failure_count, p95_ms, MAX_P95_MS)
+        "[locust] requests=%s failures=%s p95_ms=%s p99_ms=%s "
+        "max_p95_ms=%s max_p99_ms=%s"
+        % (
+            stats.num_requests,
+            failure_count,
+            p95_ms,
+            p99_ms,
+            MAX_P95_MS,
+            MAX_P99_MS,
+        )
     )
 
-    if failure_count > MAX_FAILURES or p95_ms > MAX_P95_MS:
+    if (
+        failure_count > MAX_FAILURES
+        or p95_ms > MAX_P95_MS
+        or p99_ms > MAX_P99_MS
+    ):
         environment.process_exit_code = 1
         print("[locust] performance budget: FAILED")
     else:

@@ -36,6 +36,11 @@ on:
         required: false
         default: '2000'
         type: string
+      locust_max_p99_ms:
+        description: 'Maximum allowed Locust p99 latency in milliseconds'
+        required: false
+        default: '4000'
+        type: string
       locust_normal_weight:
         description: 'Normal rider profile weight'
         required: false
@@ -54,6 +59,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: performance-after-important-merge-${{ github.event.pull_request.number || github.ref }}
@@ -116,6 +122,7 @@ jobs:
           LOCUST_TARGET_PATH: /rider.html?qa=job-filter
           LOCUST_MAX_FAILURES: '0'
           LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
+          LOCUST_MAX_P99_MS: ${{ inputs.locust_max_p99_ms || '4000' }}
           LOCUST_NORMAL_WEIGHT: ${{ inputs.locust_normal_weight || '6' }}
           LOCUST_FILTER_WEIGHT: ${{ inputs.locust_filter_weight || '3' }}
           LOCUST_ASSET_WEIGHT: ${{ inputs.locust_asset_weight || '1' }}
@@ -132,6 +139,7 @@ jobs:
           case "$LOCUST_USERS" in ''|*[!0-9]*) echo 'locust_users must be a positive integer'; exit 1;; esac
           case "$LOCUST_SPAWN_RATE" in ''|*[!0-9]*) echo 'locust_spawn_rate must be a positive integer'; exit 1;; esac
           case "$LOCUST_MAX_P95_MS" in ''|*[!0-9]*) echo 'locust_max_p95_ms must be a positive integer'; exit 1;; esac
+          case "$LOCUST_MAX_P99_MS" in ''|*[!0-9]*) echo 'locust_max_p99_ms must be a positive integer'; exit 1;; esac
           for weight in "$LOCUST_NORMAL_WEIGHT" "$LOCUST_FILTER_WEIGHT" "$LOCUST_ASSET_WEIGHT"; do
             case "$weight" in ''|*[!0-9]*) echo 'Locust profile weights must be non-negative integers'; exit 1;; esac
           done
@@ -151,11 +159,13 @@ jobs:
         if: always() && steps.locust_load.outcome == 'success'
         env:
           LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
+          LOCUST_MAX_P99_MS: ${{ inputs.locust_max_p99_ms || '4000' }}
           LOCUST_MAX_FAILURES: '0'
         run: |
           python3 scripts/performance/check_locust_quality_gate.py \
             --input locust-results.json \
             --max-p95-ms "$LOCUST_MAX_P95_MS" \
+            --max-p99-ms "$LOCUST_MAX_P99_MS" \
             --max-failures "$LOCUST_MAX_FAILURES" \
             --min-requests 1
 
@@ -179,6 +189,79 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Comment Locust quality gate result on PR
+        if: >-
+          always() &&
+          github.event_name == 'pull_request' &&
+          steps.locust_load.outcome == 'success' &&
+          (
+            steps.locust_quality_gate.outcome == 'success' ||
+            steps.locust_quality_gate.outcome == 'failure'
+          )
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'failed' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const marker = '<!-- chauatgo-locust-quality-gate -->';
+            const status = process.env.QUALITY_GATE_STATUS;
+            const passed = status === 'passed';
+            const icon = passed ? '✅' : '❌';
+            const prNumber = context.issue.number;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              marker,
+              `## ${icon} Locust Quality Gate: ${passed ? 'PASSED' : 'FAILED'}`,
+              '',
+              '| Metric | Result | Budget |',
+              '| --- | ---: | ---: |',
+              `| Aggregate p95 latency | ${process.env.QUALITY_P95} ms | ≤ ${process.env.QUALITY_MAX_P95} ms |`,
+              `| Aggregate p99 latency | ${process.env.QUALITY_P99} ms | ≤ ${process.env.QUALITY_MAX_P99} ms |`,
+              `| Failed requests | ${process.env.QUALITY_FAILURES} | ≤ ${process.env.QUALITY_MAX_FAILURES} |`,
+              `| Total requests | ${process.env.QUALITY_REQUESTS} | ≥ 1 |`,
+              '',
+              `[View the complete GitHub Actions run](${runUrl})`,
+              '',
+              '_This comment is updated automatically on subsequent Quality Gate runs._',
+            ].join('\n');
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.data.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated Quality Gate comment ${existing.id}`);
+            } else {
+              const created = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+              core.info(`Created Quality Gate comment ${created.data.id}`);
+            }
+
       - name: Notify Slack - Locust quality gate failed
         if: failure() && steps.locust_quality_gate.outcome == 'failure'
         continue-on-error: true
@@ -190,6 +273,7 @@ jobs:
           REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
           PR_NUMBER: ${{ github.event.pull_request.number || '' }}
           QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
           QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
           QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
         run: |
@@ -207,6 +291,7 @@ jobs:
               "text": (
                   f":x: Locust Quality Gate FAILED: {os.environ['REPOSITORY']} ({pr})\n"
                   f"p95 latency: {os.environ['QUALITY_P95']} ms\n"
+                  f"p99 latency: {os.environ['QUALITY_P99']} ms\n"
                   f"failures: {os.environ['QUALITY_FAILURES']}\n"
                   f"requests: {os.environ['QUALITY_REQUESTS']}\n"
                   f"Workflow: {os.environ['WORKFLOW_NAME']}\n"

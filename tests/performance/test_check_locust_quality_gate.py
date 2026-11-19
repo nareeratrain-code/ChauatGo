@@ -13,7 +13,20 @@ from scripts.performance import check_locust_quality_gate as gate
 
 
 
-def write_json(tmp_path: Path, payload: object, name: str = "locust-results.json") -> Path:
+def write_json(
+    tmp_path: Path,
+    payload: object,
+    name: str = "locust-results.json",
+    include_default_p99: bool = True,
+) -> Path:
+    if include_default_p99 and isinstance(payload, dict):
+        payload = json.loads(json.dumps(payload))
+        if isinstance(payload.get("stats"), list):
+            for row in payload["stats"]:
+                if isinstance(row, dict):
+                    row.setdefault("p99", 100)
+        else:
+            payload.setdefault("p99", 100)
     path = tmp_path / name
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
@@ -53,7 +66,7 @@ def test_read_metrics_selects_named_aggregate_row(
         },
     )
 
-    assert gate.read_metrics(path) == (1200, 1, 100)
+    assert gate.read_metrics(path) == (1200, 100, 1, 100)
 
 
 
@@ -72,7 +85,7 @@ def test_read_metrics_selects_explicit_aggregated_row(tmp_path: Path) -> None:
         },
     )
 
-    assert gate.read_metrics(path) == (350, 0, 10)
+    assert gate.read_metrics(path) == (350, 100, 0, 10)
 
 
 def test_read_metrics_skips_non_dict_stats_rows(tmp_path: Path) -> None:
@@ -92,7 +105,7 @@ def test_read_metrics_skips_non_dict_stats_rows(tmp_path: Path) -> None:
         },
     )
 
-    assert gate.read_metrics(path) == (80, 0, 4)
+    assert gate.read_metrics(path) == (80, 100, 0, 4)
 
 
 
@@ -111,7 +124,7 @@ def test_read_metrics_accepts_single_stats_row_as_aggregate(tmp_path: Path) -> N
         },
     )
 
-    assert gate.read_metrics(path) == (250, 0, 10)
+    assert gate.read_metrics(path) == (250, 100, 0, 10)
 
 
 
@@ -125,7 +138,7 @@ def test_read_metrics_accepts_top_level_total_fields(tmp_path: Path) -> None:
         },
     )
 
-    assert gate.read_metrics(path) == (875, 0, 100)
+    assert gate.read_metrics(path) == (875, 100, 0, 100)
 
 
 @pytest.mark.parametrize(
@@ -147,8 +160,32 @@ def test_read_metrics_supports_all_p95_key_aliases(tmp_path: Path, p95_key: str)
         {p95_key: 101, "num_requests": 2, "num_failures": 0},
     )
 
-    p95, failures, requests = gate.read_metrics(path)
-    assert (p95, failures, requests) == (101, 0, 2)
+    p95, p99, failures, requests = gate.read_metrics(path)
+    assert (p95, p99, failures, requests) == (101, 100, 0, 2)
+
+
+@pytest.mark.parametrize(
+    "p99_key",
+    [
+        "response_time_percentile_0.99",
+        "response_time_percentile_99",
+        "p99_latency_ms",
+        "p99",
+        "total_response_time_percentile_0.99",
+        "total_response_time_percentile_99",
+        "total_p99_latency_ms",
+        "total_p99",
+    ],
+)
+def test_read_metrics_supports_all_p99_key_aliases(tmp_path: Path, p99_key: str) -> None:
+    path = write_json(
+        tmp_path,
+        {p99_key: 202, "p95": 101, "num_requests": 2, "num_failures": 0},
+        include_default_p99=False,
+    )
+
+    p95, p99, failures, requests = gate.read_metrics(path)
+    assert (p95, p99, failures, requests) == (101, 202, 0, 2)
 
 
 @pytest.mark.parametrize("failure_key", ["num_failures", "failures", "total_failures"])
@@ -160,7 +197,7 @@ def test_read_metrics_supports_failure_key_aliases(
         {"p95": 101, failure_key: 3, "num_requests": 5},
     )
 
-    assert gate.read_metrics(path) == (101, 3, 5)
+    assert gate.read_metrics(path) == (101, 100, 3, 5)
 
 
 @pytest.mark.parametrize("request_key", ["num_requests", "requests", "total_requests"])
@@ -172,7 +209,7 @@ def test_read_metrics_supports_request_key_aliases(
         {"p95": 101, "num_failures": 0, request_key: 5},
     )
 
-    assert gate.read_metrics(path) == (101, 0, 5)
+    assert gate.read_metrics(path) == (101, 100, 0, 5)
 
 
 @pytest.mark.parametrize(
@@ -188,10 +225,29 @@ def test_p95_threshold_boundary(
 ) -> None:
     path = write_json(
         tmp_path,
-        {"p95": p95, "num_failures": 0, "num_requests": 10},
+        {"p95": p95, "p99": 100, "num_failures": 0, "num_requests": 10},
     )
 
     assert run_main(monkeypatch, path, "--max-p95-ms", str(max_p95)) == expected_exit
+
+
+@pytest.mark.parametrize(
+    ("p99", "max_p99", "expected_exit"),
+    [(4000, 4000, 0), (4000.1, 4000, 1)],
+)
+def test_p99_threshold_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    p99: float,
+    max_p99: float,
+    expected_exit: int,
+) -> None:
+    path = write_json(
+        tmp_path,
+        {"p95": 100, "p99": p99, "num_failures": 0, "num_requests": 10},
+    )
+
+    assert run_main(monkeypatch, path, "--max-p99-ms", str(max_p99)) == expected_exit
 
 
 @pytest.mark.parametrize(
@@ -207,7 +263,7 @@ def test_failure_threshold_boundary(
 ) -> None:
     path = write_json(
         tmp_path,
-        {"p95": 100, "num_failures": failures, "num_requests": 10},
+        {"p95": 100, "p99": 100, "num_failures": failures, "num_requests": 10},
     )
 
     assert run_main(
@@ -231,7 +287,7 @@ def test_minimum_request_threshold(
 ) -> None:
     path = write_json(
         tmp_path,
-        {"p95": 100, "num_failures": 0, "num_requests": requests},
+        {"p95": 100, "p99": 100, "num_failures": 0, "num_requests": requests},
     )
 
     assert run_main(
@@ -248,7 +304,7 @@ def test_quality_gate_writes_github_outputs(
 ) -> None:
     path = write_json(
         tmp_path,
-        {"p95": 450, "num_failures": 0, "num_requests": 20},
+        {"p95": 450, "p99": 900, "num_failures": 0, "num_requests": 20},
     )
     output = tmp_path / "github-output.txt"
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
@@ -256,6 +312,7 @@ def test_quality_gate_writes_github_outputs(
     assert run_main(monkeypatch, path) == 0
     assert output.read_text(encoding="utf-8").splitlines() == [
         "p95_ms=450",
+        "p99_ms=900",
         "failures=0",
         "requests=20",
         "quality_gate=passed",
@@ -292,6 +349,17 @@ def test_read_metrics_rejects_missing_required_metric(
     path = write_json(tmp_path, payload)
 
     with pytest.raises(gate.QualityGateError):
+        gate.read_metrics(path)
+
+
+def test_read_metrics_rejects_missing_p99(tmp_path: Path) -> None:
+    path = write_json(
+        tmp_path,
+        {"p95": 100, "num_failures": 0, "num_requests": 10},
+        include_default_p99=False,
+    )
+
+    with pytest.raises(gate.QualityGateError, match="p99"):
         gate.read_metrics(path)
 
 
@@ -336,7 +404,10 @@ def test_read_metrics_rejects_invalid_json(tmp_path: Path) -> None:
         gate.read_metrics(path)
 
 
-@pytest.mark.parametrize("argument", ["--max-p95-ms", "--max-failures", "--min-requests"])
+@pytest.mark.parametrize(
+    "argument",
+    ["--max-p95-ms", "--max-p99-ms", "--max-failures", "--min-requests"],
+)
 def test_main_rejects_negative_threshold(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, argument: str
 ) -> None:

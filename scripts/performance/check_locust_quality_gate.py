@@ -5,6 +5,7 @@ Usage:
     python3 scripts/performance/check_locust_quality_gate.py \
       --input locust-results.json \
       --max-p95-ms 2000 \
+      --max-p99-ms 4000 \
       --max-failures 0
 
 The parser accepts Locust JSON exports that use either an aggregate row named
@@ -31,6 +32,16 @@ P95_KEYS = (
     "total_response_time_percentile_95",
     "total_p95_latency_ms",
     "total_p95",
+)
+P99_KEYS = (
+    "response_time_percentile_0.99",
+    "response_time_percentile_99",
+    "p99_latency_ms",
+    "p99",
+    "total_response_time_percentile_0.99",
+    "total_response_time_percentile_99",
+    "total_p99_latency_ms",
+    "total_p99",
 )
 FAILURE_KEYS = ("num_failures", "failures", "total_failures")
 REQUEST_KEYS = ("num_requests", "requests", "total_requests")
@@ -80,7 +91,7 @@ def aggregate_row(data: Any) -> dict[str, Any]:
     return data
 
 
-def read_metrics(path: Path) -> tuple[float, float, float]:
+def read_metrics(path: Path) -> tuple[float, float, float, float]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -90,6 +101,7 @@ def read_metrics(path: Path) -> tuple[float, float, float]:
 
     row = aggregate_row(data)
     p95 = first_number(row, P95_KEYS, "p95 latency")
+    p99 = first_number(row, P99_KEYS, "p99 latency")
     failures = first_number(row, FAILURE_KEYS, "failures")
     requests = first_number(row, REQUEST_KEYS, "requests")
 
@@ -97,6 +109,11 @@ def read_metrics(path: Path) -> tuple[float, float, float]:
         raise QualityGateError(
             "Could not find aggregate p95 latency. Expected one of: "
             + ", ".join(P95_KEYS)
+        )
+    if p99 is None:
+        raise QualityGateError(
+            "Could not find aggregate p99 latency. Expected one of: "
+            + ", ".join(P99_KEYS)
         )
     if failures is None:
         raise QualityGateError(
@@ -109,7 +126,7 @@ def read_metrics(path: Path) -> tuple[float, float, float]:
             + ", ".join(REQUEST_KEYS)
         )
 
-    return p95, failures, requests
+    return p95, p99, failures, requests
 
 
 def write_github_output(values: dict[str, Any]) -> None:
@@ -131,6 +148,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum aggregate p95 latency in milliseconds",
     )
     parser.add_argument(
+        "--max-p99-ms",
+        type=float,
+        default=float(os.getenv("LOCUST_MAX_P99_MS", "4000")),
+        help="Maximum aggregate p99 latency in milliseconds",
+    )
+    parser.add_argument(
         "--max-failures",
         type=float,
         default=float(os.getenv("LOCUST_MAX_FAILURES", "0")),
@@ -149,6 +172,7 @@ def main() -> int:
     args = parse_args()
     for name, value in (
         ("max-p95-ms", args.max_p95_ms),
+        ("max-p99-ms", args.max_p99_ms),
         ("max-failures", args.max_failures),
         ("min-requests", args.min_requests),
     ):
@@ -157,18 +181,20 @@ def main() -> int:
             return 2
 
     try:
-        p95_ms, failures, requests = read_metrics(args.input)
+        p95_ms, p99_ms, failures, requests = read_metrics(args.input)
     except QualityGateError as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 2
 
     checks = {
         "p95_ms": p95_ms <= args.max_p95_ms,
+        "p99_ms": p99_ms <= args.max_p99_ms,
         "failures": failures <= args.max_failures,
         "minimum_requests": requests >= args.min_requests,
     }
     values = {
         "p95_ms": f"{p95_ms:g}",
+        "p99_ms": f"{p99_ms:g}",
         "failures": f"{failures:g}",
         "requests": f"{requests:g}",
         "quality_gate": "passed" if all(checks.values()) else "failed",
@@ -176,11 +202,13 @@ def main() -> int:
     write_github_output(values)
 
     print(
-        "[locust-quality-gate] p95_ms=%s (max=%s), failures=%s (max=%s), "
-        "requests=%s (min=%s)"
+        "[locust-quality-gate] p95_ms=%s (max=%s), p99_ms=%s (max=%s), "
+        "failures=%s (max=%s), requests=%s (min=%s)"
         % (
             values["p95_ms"],
             f"{args.max_p95_ms:g}",
+            values["p99_ms"],
+            f"{args.max_p99_ms:g}",
             values["failures"],
             f"{args.max_failures:g}",
             values["requests"],
