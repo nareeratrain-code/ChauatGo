@@ -366,3 +366,125 @@ jobs:
             -H 'Content-Type: application/json' \
             --data-binary @/tmp/slack-payload.json \
             "$SLACK_WEBHOOK_URL"
+
+      - name: Notify Microsoft Teams
+        if: always() && (steps.locust_quality_gate.outcome == 'success' || steps.locust_quality_gate.outcome == 'failure')
+        continue-on-error: true
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          TEST_STATUS: ${{ job.status }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'unknown' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_URL" ]; then
+            echo "TEAMS_WEBHOOK_URL is not configured; skipping Microsoft Teams notification."
+            exit 0
+          fi
+
+          python3 - <<'PY' > /tmp/teams-payload.json
+          import json
+          import os
+
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ['PR_NUMBER'] else "scheduled/manual run"
+          status = os.environ['QUALITY_GATE_STATUS'].upper()
+          color = "00A86B" if status == "PASSED" else "D93F0B"
+          text = (
+              f"Performance Test {os.environ['TEST_STATUS']}: {os.environ['REPOSITORY']} ({pr})\n"
+              f"Quality Gate: {status}\n"
+              f"p95 latency: {os.environ['QUALITY_P95']} ms (max {os.environ['QUALITY_MAX_P95']} ms)\n"
+              f"p99 latency: {os.environ['QUALITY_P99']} ms (max {os.environ['QUALITY_MAX_P99']} ms)\n"
+              f"failures: {os.environ['QUALITY_FAILURES']} (max {os.environ['QUALITY_MAX_FAILURES']})\n"
+              f"requests: {os.environ['QUALITY_REQUESTS']}\n"
+              f"Workflow: {os.environ['WORKFLOW_NAME']}\n"
+              f"Ref: {os.environ['REF_NAME']}\n"
+              f"Run: {os.environ['RUN_URL']}"
+          )
+          print(json.dumps({
+              "@type": "MessageCard",
+              "@context": "https://schema.org/extensions",
+              "summary": f"ChauatGo Performance Test: {status}",
+              "themeColor": color,
+              "title": f"ChauatGo Performance Test — Quality Gate {status}",
+              "text": text.replace("\n", "<br>")
+          }, ensure_ascii=False))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/teams-payload.json \
+            "$TEAMS_WEBHOOK_URL"
+
+      - name: Notify Email
+        if: always() && (steps.locust_quality_gate.outcome == 'success' || steps.locust_quality_gate.outcome == 'failure')
+        continue-on-error: true
+        env:
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || '587' }}
+          EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TEST_STATUS: ${{ job.status }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'unknown' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        run: |
+          if [ -z "$EMAIL_SMTP_HOST" ] || [ -z "$EMAIL_FROM" ] || [ -z "$EMAIL_TO" ]; then
+            echo "Email SMTP secrets are not fully configured; skipping Email notification."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import os
+          import smtplib
+          from email.message import EmailMessage
+
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ['PR_NUMBER'] else "scheduled/manual run"
+          status = os.environ['QUALITY_GATE_STATUS'].upper()
+          subject = f"[ChauatGo] Performance Test {status} — {os.environ['REPOSITORY']} ({pr})"
+          body = "\n".join([
+              f"Performance Test: {os.environ['TEST_STATUS']}",
+              f"Repository: {os.environ['REPOSITORY']}",
+              f"Context: {pr}",
+              f"Quality Gate: {status}",
+              f"p95 latency: {os.environ['QUALITY_P95']} ms (max {os.environ['QUALITY_MAX_P95']} ms)",
+              f"p99 latency: {os.environ['QUALITY_P99']} ms (max {os.environ['QUALITY_MAX_P99']} ms)",
+              f"failures: {os.environ['QUALITY_FAILURES']} (max {os.environ['QUALITY_MAX_FAILURES']})",
+              f"requests: {os.environ['QUALITY_REQUESTS']}",
+              f"Workflow: {os.environ['WORKFLOW_NAME']}",
+              f"Ref: {os.environ['REF_NAME']}",
+              f"Run: {os.environ['RUN_URL']}",
+          ])
+          message = EmailMessage()
+          message["Subject"] = subject
+          message["From"] = os.environ['EMAIL_FROM']
+          message["To"] = os.environ['EMAIL_TO']
+          message.set_content(body)
+          with smtplib.SMTP(os.environ['EMAIL_SMTP_HOST'], int(os.environ['EMAIL_SMTP_PORT'])) as smtp:
+              smtp.starttls()
+              if os.environ.get('EMAIL_SMTP_USERNAME'):
+                  smtp.login(os.environ['EMAIL_SMTP_USERNAME'], os.environ['EMAIL_SMTP_PASSWORD'])
+              smtp.send_message(message)
+          print("Email notification sent.")
