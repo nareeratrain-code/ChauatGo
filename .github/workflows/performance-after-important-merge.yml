@@ -1,0 +1,490 @@
+name: Performance for important PRs and merges
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, closed]
+  schedule:
+    # Every Monday at 09:00 Asia/Bangkok (02:00 UTC).
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or commit to test (defaults to main)'
+        required: false
+        default: main
+        type: string
+      run_locust:
+        description: 'Run the Locust HTTP load test'
+        required: false
+        default: true
+        type: boolean
+      locust_users:
+        description: 'Concurrent Locust users'
+        required: false
+        default: '20'
+        type: string
+      locust_spawn_rate:
+        description: 'Locust users spawned per second'
+        required: false
+        default: '5'
+        type: string
+      locust_run_time:
+        description: 'Locust duration, for example 30s or 2m'
+        required: false
+        default: '30s'
+        type: string
+      locust_max_p95_ms:
+        description: 'Maximum allowed Locust p95 latency in milliseconds'
+        required: false
+        default: '2000'
+        type: string
+      locust_max_p99_ms:
+        description: 'Maximum allowed Locust p99 latency in milliseconds'
+        required: false
+        default: '4000'
+        type: string
+      locust_normal_weight:
+        description: 'Normal rider profile weight'
+        required: false
+        default: '6'
+        type: string
+      locust_filter_weight:
+        description: 'Filter-heavy rider profile weight'
+        required: false
+        default: '3'
+        type: string
+      locust_asset_weight:
+        description: 'Asset-heavy rider profile weight'
+        required: false
+        default: '1'
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: performance-after-important-merge-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  rider-filter-performance:
+    name: Rider filter Performance and Stress tests
+    # Run for every PR event and manual dispatch. GitHub's pull_request event
+    # is the event-driven equivalent of "when a new PR is created"; a Schedule
+    # Task cannot reliably detect a specific PR creation event.
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        (
+          github.event.action == 'opened' ||
+          github.event.action == 'synchronize' ||
+          github.event.action == 'reopened' ||
+          (github.event.action == 'closed' && github.event.pull_request.merged == true)
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PR revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run 1,000-job performance suite
+        run: npm run test:e2e:rider-filter:performance
+
+      - name: Run 5,000-job stress suite
+        run: npm run test:e2e:rider-filter:stress
+
+      - name: Install Locust
+        if: github.event_name != 'workflow_dispatch' || inputs.run_locust
+        run: python3 -m pip install --disable-pip-version-check locust
+
+      - name: Run configurable Locust HTTP load test
+        id: locust_load
+        if: github.event_name != 'workflow_dispatch' || inputs.run_locust
+        env:
+          LOCUST_TARGET_URL: http://127.0.0.1:4173
+          LOCUST_TARGET_PATH: /rider.html?qa=job-filter
+          LOCUST_JSON_OUTPUT: locust-results.json
+          LOCUST_MAX_FAILURES: '0'
+          LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
+          LOCUST_MAX_P99_MS: ${{ inputs.locust_max_p99_ms || '4000' }}
+          LOCUST_NORMAL_WEIGHT: ${{ inputs.locust_normal_weight || '6' }}
+          LOCUST_FILTER_WEIGHT: ${{ inputs.locust_filter_weight || '3' }}
+          LOCUST_ASSET_WEIGHT: ${{ inputs.locust_asset_weight || '1' }}
+          LOCUST_USERS: ${{ inputs.locust_users || '20' }}
+          LOCUST_SPAWN_RATE: ${{ inputs.locust_spawn_rate || '5' }}
+          LOCUST_RUN_TIME: ${{ inputs.locust_run_time || '30s' }}
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 > /tmp/chauatgo-locust-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          sleep 1
+
+          case "$LOCUST_USERS" in ''|*[!0-9]*) echo 'locust_users must be a positive integer'; exit 1;; esac
+          case "$LOCUST_SPAWN_RATE" in ''|*[!0-9]*) echo 'locust_spawn_rate must be a positive integer'; exit 1;; esac
+          case "$LOCUST_MAX_P95_MS" in ''|*[!0-9]*) echo 'locust_max_p95_ms must be a positive integer'; exit 1;; esac
+          case "$LOCUST_MAX_P99_MS" in ''|*[!0-9]*) echo 'locust_max_p99_ms must be a positive integer'; exit 1;; esac
+          for weight in "$LOCUST_NORMAL_WEIGHT" "$LOCUST_FILTER_WEIGHT" "$LOCUST_ASSET_WEIGHT"; do
+            case "$weight" in ''|*[!0-9]*) echo 'Locust profile weights must be non-negative integers'; exit 1;; esac
+          done
+
+          python3 -m locust \
+            -f scripts/performance/locustfile.py \
+            --headless \
+            --users "$LOCUST_USERS" \
+            --spawn-rate "$LOCUST_SPAWN_RATE" \
+            --run-time "$LOCUST_RUN_TIME" \
+            --only-summary
+
+      - name: Enforce Locust quality gate
+        id: locust_quality_gate
+        if: always() && steps.locust_load.outcome == 'success'
+        env:
+          LOCUST_MAX_P95_MS: ${{ inputs.locust_max_p95_ms || '2000' }}
+          LOCUST_MAX_P99_MS: ${{ inputs.locust_max_p99_ms || '4000' }}
+          LOCUST_MAX_FAILURES: '0'
+        run: |
+          python3 scripts/performance/check_locust_quality_gate.py \
+            --input locust-results.json \
+            --max-p95-ms "$LOCUST_MAX_P95_MS" \
+            --max-p99-ms "$LOCUST_MAX_P99_MS" \
+            --max-failures "$LOCUST_MAX_FAILURES" \
+            --min-requests 1
+
+      - name: Upload Locust result and quality gate output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-quality-gate-${{ github.run_id }}
+          path: |
+            locust-results.json
+            /tmp/chauatgo-locust-server.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rider-filter-performance-report-${{ github.run_id }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Comment Locust quality gate result on PR
+        if: >-
+          always() &&
+          github.event_name == 'pull_request' &&
+          steps.locust_load.outcome == 'success' &&
+          (
+            steps.locust_quality_gate.outcome == 'success' ||
+            steps.locust_quality_gate.outcome == 'failure'
+          )
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'failed' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const marker = '<!-- chauatgo-locust-quality-gate -->';
+            const status = process.env.QUALITY_GATE_STATUS;
+            const passed = status === 'passed';
+            const icon = passed ? '✅' : '❌';
+            const prNumber = context.issue.number;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              marker,
+              `## ${icon} Locust Quality Gate: ${passed ? 'PASSED' : 'FAILED'}`,
+              '',
+              '| Metric | Result | Budget |',
+              '| --- | ---: | ---: |',
+              `| Aggregate p95 latency | ${process.env.QUALITY_P95} ms | ≤ ${process.env.QUALITY_MAX_P95} ms |`,
+              `| Aggregate p99 latency | ${process.env.QUALITY_P99} ms | ≤ ${process.env.QUALITY_MAX_P99} ms |`,
+              `| Failed requests | ${process.env.QUALITY_FAILURES} | ≤ ${process.env.QUALITY_MAX_FAILURES} |`,
+              `| Total requests | ${process.env.QUALITY_REQUESTS} | ≥ 1 |`,
+              '',
+              `[View the complete GitHub Actions run](${runUrl})`,
+              '',
+              '_This comment is updated automatically on subsequent Quality Gate runs._',
+            ].join('\n');
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.data.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated Quality Gate comment ${existing.id}`);
+            } else {
+              const created = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+              core.info(`Created Quality Gate comment ${created.data.id}`);
+            }
+
+      - name: Notify Slack - Locust quality gate failed
+        if: failure() && steps.locust_quality_gate.outcome == 'failure'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured; skipping quality gate alert."
+            exit 0
+          fi
+
+          python3 - <<'PY' > /tmp/slack-quality-gate-payload.json
+          import json
+          import os
+
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ['PR_NUMBER'] else "manual run"
+          payload = {
+              "text": (
+                  f":x: Locust Quality Gate FAILED: {os.environ['REPOSITORY']} ({pr})\n"
+                  f"p95 latency: {os.environ['QUALITY_P95']} ms\n"
+                  f"p99 latency: {os.environ['QUALITY_P99']} ms\n"
+                  f"failures: {os.environ['QUALITY_FAILURES']}\n"
+                  f"requests: {os.environ['QUALITY_REQUESTS']}\n"
+                  f"Workflow: {os.environ['WORKFLOW_NAME']}\n"
+                  f"Ref: {os.environ['REF_NAME']}\n"
+                  f"ผลการทำงาน: {os.environ['RUN_URL']}"
+              )
+          }
+          print(json.dumps(payload, ensure_ascii=False))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/slack-quality-gate-payload.json \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Notify Slack
+        if: always() && steps.locust_quality_gate.outcome != 'failure'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TEST_STATUS: ${{ job.status }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'unknown' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL is not configured; skipping Slack notification."
+            exit 0
+          fi
+
+          python3 - <<'PY' > /tmp/slack-payload.json
+          import json
+          import os
+
+          status = os.environ["TEST_STATUS"]
+          emoji = ":white_check_mark:" if status == "success" else ":x:"
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ["PR_NUMBER"] else "manual run"
+          payload = {
+              "text": (
+                  f"{emoji} Performance Test {status}: "
+                  f"{os.environ['REPOSITORY']} ({pr})\n"
+                  f"Quality Gate: {os.environ['QUALITY_GATE_STATUS'].upper()}\n"
+                  f"p95 latency: {os.environ['QUALITY_P95']} ms "
+                  f"(max {os.environ['QUALITY_MAX_P95']} ms)\n"
+                  f"p99 latency: {os.environ['QUALITY_P99']} ms "
+                  f"(max {os.environ['QUALITY_MAX_P99']} ms)\n"
+                  f"failures: {os.environ['QUALITY_FAILURES']} "
+                  f"(max {os.environ['QUALITY_MAX_FAILURES']})\n"
+                  f"requests: {os.environ['QUALITY_REQUESTS']}\n"
+                  f"Workflow: {os.environ['WORKFLOW_NAME']}\n"
+                  f"Ref: {os.environ['REF_NAME']}\n"
+                  f"ผลการทำงาน: {os.environ['RUN_URL']}"
+              )
+          }
+          print(json.dumps(payload, ensure_ascii=False))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/slack-payload.json \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Notify Microsoft Teams
+        if: always() && (steps.locust_quality_gate.outcome == 'success' || steps.locust_quality_gate.outcome == 'failure')
+        continue-on-error: true
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          TEST_STATUS: ${{ job.status }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'unknown' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_URL" ]; then
+            echo "TEAMS_WEBHOOK_URL is not configured; skipping Microsoft Teams notification."
+            exit 0
+          fi
+
+          python3 - <<'PY' > /tmp/teams-payload.json
+          import json
+          import os
+
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ['PR_NUMBER'] else "scheduled/manual run"
+          status = os.environ['QUALITY_GATE_STATUS'].upper()
+          color = "00A86B" if status == "PASSED" else "D93F0B"
+          text = (
+              f"Performance Test {os.environ['TEST_STATUS']}: {os.environ['REPOSITORY']} ({pr})\n"
+              f"Quality Gate: {status}\n"
+              f"p95 latency: {os.environ['QUALITY_P95']} ms (max {os.environ['QUALITY_MAX_P95']} ms)\n"
+              f"p99 latency: {os.environ['QUALITY_P99']} ms (max {os.environ['QUALITY_MAX_P99']} ms)\n"
+              f"failures: {os.environ['QUALITY_FAILURES']} (max {os.environ['QUALITY_MAX_FAILURES']})\n"
+              f"requests: {os.environ['QUALITY_REQUESTS']}\n"
+              f"Workflow: {os.environ['WORKFLOW_NAME']}\n"
+              f"Ref: {os.environ['REF_NAME']}\n"
+              f"Run: {os.environ['RUN_URL']}"
+          )
+          print(json.dumps({
+              "@type": "MessageCard",
+              "@context": "https://schema.org/extensions",
+              "summary": f"ChauatGo Performance Test: {status}",
+              "themeColor": color,
+              "title": f"ChauatGo Performance Test — Quality Gate {status}",
+              "text": text.replace("\n", "<br>")
+          }, ensure_ascii=False))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/teams-payload.json \
+            "$TEAMS_WEBHOOK_URL"
+
+      - name: Notify Email
+        if: always() && (steps.locust_quality_gate.outcome == 'success' || steps.locust_quality_gate.outcome == 'failure')
+        continue-on-error: true
+        env:
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT || '587' }}
+          EMAIL_SMTP_USERNAME: ${{ secrets.EMAIL_SMTP_USERNAME }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TEST_STATUS: ${{ job.status }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REF_NAME: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          QUALITY_GATE_STATUS: ${{ steps.locust_quality_gate.outputs.quality_gate || 'unknown' }}
+          QUALITY_P95: ${{ steps.locust_quality_gate.outputs.p95_ms || 'unknown' }}
+          QUALITY_P99: ${{ steps.locust_quality_gate.outputs.p99_ms || 'unknown' }}
+          QUALITY_FAILURES: ${{ steps.locust_quality_gate.outputs.failures || 'unknown' }}
+          QUALITY_REQUESTS: ${{ steps.locust_quality_gate.outputs.requests || 'unknown' }}
+          QUALITY_MAX_P95: ${{ inputs.locust_max_p95_ms || '2000' }}
+          QUALITY_MAX_P99: ${{ inputs.locust_max_p99_ms || '4000' }}
+          QUALITY_MAX_FAILURES: '0'
+        run: |
+          if [ -z "$EMAIL_SMTP_HOST" ] || [ -z "$EMAIL_FROM" ] || [ -z "$EMAIL_TO" ]; then
+            echo "Email SMTP secrets are not fully configured; skipping Email notification."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import os
+          import smtplib
+          from email.message import EmailMessage
+
+          pr = f"PR #{os.environ['PR_NUMBER']}" if os.environ['PR_NUMBER'] else "scheduled/manual run"
+          status = os.environ['QUALITY_GATE_STATUS'].upper()
+          subject = f"[ChauatGo] Performance Test {status} — {os.environ['REPOSITORY']} ({pr})"
+          body = "\n".join([
+              f"Performance Test: {os.environ['TEST_STATUS']}",
+              f"Repository: {os.environ['REPOSITORY']}",
+              f"Context: {pr}",
+              f"Quality Gate: {status}",
+              f"p95 latency: {os.environ['QUALITY_P95']} ms (max {os.environ['QUALITY_MAX_P95']} ms)",
+              f"p99 latency: {os.environ['QUALITY_P99']} ms (max {os.environ['QUALITY_MAX_P99']} ms)",
+              f"failures: {os.environ['QUALITY_FAILURES']} (max {os.environ['QUALITY_MAX_FAILURES']})",
+              f"requests: {os.environ['QUALITY_REQUESTS']}",
+              f"Workflow: {os.environ['WORKFLOW_NAME']}",
+              f"Ref: {os.environ['REF_NAME']}",
+              f"Run: {os.environ['RUN_URL']}",
+          ])
+          message = EmailMessage()
+          message["Subject"] = subject
+          message["From"] = os.environ['EMAIL_FROM']
+          message["To"] = os.environ['EMAIL_TO']
+          message.set_content(body)
+          with smtplib.SMTP(os.environ['EMAIL_SMTP_HOST'], int(os.environ['EMAIL_SMTP_PORT'])) as smtp:
+              smtp.starttls()
+              if os.environ.get('EMAIL_SMTP_USERNAME'):
+                  smtp.login(os.environ['EMAIL_SMTP_USERNAME'], os.environ['EMAIL_SMTP_PASSWORD'])
+              smtp.send_message(message)
+          print("Email notification sent.")
