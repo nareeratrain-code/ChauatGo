@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled, closed]
+  schedule:
+    # Every Monday at 09:00 Asia/Bangkok (02:00 UTC).
+    - cron: '0 2 * * 1'
   workflow_dispatch:
     inputs:
       ref:
@@ -72,6 +75,7 @@ jobs:
     # is the event-driven equivalent of "when a new PR is created"; a Schedule
     # Task cannot reliably detect a specific PR creation event.
     if: >-
+      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'pull_request' &&
@@ -88,7 +92,7 @@ jobs:
       - name: Checkout PR revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
