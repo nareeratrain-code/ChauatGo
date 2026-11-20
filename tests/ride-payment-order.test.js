@@ -68,7 +68,8 @@ test('ride payment becomes available only after arrival marker exists', () => {
   const { context } = loadRidePaymentHelpers({ riderArrivedCustomerChatAt: 'SERVER_TIMESTAMP' });
   assert.equal(context.rideReachedDestination(context.allJobs[0]), true);
   assert.equal(context.riderMayConfirmPay(context.allJobs[0]), true);
-  assert.match(riderSource, /rideReachedDestination\(j\)[\s\S]{0,220}ridePayReceivedButton/);
+  assert.match(riderSource, /function ridePayReceivedButton\(id\)/);
+  assert.match(riderSource, /j\.type === 'ride'\) return j\.status === 'on_the_way' && !!j\.riderArrivedCustomerChatAt/);
 });
 
 test('arrival action records the marker and sends destination payment QR', async () => {
@@ -111,7 +112,8 @@ test('backend rejects ride payment confirmation before arrival marker', () => {
   assert.match(ordersSource, /กรุณากดยืนยันว่าถึงปลายทางแล้วก่อนรับชำระเงิน/);
 });
 
-test('existing express payment flow remains available while on the way', () => {
-  const { context } = loadRidePaymentHelpers({ type: 'express' });
-  assert.equal(context.riderMayConfirmPay(context.allJobs[0]), true);
+test('existing express delivery flow remains available after pickup confirmation', () => {
+  assert.match(riderSource, /if \(order\.type === 'express'\) \{[\s\S]{0,180}foodImage[\s\S]{0,180}customerOrderConfirmed/);
+  assert.match(riderSource, /j\.type === 'express' && !j\.foodImage/);
+  assert.match(riderSource, /j\.type === 'express' && !j\.customerOrderConfirmed/);
 });
