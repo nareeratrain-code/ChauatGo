@@ -68,29 +68,27 @@ concurrency:
 jobs:
   rider-filter-performance:
     name: Rider filter Performance and Stress tests
-    # Run on important PR activity and again after an important PR is merged.
-    # Use one of: important, production, release, priority:high.
+    # Run for every PR event and manual dispatch. GitHub's pull_request event
+    # is the event-driven equivalent of "when a new PR is created"; a Schedule
+    # Task cannot reliably detect a specific PR creation event.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (
+        github.event_name == 'pull_request' &&
         (
-          contains(github.event.pull_request.labels.*.name, 'important') ||
-          contains(github.event.pull_request.labels.*.name, 'production') ||
-          contains(github.event.pull_request.labels.*.name, 'release') ||
-          contains(github.event.pull_request.labels.*.name, 'priority:high')
-        ) &&
-        (
-          github.event.action != 'closed' ||
-          github.event.pull_request.merged == true
+          github.event.action == 'opened' ||
+          github.event.action == 'synchronize' ||
+          github.event.action == 'reopened' ||
+          (github.event.action == 'closed' && github.event.pull_request.merged == true)
         )
       )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout merged revision
+      - name: Checkout PR revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.pull_request.head.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
