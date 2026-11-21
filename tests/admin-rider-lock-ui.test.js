@@ -12,6 +12,14 @@ const restrictionService = fs.readFileSync(
 );
 const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
 const rider = fs.readFileSync(path.join(__dirname, '..', 'rider.js'), 'utf8');
+const performanceWorkflow = fs.readFileSync(
+  path.join(__dirname, '..', '.github', 'workflows', 'performance-after-important-merge.yml'),
+  'utf8'
+);
+const performanceOrchestrator = fs.readFileSync(
+  path.join(__dirname, '..', '.github', 'workflows', 'performance-test.yml'),
+  'utf8'
+);
 
 test('Admin rider cards expose realtime lock reason and unlock time', () => {
   assert.match(admin, /function riderLockUntil\(rider\)/);
@@ -71,4 +79,16 @@ test('Manual restriction contract carries request id and optimistic revision', (
   assert.match(admin, /expectedRevision: Number\(rider\.restrictionRevision \|\| 0\)/);
   assert.match(functions, /requestId: req\.data\?\.requestId/);
   assert.match(functions, /expectedRevision: req\.data\?\.expectedRevision/);
+});
+
+test('Remittance scheduler projects shared lock fields transactionally', () => {
+  const scheduler = functions.slice(functions.indexOf('exports.sweepRiderRemit'));
+  assert.match(scheduler, /db\.runTransaction\(async \(tx\) =>/);
+  assert.match(scheduler, /const manualLockActive = rider\.onlineLockReason === 'admin_manual'/);
+  assert.match(scheduler, /!manualLockActive/);
+});
+
+test('Weekly performance schedule has one owner', () => {
+  assert.doesNotMatch(performanceWorkflow, /\n\s+schedule:\s*\n/);
+  assert.match(performanceOrchestrator, /cron: '45 1 \* \* 1'/);
 });

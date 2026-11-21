@@ -380,18 +380,45 @@ exports.sweepRiderRemit = onSchedule({
       .get();
     const pendingSlip = riderSlips.docs.some((slip) => slip.data().status === 'pending');
     const riderRef = db.collection('riders').doc(riderId);
-    const riderSnap = await riderRef.get();
-    const rider = riderSnap.exists ? riderSnap.data() : {};
-    const until = rider.onlineLockedUntil && rider.onlineLockedUntil.toMillis ? rider.onlineLockedUntil.toMillis() : 0;
-    const cooldownUntil = rider.remittanceVerificationUntil && rider.remittanceVerificationUntil.toMillis
-      ? rider.remittanceVerificationUntil.toMillis() : 0;
-    const plan = remitLockPlan({
-      nowMs: nowMs,
-      amount: currentAmount,
-      pendingSlip: pendingSlip,
-      lockedUntilMs: until,
-      cooldownUntilMs: cooldownUntil
-    });
+    // Manual restrictions also transactionally update this document. Keep the
+    // scheduler's read, policy decision, and projection write in one
+    // transaction so an Admin update between the read and write causes a retry
+    // instead of allowing the scheduler to overwrite admin_manual.
+    const lockState = await db.runTransaction(async (tx) => {
+      const riderSnap = await tx.get(riderRef);
+      if (!riderSnap.exists) return null;
+      const rider = riderSnap.exists ? riderSnap.data() : {};
+      const until = rider.onlineLockedUntil && rider.onlineLockedUntil.toMillis
+        ? rider.onlineLockedUntil.toMillis() : 0;
+      const cooldownUntil = rider.remittanceVerificationUntil && rider.remittanceVerificationUntil.toMillis
+        ? rider.remittanceVerificationUntil.toMillis() : 0;
+      const plan = remitLockPlan({
+        nowMs: nowMs,
+        amount: currentAmount,
+        pendingSlip: pendingSlip,
+        lockedUntilMs: until,
+        cooldownUntilMs: cooldownUntil
+      });
+      const manualLockActive = rider.onlineLockReason === 'admin_manual' && until > nowMs;
+      let createdLock = false;
+      if (plan.action === 'clear' && until && !manualLockActive) {
+        tx.update(riderRef, {
+          onlineLockedUntil: FieldValue.delete(),
+          onlineLockReason: FieldValue.delete(),
+          remittanceVerificationUntil: FieldValue.delete()
+        });
+      } else if (plan.action === 'lock' && !manualLockActive) {
+        tx.update(riderRef, {
+          onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
+          onlineLockReason: 'remit'
+        });
+        createdLock = true;
+      }
+      return { rider, plan, createdLock, manualLockActive };
+    }, { maxAttempts: 5 });
+    if (!lockState) continue;
+    const rider = lockState.rider;
+    const plan = lockState.plan;
     if (plan.lockWarning && rider.remitLockWarningDate !== plan.key) {
       await sendRemitPush(riderRef, rider, 'remitLockWarningDate', plan.key, {
         title: 'ใกล้เวลาพักรับงาน',
@@ -399,21 +426,8 @@ exports.sweepRiderRemit = onSchedule({
         data: { kind: 'remit', phase: 'lock_warning', dateKey: plan.key }
       });
     }
-    let createdLock = false;
-    if (plan.action === 'clear' && until) {
-      await riderRef.set({
-        onlineLockedUntil: FieldValue.delete(),
-        onlineLockReason: FieldValue.delete(),
-        remittanceVerificationUntil: FieldValue.delete()
-      }, { merge: true });
-    } else if (plan.action === 'lock') {
-      await riderRef.set({
-        onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
-        onlineLockReason: 'remit'
-      }, { merge: true });
-      createdLock = true;
-    }
-    const lockNeedsPush = (createdLock || plan.phase === 'remit_lock')
+    const lockNeedsPush = (lockState.createdLock || plan.phase === 'remit_lock')
+      && !lockState.manualLockActive
       && rider.remitLockNoticeUntil !== plan.untilMs;
     if (lockNeedsPush) {
       await sendRemitPush(riderRef, rider, 'remitLockNoticeUntil', plan.untilMs, {

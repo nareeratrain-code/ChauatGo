@@ -4,9 +4,6 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled, closed]
-  schedule:
-    # Every Monday at 09:00 Asia/Bangkok (02:00 UTC).
-    - cron: '0 2 * * 1'
   workflow_dispatch:
     inputs:
       ref:
@@ -72,10 +69,8 @@ jobs:
   rider-filter-performance:
     name: Rider filter Performance and Stress tests
     # Run for every PR event and manual dispatch. GitHub's pull_request event
-    # is the event-driven equivalent of "when a new PR is created"; a Schedule
-    # Task cannot reliably detect a specific PR creation event.
+    # is the event-driven equivalent of "when a new PR is created".
     if: >-
-      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       (
         github.event_name == 'pull_request' &&

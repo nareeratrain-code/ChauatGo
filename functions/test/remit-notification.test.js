@@ -18,7 +18,8 @@ test('remittance scheduler sends a one-hour warning before the 22:00 lock window
 test('remittance scheduler sends a deduplicated notification immediately after creating a lock', () => {
   assert.match(source, /let createdLock = false/);
   assert.match(source, /createdLock = true/);
-  assert.match(source, /const lockNeedsPush = \(createdLock \|\| plan\.phase === 'remit_lock'\)/);
+  assert.match(source, /const lockNeedsPush = \(lockState\.createdLock \|\| plan\.phase === 'remit_lock'\)/);
+  assert.match(source, /&& !lockState\.manualLockActive/);
   assert.match(source, /rider\.remitLockNoticeUntil !== plan\.untilMs/);
   assert.match(source, /title: 'บัญชีถูกพักรับงานอัตโนมัติ'/);
   assert.match(source, /ปลดล็อก \$\{unlockLabel\(plan\.untilMs\)\}/);
