@@ -1,0 +1,78 @@
+flowchart TD
+    A[Trigger\nPR / Manual Dispatch / Weekly Schedule] --> B[performance-test.yml\nOrchestrator]
+    B --> C[gh workflow run\nPerformance Workflow]
+    C --> D[Staging Readiness Check\nConfig / Data / Health / Secrets]
+    D -->|พร้อม| E[Locust Load Test\nSmoke / Peak / Stress / Spike / Soak]
+    D -->|ไม่พร้อม| X1[STOP\nแก้ Staging หรือ Test Setup]
+
+    E --> F[เก็บผลลัพธ์\nlocust-results.json + HTML Report]
+    F --> G[Quality Gate\nFailure Rate / P95 / P99 / RPS]
+    G -->|PASS| H[สร้าง/อัปเดต Historical CSV\nWeekly Trend]
+    G -->|FAIL| I[Slack/Teams Alert\nThreshold Failed]
+    G -->|ERROR / TIMEOUT| J[Error Alert\nWorkflow Error / Artifact Missing / Timeout]
+
+    H --> K[ตรวจ Historical Trends\nCompare Baseline 4–6 รอบ]
+    K --> L{Go / No-Go Decision}
+    L -->|No-Go หรือ Trend แย่ลง| I
+    L -->|Go| M[สร้าง Release Gate Issue\nแนบ Metrics / Artifacts / Run URL]
+
+    I --> IT{Incident Trigger?\nตรวจ Stop Conditions}
+    J --> IT
+    IT -->|ยังไม่เข้าเกณฑ์\nTest-only issue| P[แก้ Test Setup / Retry\nรัน Performance Test ซ้ำ]
+    IT -->|เข้าเกณฑ์| N[เปิด Incident\nกำหนด SEV / Incident Commander]
+
+    ITC[เงื่อนไข Trigger Incident\nProduction impact\nFailure Rate > 5% ต่อเนื่อง 2 นาที\nP95 > 2x Budget ต่อเนื่อง 5 นาที\nData Loss / Duplicate / Security Issue\nTimeout ซ้ำหรือ Resource Saturation] -.-> IT
+
+    N --> N1[Freeze Deployment\nหยุด Promote และแจ้งทีม]
+    N1 --> N2{ต้อง Rollback หรือไม่?}
+    N2 -->|ไม่ต้อง| N3[Mitigation / Fix แบบจำกัด Scope]
+    N2 -->|ต้อง Rollback| N4[ยืนยัน Rollback Target\nCommit / Image / Config]
+    N4 --> N5[Execute Rollback\nบันทึกเวลาและผู้ดำเนินการ]
+    N5 --> N6[Verify Health และ Smoke Test\nAPI / Auth / Critical Flow]
+    N6 -->|ผ่าน| N7[Monitor หลัง Rollback\nP95 / P99 / Errors / Capacity 60 นาที]
+    N6 -->|ไม่ผ่าน| N8[Escalate SEV\nตรวจ Dependency / Capacity]
+    N7 -->|Stable| P
+    N7 -->|ยังผิดปกติ| N8
+    N8 --> N3
+    N3 --> P
+    P --> G
+
+    M --> Q["/signoff qa<br/>ตรวจ Team Membership"]
+    Q --> R["/signoff engineering<br/>ตรวจ Team Membership"]
+    R --> S["/signoff sre<br/>ตรวจ Team Membership"]
+    S --> T["/signoff product<br/>ตรวจ Team Membership"]
+
+    Q -->|ไม่ใช่สมาชิก| U[Reject Sign-off\nAudit Comment]
+    R -->|ไม่ใช่สมาชิก| U
+    S -->|ไม่ใช่สมาชิก| U
+    T -->|ไม่ใช่สมาชิก| U
+
+    T --> V{ครบทุก Role?}
+    V -->|ยังไม่ครบ| W[pending-signoff\nรอผู้อนุมัติที่เหลือ]
+    V -->|ครบ| Y[release-approved\nสร้าง Audit Summary]
+
+    Y --> Z[Manual Production Deploy\nตรวจ Sign-off + Rollback Plan]
+    Z --> AA[Production Smoke Test\nHealth / API / Critical User Flows]
+    AA -->|ผ่าน| AB[Production Monitoring\nP95 / P99 / Errors / Capacity]
+    AA -->|ไม่ผ่าน| AC[Production Incident Trigger\nหยุด Rollout]
+    AB -->|ปกติ| AD[ปิด Release Gate\nClosed]
+    AB -->|ผิดปกติ| AC
+    AC --> N1
+
+    AD --> AE[Post-mortem / Lessons Learned\nถ้ามี Incident]
+
+    classDef trigger fill:#E8F0FE,stroke:#4285F4,color:#102A43
+    classDef test fill:#FFF4E5,stroke:#F59E0B,color:#7C2D12
+    classDef pass fill:#E8F5E9,stroke:#16A34A,color:#14532D
+    classDef fail fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
+    classDef incident fill:#FFE4E6,stroke:#E11D48,color:#881337
+    classDef approval fill:#F3E8FF,stroke:#9333EA,color:#581C87
+    classDef prod fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+
+    class A,B,C trigger
+    class D,E,F,G,P test
+    class H,K,L,M pass
+    class I,J,X1,ITC fail
+    class IT,N,N1,N2,N3,N4,N5,N6,N7,N8,AC incident
+    class Q,R,S,T,U,V,W,Y approval
+    class Z,AA,AB,AD,AE prod

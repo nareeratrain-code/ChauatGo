@@ -239,6 +239,16 @@ test('storage rules match every client upload path', async () => {
       ['customer cannot read ChauatGo QR', () => assertFails(cs.ref('payout/qr/qr.jpg').getMetadata())],
       ['shop cannot upload ChauatGo QR', () => assertFails(put(ss, 'payout/qr/shop.jpg'))],
       ['rider remittance slip', () => assertSucceeds(put(rs, 'settlement_slips/riders/rider1/1.jpg'))],
+      ['rider cannot overwrite a remittance slip', () => assertFails(
+        rs.ref('settlement_slips/riders/rider1/1.jpg').put(JPEG, { contentType: 'image/jpeg' })
+      )],
+      ['rider cannot delete a remittance slip', () => assertFails(
+        rs.ref('settlement_slips/riders/rider1/1.jpg').delete()
+      )],
+      ['admin can delete a remittance slip for controlled cleanup', async () => {
+        await assertSucceeds(put(rs, 'settlement_slips/riders/rider1/admin-cleanup.jpg'));
+        await assertSucceeds(as.ref('settlement_slips/riders/rider1/admin-cleanup.jpg').delete());
+      }],
       ['shop cannot read rider remittance slip', () => assertFails(ss.ref('settlement_slips/riders/rider1/1.jpg').getMetadata())],
       ['other rider cannot read remittance slip', () => assertFails(os.ref('settlement_slips/riders/rider1/1.jpg').getMetadata())],
       ['admin reads rider remittance slip', () => assertSucceeds(as.ref('settlement_slips/riders/rider1/1.jpg').getMetadata())],

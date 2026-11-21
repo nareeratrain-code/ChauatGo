@@ -95,8 +95,17 @@ function adminFirebaseErrorText(err, fallback) {
   const text = raw.toLowerCase();
   if (text.includes('permission-denied') || text.includes('insufficient permission')) return 'ไม่มีสิทธิ์ทำรายการนี้ — ตรวจสอบสิทธิ์แอดมิน';
   if (text.includes('unavailable') || text.includes('network') || text.includes('failed to fetch')) return 'เชื่อมต่อระบบไม่ได้ — ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  if (text.includes('aborted')) return 'ข้อมูล Rider ถูกเปลี่ยนโดยแอดมินคนอื่น — รีเฟรชข้อมูลแล้วลองใหม่';
+  if (text.includes('already-exists')) return 'Request นี้ถูกใช้กับคำสั่งอื่นแล้ว — รีเฟรชข้อมูลแล้วสร้างคำสั่งใหม่';
   if (text.includes('failed-precondition')) return 'สถานะข้อมูลเปลี่ยนแล้ว — รีเฟรชหน้าก่อนลองใหม่';
   return fallback || 'ทำรายการไม่สำเร็จ';
+}
+
+function newRestrictionRequestId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `restriction-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function riderLockUntil(rider) {
@@ -111,6 +120,10 @@ function riderLockUntil(rider) {
 function riderLockMessage(rider) {
   const until = riderLockUntil(rider);
   if (!until) return '';
+  if (rider && rider.onlineLockReason === 'admin_manual') {
+    const hours = Number(rider.manualLockDurationHours || 0);
+    return `แอดมินบล็อก ${hours || ''} ชั่วโมง • ปลดล็อก ${fmtTime(until)} น.`;
+  }
   const cooldown = rider && rider.onlineLockReason === 'remit_verified_cooldown';
   const reason = cooldown
     ? 'อยู่ระหว่างรอปลดล็อกหลังแอดมินตรวจสลิป'
@@ -1413,6 +1426,31 @@ function settlement() {
     `<button class="blue" data-view-slip="${esc(row.id)}">🖼️ ดูสลิป</button>
      ${row.status === 'pending' ? `<button class="pri" data-verify-gp="${esc(row.id)}">✅ ยืนยัน</button><button class="dan" data-reject-gp="${esc(row.id)}">❌ ปฏิเสธ</button>` : ''}`
   )).join('');
+  const allRiders = (store.riders || []).map(rider => {
+    const queueRow = (store.settlement_queue || []).find(row => row.kind === 'rider' && row.partyId === rider.id) || {};
+    const remittance = (store.rider_remittances || [])
+      .filter(row => row.riderId === rider.id)
+      .sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0))[0] || {};
+    const lock = riderLockMessage(rider);
+    const amount = Number(queueRow.amount || remittance.amount || 0);
+    const status = lock || (amount > 0 ? `มียอดตามรอบปัจจุบัน ฿${fmt(amount)}` : 'ยอดค้างปัจจุบัน ฿0');
+    return `<div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-icon" style="background:#168A45;color:#fff">🛵</div>
+        <div class="data-card-info">
+          <div class="data-card-name">${esc(rider.name || 'ไม่ระบุ')} <span class="tag ${rider.verified === false ? 'w' : ''}">${rider.verified === false ? 'รออนุมัติ' : 'อนุมัติแล้ว'}</span></div>
+          <div class="data-card-meta">🆔 ${esc(rider.id || '')}</div>
+          <div class="data-card-meta" style="${lock ? 'color:#b42318;font-weight:800' : ''}">${esc(status)}</div>
+          ${remittance.id ? `<div class="data-card-meta">Remittance: ${esc(remittance.status || 'ไม่ทราบสถานะ')} • ${esc(remittance.dateKey || '')}</div>` : '<div class="data-card-meta">ยังไม่พบประวัติ Remittance</div>'}
+        </div>
+      </div>
+      <div class="data-card-actions">
+        <button class="pri" data-rider-restriction="${esc(rider.id)}" data-rider-action="clear">▶️ เปิดทำงานทันที</button>
+        <button class="blue" data-rider-restriction="${esc(rider.id)}" data-rider-action="block12">🔒 บล็อก 12 ชม.</button>
+        <button class="dan" data-rider-restriction="${esc(rider.id)}" data-rider-action="block24">🔒 บล็อก 24 ชม.</button>
+      </div>
+    </div>`;
+  }).join('');
   return `
     <div class="section-divider"><div class="title">บัญชีรับเงิน ChauatGo</div><div class="line"></div></div>
     <div class="data-card">
@@ -1431,7 +1469,10 @@ function settlement() {
     <div class="section-divider"><div class="title">ไรเดอร์ที่ต้องโอนก่อน 21:00</div><div class="line"></div></div>
     ${riders || '<div class="empty"><div>ยังไม่มีไรเดอร์ที่มียอดวันนี้</div></div>'}
     <div class="section-divider"><div class="title">สลิปไรเดอร์รอตรวจ</div><div class="line"></div></div>
-    ${riderSlips || '<div class="empty"><div>ไม่มีสลิปไรเดอร์รอตรวจ</div></div>'}`;
+    ${riderSlips || '<div class="empty"><div>ไม่มีสลิปไรเดอร์รอตรวจ</div></div>'}
+    <div class="section-divider"><div class="title">ตรวจสอบและจัดการไรเดอร์ทุกเคส</div><div class="line"></div></div>
+    <div class="data-card-meta" style="margin-bottom:10px">รายการนี้แสดงไรเดอร์ทั้งหมด รวมกรณียอดเป็น 0 หรือไม่อยู่ในคิวรอบปัจจุบัน แอดมินสามารถเปิดทำงานทันที หรือกำหนดบล็อก 12/24 ชั่วโมงได้</div>
+    ${allRiders || '<div class="empty"><div>ไม่พบไรเดอร์</div></div>'}`;
 }
 
 function onPayoutQrFile(input) {
@@ -2192,7 +2233,7 @@ document.addEventListener('click', async e => {
     '[data-verify-rider],[data-toggle-rider],[data-del],[data-merchant-status],' +
     '[data-rider-status],[data-gp-range],[data-verify-slip],[data-reject-slip],' +
     '[data-cancel-order],[data-save-merchant],[data-view-slip],[data-verify-gp],[data-save-payout],[data-settle-chat],[data-send-settle],[data-view-remit],[data-verify-remit],[data-reject-remit],' +
-    '[data-reject-gp],[data-payout-rider],[data-confirm-payout],[data-view-payout],[data-payout-clear],[data-change-role],' +
+    '[data-reject-gp],[data-rider-restriction],[data-payout-rider],[data-confirm-payout],[data-view-payout],[data-payout-clear],[data-change-role],' +
     '[data-save-role],[data-approve-admin],[data-place-hide],[data-place-edit],[data-place-save],[data-place-reset],' +
     '[data-place-add],[data-place-add-save],[data-place-added-edit],[data-place-added-delete],[data-place-gps],' +
     '[data-dispatch-save],[data-dispatch-assign],[data-dispatch-history],[data-shop-accept]'
@@ -2347,6 +2388,43 @@ document.addEventListener('click', async e => {
             showToast(adminFirebaseErrorText(err, 'เปลี่ยนสถานะไรเดอร์ไม่สำเร็จ'), 'error');
           }
         }
+      }
+      return;
+    }
+
+    if (t.dataset.riderRestriction) {
+      const rider = (store.riders || []).find(x => x.id === t.dataset.riderRestriction);
+      const action = t.dataset.riderAction;
+      if (!rider || !['clear', 'block12', 'block24'].includes(action)) return;
+      const labels = { clear: 'เปิดให้ทำงานทันที', block12: 'บล็อก 12 ชั่วโมง', block24: 'บล็อก 24 ชั่วโมง' };
+      if (!confirm(`${labels[action]}สำหรับ ${rider.name || rider.id} หรือไม่?`)) return;
+      const reason = prompt('ระบุเหตุผล (ไม่เกิน 300 ตัวอักษร)', action === 'clear'
+        ? 'Admin เปิดให้ทำงานจากหน้า Settlement'
+        : `Admin ตั้ง ${labels[action]}`);
+      if (reason === null) return;
+      try {
+        const result = await ChauatFn.callFunction('setRiderWorkRestriction', {
+          riderId: rider.id,
+          action,
+          reason: reason.trim().slice(0, 300),
+          requestId: newRestrictionRequestId(),
+          expectedRevision: Number(rider.restrictionRevision || 0)
+        }, auth);
+        const until = result && result.data && result.data.until;
+        showToast(action === 'clear' ? '✅ เปิดให้ทำงานทันทีแล้ว' : `🔒 ${labels[action]}แล้ว`);
+        if (rider) {
+          if (action === 'clear') {
+            delete rider.onlineLockedUntil;
+            delete rider.onlineLockReason;
+          } else {
+            rider.onlineLockedUntil = until;
+            rider.onlineLockReason = 'admin_manual';
+            rider.manualLockDurationHours = action === 'block12' ? 12 : 24;
+          }
+        }
+        render();
+      } catch (err) {
+        showToast(adminFirebaseErrorText(err, 'เปลี่ยนสถานะไรเดอร์ไม่สำเร็จ'), 'error');
       }
       return;
     }

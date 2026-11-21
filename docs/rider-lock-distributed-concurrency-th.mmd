@@ -1,0 +1,63 @@
+%% ChauatGo — Distributed Concurrency Control สำหรับ setRiderWorkRestriction
+%% แสดงทั้งกรณีสำเร็จ, Admin สองคนชนกัน, Version Conflict และ Idempotent Retry
+sequenceDiagram
+    autonumber
+    participant A as Admin A
+    participant B as Admin B
+    participant UI as Admin Dashboard
+    participant CF as Cloud Function<br/>setRiderWorkRestriction
+    participant FS as Firestore Transaction Engine
+    participant R as riders/{riderId}
+    participant AUD as rider_lock_audits/{auditId}
+
+    Note over A,B: ทั้งสอง Admin เห็นสถานะเดียวกัน<br/>restrictionRevision = 7
+
+    A->>UI: block24 + reason + requestId A<br/>expectedRevision = 7
+    B->>UI: clear + reason + requestId B<br/>expectedRevision = 7
+
+    par Request ของ Admin A
+        UI->>CF: Callable A
+        CF->>CF: ตรวจ Auth + App Check + Admin Role
+        CF->>FS: เปิด Transaction A
+        FS->>R: อ่าน Rider (revision 7)
+        FS->>AUD: อ่าน Audit ID A
+        FS->>CF: Revision ยังเป็น 7
+        CF->>FS: เตรียม block24<br/>revision 7 → 8
+        FS->>R: update Manual Lock + revision 8
+        FS->>AUD: create Audit A<br/>previous 7 / next 8
+        FS-->>CF: Commit A สำเร็จ
+        CF-->>UI: success, revision 8
+    and Request ของ Admin B
+        UI->>CF: Callable B
+        CF->>CF: ตรวจ Auth + App Check + Admin Role
+        CF->>FS: เปิด Transaction B
+        FS->>R: อ่าน Rider (อาจเห็น revision 7)
+        FS->>AUD: อ่าน Audit ID B
+        FS->>CF: เตรียม clear โดยคาด revision 7
+    end
+
+    Note over FS,R: Firestore ตรวจพบว่า Rider ถูกเขียนโดย Transaction A แล้ว
+
+    FS-->>CF: Transaction B conflict / retry
+    CF->>FS: Retry Transaction B และอ่านข้อมูลใหม่
+    FS->>R: อ่าน Rider ใหม่ (revision 8)
+    FS->>AUD: ตรวจ Audit ID B
+    FS-->>CF: expectedRevision 7 ไม่ตรงกับ revision 8
+    CF-->>UI: aborted: ข้อมูลถูก Admin คนอื่นเปลี่ยนแล้ว
+    UI->>UI: Reload Rider และไม่ Retry คำสั่งเดิมอัตโนมัติ
+
+    Note over A,B: ผลลัพธ์สุดท้าย: block24 ของ A มีผล<br/>Audit A มีรายการเดียว, Audit B ไม่ถูกบันทึกเป็น Success
+
+    rect rgb(235, 247, 255)
+        Note over A,CF: กรณี Network Retry ของ Request เดิม
+        A->>CF: ส่ง Request A ซ้ำด้วย requestId เดิม
+        CF->>FS: เปิด Transaction / อ่าน auditId เดิม
+        FS->>AUD: พบ Audit A อยู่แล้ว
+        FS-->>CF: คืนผลเดิมแบบ idempotent = true
+        CF-->>A: success เดิม ไม่สร้าง Audit ซ้ำ
+    end
+
+    rect rgb(255, 245, 230)
+        Note over CF,R: Transaction รับประกัน Atomicity
+        Note over R,AUD: Rider Update และ Audit Create สำเร็จพร้อมกัน<br/>หากรายการใดล้มเหลว ทั้งคู่ถูก Rollback
+    end

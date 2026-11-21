@@ -6,6 +6,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp, getApps } = require('firebase-admin/app');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { getStorage } = require('firebase-admin/storage');
 const D = require('./dispatch');
 const Orders = require('./orders');
 const { normalizeId, normalizeOrderIds, buildPayoutId, calculatePayoutOrders } = require('./payout');
@@ -21,6 +22,11 @@ const { FINANCE_KEYS, mergedFinance, migrateMerchantDoc, privateProfileRef } = r
 const { assertAppCheck, enforceFromEnv } = require('./app-check');
 const { syncRiderHistory } = require('./rider-history');
 const { syncMerchantInbox } = require('./merchant-inbox');
+const { reviewRiderError } = require('./review-error');
+const {
+  notifyAdminsOfRemittance,
+  shouldNotifyFinalizedRemittance
+} = require('./admin-notifications');
 const {
   shopGpDue,
   riderDailyDue,
@@ -29,7 +35,8 @@ const {
   publicPayout,
   riderReviewPlan
 } = require('./settlement');
-const { remitLockPlan } = require('./remit-lock');
+const { remitLockPlan, effectiveLockPlan } = require('./remit-lock');
+const { setRiderWorkRestrictionTransaction } = require('./rider-restriction-service');
 const { redispatchFromRider, reportShoppingStockout, finalizeShoppingStockout } = require('./cancel-flow');
 
 // Gen 2 defaults to 1 vCPU. `firebase deploy --only functions` health-checks
@@ -48,6 +55,7 @@ setGlobalOptions({
 
 if (!getApps().length) initializeApp();
 const db = getFirestore();
+const bucket = getStorage().bucket();
 
 const APP_CHECK_ENFORCE = enforceFromEnv(process.env);
 // invoker public + cors so the browser can call asia-southeast1. Do not set
@@ -372,18 +380,45 @@ exports.sweepRiderRemit = onSchedule({
       .get();
     const pendingSlip = riderSlips.docs.some((slip) => slip.data().status === 'pending');
     const riderRef = db.collection('riders').doc(riderId);
-    const riderSnap = await riderRef.get();
-    const rider = riderSnap.exists ? riderSnap.data() : {};
-    const until = rider.onlineLockedUntil && rider.onlineLockedUntil.toMillis ? rider.onlineLockedUntil.toMillis() : 0;
-    const cooldownUntil = rider.remittanceVerificationUntil && rider.remittanceVerificationUntil.toMillis
-      ? rider.remittanceVerificationUntil.toMillis() : 0;
-    const plan = remitLockPlan({
-      nowMs: nowMs,
-      amount: currentAmount,
-      pendingSlip: pendingSlip,
-      lockedUntilMs: until,
-      cooldownUntilMs: cooldownUntil
-    });
+    // Manual restrictions also transactionally update this document. Keep the
+    // scheduler's read, policy decision, and projection write in one
+    // transaction so an Admin update between the read and write causes a retry
+    // instead of allowing the scheduler to overwrite admin_manual.
+    const lockState = await db.runTransaction(async (tx) => {
+      const riderSnap = await tx.get(riderRef);
+      if (!riderSnap.exists) return null;
+      const rider = riderSnap.exists ? riderSnap.data() : {};
+      const until = rider.onlineLockedUntil && rider.onlineLockedUntil.toMillis
+        ? rider.onlineLockedUntil.toMillis() : 0;
+      const cooldownUntil = rider.remittanceVerificationUntil && rider.remittanceVerificationUntil.toMillis
+        ? rider.remittanceVerificationUntil.toMillis() : 0;
+      const plan = remitLockPlan({
+        nowMs: nowMs,
+        amount: currentAmount,
+        pendingSlip: pendingSlip,
+        lockedUntilMs: until,
+        cooldownUntilMs: cooldownUntil
+      });
+      const manualLockActive = rider.onlineLockReason === 'admin_manual' && until > nowMs;
+      let createdLock = false;
+      if (plan.action === 'clear' && until && !manualLockActive) {
+        tx.update(riderRef, {
+          onlineLockedUntil: FieldValue.delete(),
+          onlineLockReason: FieldValue.delete(),
+          remittanceVerificationUntil: FieldValue.delete()
+        });
+      } else if (plan.action === 'lock' && !manualLockActive) {
+        tx.update(riderRef, {
+          onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
+          onlineLockReason: 'remit'
+        });
+        createdLock = true;
+      }
+      return { rider, plan, createdLock, manualLockActive };
+    }, { maxAttempts: 5 });
+    if (!lockState) continue;
+    const rider = lockState.rider;
+    const plan = lockState.plan;
     if (plan.lockWarning && rider.remitLockWarningDate !== plan.key) {
       await sendRemitPush(riderRef, rider, 'remitLockWarningDate', plan.key, {
         title: 'ใกล้เวลาพักรับงาน',
@@ -391,21 +426,8 @@ exports.sweepRiderRemit = onSchedule({
         data: { kind: 'remit', phase: 'lock_warning', dateKey: plan.key }
       });
     }
-    let createdLock = false;
-    if (plan.action === 'clear' && until) {
-      await riderRef.set({
-        onlineLockedUntil: FieldValue.delete(),
-        onlineLockReason: FieldValue.delete(),
-        remittanceVerificationUntil: FieldValue.delete()
-      }, { merge: true });
-    } else if (plan.action === 'lock') {
-      await riderRef.set({
-        onlineLockedUntil: Timestamp.fromMillis(plan.untilMs),
-        onlineLockReason: 'remit'
-      }, { merge: true });
-      createdLock = true;
-    }
-    const lockNeedsPush = (createdLock || plan.phase === 'remit_lock')
+    const lockNeedsPush = (lockState.createdLock || plan.phase === 'remit_lock')
+      && !lockState.manualLockActive
       && rider.remitLockNoticeUntil !== plan.untilMs;
     if (lockNeedsPush) {
       await sendRemitPush(riderRef, rider, 'remitLockNoticeUntil', plan.untilMs, {
@@ -572,14 +594,33 @@ async function refreshRiderRemitLock(uid, nowMs = Date.now()) {
     effectiveReason = '';
   }
 
-  const blocked = plan.action === 'keep' || effectiveUntilMs > nowMs;
-  return { blocked, untilMs: effectiveUntilMs, reason: effectiveReason, dueAmount: due.amount, plan };
+  // Reconcile independent policies after the remittance plan. This prevents a
+  // zero-balance refresh from clearing a risk/safety suspension, and prevents
+  // a remittance sync from treating an Admin Lock as a remittance lock.
+  const effective = effectiveLockPlan({
+    nowMs,
+    remitLockUntilMs: ['remit', 'remit_overdue'].includes(effectiveReason) ? effectiveUntilMs : 0,
+    verificationCooldownUntilMs: cooldownUntilMs,
+    adminManualUntilMs: effectiveReason === 'admin_manual' ? effectiveUntilMs : 0,
+    riskRestrictionUntilMs: timestampMillis(rider.riskRestrictionUntil),
+    safetySuspensionUntilMs: timestampMillis(rider.safetySuspensionUntil)
+  });
+  const blocked = effective.locked || (plan.action === 'keep' && effectiveUntilMs > nowMs);
+  return {
+    blocked,
+    untilMs: effective.locked ? effective.untilMs : effectiveUntilMs,
+    reason: effective.reason || effectiveReason,
+    dueAmount: due.amount,
+    plan
+  };
 }
 
 async function assertRiderCanWork(uid) {
   const state = await refreshRiderRemitLock(uid, Date.now());
   if (state.blocked) {
-    const reason = state.reason === 'remit_verified_cooldown'
+    const reason = state.reason === 'admin_manual'
+      ? 'บัญชีถูกพักรับงานตามคำสั่งแอดมิน'
+      : state.reason === 'remit_verified_cooldown'
       ? 'บัญชีอยู่ระหว่างตรวจสอบการโอน ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
       : 'บัญชีถูกพักรับงานเพราะยังไม่โอนยอดก่อน 21:00';
     const err = new Error(reason);
@@ -587,6 +628,28 @@ async function assertRiderCanWork(uid) {
     throw err;
   }
 }
+
+// Admin-only manual override for exceptional lock cases. Authentication and
+// authorization stay at the Callable boundary; the atomic Rider + Audit
+// transaction lives in rider-restriction-service.js and is reusable in tests.
+exports.setRiderWorkRestriction = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'setRiderWorkRestriction');
+  if (!(await D.callerIsAdmin(db, req.auth))) {
+    throw new HttpsError('permission-denied', 'เฉพาะแอดมินเท่านั้น');
+  }
+
+  return setRiderWorkRestrictionTransaction({
+    db,
+    riderId: req.data?.riderId,
+    action: req.data?.action,
+    reason: req.data?.reason,
+    requestId: req.data?.requestId,
+    expectedRevision: req.data?.expectedRevision,
+    changedBy: req.auth.uid,
+    changedByEmail: req.auth.token && req.auth.token.email
+  });
+});
 
 exports.acceptDispatchOffer = onCall(CALL, async (req) => {
   if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
@@ -911,9 +974,12 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
     const riderData = riderSnap.exists ? riderSnap.data() : {};
     const lockedUntilMs = riderData.onlineLockedUntil && riderData.onlineLockedUntil.toMillis
       ? riderData.onlineLockedUntil.toMillis() : 0;
+    // displayAmount is the outstanding balance shown on the dashboard. It
+    // must never fall back to the submitted slip amount: an overpayment or a
+    // verified slip is not an outstanding balance.
     const displayAmount = due.amount > 0
       ? due.amount
-      : (due.nextAmount > 0 ? due.nextAmount : (latest && latest.status !== 'rejected' ? Number(latest.amount || 0) : 0));
+      : (due.nextAmount > 0 ? due.nextAmount : 0);
     await db.collection('settlement_queue').doc('rider_' + uid).set({
       kind: 'rider',
       partyId: uid,
@@ -946,6 +1012,36 @@ exports.syncMySettlement = onCall(CALL, async (req) => {
   throw new HttpsError('permission-denied', 'เฉพาะร้านหรือไรเดอร์');
 });
 
+function timestampMillis(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+  return 0;
+}
+
+function riderLockProjection(riderData, nowMs, cooldownUntilMs) {
+  const data = riderData || {};
+  const legacyLockIsRemittance = String(data.onlineLockReason || '') === 'remit_overdue';
+  const manualLockIsActive = String(data.onlineLockReason || '') === 'admin_manual';
+  const lock = effectiveLockPlan({
+    nowMs,
+    remitLockUntilMs: timestampMillis(data.remitLockUntil) || (legacyLockIsRemittance ? timestampMillis(data.onlineLockedUntil) : 0),
+    verificationCooldownUntilMs: cooldownUntilMs || timestampMillis(data.verificationCooldownUntil) || timestampMillis(data.remittanceVerificationUntil),
+    adminManualUntilMs: manualLockIsActive ? timestampMillis(data.onlineLockedUntil) : 0,
+    riskRestrictionUntilMs: timestampMillis(data.riskRestrictionUntil),
+    safetySuspensionUntilMs: timestampMillis(data.safetySuspensionUntil)
+  });
+  return {
+    onlineLockedUntil: lock.locked ? Timestamp.fromMillis(lock.untilMs) : FieldValue.delete(),
+    onlineLockReason: lock.locked ? lock.reason : FieldValue.delete(),
+    remittanceVerificationUntil: cooldownUntilMs > nowMs
+      ? Timestamp.fromMillis(cooldownUntilMs)
+      : FieldValue.delete()
+  };
+}
+
 // Remittance submission is server-owned. The deterministic document id makes
 // retries from two tabs/devices converge on one daily record instead of
 // creating multiple pending slips for the same rider and date.
@@ -958,6 +1054,9 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
   const slipUrl = typeof data.slipUrl === 'string' ? data.slipUrl.trim() : '';
   const slipPath = typeof data.slipPath === 'string' ? data.slipPath.trim() : '';
   const note = typeof data.note === 'string' ? data.note.trim() : '';
+  const amountSubmitted = data.amountSubmitted == null || data.amountSubmitted === ''
+    ? null
+    : Number(data.amountSubmitted);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
     throw new HttpsError('invalid-argument', 'วันที่โอนไม่ถูกต้อง');
   }
@@ -971,6 +1070,9 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
     throw new HttpsError('invalid-argument', 'ลิงก์สลิปต้องเป็นไฟล์จาก Firebase Storage ของระบบ');
   }
   if (note.length > 300) throw new HttpsError('invalid-argument', 'หมายเหตุยาวเกินกำหนด');
+  if (amountSubmitted != null && (!Number.isFinite(amountSubmitted) || amountSubmitted <= 0 || amountSubmitted > 100000)) {
+    throw new HttpsError('invalid-argument', 'ยอดในสลิปไม่ถูกต้อง');
+  }
 
   const riderRef = db.collection('riders').doc(uid);
   const riderSnap = await riderRef.get();
@@ -1025,6 +1127,7 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
         riderId: uid,
         riderName: String(riderTxSnap.data().name || ''),
         amount: txDue.amount,
+        amountSubmitted: amountSubmitted == null ? txDue.amount : Math.round(amountSubmitted * 100) / 100,
         dateKey: txDue.dateKey,
         status: 'pending',
         slipUrl,
@@ -1040,6 +1143,7 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
         status: 'pending',
         remittanceId,
         amount: txDue.amount,
+        amountSubmitted: amountSubmitted == null ? txDue.amount : Math.round(amountSubmitted * 100) / 100,
         dateKey: txDue.dateKey
       };
     }
@@ -1050,6 +1154,7 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
       riderId: uid,
       riderName: String(riderTxSnap.data().name || ''),
       amount: txDue.amount,
+      amountSubmitted: amountSubmitted == null ? txDue.amount : Math.round(amountSubmitted * 100) / 100,
       dateKey: txDue.dateKey,
       status: 'pending',
       slipUrl,
@@ -1063,6 +1168,7 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
       status: 'pending',
       remittanceId,
       amount: txDue.amount,
+      amountSubmitted: amountSubmitted == null ? txDue.amount : Math.round(amountSubmitted * 100) / 100,
       dateKey: txDue.dateKey
     };
   });
@@ -1078,6 +1184,169 @@ exports.submitRiderRemittance = onCall(CALL, async (req) => {
     updatedAt: now
   }, { merge: true });
   return { ok: true, ...result };
+});
+
+// Finalize is the only point at which an uploaded Storage object becomes a
+// financial remittance. FCM is deliberately sent after this transaction and
+// the settlement queue update, so an incomplete/orphaned upload is never
+// announced to Admins.
+exports.finalizeRiderRemittanceUpload = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'finalizeRiderRemittanceUpload');
+
+  const uid = req.auth.uid;
+  const remittanceId = typeof req.data?.remittanceId === 'string'
+    ? req.data.remittanceId.trim()
+    : '';
+  const uploadId = typeof req.data?.uploadId === 'string'
+    ? req.data.uploadId.trim()
+    : '';
+
+  if (!remittanceId || !uploadId || uploadId.length > 200) {
+    throw new HttpsError('invalid-argument', 'ข้อมูล Upload Session ไม่ครบ');
+  }
+
+  const remittanceRef = db.collection('rider_remittances').doc(remittanceId);
+  const initialSnap = await remittanceRef.get();
+  if (!initialSnap.exists) throw new HttpsError('not-found', 'ไม่พบรายการ Remittance');
+
+  const initial = initialSnap.data() || {};
+  if (initial.riderId !== uid) {
+    throw new HttpsError('permission-denied', 'ไม่มีสิทธิ์จัดการรายการนี้');
+  }
+  if (initial.status !== 'uploading') {
+    if (initial.status === 'pending') {
+      return { ok: true, alreadyFinalized: true, remittanceId, status: 'pending', dateKey: initial.dateKey };
+    }
+    throw new HttpsError('failed-precondition', 'รายการไม่อยู่ในสถานะรออัปโหลด');
+  }
+  if (initial.uploadId !== uploadId) {
+    throw new HttpsError('permission-denied', 'Upload Session ไม่ถูกต้อง');
+  }
+
+  const slipPath = String(initial.slipPath || '');
+  const expectedPrefix = `settlement_slips/riders/${uid}/`;
+  if (!slipPath.startsWith(expectedPrefix) || slipPath.includes('..')) {
+    throw new HttpsError('failed-precondition', 'ตำแหน่งไฟล์สลิปไม่ถูกต้อง');
+  }
+
+  const file = bucket.file(slipPath);
+  let metadata;
+  try {
+    [metadata] = await file.getMetadata();
+  } catch (error) {
+    if (error.code === 404) throw new HttpsError('not-found', 'ยังไม่พบไฟล์สลิปใน Storage');
+    console.error('Failed to inspect remittance upload', error);
+    throw new HttpsError('internal', 'ไม่สามารถตรวจสอบไฟล์สลิปได้');
+  }
+
+  const size = Number(metadata.size || 0);
+  const contentType = String(metadata.contentType || '').toLowerCase();
+  const objectUploadId = String(metadata.metadata?.uploadId || '');
+  if (!['image/jpeg', 'image/png'].includes(contentType)) {
+    throw new HttpsError('invalid-argument', 'ประเภทไฟล์สลิปไม่ถูกต้อง');
+  }
+  if (!Number.isFinite(size) || size <= 0 || size > 20 * 1024 * 1024) {
+    throw new HttpsError('invalid-argument', 'ขนาดไฟล์สลิปไม่ถูกต้องหรือใหญ่เกินกำหนด');
+  }
+  if (objectUploadId !== uploadId) {
+    throw new HttpsError('failed-precondition', 'ไฟล์ไม่ตรงกับ Upload Session');
+  }
+
+  const now = Timestamp.now();
+  const result = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(remittanceRef);
+    if (!snap.exists) throw new HttpsError('not-found', 'ไม่พบรายการ Remittance');
+    const current = snap.data() || {};
+    if (current.riderId !== uid || current.uploadId !== uploadId) {
+      throw new HttpsError('failed-precondition', 'รายการ Upload ถูกเปลี่ยนแปลงแล้ว');
+    }
+    if (current.status === 'pending') {
+      return { alreadyFinalized: true, remittance: current };
+    }
+    if (current.status !== 'uploading') {
+      throw new HttpsError('failed-precondition', 'สถานะ Remittance ไม่ถูกต้อง');
+    }
+    tx.update(remittanceRef, {
+      status: 'pending',
+      contentType,
+      fileSize: size,
+      storageGeneration: String(metadata.generation || ''),
+      submittedAt: now,
+      updatedAt: now
+    });
+    return { alreadyFinalized: false, remittance: { ...current, status: 'pending' } };
+  });
+
+  const remittance = result.remittance;
+  await db.collection('settlement_queue').doc(`rider_${uid}`).set({
+    kind: 'rider',
+    partyId: uid,
+    status: 'pending',
+    amount: remittance.amount,
+    displayAmount: remittance.amount,
+    dateKey: remittance.dateKey,
+    latestRemittanceId: remittanceId,
+    latestRemittanceStatus: 'pending',
+    updatedAt: now
+  }, { merge: true });
+
+  let adminNotification;
+  if (shouldNotifyFinalizedRemittance(result)) {
+    adminNotification = await notifyAdminsOfRemittance(db, {
+      remittanceId,
+      riderId: uid,
+      riderName: String(remittance.riderName || ''),
+      dateKey: remittance.dateKey,
+      amount: remittance.amount,
+      amountSubmitted: remittance.amountSubmitted
+    }).catch((error) => {
+      console.error(JSON.stringify({
+        event: 'remittance_admin_notification_failed',
+        remittanceId,
+        riderId: uid,
+        errorCode: error && error.code ? String(error.code) : 'unknown',
+        errorMessage: error && error.message ? String(error.message).slice(0, 300) : 'unknown'
+      }));
+      return { ok: false, status: 'failed', reason: 'notification_exception' };
+    });
+  }
+
+  return {
+    ok: true,
+    alreadyFinalized: result.alreadyFinalized,
+    remittanceId,
+    dateKey: remittance.dateKey,
+    slipPath,
+    status: 'pending',
+    adminNotification
+  };
+});
+
+// Admin clients register their FCM token through a trusted callable. Tokens
+// are never accepted from an unauthenticated or non-admin client write.
+exports.registerAdminFcmToken = onCall(CALL, async (req) => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'ต้องเข้าสู่ระบบ');
+  guardRequiredAppCheck(req, 'registerAdminFcmToken');
+  if (!(await D.callerIsAdmin(db, req.auth))) {
+    throw new HttpsError('permission-denied', 'เฉพาะแอดมินเท่านั้น');
+  }
+
+  const token = typeof req.data?.token === 'string' ? req.data.token.trim() : '';
+  if (!token || token.length > 4096) {
+    throw new HttpsError('invalid-argument', 'FCM Token ไม่ถูกต้อง');
+  }
+
+  const adminRef = db.collection('admins').doc(req.auth.uid);
+  const adminSnap = await adminRef.get();
+  const currentRole = adminSnap.exists ? String(adminSnap.data().role || '') : '';
+  await adminRef.set({
+    fcmTokens: FieldValue.arrayUnion(token),
+    fcmTokenUpdatedAt: Timestamp.now(),
+    ...(currentRole === 'active' || currentRole === 'super' ? {} : { role: 'active' })
+  }, { merge: true });
+
+  return { ok: true };
 });
 
 exports.reviewRiderRemittance = onCall(CALL, async (req) => {
@@ -1123,14 +1392,24 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         plan.jobIds.forEach((jobId) => {
           tx.update(db.collection('orders').doc(jobId), { riderPaid: true, riderPaidAt: now });
         });
-        tx.update(ref, { status: 'verified', verifiedAt: now, verifiedBy: req.auth.uid, jobIds: plan.jobIds });
+        const submittedAmount = Number.isFinite(plan.submittedAmount)
+          ? plan.submittedAmount
+          : Math.round(Number(remittance.amountSubmitted != null ? remittance.amountSubmitted : remittance.amount || 0) * 100) / 100;
+        const remainingDue = Math.max(0, Math.round((Number(plan.dueAmount || 0) - submittedAmount) * 100) / 100);
+        const overpaidAmount = Math.max(0, Math.round((submittedAmount - Number(plan.dueAmount || 0)) * 100) / 100);
+        tx.update(ref, {
+          status: 'verified',
+          verifiedAt: now,
+          verifiedBy: req.auth.uid,
+          jobIds: plan.jobIds,
+          amountExpected: Number(plan.dueAmount || 0),
+          amountSubmitted: submittedAmount,
+          remainingDue,
+          overpaidAmount
+        });
         if (riderSnap.exists) {
           const unlockAt = Timestamp.fromMillis(now.toMillis() + 24 * 60 * 60 * 1000);
-          tx.update(riderRef, {
-            onlineLockedUntil: unlockAt,
-            onlineLockReason: 'remit_verified_cooldown',
-            remittanceVerificationUntil: unlockAt
-          });
+          tx.update(riderRef, riderLockProjection(riderSnap.data(), now.toMillis(), unlockAt.toMillis()));
         }
       }
       tx.set(db.collection('settlement_queue').doc('rider_' + riderId), {
@@ -1142,7 +1421,7 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         nextAmount: freshDue.nextAmount,
         nextDateKey: freshDue.nextDateKey,
         cutoff: freshDue.cutoff,
-        displayAmount: Number(remittance.amount || 0),
+        displayAmount: freshDue.amount > 0 ? freshDue.amount : (freshDue.nextAmount > 0 ? freshDue.nextAmount : 0),
         latestRemittanceId: remittanceId,
         latestRemittanceStatus: plan.status,
         updatedAt: now
@@ -1154,16 +1433,16 @@ exports.reviewRiderRemittance = onCall(CALL, async (req) => {
         remittanceId,
         riderId,
         dueAmount: plan.dueAmount,
-        overpaidAmount: plan.overpaidAmount || 0
+        overpaidAmount: plan.overpaidAmount || 0,
+        remainingDue: plan.status === 'verified'
+          ? Math.max(0, Math.round((Number(plan.dueAmount || 0) - Number(plan.submittedAmount || 0)) * 100) / 100)
+          : undefined
       };
     });
     console.info(JSON.stringify({ event: 'rider_remittance_reviewed', remittanceId, status: result.status }));
     return result;
   } catch (err) {
-    if (err instanceof HttpsError) throw err;
-    if (err && err.code === 'failed-precondition') throw new HttpsError('failed-precondition', err.message);
-    console.error('reviewRiderRemittance failed', err);
-    throw new HttpsError('internal', 'ตรวจสอบสลิปไรเดอร์ไม่สำเร็จ');
+    throw reviewRiderError(err);
   }
 });
 

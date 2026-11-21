@@ -1,0 +1,150 @@
+name: Weekly Performance Test Orchestrator
+
+on:
+  schedule:
+    # Every Monday at 08:45 Asia/Bangkok (01:45 UTC).
+    # The orchestrator dispatches the main Performance workflow and waits for it.
+    - cron: '45 1 * * 1'
+
+  workflow_dispatch:
+    inputs:
+      users:
+        description: 'Locust concurrent users'
+        required: false
+        default: '2'
+        type: string
+      spawn_rate:
+        description: 'Locust users spawned per second'
+        required: false
+        default: '1'
+        type: string
+      run_time:
+        description: 'Locust duration, for example 10s or 2m'
+        required: false
+        default: '10s'
+        type: string
+      max_failure_rate:
+        description: 'Maximum local failure rate percentage'
+        required: false
+        default: '1'
+        type: string
+      max_p95_ms:
+        description: 'Maximum local p95 response time in milliseconds'
+        required: false
+        default: '200'
+        type: string
+      notify:
+        description: 'Notification mode'
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - none
+          - slack
+          - teams
+          - both
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: weekly-performance-test-orchestrator
+  cancel-in-progress: false
+
+env:
+  REPOSITORY: ${{ github.repository }}
+  REF: main
+  USERS: ${{ inputs.users || '2' }}
+  SPAWN_RATE: ${{ inputs.spawn_rate || '1' }}
+  RUN_TIME: ${{ inputs.run_time || '10s' }}
+  NOTIFY_MODE: ${{ inputs.notify || 'auto' }}
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  performance-orchestrator:
+    name: Dispatch, monitor, and summarize Performance Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify required tools
+        run: |
+          set -euo pipefail
+          gh --version
+          jq --version
+          python3 --version
+          gh auth status
+
+      - name: Validate orchestrator files
+        run: |
+          set -euo pipefail
+          test -x scripts/ci/run-performance-and-notify.sh || chmod 700 scripts/ci/run-performance-and-notify.sh
+          test -f scripts/performance/summarize_locust_results.py
+          bash -n scripts/ci/run-performance-and-notify.sh
+          python3 -m py_compile scripts/performance/summarize_locust_results.py
+          rm -rf scripts/performance/__pycache__
+
+      - name: Run Performance Orchestrator
+        id: orchestrator
+        env:
+          WATCH_TIMEOUT_MINUTES: '30'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/weekly
+
+          scripts/ci/run-performance-and-notify.sh \
+            --repo "$REPOSITORY" \
+            --ref "$REF" \
+            --users "$USERS" \
+            --spawn-rate "$SPAWN_RATE" \
+            --run-time "$RUN_TIME" \
+            --max-failure-rate "${{ inputs.max_failure_rate || '1' }}" \
+            --max-p95-ms "${{ inputs.max_p95_ms || '200' }}" \
+            --notify "$NOTIFY_MODE" \
+            --output-root artifacts/weekly
+
+      - name: Upload downloaded Locust reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchestrator-performance-reports-${{ github.run_id }}
+          path: artifacts/weekly/
+          if-no-files-found: ignore
+          retention-days: 30
+          compression-level: 6
+
+      - name: Write Actions Summary
+        if: always()
+        run: |
+          {
+            echo '## Weekly Performance Orchestrator'
+            echo
+            echo "- Repository: \`$REPOSITORY\`"
+            echo "- Ref: \`$REF\`"
+            echo "- Locust users: \`$USERS\`"
+            echo "- Spawn rate: \`$SPAWN_RATE\`"
+            echo "- Run time: \`$RUN_TIME\`"
+            echo "- Notification mode: \`$NOTIFY_MODE\`"
+            echo
+            echo 'Downloaded reports are available in the Artifacts section.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show failure diagnostics
+        if: failure()
+        run: |
+          echo 'The orchestrator failed. Check the step logs and downloaded artifacts for details.' >&2

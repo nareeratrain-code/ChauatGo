@@ -62,12 +62,16 @@ function riderDailyDue(jobs, nowMs) {
   const rows = (jobs || []).filter((job) => {
     if (!job || (job.status !== 'done' && job.status !== 'delivered')) return false;
     if (job.riderPaid === true) return false;
+    const fare = Number(job.fare);
+    if (!Number.isFinite(fare) || fare <= 0) return false;
     return riderRemittanceDateKey(job) === today;
   });
   const nextDateKey = addBangkokDays(today, 1);
   const nextRows = (jobs || []).filter((job) => {
     if (!job || (job.status !== 'done' && job.status !== 'delivered')) return false;
     if (job.riderPaid === true) return false;
+    const fare = Number(job.fare);
+    if (!Number.isFinite(fare) || fare <= 0) return false;
     return riderRemittanceDateKey(job) === nextDateKey;
   });
   const amount = round2(rows.reduce((sum, job) => sum + (Number(job.fare || 0) * PLATFORM_SHARE), 0));
@@ -129,8 +133,15 @@ function riderReviewPlan(remittance, jobs, action) {
     if (!when || riderRemittanceDateKey(job) !== dateKey) return null;
     return job;
   }).filter(Boolean), Date.parse(dateKey + 'T12:00:00+07:00'));
-  const submittedAmount = round2(remittance.amount);
-  if (due.amount <= 0 || submittedAmount < due.amount) {
+  // New records store the amount declared on the slip separately from the
+  // server-calculated due amount. Fall back to the legacy `amount` field for
+  // old records, where it represented the submitted amount.
+  const submittedAmount = round2(
+    remittance && remittance.amountSubmitted != null
+      ? remittance.amountSubmitted
+      : remittance && remittance.amount
+  );
+  if (!Number.isFinite(submittedAmount) || due.amount <= 0 || submittedAmount < due.amount) {
     const err = new Error('ยอดสลิปน้อยกว่ายอดที่ต้องโอนวันนี้');
     err.code = 'failed-precondition';
     throw err;
@@ -140,6 +151,7 @@ function riderReviewPlan(remittance, jobs, action) {
     status: 'verified',
     jobIds: due.jobIds,
     dueAmount: due.amount,
+    submittedAmount,
     overpaidAmount: round2(submittedAmount - due.amount)
   };
 }

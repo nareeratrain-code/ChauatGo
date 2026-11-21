@@ -48,4 +48,29 @@ function remitLockPlan(input) {
   return { action: 'wait', notify: notify, lockWarning: lockWarning, key: clock.key, minutesToDeadline: minutesUntil(nowMs, 21, 0) };
 }
 
-module.exports = { bangkokClock, minutesUntil, remitLockPlan, DAY_MS };
+// Combine independent policies without allowing a remittance review or sweep
+// to clear a risk/safety restriction. The longest active lock wins; ties use
+// the higher-priority safety policy.
+function effectiveLockPlan(input) {
+  const nowMs = Number(input && input.nowMs) || Date.now();
+  const policies = [
+    { untilMs: Number(input && input.remitLockUntilMs) || 0, reason: 'remit_overdue', priority: 30 },
+    { untilMs: Number(input && input.verificationCooldownUntilMs) || 0, reason: 'remit_verified_cooldown', priority: 20 },
+    { untilMs: Number(input && input.adminManualUntilMs) || 0, reason: 'admin_manual', priority: 35 },
+    { untilMs: Number(input && input.riskRestrictionUntilMs) || 0, reason: 'risk_restriction', priority: 40 },
+    { untilMs: Number(input && input.safetySuspensionUntilMs) || 0, reason: 'safety_suspension', priority: 50 }
+  ].filter((policy) => policy.untilMs > nowMs);
+
+  policies.sort((left, right) => (
+    right.untilMs - left.untilMs || right.priority - left.priority
+  ));
+
+  if (!policies.length) return { locked: false, untilMs: 0, reason: null };
+  return {
+    locked: true,
+    untilMs: policies[0].untilMs,
+    reason: policies[0].reason
+  };
+}
+
+module.exports = { bangkokClock, minutesUntil, remitLockPlan, effectiveLockPlan, DAY_MS };

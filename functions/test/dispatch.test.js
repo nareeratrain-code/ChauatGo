@@ -1080,9 +1080,44 @@ test('dispatch against the emulator', { skip: !process.env.FIRESTORE_EMULATOR_HO
       ['customer cannot set fare', () => assertFails(cdb.collection('orders').add({
         type: 'food', userId: 'cust1', status: 'searching', fare: 1, total: 999, riderId: null
       }))],
+      ['customer cannot delete an order', () => assertFails(cdb.collection('orders').doc('done1').delete())],
+      ['rider cannot delete an order', () => assertFails(rdb.collection('orders').doc('near1').delete())],
+      ['merchant cannot delete an order', () => assertFails(sdb.collection('orders').doc('open1').delete())],
+      ['stranger cannot delete an order', () => assertFails(stdb.collection('orders').doc('open1').delete())],
       ['rider cannot write payout', () => assertFails(rdb.collection('orders').doc('near1').update({
         status: 'done', riderIncome: 80, riderOwe: 20, riderPaid: false
       }))],
+      ['admin cannot edit server-owned money fields', async () => {
+        const moneyFields = {
+          fare: 999,
+          total: 999,
+          foodTotal: 999,
+          itemsTotal: 999,
+          subtotal: 999,
+          netTotal: 999,
+          discountTotal: 999,
+          cashTip: 999,
+          items: [{ name: 'ปลอม', qty: 1, price: 999 }],
+          riderIncome: 999,
+          riderOwe: 999,
+          riderPaid: true,
+          gpTotal: 999,
+          gpRider: 999,
+          gpPlatform: 999,
+          chargedTotal: 999,
+          riderPayoutPaid: true,
+          riderPayoutPaidAt: new Date(),
+          riderPayoutId: 'browser-forged-payout',
+          riderPayoutBy: 'admin1',
+          partnerShop: false,
+          shopDisclaimerAccepted: true
+        };
+        for (const [field, value] of Object.entries(moneyFields)) {
+          await assertFails(
+            adb.collection('orders').doc('near1').update({ [field]: value })
+          );
+        }
+      }],
       ['rider cannot bump totals', () => assertFails(rdb.collection('riders').doc('rider1').update({ totalJobs: 9, totalIncome: 9 }))],
       ['rider own list', () => assertSucceeds(rdb.collection('orders').where('riderId', '==', 'rider1').where('status', 'in', ['accepted', 'picked_up']).limit(5).get())],
       ['rider deny offer write', () => assertFails(rdb.collection('orders').doc('open1').collection('dispatchOffers').doc('x').set({ riderId: 'rider1', status: 'pending' }))],

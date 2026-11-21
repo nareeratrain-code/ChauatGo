@@ -1,0 +1,293 @@
+name: Validate Performance Release Sign-off
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+# Required repository secret:
+#   SIGNOFF_GITHUB_TOKEN
+# Use a GitHub App token or fine-grained PAT with permission to read
+# organization team membership. GITHUB_TOKEN is usually insufficient for
+# the Teams membership endpoint.
+
+env:
+  SIGNOFF_ORG: ${{ vars.SIGNOFF_ORG || github.repository_owner }}
+  SIGNOFF_TEAM_QA: ${{ vars.SIGNOFF_TEAM_QA || 'qa-team' }}
+  SIGNOFF_TEAM_ENGINEERING: ${{ vars.SIGNOFF_TEAM_ENGINEERING || 'engineering-team' }}
+  SIGNOFF_TEAM_SRE: ${{ vars.SIGNOFF_TEAM_SRE || 'platform-team' }}
+  SIGNOFF_TEAM_PRODUCT: ${{ vars.SIGNOFF_TEAM_PRODUCT || 'product-team' }}
+
+jobs:
+  validate-signoff:
+    name: Validate release sign-off command
+    if: >-
+      github.event.issue.pull_request == null &&
+      startsWith(github.event.comment.body, '/signoff')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Validate sign-off and update Release Gate Issue
+        uses: actions/github-script@v7
+        env:
+          SIGNOFF_TOKEN_CONFIGURED: ${{ secrets.SIGNOFF_GITHUB_TOKEN != '' }}
+          SIGNOFF_ORG: ${{ env.SIGNOFF_ORG }}
+          SIGNOFF_TEAM_QA: ${{ env.SIGNOFF_TEAM_QA }}
+          SIGNOFF_TEAM_ENGINEERING: ${{ env.SIGNOFF_TEAM_ENGINEERING }}
+          SIGNOFF_TEAM_SRE: ${{ env.SIGNOFF_TEAM_SRE }}
+          SIGNOFF_TEAM_PRODUCT: ${{ env.SIGNOFF_TEAM_PRODUCT }}
+        with:
+          github-token: ${{ secrets.SIGNOFF_GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const comment = context.payload.comment;
+            const actor = context.actor;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const releaseGateMarker = '<!-- performance-release-gate -->';
+            const signoffMarkerPrefix = '<!-- performance-signoff:';
+            const summaryMarker = '<!-- performance-signoff-summary -->';
+            const requiredRoles = ['qa', 'engineering', 'sre', 'product'];
+
+            const teamByRole = {
+              qa: process.env.SIGNOFF_TEAM_QA,
+              engineering: process.env.SIGNOFF_TEAM_ENGINEERING,
+              sre: process.env.SIGNOFF_TEAM_SRE,
+              product: process.env.SIGNOFF_TEAM_PRODUCT,
+            };
+
+            function fail(message) {
+              core.setFailed(message);
+              return false;
+            }
+
+            function roleName(role) {
+              return {
+                qa: 'QA / Performance',
+                engineering: 'Engineering',
+                sre: 'SRE / Platform',
+                product: 'Product / Operations',
+              }[role] || role;
+            }
+
+            function isSignoffIssue() {
+              const labels = issue.labels.map(label =>
+                typeof label === 'string' ? label : label.name
+              );
+              return issue.body?.includes(releaseGateMarker) &&
+                labels.includes('release-gate');
+            }
+
+            if (process.env.SIGNOFF_TOKEN_CONFIGURED !== 'true') {
+              return fail(
+                'SIGNOFF_GITHUB_TOKEN is not configured. Add a GitHub App token or fine-grained PAT with organization team-membership read access.'
+              );
+            }
+
+            if (!isSignoffIssue()) {
+              core.info(`Issue #${issue.number} is not an open Performance Release Gate Issue; ignoring.`);
+              return;
+            }
+
+            if (issue.state !== 'open') {
+              return fail(`Release Gate Issue #${issue.number} is closed; sign-off is not accepted.`);
+            }
+
+            const command = comment.body.trim().toLowerCase();
+            const match = command.match(/^\/signoff\s+(qa|engineering|sre|product)$/);
+            if (!match) {
+              core.info('Comment starts with /signoff but does not match the exact supported command.');
+              return;
+            }
+
+            const role = match[1];
+            const teamSlug = teamByRole[role];
+            const org = process.env.SIGNOFF_ORG;
+
+            if (!org || !teamSlug) {
+              return fail(`Team mapping is incomplete for role: ${role}`);
+            }
+
+            let membership;
+            try {
+              membership = await github.rest.teams.getMembershipForUserInOrg({
+                org,
+                team_slug: teamSlug,
+                username: actor,
+              });
+            } catch (error) {
+              if (error.status === 404) {
+                return fail(
+                  `@${actor} is not a member of @${org}/${teamSlug}; ${roleName(role)} sign-off rejected.`
+                );
+              }
+              throw error;
+            }
+
+            if (membership.data.state !== 'active') {
+              return fail(
+                `@${actor} has team membership state '${membership.data.state}', not active; sign-off rejected.`
+              );
+            }
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number: issue.number, per_page: 100 }
+            );
+
+            const roleMarker = `${signoffMarkerPrefix}${role} -->`;
+            const existingRoleComment = comments.find(existing =>
+              existing.user?.type === 'Bot' &&
+              existing.body?.includes(roleMarker)
+            );
+
+            const auditBody = [
+              roleMarker,
+              `### Sign-off recorded: ${roleName(role)}`,
+              '',
+              `- Approved by: @${actor}`,
+              `- Verified team: @${org}/${teamSlug}`,
+              `- Membership state: ${membership.data.state}`,
+              `- Source comment: #${comment.id}`,
+              `- Recorded at: ${new Date().toISOString()}`,
+              '',
+              '_This audit entry was created automatically after GitHub API team-membership verification._',
+            ].join('\n');
+
+            if (existingRoleComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingRoleComment.id,
+                body: auditBody,
+              });
+              core.info(`Updated existing ${role} sign-off audit comment.`);
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: auditBody,
+              });
+              core.info(`Created ${role} sign-off audit comment.`);
+            }
+
+            const verifiedRoles = new Set();
+            for (const existing of comments) {
+              if (existing.user?.type !== 'Bot' || !existing.body) continue;
+              for (const requiredRole of requiredRoles) {
+                if (existing.body.includes(`${signoffMarkerPrefix}${requiredRole} -->`)) {
+                  verifiedRoles.add(requiredRole);
+                }
+              }
+            }
+            verifiedRoles.add(role);
+
+            const missingRoles = requiredRoles.filter(
+              requiredRole => !verifiedRoles.has(requiredRole)
+            );
+
+            const summaryBody = [
+              summaryMarker,
+              '## Performance Release Gate Sign-off Status',
+              '',
+              ...requiredRoles.map(requiredRole => {
+                const status = verifiedRoles.has(requiredRole) ? '✅' : '⏳';
+                return `- ${status} ${roleName(requiredRole)} (\`${requiredRole}\`)`;
+              }),
+              '',
+              missingRoles.length === 0
+                ? '**Decision status: READY FOR PRODUCTION APPROVAL**'
+                : `**Decision status: PENDING — missing: ${missingRoles.join(', ')}**`,
+              '',
+              `Last verified sign-off: @${actor} (${roleName(role)})`,
+              `Updated at: ${new Date().toISOString()}`,
+            ].join('\n');
+
+            const existingSummary = comments.find(existing =>
+              existing.user?.type === 'Bot' &&
+              existing.body?.includes(summaryMarker)
+            );
+
+            if (existingSummary) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingSummary.id,
+                body: summaryBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: summaryBody,
+              });
+            }
+
+            const currentLabels = issue.labels.map(label =>
+              typeof label === 'string' ? label : label.name
+            ).filter(Boolean);
+            const nextLabels = new Set(currentLabels);
+
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name,
+                  color,
+                  description,
+                });
+              }
+            }
+
+            await ensureLabel('performance', '1D76DB', 'Performance testing and release validation');
+            await ensureLabel('release-gate', 'FBCA04', 'Release requires sign-off');
+            await ensureLabel('pending-signoff', 'D93F0B', 'Release sign-off is incomplete');
+            await ensureLabel('release-approved', '0E8A16', 'All required release sign-offs are complete');
+
+            nextLabels.add('performance');
+
+            if (missingRoles.length === 0) {
+              nextLabels.delete('release-gate');
+              nextLabels.delete('pending-signoff');
+              nextLabels.add('release-approved');
+              nextLabels.add('performance');
+            } else {
+              nextLabels.add('release-gate');
+              nextLabels.add('pending-signoff');
+              nextLabels.delete('release-approved');
+            }
+
+            await github.rest.issues.setLabels({
+              owner,
+              repo,
+              issue_number: issue.number,
+              labels: [...nextLabels],
+            });
+
+            core.notice(
+              missingRoles.length === 0
+                ? `All required sign-offs verified for Issue #${issue.number}.`
+                : `Sign-off accepted for ${role}; remaining roles: ${missingRoles.join(', ') || 'none'}.`
+            );
+
+      - name: Write workflow summary
+        if: always()
+        run: |
+          {
+            echo '## Performance Release Sign-off Validation'
+            echo
+            echo '- Issue comment trigger was evaluated.'
+            echo '- Team membership was checked through the GitHub API.'
+            echo '- See the job log and Release Gate Issue for the audit result.'
+          } >> "$GITHUB_STEP_SUMMARY"
