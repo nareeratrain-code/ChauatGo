@@ -7,6 +7,9 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..', '..');
 const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+const reviewError = fs.readFileSync(path.join(root, 'functions', 'review-error.js'), 'utf8');
+const riderHistory = fs.readFileSync(path.join(root, 'functions', 'rider-history.js'), 'utf8');
+const merchantPrivate = fs.readFileSync(path.join(root, 'functions', 'merchant-private.js'), 'utf8');
 const payout = fs.readFileSync(path.join(root, 'functions', 'payout.js'), 'utf8');
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'admin.js'), 'utf8');
@@ -49,6 +52,28 @@ test('rider remittance submit and review recalculate orders from transaction sna
   assert.match(reviewBody, /const plan = riderReviewPlan\(remittance, jobs, action\)/);
   assert.equal(reviewBody.includes('const preview = await ref.get()'), false);
   assert.equal(reviewBody.includes("db.collection('orders').where('riderId', '==', riderIdPreview)"), false);
+  assert.match(index, /displayAmount = due\.amount > 0/);
+  assert.doesNotMatch(index, /due\.nextAmount > 0 \? due\.nextAmount : \(latest && latest\.status/);
+  assert.match(reviewBody, /displayAmount: freshDue\.amount > 0 \? freshDue\.amount/);
+});
+
+test('rider remittance review maps retryable Firestore errors to callable error codes', () => {
+  assert.match(index, /require\('\.\/review-error'\)/);
+  assert.match(reviewError, /function reviewRiderError\(err\)/);
+  assert.match(reviewError, /10: 'aborted'/);
+  assert.match(reviewError, /14: 'unavailable'/);
+  assert.match(reviewError, /4: 'deadline-exceeded'/);
+  assert.match(reviewError, /CALLABLE_CODES = new Set/);
+  assert.match(index, /throw reviewRiderError\(err\)/);
+  assert.doesNotMatch(index, /reviewRiderRemittance failed', err\);\n\s*throw new HttpsError\('internal'/);
+});
+
+test('event-trigger helpers skip deleted documents through transaction existence guards', () => {
+  assert.match(riderHistory, /await db\.runTransaction\(async \(tx\)/);
+  assert.match(riderHistory, /if \(!current\.exists\) return;/);
+  assert.match(merchantPrivate, /return docRef\.firestore\.runTransaction\(async \(tx\)/);
+  assert.match(merchantPrivate, /if \(!current\.exists\) return false;/);
+  assert.match(merchantPrivate, /tx\.update\(docRef, del\)/);
 });
 
 test('Rider payout is atomic and cannot be created or edited by the browser', () => {

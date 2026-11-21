@@ -153,6 +153,7 @@ jobs:
             --users "$LOCUST_USERS" \
             --spawn-rate "$LOCUST_SPAWN_RATE" \
             --run-time "$LOCUST_RUN_TIME" \
+            --html locust-report.html \
             --only-summary
 
       - name: Enforce Locust quality gate
@@ -170,16 +171,18 @@ jobs:
             --max-failures "$LOCUST_MAX_FAILURES" \
             --min-requests 1
 
-      - name: Upload Locust result and quality gate output
+      - name: Upload Locust reports and quality gate output
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: locust-quality-gate-${{ github.run_id }}
+          name: locust-performance-report-${{ github.run_id }}
           path: |
             locust-results.json
+            locust-report.html
             /tmp/chauatgo-locust-server.log
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 30
+          compression-level: 6
 
       - name: Upload Playwright report
         if: always()
@@ -188,7 +191,22 @@ jobs:
           name: rider-filter-performance-report-${{ github.run_id }}
           path: playwright-report/
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 30
+          compression-level: 6
+
+      - name: Write performance report summary
+        if: always()
+        run: |
+          {
+            echo '## Performance Test Artifacts'
+            echo
+            echo '- Locust HTML report: `locust-report.html`'
+            echo '- Locust normalized metrics: `locust-results.json`'
+            echo '- Locust server log: `chauatgo-locust-server.log`'
+            echo '- Playwright report: `playwright-report/`'
+            echo
+            echo 'Artifacts are available from the Summary page of this workflow run.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Comment Locust quality gate result on PR
         if: >-

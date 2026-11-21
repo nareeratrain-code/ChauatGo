@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { shopGpDue, riderDailyDue, riderReviewPlan, publicPayout, settlementChatId, riderRemittanceId, riderRemittanceDateKey } = require('../settlement');
+const { effectiveLockPlan } = require('../remit-lock');
 
 const DAY = 86400000;
 
@@ -68,6 +69,38 @@ test('late-night remittance rolls over exactly at Bangkok midnight', () => {
   assert.deepEqual(afterMidnight.jobIds, ['midnight-rollover']);
 });
 
+test('remittance due excludes jobs from the wrong cycle or without an eligible completion', () => {
+  const now = Date.parse('2026-11-17T10:00:00+07:00');
+  const jobs = [
+    { id: 'current', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-17T09:00:00+07:00') },
+    { id: 'previous-day', status: 'done', fare: 500, riderPaid: false, doneAt: Date.parse('2026-11-16T20:59:59+07:00') },
+    { id: 'already-paid', status: 'delivered', fare: 500, riderPaid: true, deliveredAt: Date.parse('2026-11-17T08:00:00+07:00') },
+    { id: 'still-active', status: 'on_the_way', fare: 500, riderPaid: false, createdAt: Date.parse('2026-11-17T08:00:00+07:00') },
+    { id: 'missing-completion', status: 'done', fare: 500, riderPaid: false },
+    { id: 'invalid-fare', status: 'done', fare: 'not-a-number', riderPaid: false, doneAt: Date.parse('2026-11-17T08:30:00+07:00') }
+  ];
+  const due = riderDailyDue(jobs, now);
+
+  assert.equal(due.amount, 20);
+  assert.deepEqual(due.jobIds, ['current']);
+  assert.deepEqual(due.nextJobIds, []);
+});
+
+test('a job completed exactly at 21:00 is not counted in the current remittance window', () => {
+  const atCutoff = Date.parse('2026-11-17T21:00:00+07:00');
+  const beforeCutoff = Date.parse('2026-11-17T20:59:59+07:00');
+  const jobs = [
+    { id: 'at-cutoff', status: 'done', fare: 100, riderPaid: false, doneAt: atCutoff },
+    { id: 'before-cutoff', status: 'done', fare: 50, riderPaid: false, doneAt: beforeCutoff }
+  ];
+
+  const due = riderDailyDue(jobs, atCutoff);
+  assert.equal(due.amount, 10);
+  assert.deepEqual(due.jobIds, ['before-cutoff']);
+  assert.equal(due.nextAmount, 20);
+  assert.deepEqual(due.nextJobIds, ['at-cutoff']);
+});
+
 test('admin confirm marks only a matching pending slip and reject does not', () => {
   const jobs = [
     { id: 'a', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
@@ -91,6 +124,134 @@ test('admin accepts an overpayment while reporting the calculated due and overag
   assert.equal(plan.status, 'verified');
   assert.equal(plan.dueAmount, 6);
   assert.equal(plan.overpaidAmount, 4);
+});
+
+test('review uses amountSubmitted when it is separate from server-calculated due', () => {
+  const jobs = [
+    { id: 'a', status: 'done', fare: 30, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+  const plan = riderReviewPlan({ status: 'pending', amount: 6, amountSubmitted: 10, dateKey: '2026-11-11' }, jobs, 'verify');
+  assert.equal(plan.dueAmount, 6);
+  assert.equal(plan.overpaidAmount, 4);
+});
+
+test('underpaid amountSubmitted is rejected even when legacy amount matches the due', () => {
+  const jobs = [
+    { id: 'underpaid-1', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+  assert.throws(
+    () => riderReviewPlan({
+      status: 'pending',
+      amount: 20,
+      amountSubmitted: 19.99,
+      dateKey: '2026-11-11'
+    }, jobs, 'verify'),
+    (error) => error.code === 'failed-precondition' && /น้อยกว่ายอด/.test(error.message)
+  );
+});
+
+test('zero, negative, and missing submitted amounts cannot verify a positive remittance', () => {
+  const jobs = [
+    { id: 'invalid-submitted-amount', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+
+  for (const amountSubmitted of [0, -0.01, null, undefined]) {
+    assert.throws(
+      () => riderReviewPlan({ status: 'pending', amountSubmitted, dateKey: '2026-11-11' }, jobs, 'verify'),
+      (error) => error.code === 'failed-precondition' && /น้อยกว่ายอด/.test(error.message)
+    );
+  }
+});
+
+test('a remittance for the wrong Bangkok date cannot verify against another cycle', () => {
+  const jobs = [
+    { id: 'wrong-cycle', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+
+  assert.throws(
+    () => riderReviewPlan({ status: 'pending', amountSubmitted: 100, dateKey: '2026-11-12' }, jobs, 'verify'),
+    (error) => error.code === 'failed-precondition' && /น้อยกว่ายอด/.test(error.message)
+  );
+});
+
+test('overpaid amountSubmitted is accepted and reports only the excess amount', () => {
+  const jobs = [
+    { id: 'overpaid-1', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+  const plan = riderReviewPlan({
+    status: 'pending',
+    amount: 20,
+    amountSubmitted: 40,
+    dateKey: '2026-11-11'
+  }, jobs, 'verify');
+  assert.equal(plan.status, 'verified');
+  assert.equal(plan.dueAmount, 20);
+  assert.equal(plan.overpaidAmount, 20);
+  assert.deepEqual(plan.jobIds, ['overpaid-1']);
+});
+
+test('overpaid amountSubmitted is rounded to two decimals before calculating the excess', () => {
+  const jobs = [
+    { id: 'overpaid-rounding', status: 'done', fare: 30, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+  const plan = riderReviewPlan({
+    status: 'pending',
+    amountSubmitted: 6.005,
+    dateKey: '2026-11-11'
+  }, jobs, 'verify');
+  assert.equal(plan.dueAmount, 6);
+  assert.equal(plan.overpaidAmount, 0.01);
+});
+
+test('review rejects Infinity and NaN submitted amounts', () => {
+  const jobs = [
+    { id: 'invalid-amount', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+  for (const amountSubmitted of [Infinity, NaN]) {
+    assert.throws(
+      () => riderReviewPlan({ status: 'pending', amountSubmitted, dateKey: '2026-11-11' }, jobs, 'verify'),
+      (error) => error.code === 'failed-precondition'
+    );
+  }
+});
+
+test('negative and non-finite fares cannot reduce or create the remittance due', () => {
+  const jobs = [
+    { id: 'valid-fare', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') },
+    { id: 'negative-fare', status: 'done', fare: -50, riderPaid: false, doneAt: Date.parse('2026-11-11T09:30:00+07:00') },
+    { id: 'infinite-fare', status: 'done', fare: Infinity, riderPaid: false, doneAt: Date.parse('2026-11-11T09:45:00+07:00') }
+  ];
+  const due = riderDailyDue(jobs, Date.parse('2026-11-11T10:00:00+07:00'));
+  assert.equal(due.amount, 20);
+  assert.deepEqual(due.jobIds, ['valid-fare']);
+});
+
+test('submitted amounts with more than two decimals use one rounded canonical value', () => {
+  const jobs = [
+    { id: 'decimal-amount', status: 'done', fare: 100, riderPaid: false, doneAt: Date.parse('2026-11-11T09:00:00+07:00') }
+  ];
+  const plan = riderReviewPlan({
+    status: 'pending',
+    amountSubmitted: 20.005,
+    dateKey: '2026-11-11'
+  }, jobs, 'verify');
+  assert.equal(plan.submittedAmount, 20.01);
+  assert.equal(plan.dueAmount, 20);
+  assert.equal(plan.overpaidAmount, 0.01);
+});
+
+test('effective lock keeps a longer risk or safety restriction after remittance review', () => {
+  const now = Date.parse('2026-11-11T10:00:00+07:00');
+  const cooldown = now + 24 * 60 * 60 * 1000;
+  const risk = now + 48 * 60 * 60 * 1000;
+  const plan = effectiveLockPlan({
+    nowMs: now,
+    verificationCooldownUntilMs: cooldown,
+    riskRestrictionUntilMs: risk
+  });
+  assert.equal(plan.locked, true);
+  assert.equal(plan.untilMs, risk);
+  assert.equal(plan.reason, 'risk_restriction');
 });
 
 test('admin still rejects a remittance below the calculated due', () => {

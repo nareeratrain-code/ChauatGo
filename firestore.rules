@@ -262,6 +262,26 @@ service cloud.firestore {
         && riderProfileUpdateOk();
     }
 
+    // Manual and policy restrictions are server-owned. The Admin callable uses
+    // the Admin SDK transaction (which bypasses Rules); direct Admin browser
+    // writes may still update ordinary profile/status fields, but never these
+    // lock fields or the optimistic-lock revision.
+    function adminRiderUpdateOk() {
+      return isAdmin()
+        && unchanged('onlineLockedUntil')
+        && unchanged('onlineLockReason')
+        && unchanged('manualLockDurationHours')
+        && unchanged('manualLockBy')
+        && unchanged('manualLockAt')
+        && unchanged('restrictionRevision')
+        && unchanged('restrictionUpdatedAt')
+        && unchanged('restrictionUpdatedBy')
+        && unchanged('riskRestrictionUntil')
+        && unchanged('safetySuspensionUntil')
+        && unchanged('complianceRestrictionUntil')
+        && unchanged('remittanceVerificationUntil');
+    }
+
     function menuCreateOk() {
       return isMerchant()
         && request.resource.data.merchantId == myUid()
@@ -1614,7 +1634,7 @@ service cloud.firestore {
         && myUid() == riderId
         && request.resource.data.verified == false
         && request.resource.data.get('riderId', myUid()) == myUid();
-      allow update: if isAdmin()
+      allow update: if adminRiderUpdateOk()
         || riderProfileWriteOk(riderId);
       allow delete: if isAdmin();
 
@@ -1972,6 +1992,13 @@ service cloud.firestore {
       allow read: if isAdmin() || (isAuth() && resource.data.riderId == myUid());
       // The submit callable calculates amount/date and writes the deterministic
       // rider_{uid}_{dateKey} document in a transaction.
+      allow create, update, delete: if false;
+    }
+
+    // Manual work restrictions are written and audited by the Admin callable.
+    // Admins may inspect the history; browser clients cannot forge or alter it.
+    match /rider_lock_audits/{auditId} {
+      allow read: if isAdmin();
       allow create, update, delete: if false;
     }
 

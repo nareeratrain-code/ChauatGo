@@ -49,6 +49,11 @@ function historySummary(orderId, after) {
     riderIncome: Number(after.riderIncome) || 0,
     riderOwe: Number(after.riderOwe) || 0,
     paymentMode: after.paymentMode || '',
+    // Admin verification marks the source order as riderPaid. Keep this
+    // server-owned flag in the rider-safe history copy so the dashboard does
+    // not continue calculating a paid job as an outstanding remittance.
+    riderPaid: after.riderPaid === true,
+    riderPaidAt: after.riderPaidAt || null,
     status: after.status,
     safe: true
   };
@@ -63,13 +68,21 @@ async function syncRiderHistory(db, orderId, after) {
   const patch = { piiRedacted: true };
   if (after.riderPhone) patch.riderPhone = FieldValue.delete();
   if (masked && masked !== after.riderName) patch.riderName = masked;
-  await db.collection('orders').doc(orderId).collection('private').doc('contacts').set({
-    riderName: after.riderName || '',
-    riderPhone: after.riderPhone || '',
-    userName: after.userName || '',
-    userPhone: after.userPhone || ''
-  }, { merge: true });
-  await db.collection('orders').doc(orderId).update(patch);
+  const orderRef = db.collection('orders').doc(orderId);
+  const contactRef = orderRef.collection('private').doc('contacts');
+  await db.runTransaction(async (tx) => {
+    const current = await tx.get(orderRef);
+    // Firestore can deliver a previously captured write after the document was
+    // deleted. Do not recreate an orphan private contact or fail the trigger.
+    if (!current.exists) return;
+    tx.set(contactRef, {
+      riderName: after.riderName || '',
+      riderPhone: after.riderPhone || '',
+      userName: after.userName || '',
+      userPhone: after.userPhone || ''
+    }, { merge: true });
+    tx.update(orderRef, patch);
+  });
   return true;
 }
 

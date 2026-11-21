@@ -186,8 +186,15 @@ service firebase.storage {
 
     match /settlement_slips/riders/{uid}/{fileName} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if isImage() && request.auth.uid == uid && isRiderAccount();
-      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // A submitted remittance slip is financial evidence. Riders may upload
+      // a new object, but cannot overwrite or delete an existing object after
+      // it has been referenced by the server-owned remittance record.
+      allow create: if isImage()
+        && request.auth.uid == uid
+        && isRiderAccount()
+        && resource == null;
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     match /gp_slips/{uid}/{fileName} {

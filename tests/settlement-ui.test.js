@@ -75,7 +75,9 @@ test('rider remittance countdown is read-only and only the transfer button opens
 test('rider remittance UI refreshes sync and warning markers per Bangkok date', () => {
   assert.match(rider, /const noticeKey = 'remit-notice-' \+ todayKey/);
   assert.match(rider, /_remitQueueSyncedDateKey/);
-  assert.match(rider, /const shouldSync = Number\(amount\) > 0 \|\| Number\(meta && meta\.nextAmount\) > 0/);
+  assert.match(rider, /const shouldSync = Number\(amount\) > 0 \|\| Number\(meta && meta.nextAmount\) > 0/);
+  assert.match(rider, /let serverRiderDue = null/);
+  assert.match(rider, /Object\.assign\(\{\}, localRemit, serverRiderDue\)/);
 });
 
 test('locked rider dashboard keeps the overdue remittance amount visible', () => {

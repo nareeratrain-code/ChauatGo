@@ -1188,6 +1188,7 @@ async function handleLogout() {
   openJobs = [];
   activeMine = [];
   allHistory = [];
+  serverRiderDue = null;
   seenJobIds.clear();
   foodReadySeen = null;
   nearNotifiedOrderIds.clear();
@@ -1303,8 +1304,20 @@ function subscribeProfile() {
   myProfileUnsub = db.collection('riders').doc(currentUser.uid).onSnapshot(snap => {
     if (!snap.exists) return;
     const prevVerified = riderProfile?.verified;
+    const prevLockReason = riderProfile?.onlineLockReason;
+    const prevCooldown = riderProfile?.remittanceVerificationUntil;
+    const prevCooldownMs = toDate(prevCooldown)?.getTime() || 0;
     const prevNotice = riderProfile && riderProfile.lastNotice && riderProfile.lastNotice.text;
     riderProfile = { uid: currentUser.uid, ...snap.data() };
+    const nextCooldown = riderProfile.remittanceVerificationUntil;
+    const nextCooldownMs = toDate(nextCooldown)?.getTime() || 0;
+    const cooldownChanged = prevCooldownMs !== nextCooldownMs;
+    if (prevLockReason !== riderProfile.onlineLockReason || cooldownChanged) {
+      // A review changes the rider document before the history trigger may
+      // finish. Allow the server settlement sync to replace stale local
+      // history immediately instead of keeping an old due amount on screen.
+      window._remitQueueSyncedDateKey = '';
+    }
     if (prevVerified === false && riderProfile.verified === true) {
       showToast('🎉 แอดมินอนุมัติแล้ว!', 'success');
       soundNewJob();
@@ -1560,9 +1573,15 @@ function renderRemitDashboard(amount, meta) {
   if (lock) {
     if (locked) {
       lock.hidden = false;
-      lock.textContent = riderProfile?.onlineLockReason === 'remit_verified_cooldown'
-        ? 'พักรับงานชั่วคราว • ยอดค้าง ฿' + fmt(visibleAmount) + ' • แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
-        : 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 • ยอดค้าง ฿' + fmt(visibleAmount) + ' • โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
+      if (riderProfile?.onlineLockReason === 'admin_manual') {
+        const hours = Number(riderProfile?.manualLockDurationHours || 0);
+        lock.textContent = `พักรับงานตามคำสั่งแอดมิน${hours ? ` ${hours} ชั่วโมง` : ''} • ระบบจะปลดล็อก ${riderProfile?.onlineLockedUntil ? fmtTime(riderProfile.onlineLockedUntil) : 'ตามที่แอดมินกำหนด'}`;
+      } else if (riderProfile?.onlineLockReason === 'remit_verified_cooldown') {
+        lock.textContent = 'พักรับงานชั่วคราว • แอดมินตรวจสลิปแล้ว ระบบจะปลดล็อกหลังครบ 24 ชั่วโมง'
+          + (hasVisibleAmount ? ' • ยอดสลิป ฿' + fmt(visibleAmount) : '');
+      } else {
+        lock.textContent = 'พักรับงานเพราะยังไม่โอนยอดก่อน 21:00 • ยอดค้าง ฿' + fmt(visibleAmount) + ' • โอนได้จากปุ่มด้านบน แล้วรอแอดมินตรวจสลิป';
+      }
     } else lock.hidden = true;
   }
   const noticeKey = 'remit-notice-' + todayKey;
@@ -1581,6 +1600,16 @@ function queueRiderRemitSync(amount, meta) {
   window._remitQueueSyncedDateKey = syncDateKey;
   ChauatFn.callFunction('syncMySettlement', {}, auth).then(function (result) {
     if (!result || result.kind !== 'rider') return;
+    serverRiderDue = {
+      amount: Number(result.amount || 0),
+      displayAmount: Number(result.displayAmount != null ? result.displayAmount : result.amount || 0),
+      nextAmount: Number(result.nextAmount || 0),
+      nextDateKey: result.nextDateKey || '',
+      dateKey: result.dateKey || syncDateKey,
+      cutoff: result.cutoff || '21:00',
+      overdue: !!result.overdue,
+      remittance: result.remittance || null
+    };
     const serverAmount = Number(result.amount || 0);
     const displayAmount = Number(result.displayAmount != null ? result.displayAmount : serverAmount);
     const oweEl = $('hero-owe');
@@ -1602,7 +1631,10 @@ function updateHeroStats() {
   }, 0);
   const tipTotal = today.reduce((s, j) => s + Number(j.cashTip || (j.paymentMode === 'cash' ? CASH_TIP : 0)), 0);
   const todayIncome = feeTotal + tipTotal;
-  const remit = localRiderDue();
+  const localRemit = localRiderDue();
+  const remit = serverRiderDue && serverRiderDue.dateKey === localRemit.dateKey
+    ? Object.assign({}, localRemit, serverRiderDue)
+    : localRemit;
 
   const incomeEl = $('hero-income');
   if (incomeEl) incomeEl.textContent = '฿' + fmt(todayIncome);
@@ -4396,6 +4428,7 @@ let riderSettle = null;
 let riderSettleUnsub = null;
 let riderRemitUnsub = null;
 let riderRemitPrimed = false;
+let serverRiderDue = null;
 const seenRejectedRemit = new Set();
 
 function bangkokDateKey(ms) {

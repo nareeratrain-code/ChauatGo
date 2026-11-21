@@ -69,16 +69,23 @@ function privateProfileRef(merchantRef) {
 // Copy leftover finance fields onto the private profile and delete them from
 // the public shop document. Returns false when the public doc is already clean.
 async function migrateMerchantDoc(docRef, data) {
-  const sensitive = pickFinance(data);
-  if (!Object.keys(sensitive).length) return false;
-  const privRef = privateProfileRef(docRef);
-  const privSnap = await privRef.get();
-  const merged = mergedFinance(data, privSnap.exists ? privSnap.data() : {});
-  await privRef.set(merged, { merge: true });
-  const del = {};
-  Object.keys(sensitive).forEach((key) => { del[key] = FieldValue.delete(); });
-  await docRef.update(del);
-  return true;
+  return docRef.firestore.runTransaction(async (tx) => {
+    const current = await tx.get(docRef);
+    // A retry can arrive after the public merchant document was deleted.
+    // Treat that as an idempotent no-op instead of trying to update a missing doc.
+    if (!current.exists) return false;
+    const currentData = current.data() || {};
+    const sensitive = pickFinance(currentData);
+    if (!Object.keys(sensitive).length) return false;
+    const privRef = privateProfileRef(docRef);
+    const privSnap = await tx.get(privRef);
+    const merged = mergedFinance(currentData, privSnap.exists ? privSnap.data() : {});
+    tx.set(privRef, merged, { merge: true });
+    const del = {};
+    Object.keys(sensitive).forEach((key) => { del[key] = FieldValue.delete(); });
+    tx.update(docRef, del);
+    return true;
+  });
 }
 
 module.exports = {

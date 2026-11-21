@@ -59,3 +59,15 @@ test('rider history summary has no customer name, phone, address, or coordinates
   assert.equal(summary.cashTip, 5);
   assert.equal(summary.shortId, 'D-1234');
 });
+
+test('rider history carries the server-owned payment marker after remittance verification', () => {
+  const paidAt = new Date('2026-11-20T14:00:00.000Z');
+  const summary = historySummary('order-paid', {
+    status: 'done',
+    riderPaid: true,
+    riderPaidAt: paidAt,
+    fare: 101
+  });
+  assert.equal(summary.riderPaid, true);
+  assert.equal(summary.riderPaidAt, paidAt);
+});
